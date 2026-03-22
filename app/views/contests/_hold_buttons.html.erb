@@ -1,0 +1,323 @@
+<style>
+  /* ── Hold Button Module ── */
+  .hold-btn {
+    --duration: 3000ms;
+    --color: #F6F8FF;
+    --bg: #2B3044;
+    --shadow: rgba(0, 9, 61, 0.2);
+    --shadow-active: rgba(0, 9, 61, 0.32);
+    --progress-border: #3a3359;
+    --progress-active: #F6F8FF;
+    --progress-success: #06D6A0;
+    --tick-stroke: var(--progress-active);
+
+    position: relative;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 19px;
+    padding: 14px 32px;
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    outline: none;
+    user-select: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    backface-visibility: hidden;
+    color: var(--color);
+    background: var(--bg);
+    transition: transform .3s, box-shadow .3s, background .3s;
+    transform: scale(var(--scale, 1));
+    box-shadow: 0 var(--shadow-y, 4px) var(--shadow-blur, 12px) var(--shadow-color, var(--shadow));
+  }
+
+  /* ── Progress circle (left side) ── */
+  .hold-btn > .hold-icon {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    width: 20px;
+    height: 20px;
+    margin-top: -10px;
+    border-radius: 50%;
+    background: var(--progress-border);
+    opacity: var(--icon-o, 0);
+    transform: translateX(var(--icon-x, -4px));
+    transition: transform .3s, opacity .2s;
+  }
+  .hold-btn > .hold-icon::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    z-index: 1;
+    position: absolute;
+    background: var(--bg);
+    border-radius: inherit;
+    transform: scale(var(--bg-scale, 1));
+    transition: transform .32s ease;
+  }
+  .hold-btn > .hold-icon svg {
+    display: block;
+    fill: none;
+    width: 20px;
+    height: 20px;
+  }
+  .hold-btn > .hold-icon svg.progress {
+    transform: rotate(-90deg) scale(var(--progress-scale, 1));
+    transition: transform .5s ease;
+  }
+  .hold-btn > .hold-icon svg.progress circle {
+    stroke-dashoffset: 1;
+    stroke-dasharray: var(--progress-array, 0) 52;
+    stroke-width: 16;
+    stroke: var(--progress-active);
+    transition: stroke-dasharray var(--duration) linear;
+  }
+  .hold-btn > .hold-icon svg.tick {
+    position: absolute;
+    left: 0;
+    top: 0;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke: var(--tick-stroke);
+    transition: stroke .3s ease .7s;
+  }
+  .hold-btn > .hold-icon svg.tick polyline {
+    stroke-dasharray: 18 18 18;
+    stroke-dashoffset: var(--tick-offset, 18);
+    transition: stroke-dashoffset .4s ease .7s;
+  }
+
+  /* ── Sliding text ── */
+  .hold-btn .hold-text {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: center;
+    pointer-events: none;
+    position: relative;
+    backface-visibility: hidden;
+    transition: transform .3s;
+    transform: translate3d(var(--ul-x, 0), 0, 0);
+  }
+  .hold-btn .hold-text li {
+    backface-visibility: hidden;
+    transform: translateY(var(--ul-y, 0));
+    transition: transform .3s ease .16s, opacity .2s ease .16s;
+  }
+  .hold-btn .hold-text li:not(:first-child) {
+    position: absolute;
+    left: 0;
+    right: 0;
+  }
+  .hold-btn .hold-text li:nth-child(1) { top: 0; opacity: var(--ul-o-1, 1); }
+  .hold-btn .hold-text li:nth-child(2) { top: 100%; opacity: var(--ul-o-2, 0); }
+  .hold-btn .hold-text li:nth-child(3) { top: 200%; opacity: var(--ul-o-3, 0); }
+
+  /* ── States ── */
+  .hold-btn:hover:not(.process):not(.success) {
+    --shadow-color: var(--shadow-active);
+    --shadow-y: 8px;
+    --shadow-blur: 16px;
+  }
+  .hold-btn:active:not(.success) {
+    --scale: .97;
+    --shadow-y: 2px;
+    --shadow-blur: 6px;
+  }
+  .hold-btn.process {
+    --icon-x: 0;
+    --ul-y: -100%;
+    --ul-o-1: 0;
+    --ul-o-2: 1;
+    --ul-o-3: 0;
+  }
+  .hold-btn.process,
+  .hold-btn.success {
+    --ul-x: 8px;
+    --icon-o: 1;
+    --progress-array: 52;
+  }
+  .hold-btn.success {
+    --icon-x: 6px;
+    --progress-border: none;
+    --progress-scale: .11;
+    --tick-stroke: var(--progress-success);
+    --bg-scale: 0;
+    --tick-offset: 36;
+    --ul-y: -200%;
+    --ul-o-1: 0;
+    --ul-o-2: 0;
+    --ul-o-3: 1;
+  }
+  .hold-btn.success > .hold-icon svg.progress {
+    animation: hold-tick .3s linear forwards .4s;
+  }
+  @keyframes hold-tick {
+    100% { transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale)); }
+  }
+
+  /* ═══════════════════════════════════════
+     ⑥ Deep Press — shadow compresses,
+     then releases with mint glow on success
+     ═══════════════════════════════════════ */
+  .hold-btn-6 {
+    --bg: #1e1b35;
+    box-shadow:
+      0 var(--shadow-y, 4px) var(--shadow-blur, 14px) rgba(0, 9, 61, 0.3),
+      0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .hold-btn-6.process {
+    --scale: .97;
+    box-shadow:
+      0 1px 4px rgba(0, 9, 61, 0.4),
+      0 0 0 rgba(0, 0, 0, 0.1),
+      inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  .hold-btn-6.success {
+    --scale: 1;
+    background: #06D6A0;
+    --color: #1A1535;
+    box-shadow:
+      0 4px 20px rgba(6, 214, 160, 0.4),
+      0 8px 32px rgba(6, 214, 160, 0.2);
+  }
+
+  /* ═══════════════════════════════════════
+     ⑦ Glow Build — outer glow intensifies
+     during hold, pulses on success
+     ═══════════════════════════════════════ */
+  .hold-btn-7 {
+    --bg: #1e1b35;
+    border: 1px solid rgba(6, 214, 160, 0.15);
+    box-shadow: 0 0 0 rgba(6, 214, 160, 0);
+  }
+  .hold-btn-7.process {
+    border-color: rgba(6, 214, 160, 0.5);
+    box-shadow:
+      0 0 20px rgba(6, 214, 160, 0.25),
+      0 0 60px rgba(6, 214, 160, 0.1),
+      inset 0 0 30px rgba(6, 214, 160, 0.06);
+    transition: transform .3s, box-shadow 2s ease-out, border-color 1s;
+  }
+  .hold-btn-7.success {
+    --scale: 1.02;
+    border-color: #06D6A0;
+    background: linear-gradient(135deg, #025e40, #06D6A0);
+    --color: #fff;
+    box-shadow:
+      0 0 30px rgba(6, 214, 160, 0.5),
+      0 0 80px rgba(6, 214, 160, 0.2);
+    animation: glow-pulse .8s ease-in-out 1;
+  }
+  @keyframes glow-pulse {
+    50% { box-shadow: 0 0 50px rgba(6, 214, 160, 0.7), 0 0 100px rgba(6, 214, 160, 0.3); }
+  }
+
+  /* ═══════════════════════════════════════
+     ⑧ Depth Shift — button sinks on hold,
+     pops up with color shift on success
+     ═══════════════════════════════════════ */
+  .hold-btn-8 {
+    --bg: #1e1b35;
+    border-bottom: 3px solid rgba(142, 130, 254, 0.4);
+    box-shadow:
+      0 6px 0 #120f27,
+      0 8px 20px rgba(0, 9, 61, 0.3);
+    transform: translateY(var(--btn-y, 0)) scale(var(--scale, 1));
+    transition: transform .15s, box-shadow .15s, background .3s, border-color .3s;
+  }
+  .hold-btn-8.process {
+    --btn-y: 4px;
+    --scale: .99;
+    border-bottom-color: rgba(6, 214, 160, 0.4);
+    box-shadow:
+      0 1px 0 #120f27,
+      0 2px 6px rgba(0, 9, 61, 0.2),
+      inset 0 1px 4px rgba(0, 0, 0, 0.2);
+  }
+  .hold-btn-8.success {
+    --btn-y: -2px;
+    --scale: 1;
+    background: linear-gradient(135deg, #8E82FE, #06D6A0);
+    --color: #fff;
+    border-bottom-color: rgba(6, 214, 160, 0.6);
+    box-shadow:
+      0 8px 0 rgba(6, 214, 160, 0.2),
+      0 12px 30px rgba(142, 130, 254, 0.3),
+      0 4px 15px rgba(6, 214, 160, 0.2);
+    animation: pop-up .3s ease-out;
+  }
+  @keyframes pop-up {
+    0% { transform: translateY(4px) scale(.99); }
+    60% { transform: translateY(-4px) scale(1.02); }
+    100% { transform: translateY(-2px) scale(1); }
+  }
+</style>
+
+<%# ── Button markup helper ── %>
+<% hold_button = ->(num, variant, default_text, hold_text, success_text) { %>
+  <button class="hold-btn hold-btn-<%= variant %>"
+          data-hold-type="hold<%= variant %>"
+          @mousedown="startClassHold($el, 'hold<%= variant %>')"
+          @mouseup="endClassHold($el)"
+          @mouseleave="endClassHold($el)"
+          @touchstart.prevent="startClassHold($el, 'hold<%= variant %>')"
+          @touchend="endClassHold($el)"
+          @touchcancel="endClassHold($el)"
+          :disabled="submitting">
+    <div class="hold-icon">
+      <svg class="progress" viewBox="0 0 32 32">
+        <circle r="8" cx="16" cy="16"/>
+      </svg>
+      <svg class="tick" viewBox="0 0 24 24">
+        <polyline points="18,7 11,16 6,12"/>
+      </svg>
+    </div>
+    <ul class="hold-text">
+      <li><%= num %> <%= default_text %></li>
+      <li><%= hold_text %></li>
+      <li><%= success_text %></li>
+    </ul>
+  </button>
+<% } %>
+
+<%= hold_button.call("⑥", 6, "Hold to Submit", "Keep holding...", "Submitted!") %>
+<%= hold_button.call("⑦", 7, "Hold to Confirm", "Almost there...", "Confirmed!") %>
+<%= hold_button.call("⑧", 8, "Hold to Lock In", "Locking in...", "Locked In!") %>
+
+<script>
+  // Class-based hold button methods (called from Alpine @event handlers)
+  window._holdTimers = window._holdTimers || {};
+
+  window.startClassHold = function(el, type) {
+    const scope = el.closest('[x-data]');
+    if (!scope) return;
+    const board = typeof Alpine !== 'undefined' && Alpine.$data ? Alpine.$data(scope) : null;
+    if (!board || board.submitting || board.pickCount !== 3) return;
+
+    el.style.setProperty('--duration', '3000ms');
+    el.classList.remove('success');
+    el.classList.add('process');
+
+    window._holdTimers[type] = setTimeout(() => {
+      el.classList.remove('process');
+      el.classList.add('success');
+      setTimeout(() => board.submitEntry(), 600);
+    }, 3000);
+  };
+
+  window.endClassHold = function(el) {
+    const type = el.dataset.holdType;
+    if (el.classList.contains('success')) return;
+
+    el.classList.remove('process');
+    if (window._holdTimers[type]) {
+      clearTimeout(window._holdTimers[type]);
+      delete window._holdTimers[type];
+    }
+  };
+</script>

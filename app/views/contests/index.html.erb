@@ -276,6 +276,8 @@
           </div>
           <span x-text="holdSuccess ? 'Submitted!' : (submitting ? 'Submitting...' : (activeHold === 'iker' ? holdCountdown : '⑤ Hold to Publish'))"></span>
         </button>
+        <!-- 6-8: Class-based hold buttons -->
+        <%= render 'contests/hold_buttons' %>
         <p class="text-xs text-gray-500 text-center">Hold any button for 3 seconds</p>
       </div>
     </div>
@@ -431,6 +433,8 @@
         </div>
         <span x-text="holdSuccess ? 'Submitted!' : (submitting ? 'Submitting...' : (activeHold === 'iker' ? holdCountdown : '⑤ Hold to Publish'))"></span>
       </button>
+      <!-- 6-8: Class-based hold buttons -->
+      <%= render 'contests/hold_buttons' %>
       <p class="text-xs text-gray-500 text-center">Hold any button for 3 seconds</p>
     </div>
   </div>
