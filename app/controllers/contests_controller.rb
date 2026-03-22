@@ -1,4 +1,6 @@
 class ContestsController < ApplicationController
+  skip_before_action :require_authentication, only: [:index, :show]
+
   def index
     @contest = Contest.order(created_at: :desc).first
     @props = @contest&.props || []

@@ -93,6 +93,11 @@
             <span class="font-mono text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></span>
             <%= link_to "Log out", logout_path, class: "text-gray-400 hover:text-white text-sm font-medium transition" %>
           </div>
+        <% else %>
+          <div class="flex items-center gap-4">
+            <%= link_to "Log in", login_path, class: "text-white hover:text-mint text-sm font-semibold transition" %>
+            <%= link_to "Sign up", signup_path, class: "px-4 py-2 bg-mint hover:bg-mint-600 text-navy text-sm font-bold rounded-lg transition" %>
+          </div>
         <% end %>
       </header>
 

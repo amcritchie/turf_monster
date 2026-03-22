@@ -40,7 +40,7 @@
 </section>
 
 <!-- Enter Contest Form (when open) -->
-<% if @contest.open? %>
+<% if @contest.open? && logged_in? %>
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Enter Contest</h2>
     <%= form_tag enter_contest_path(@contest), method: :post do %>
