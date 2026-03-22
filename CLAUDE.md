@@ -54,6 +54,16 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
 - JSON blocks: bg-navy-800, text-mint, font-mono
 
+## Workflow Preferences
+
+- **Debugging**: When hitting a bug, STOP — show the issue and ask before fixing. Document the root cause and decision in CLAUDE.md files for future reference.
+- **Testing**: Write tests as we go alongside features. We move fast and break things — when tests fail, it may be a dead part of the app, so assess before fixing.
+- **Database**: Migrate and seed freely without asking.
+- **Git**: Small frequent commits after each logical change. Always push immediately after committing.
+- **UI**: Style as we build using the brand palette — make it look right the first time.
+- **Decisions**: Present 2-3 options briefly with a recommendation for architectural choices.
+- **Refactoring**: Proactively clean up code smells when spotted.
+
 ## Session Protocol
 
 - **End-of-session refactoring**: When the user signals the end of a session, review and refactor ALL CLAUDE.md files in the project tree. Update them to reflect the current state of the project — remove outdated info, add new patterns discovered, document decisions made, and keep instructions accurate and concise. The user will be clear about when they are ending a session.
