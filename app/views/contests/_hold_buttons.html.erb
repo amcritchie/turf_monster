@@ -196,25 +196,32 @@
     box-shadow: 0 0 0 rgba(6, 214, 160, 0);
   }
   .hold-btn-7.process {
-    border-color: rgba(6, 214, 160, 0.5);
+    border-color: rgba(6, 214, 160, 0.7);
     box-shadow:
-      0 0 20px rgba(6, 214, 160, 0.25),
-      0 0 60px rgba(6, 214, 160, 0.1),
-      inset 0 0 30px rgba(6, 214, 160, 0.06);
-    transition: transform .3s, box-shadow 2s ease-out, border-color 1s;
+      0 0 30px rgba(6, 214, 160, 0.45),
+      0 0 80px rgba(6, 214, 160, 0.25),
+      0 0 120px rgba(6, 214, 160, 0.1),
+      inset 0 0 40px rgba(6, 214, 160, 0.1);
+    transition: transform .3s, box-shadow 2.5s ease-out, border-color 1s;
   }
   .hold-btn-7.success {
-    --scale: 1.02;
+    --scale: 1.03;
     border-color: #06D6A0;
     background: linear-gradient(135deg, #025e40, #06D6A0);
     --color: #fff;
     box-shadow:
-      0 0 30px rgba(6, 214, 160, 0.5),
-      0 0 80px rgba(6, 214, 160, 0.2);
+      0 0 40px rgba(6, 214, 160, 0.7),
+      0 0 100px rgba(6, 214, 160, 0.4),
+      0 0 160px rgba(6, 214, 160, 0.15);
     animation: glow-pulse .8s ease-in-out 1;
   }
   @keyframes glow-pulse {
-    50% { box-shadow: 0 0 50px rgba(6, 214, 160, 0.7), 0 0 100px rgba(6, 214, 160, 0.3); }
+    50% {
+      box-shadow:
+        0 0 60px rgba(6, 214, 160, 0.9),
+        0 0 140px rgba(6, 214, 160, 0.5),
+        0 0 200px rgba(6, 214, 160, 0.2);
+    }
   }
 
   /* ═══════════════════════════════════════
