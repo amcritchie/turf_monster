@@ -16,9 +16,16 @@ class ContestsController < ApplicationController
   def enter
     @contest = Contest.find(params[:id])
     @contest.enter!(current_user, params[:picks] || {})
-    redirect_to @contest, notice: "#{current_user.display_name} entered the contest!"
+
+    respond_to do |format|
+      format.html { redirect_to root_path, notice: "#{current_user.display_name} entered the contest!" }
+      format.json { render json: { success: true, redirect: root_path } }
+    end
   rescue => e
-    redirect_to @contest, alert: e.message
+    respond_to do |format|
+      format.html { redirect_to root_path, alert: e.message }
+      format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
+    end
   end
 
   def grade

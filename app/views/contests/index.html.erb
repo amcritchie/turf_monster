@@ -2,6 +2,8 @@
   <p class="text-gray-400">No contests yet.</p>
 <% else %>
 
+<div x-data="pickBoard()" x-cloak>
+
   <% if logged_in? %>
     <!-- Current Player Card -->
     <section class="mb-8">
@@ -67,34 +69,393 @@
   </section>
 
   <!-- Prop Cards Grid -->
-  <section class="mb-8">
+  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Props</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <% @props.each do |prop| %>
-        <%= link_to prop_path(prop), class: "block" do %>
-          <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 hover:-translate-y-0.5 transition-all text-center border border-navy-300/20">
-            <p class="font-bold text-white text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-            <p class="font-mono text-2xl text-violet mb-1">O/U <%= prop.line %></p>
-            <p class="text-xs text-gray-500 uppercase tracking-wider"><%= prop.stat_type || "total goals" %></p>
-            <div class="flex justify-between mt-3 text-sm">
-              <span class="text-mint font-semibold">OVER</span>
-              <span class="text-red-400 font-semibold">UNDER</span>
+        <div class="bg-navy-400 rounded-xl shadow p-4 transition-all text-center border-2"
+             :class="{
+               'border-mint shadow-lg shadow-mint/20': picks['<%= prop.id %>'] === 'more',
+               'border-red-500 shadow-lg shadow-red-500/20': picks['<%= prop.id %>'] === 'less',
+               'border-navy-300/20': !picks['<%= prop.id %>']
+             }">
+          <p class="font-bold text-white text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
+          <p class="font-mono text-2xl text-violet mb-1"><%= prop.line %></p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">Total Goals</p>
+          <% if prop.graded? %>
+            <div class="mb-3 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
+              Result: <%= prop.result_value %>
             </div>
-            <% if prop.graded? %>
-              <div class="mt-2 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
-                Result: <%= prop.result_value %>
-              </div>
-            <% end %>
+          <% end %>
+          <div class="flex gap-2">
+            <button @click="togglePick('<%= prop.id %>', 'more')"
+                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition"
+                    :class="picks['<%= prop.id %>'] === 'more'
+                      ? 'bg-mint text-navy border-mint'
+                      : 'border-mint-700 text-mint hover:bg-mint-900/30'">
+              OVER
+            </button>
+            <button @click="togglePick('<%= prop.id %>', 'less')"
+                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition"
+                    :class="picks['<%= prop.id %>'] === 'less'
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'border-red-700 text-red-400 hover:bg-red-900/30'">
+              UNDER
+            </button>
           </div>
-        <% end %>
+        </div>
       <% end %>
     </div>
   </section>
+
+  <!-- FAB: pick count badge to reopen cart -->
+  <button x-show="!cartOpen && pickCount > 0"
+          x-transition
+          @click="cartOpen = true"
+          class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 flex items-center justify-center text-lg font-bold transition md:bottom-6 md:right-6">
+    <span x-text="pickCount"></span><span class="text-xs">/3</span>
+  </button>
+
+  <!-- Mobile backdrop -->
+  <div x-show="cartOpen"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+       @click="cartOpen = false"
+       class="fixed inset-0 bg-black/50 z-30 md:hidden"></div>
+
+  <!-- Cart Sidebar: Desktop (right panel) -->
+  <div x-show="cartOpen"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+       class="hidden md:flex fixed top-0 right-0 h-full w-80 bg-navy-400 border-l border-navy-300/20 shadow-2xl z-40 flex-col">
+    <div class="flex flex-col h-full">
+      <!-- Cart header -->
+      <div class="flex items-center justify-between p-4 border-b border-navy-300/20">
+        <h3 class="text-lg font-bold text-white">Your Picks</h3>
+        <div class="flex items-center gap-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+            <span x-text="pickCount"></span>/3
+          </span>
+          <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
+        </div>
+      </div>
+      <!-- Pick slots -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3">
+        <template x-for="i in 3" :key="i">
+          <div>
+            <template x-if="pickSlots[i-1]">
+              <div class="bg-navy-600 rounded-xl p-3 border transition"
+                   :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-white font-semibold text-sm" x-text="pickSlots[i-1].name"></p>
+                    <p class="text-xs mt-0.5">
+                      <span :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
+                            x-text="pickSlots[i-1].selection === 'more' ? 'OVER' : 'UNDER'"></span>
+                      <span class="text-violet font-mono ml-1" x-text="pickSlots[i-1].line"></span>
+                    </p>
+                  </div>
+                  <button @click="removePick(pickSlots[i-1].propId)"
+                          class="text-gray-500 hover:text-red-400 transition text-lg leading-none">&times;</button>
+                </div>
+              </div>
+            </template>
+            <template x-if="!pickSlots[i-1]">
+              <div class="border-2 border-dashed border-navy-300/20 rounded-xl p-3 text-center">
+                <p class="text-gray-600 text-sm">Pick <span x-text="i"></span></p>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <!-- Hold buttons (when 3 picks selected) -->
+      <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20 space-y-3">
+        <!-- Hold button 1: Fill left-to-right -->
+        <button @mousedown="startHold('fill')" @mouseup="endHold()" @mouseleave="endHold()"
+                @touchstart.prevent="startHold('fill')" @touchend="endHold()" @touchcancel="endHold()"
+                :disabled="submitting"
+                class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
+          <div class="absolute inset-y-0 left-0 bg-mint transition-none"
+               :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
+          <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? 'Keep holding...' : 'Hold to Submit')"></span>
+        </button>
+        <!-- Hold button 2: Circular ring -->
+        <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
+                @touchstart.prevent="startHold('ring')" @touchend="endHold()" @touchcancel="endHold()"
+                :disabled="submitting"
+                class="w-full py-3 rounded-xl font-bold text-sm border-2 border-violet text-violet hover:bg-violet-900/20 transition flex items-center justify-center gap-2 select-none">
+          <svg width="24" height="24" class="shrink-0 -rotate-90">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.2"/>
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-dasharray="62.83"
+                    :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
+                    stroke-linecap="round"/>
+          </svg>
+          <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? 'Keep holding...' : 'Hold to Confirm')"></span>
+        </button>
+        <!-- Hold button 3: Shrinking outline -->
+        <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
+                @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
+                :disabled="submitting"
+                class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
+                :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
+                :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
+          <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? 'Keep holding...' : 'Hold to Lock In')"></span>
+        </button>
+        <p class="text-xs text-gray-500 text-center">Hold any button for 5 seconds to submit</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart: Mobile (bottom sheet) -->
+  <div x-show="cartOpen"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+       class="md:hidden fixed bottom-0 left-0 right-0 bg-navy-400 border-t border-navy-300/20 shadow-2xl z-40 rounded-t-2xl max-h-[85vh] flex flex-col">
+    <!-- Drag handle -->
+    <div class="flex justify-center pt-2 pb-1">
+      <div class="w-10 h-1 bg-navy-300/30 rounded-full"></div>
+    </div>
+    <!-- Cart header -->
+    <div class="flex items-center justify-between px-4 pb-3 border-b border-navy-300/20">
+      <h3 class="text-lg font-bold text-white">Your Picks</h3>
+      <div class="flex items-center gap-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+              :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+          <span x-text="pickCount"></span>/3
+        </span>
+        <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
+      </div>
+    </div>
+    <!-- Pick slots -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <template x-for="i in 3" :key="i">
+        <div>
+          <template x-if="pickSlots[i-1]">
+            <div class="bg-navy-600 rounded-xl p-3 border transition"
+                 :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-white font-semibold text-sm" x-text="pickSlots[i-1].name"></p>
+                  <p class="text-xs mt-0.5">
+                    <span :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
+                          x-text="pickSlots[i-1].selection === 'more' ? 'OVER' : 'UNDER'"></span>
+                    <span class="text-violet font-mono ml-1" x-text="pickSlots[i-1].line"></span>
+                  </p>
+                </div>
+                <button @click="removePick(pickSlots[i-1].propId)"
+                        class="text-gray-500 hover:text-red-400 transition text-lg leading-none">&times;</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="!pickSlots[i-1]">
+            <div class="border-2 border-dashed border-navy-300/20 rounded-xl p-3 text-center">
+              <p class="text-gray-600 text-sm">Pick <span x-text="i"></span></p>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+    <!-- Hold buttons (when 3 picks selected) -->
+    <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20 space-y-3">
+      <button @mousedown="startHold('fill')" @mouseup="endHold()" @mouseleave="endHold()"
+              @touchstart.prevent="startHold('fill')" @touchend="endHold()" @touchcancel="endHold()"
+              :disabled="submitting"
+              class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
+        <div class="absolute inset-y-0 left-0 bg-mint transition-none"
+             :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
+        <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? 'Keep holding...' : 'Hold to Submit')"></span>
+      </button>
+      <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
+              @touchstart.prevent="startHold('ring')" @touchend="endHold()" @touchcancel="endHold()"
+              :disabled="submitting"
+              class="w-full py-3 rounded-xl font-bold text-sm border-2 border-violet text-violet hover:bg-violet-900/20 transition flex items-center justify-center gap-2 select-none">
+        <svg width="24" height="24" class="shrink-0 -rotate-90">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.2"/>
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-dasharray="62.83"
+                  :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
+                  stroke-linecap="round"/>
+        </svg>
+        <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? 'Keep holding...' : 'Hold to Confirm')"></span>
+      </button>
+      <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
+              @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
+              :disabled="submitting"
+              class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
+              :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
+              :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
+        <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? 'Keep holding...' : 'Hold to Lock In')"></span>
+      </button>
+      <p class="text-xs text-gray-500 text-center">Hold any button for 5 seconds to submit</p>
+    </div>
+  </div>
+
+  <!-- Error popup -->
+  <div x-show="error"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="-translate-y-full opacity-0" x-transition:enter-end="translate-y-0 opacity-100"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="translate-y-0 opacity-100" x-transition:leave-end="-translate-y-full opacity-0"
+       class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+    <div class="bg-red-900/90 border border-red-700 rounded-xl p-4 shadow-2xl relative overflow-hidden">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-red-200 font-semibold text-sm">Entry Failed</p>
+          <p class="text-red-300 text-sm mt-1" x-text="error"></p>
+        </div>
+        <button @click="dismissError()" class="text-red-400 hover:text-white transition text-lg ml-4 leading-none">&times;</button>
+      </div>
+      <div class="absolute bottom-0 left-0 h-0.5 bg-red-500"
+           x-ref="errorProgress"
+           :style="error ? 'animation: progress-countdown 5s linear forwards' : ''"></div>
+    </div>
+  </div>
 
   <!-- JSON Debug Block -->
   <details class="mt-8">
     <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
     <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
   </details>
+
+</div>
+
+<script>
+  function pickBoard() {
+    const propData = {
+      <% @props.each_with_index do |prop, i| %>
+        '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>' }<%= i < @props.length - 1 ? ',' : '' %>
+      <% end %>
+    };
+
+    return {
+      picks: {},
+      cartOpen: false,
+      activeHold: null,
+      holdProgress: 0,
+      holdTimer: null,
+      submitting: false,
+      error: null,
+      errorTimer: null,
+      contestId: '<%= @contest&.id %>',
+      csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
+
+      get pickCount() {
+        return Object.keys(this.picks).length;
+      },
+
+      get pickSlots() {
+        return Object.entries(this.picks).map(([propId, selection]) => ({
+          propId,
+          selection,
+          name: propData[propId]?.name || propId,
+          line: propData[propId]?.line || ''
+        }));
+      },
+
+      togglePick(propId, selection) {
+        if (this.picks[propId] === selection) {
+          let newPicks = { ...this.picks };
+          delete newPicks[propId];
+          this.picks = newPicks;
+        } else if (this.picks[propId]) {
+          this.picks = { ...this.picks, [propId]: selection };
+        } else if (this.pickCount < 3) {
+          this.picks = { ...this.picks, [propId]: selection };
+          if (!this.cartOpen) this.cartOpen = true;
+        }
+      },
+
+      removePick(propId) {
+        let newPicks = { ...this.picks };
+        delete newPicks[propId];
+        this.picks = newPicks;
+      },
+
+      startHold(type) {
+        if (this.submitting || this.pickCount !== 3) return;
+        this.activeHold = type;
+        this.holdProgress = 0;
+        const duration = 5000;
+        const interval = 1000 / 60;
+        const step = (interval / duration) * 100;
+
+        this.holdTimer = setInterval(() => {
+          this.holdProgress = Math.min(100, this.holdProgress + step);
+          if (this.holdProgress >= 100) {
+            this.endHold();
+            this.submitEntry();
+          }
+        }, interval);
+      },
+
+      endHold() {
+        if (this.holdTimer) {
+          clearInterval(this.holdTimer);
+          this.holdTimer = null;
+        }
+        if (!this.submitting) {
+          this.activeHold = null;
+          this.holdProgress = 0;
+        }
+      },
+
+      async submitEntry() {
+        this.submitting = true;
+        this.activeHold = null;
+        this.holdProgress = 0;
+
+        const formData = new FormData();
+        Object.entries(this.picks).forEach(([propId, selection]) => {
+          formData.append(`picks[${propId}]`, selection);
+        });
+
+        try {
+          const response = await fetch(`/contests/${this.contestId}/enter`, {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': this.csrfToken,
+              'Accept': 'application/json'
+            },
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            window.location.href = data.redirect || '/';
+          } else {
+            this.showError(data.error || 'Something went wrong');
+            this.submitting = false;
+          }
+        } catch (err) {
+          this.showError('Network error. Please try again.');
+          this.submitting = false;
+        }
+      },
+
+      showError(message) {
+        this.error = message;
+        if (this.errorTimer) clearTimeout(this.errorTimer);
+        this.errorTimer = setTimeout(() => this.dismissError(), 5000);
+      },
+
+      dismissError() {
+        this.error = null;
+        if (this.errorTimer) {
+          clearTimeout(this.errorTimer);
+          this.errorTimer = null;
+        }
+      }
+    };
+  }
+</script>
 
 <% end %>

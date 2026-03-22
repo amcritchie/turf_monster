@@ -11,3 +11,10 @@ two:
   line: 1.5
   stat_type: goals
   status: pending
+
+three:
+  contest: one
+  description: Germany Total Goals
+  line: 2.5
+  stat_type: goals
+  status: pending

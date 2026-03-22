@@ -39,39 +39,6 @@
   </div>
 </section>
 
-<!-- Enter Contest Form (when open) -->
-<% if @contest.open? && logged_in? %>
-  <section class="mb-8">
-    <h2 class="text-xl font-semibold mb-4 text-gray-300">Enter Contest</h2>
-    <%= form_tag enter_contest_path(@contest), method: :post do %>
-      <div class="bg-navy-400 rounded-xl shadow p-6 mb-4 border border-navy-300/20">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <% @props.each do |prop| %>
-            <div class="bg-navy-600 rounded-xl p-4 text-center">
-              <p class="font-bold text-white mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-              <p class="font-mono text-xl text-violet mb-3">O/U <%= prop.line %></p>
-              <div class="flex gap-2">
-                <label class="flex-1 cursor-pointer">
-                  <input type="radio" name="picks[<%= prop.id %>]" value="more" class="hidden peer">
-                  <span class="block w-full py-2 rounded-lg text-sm font-semibold border border-mint-700 text-mint peer-checked:bg-mint peer-checked:text-navy transition">OVER</span>
-                </label>
-                <label class="flex-1 cursor-pointer">
-                  <input type="radio" name="picks[<%= prop.id %>]" value="less" class="hidden peer">
-                  <span class="block w-full py-2 rounded-lg text-sm font-semibold border border-red-700 text-red-400 peer-checked:bg-red-600 peer-checked:text-white transition">UNDER</span>
-                </label>
-              </div>
-            </div>
-          <% end %>
-        </div>
-      </div>
-
-      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow hover:shadow-lg hover:shadow-mint/20 transition">
-        Submit Entry ($<%= sprintf('%.2f', @contest.entry_fee_dollars) %>)
-      </button>
-    <% end %>
-  </section>
-<% end %>
-
 <!-- Leaderboard -->
 <% if @entries.any? %>
   <section class="mb-8">

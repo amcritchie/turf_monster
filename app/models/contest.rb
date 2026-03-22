@@ -23,6 +23,10 @@ class Contest < ApplicationRecord
     raise "Already entered" if entries.exists?(user: user)
     raise "Contest is full" if max_entries.present? && entries.count >= max_entries
 
+    picks_hash = picks_params.respond_to?(:to_unsafe_h) ? picks_params.to_unsafe_h : picks_params.to_h
+    valid_picks = picks_hash.select { |_, v| v.present? }
+    raise "Exactly 3 picks required" unless valid_picks.size == 3
+
     transaction do
       user.deduct_funds!(entry_fee_cents) if entry_fee_cents > 0
       entry = entries.create!(user: user)
