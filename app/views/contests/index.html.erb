@@ -202,9 +202,9 @@
         <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
                 @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
                 :disabled="submitting"
-                class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
+                class="w-full py-3 rounded-xl font-bold text-sm select-none border-2 border-mint"
                 :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
-                :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
+                :style="'outline: ' + (activeHold === 'shrink' ? (holdProgress / 100) * 22 : 0) + 'px solid #06D6A0; outline-offset: -' + (activeHold === 'shrink' ? (holdProgress / 100) * 22 : 0) + 'px; background: rgba(6, 214, 160, ' + (activeHold === 'shrink' ? holdProgress / 100 * 0.35 : 0) + ')'">
           <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : '③ Hold to Lock In')"></span>
         </button>
         <!-- 4. SVG border trace -->
@@ -361,9 +361,9 @@
       <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
               @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
               :disabled="submitting"
-              class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
+              class="w-full py-3 rounded-xl font-bold text-sm select-none border-2 border-mint"
               :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
-              :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
+              :style="'outline: ' + (activeHold === 'shrink' ? (holdProgress / 100) * 22 : 0) + 'px solid #06D6A0; outline-offset: -' + (activeHold === 'shrink' ? (holdProgress / 100) * 22 : 0) + 'px; background: rgba(6, 214, 160, ' + (activeHold === 'shrink' ? holdProgress / 100 * 0.35 : 0) + ')'">
         <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : '③ Hold to Lock In')"></span>
       </button>
       <!-- 4. SVG border trace -->
