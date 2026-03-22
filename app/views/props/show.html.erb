@@ -63,7 +63,7 @@
         <tbody>
           <% @picks.each do |pick| %>
             <tr class="border-b border-navy-300/10 hover:bg-navy-300/10">
-              <td class="px-4 py-3 text-white"><%= pick.entry.user.name %></td>
+              <td class="px-4 py-3 text-white"><%= pick.entry.user.display_name %></td>
               <td class="px-4 py-3">
                 <% if pick.selection == "more" %>
                   <span class="text-mint font-semibold">OVER</span>

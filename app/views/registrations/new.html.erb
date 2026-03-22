@@ -1,0 +1,51 @@
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <img src="/logo.jpeg" alt="Turf Monster" class="w-20 h-20 rounded-full shadow-lg mx-auto mb-4">
+      <h1 class="text-3xl font-extrabold text-white tracking-tight">Turf <span class="text-mint">Monster</span></h1>
+      <p class="text-gray-400 mt-2">Create your account</p>
+    </div>
+
+    <div class="bg-navy-400 rounded-xl shadow p-8 border border-navy-300/20">
+      <% if @user.errors.any? %>
+        <div class="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">
+          <% @user.errors.full_messages.each do |msg| %>
+            <p><%= msg %></p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%= form_with model: @user, url: signup_path, method: :post do |f| %>
+        <div class="mb-5">
+          <label for="user_email" class="block text-sm text-gray-400 mb-2 font-medium">Email</label>
+          <%= f.email_field :email, id: "user_email", autofocus: true,
+            class: "w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none",
+            placeholder: "you@example.com" %>
+        </div>
+
+        <div class="mb-5">
+          <label for="user_password" class="block text-sm text-gray-400 mb-2 font-medium">Password</label>
+          <%= f.password_field :password, id: "user_password",
+            class: "w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none",
+            placeholder: "Choose a password" %>
+        </div>
+
+        <div class="mb-6">
+          <label for="user_password_confirmation" class="block text-sm text-gray-400 mb-2 font-medium">Confirm Password</label>
+          <%= f.password_field :password_confirmation, id: "user_password_confirmation",
+            class: "w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none",
+            placeholder: "Confirm your password" %>
+        </div>
+
+        <button type="submit" class="w-full px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow hover:shadow-lg hover:shadow-mint/20 transition">
+          Sign Up
+        </button>
+      <% end %>
+
+      <p class="text-center text-gray-400 text-sm mt-6">
+        Already have an account?
+        <%= link_to "Log in", login_path, class: "text-violet hover:text-violet-300 font-medium underline underline-offset-2" %>
+      </p>
+    </div>
+  </div>
+</div>

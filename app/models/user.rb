@@ -1,8 +1,12 @@
 class User < ApplicationRecord
+  has_secure_password
   has_many :entries, dependent: :destroy
 
-  validates :name, presence: true
   validates :email, presence: true, uniqueness: true
+
+  def display_name
+    name.presence || email.split("@").first.capitalize
+  end
 
   def balance_dollars
     balance_cents / 100.0

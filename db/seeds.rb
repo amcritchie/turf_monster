@@ -4,17 +4,23 @@ puts "Seeding Turf Picks..."
 alex = User.find_or_create_by!(email: "alex@turf.com") do |u|
   u.name = "Alex"
   u.balance_cents = 100_000
+  u.password = "pass"
 end
+alex.update!(password: "pass") if alex.password_digest.blank?
 
 jordan = User.find_or_create_by!(email: "jordan@turf.com") do |u|
   u.name = "Jordan"
   u.balance_cents = 100_000
+  u.password = "pass"
 end
+jordan.update!(password: "pass") if jordan.password_digest.blank?
 
 sam = User.find_or_create_by!(email: "sam@turf.com") do |u|
   u.name = "Sam"
   u.balance_cents = 100_000
+  u.password = "pass"
 end
+sam.update!(password: "pass") if sam.password_digest.blank?
 
 puts "  Created #{User.count} users"
 
@@ -70,7 +76,7 @@ puts "  Created #{props.size} props"
     )
   end
 
-  puts "  Created entry for #{user.name} with #{entry.picks.count} picks"
+  puts "  Created entry for #{user.display_name} with #{entry.picks.count} picks"
 end
 
 puts "Done! #{User.count} users, #{Contest.count} contests, #{Prop.count} props, #{Entry.count} entries, #{Pick.count} picks"

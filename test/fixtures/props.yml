@@ -1,17 +1,13 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
 one:
   contest: one
-  description: MyString
+  description: Argentina Total Goals
   line: 1.5
-  stat_type: MyString
-  result_value: 1.5
-  status: MyString
+  stat_type: goals
+  status: pending
 
 two:
-  contest: two
-  description: MyString
+  contest: one
+  description: Brazil Total Goals
   line: 1.5
-  stat_type: MyString
-  result_value: 1.5
-  status: MyString
+  stat_type: goals
+  status: pending

@@ -45,15 +45,6 @@
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Enter Contest</h2>
     <%= form_tag enter_contest_path(@contest), method: :post do %>
       <div class="bg-navy-400 rounded-xl shadow p-6 mb-4 border border-navy-300/20">
-        <div class="mb-4">
-          <label class="block text-sm text-gray-400 mb-2 font-medium">Select Player</label>
-          <select name="user_id" class="bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-2 text-white w-full md:w-64 focus:border-mint focus:outline-none">
-            <% @users.each do |user| %>
-              <option value="<%= user.id %>"><%= user.name %> ($<%= sprintf('%.2f', user.balance_dollars) %>)</option>
-            <% end %>
-          </select>
-        </div>
-
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <% @props.each do |prop| %>
             <div class="bg-navy-600 rounded-xl p-4 text-center">
@@ -99,7 +90,7 @@
           <% @entries.each_with_index do |entry, i| %>
             <tr class="border-b border-navy-300/10 hover:bg-navy-300/10">
               <td class="px-4 py-3 font-mono text-gray-400"><%= i + 1 %></td>
-              <td class="px-4 py-3 font-medium text-white"><%= entry.user.name %></td>
+              <td class="px-4 py-3 font-medium text-white"><%= entry.user.display_name %></td>
               <td class="px-4 py-3 font-mono text-violet"><%= entry.score %></td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">

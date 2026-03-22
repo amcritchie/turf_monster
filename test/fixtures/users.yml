@@ -1,11 +1,17 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+alex:
+  name: Alex
+  email: alex@turf.com
+  balance_cents: 100000
+  password_digest: <%= BCrypt::Password.create("pass") %>
 
-one:
-  name: MyString
-  email: MyString
-  balance_cents: 1
+jordan:
+  name: Jordan
+  email: jordan@turf.com
+  balance_cents: 100000
+  password_digest: <%= BCrypt::Password.create("pass") %>
 
-two:
-  name: MyString
-  email: MyString
-  balance_cents: 1
+sam:
+  name: Sam
+  email: sam@turf.com
+  balance_cents: 100000
+  password_digest: <%= BCrypt::Password.create("pass") %>

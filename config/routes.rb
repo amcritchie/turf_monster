@@ -5,6 +5,13 @@ Rails.application.routes.draw do
 
   root "contests#index"
 
+  get  "login",  to: "sessions#new"
+  post "login",  to: "sessions#create"
+  get  "logout", to: "sessions#destroy"
+
+  get  "signup", to: "registrations#new"
+  post "signup", to: "registrations#create"
+
   resources :contests, only: [:index, :show] do
     member do
       post :enter
@@ -14,9 +21,5 @@ Rails.application.routes.draw do
 
   resources :props, only: [:show]
 
-  resources :users, only: [] do
-    member do
-      post :add_funds
-    end
-  end
+  post "add_funds", to: "users#add_funds"
 end

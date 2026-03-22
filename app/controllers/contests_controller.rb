@@ -1,23 +1,20 @@
 class ContestsController < ApplicationController
   def index
     @contest = Contest.order(created_at: :desc).first
-    @users = User.all
     @props = @contest&.props || []
     @entries = @contest&.entries&.includes(:user, picks: :prop) || []
   end
 
   def show
     @contest = Contest.find(params[:id])
-    @users = User.all
     @props = @contest.props
     @entries = @contest.entries.includes(:user, picks: :prop).order(score: :desc)
   end
 
   def enter
     @contest = Contest.find(params[:id])
-    user = User.find(params[:user_id])
-    @contest.enter!(user, params[:picks] || {})
-    redirect_to @contest, notice: "#{user.name} entered the contest!"
+    @contest.enter!(current_user, params[:picks] || {})
+    redirect_to @contest, notice: "#{current_user.display_name} entered the contest!"
   rescue => e
     redirect_to @contest, alert: e.message
   end
