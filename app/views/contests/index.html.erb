@@ -173,41 +173,39 @@
           </div>
         </template>
       </div>
-      <!-- Hold buttons (when 3 picks selected) -->
-      <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20 space-y-3">
-        <!-- Hold button 1: Fill left-to-right -->
-        <button @mousedown="startHold('fill')" @mouseup="endHold()" @mouseleave="endHold()"
-                @touchstart.prevent="startHold('fill')" @touchend="endHold()" @touchcancel="endHold()"
-                :disabled="submitting"
-                class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
-          <div class="absolute inset-y-0 left-0 bg-mint transition-none"
-               :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
-          <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? 'Keep holding...' : 'Hold to Submit')"></span>
-        </button>
-        <!-- Hold button 2: Circular ring -->
-        <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
-                @touchstart.prevent="startHold('ring')" @touchend="endHold()" @touchcancel="endHold()"
-                :disabled="submitting"
-                class="w-full py-3 rounded-xl font-bold text-sm border-2 border-violet text-violet hover:bg-violet-900/20 transition flex items-center justify-center gap-2 select-none">
-          <svg width="24" height="24" class="shrink-0 -rotate-90">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.2"/>
-            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-dasharray="62.83"
-                    :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
-                    stroke-linecap="round"/>
-          </svg>
-          <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? 'Keep holding...' : 'Hold to Confirm')"></span>
-        </button>
-        <!-- Hold button 3: Shrinking outline -->
-        <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
-                @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
-                :disabled="submitting"
-                class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
-                :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
-                :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
-          <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? 'Keep holding...' : 'Hold to Lock In')"></span>
-        </button>
-        <p class="text-xs text-gray-500 text-center">Hold any button for 5 seconds to submit</p>
+      <!-- Hold to confirm (when 3 picks selected) -->
+      <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20">
+        <div class="relative"
+             @mousedown="startHold()" @mouseup="endHold()" @mouseleave="endHold()"
+             @touchstart.prevent="startHold()" @touchend="endHold()" @touchcancel="endHold()">
+          <button :disabled="submitting"
+                  class="w-full py-4 rounded-xl font-bold text-sm select-none relative overflow-hidden transition"
+                  :class="activeHold ? 'bg-mint/10 text-mint' : (submitting ? 'bg-mint text-navy' : 'bg-navy-600 text-mint hover:bg-navy-500')">
+            <!-- SVG border trace -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+              <rect x="1.5" y="1.5" rx="12" ry="12"
+                    :width="$el.closest('.relative').offsetWidth - 3"
+                    :height="$el.closest('.relative').offsetHeight - 3"
+                    fill="none" stroke="#06D6A0" stroke-width="3" opacity="0.15"/>
+              <rect x="1.5" y="1.5" rx="12" ry="12"
+                    :width="$el.closest('.relative').offsetWidth - 3"
+                    :height="$el.closest('.relative').offsetHeight - 3"
+                    fill="none" stroke="#06D6A0" stroke-width="3"
+                    :stroke-dasharray="holdPerimeter"
+                    :stroke-dashoffset="holdPerimeter - (holdPerimeter * holdProgress / 100)"
+                    stroke-linecap="round"
+                    style="transition: none"/>
+            </svg>
+            <span class="relative z-10 flex items-center justify-center gap-2">
+              <svg x-show="!submitting" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              <span x-text="submitting ? 'Submitting...' : (activeHold ? holdCountdown : 'Hold to Confirm')"></span>
+            </span>
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 text-center mt-2">Press and hold for 3 seconds</p>
       </div>
     </div>
   </div>
@@ -263,38 +261,38 @@
         </div>
       </template>
     </div>
-    <!-- Hold buttons (when 3 picks selected) -->
-    <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20 space-y-3">
-      <button @mousedown="startHold('fill')" @mouseup="endHold()" @mouseleave="endHold()"
-              @touchstart.prevent="startHold('fill')" @touchend="endHold()" @touchcancel="endHold()"
-              :disabled="submitting"
-              class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
-        <div class="absolute inset-y-0 left-0 bg-mint transition-none"
-             :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
-        <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? 'Keep holding...' : 'Hold to Submit')"></span>
-      </button>
-      <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
-              @touchstart.prevent="startHold('ring')" @touchend="endHold()" @touchcancel="endHold()"
-              :disabled="submitting"
-              class="w-full py-3 rounded-xl font-bold text-sm border-2 border-violet text-violet hover:bg-violet-900/20 transition flex items-center justify-center gap-2 select-none">
-        <svg width="24" height="24" class="shrink-0 -rotate-90">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" opacity="0.2"/>
-          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.5"
-                  stroke-dasharray="62.83"
-                  :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
-                  stroke-linecap="round"/>
-        </svg>
-        <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? 'Keep holding...' : 'Hold to Confirm')"></span>
-      </button>
-      <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
-              @touchstart.prevent="startHold('shrink')" @touchend="endHold()" @touchcancel="endHold()"
-              :disabled="submitting"
-              class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
-              :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
-              :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
-        <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? 'Keep holding...' : 'Hold to Lock In')"></span>
-      </button>
-      <p class="text-xs text-gray-500 text-center">Hold any button for 5 seconds to submit</p>
+    <!-- Hold to confirm (when 3 picks selected) -->
+    <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20">
+      <div class="relative"
+           @mousedown="startHold()" @mouseup="endHold()" @mouseleave="endHold()"
+           @touchstart.prevent="startHold()" @touchend="endHold()" @touchcancel="endHold()">
+        <button :disabled="submitting"
+                class="w-full py-4 rounded-xl font-bold text-sm select-none relative overflow-hidden transition"
+                :class="activeHold ? 'bg-mint/10 text-mint' : (submitting ? 'bg-mint text-navy' : 'bg-navy-600 text-mint hover:bg-navy-500')">
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+            <rect x="1.5" y="1.5" rx="12" ry="12"
+                  :width="$el.closest('.relative').offsetWidth - 3"
+                  :height="$el.closest('.relative').offsetHeight - 3"
+                  fill="none" stroke="#06D6A0" stroke-width="3" opacity="0.15"/>
+            <rect x="1.5" y="1.5" rx="12" ry="12"
+                  :width="$el.closest('.relative').offsetWidth - 3"
+                  :height="$el.closest('.relative').offsetHeight - 3"
+                  fill="none" stroke="#06D6A0" stroke-width="3"
+                  :stroke-dasharray="holdPerimeter"
+                  :stroke-dashoffset="holdPerimeter - (holdPerimeter * holdProgress / 100)"
+                  stroke-linecap="round"
+                  style="transition: none"/>
+          </svg>
+          <span class="relative z-10 flex items-center justify-center gap-2">
+            <svg x-show="!submitting" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+            <span x-text="submitting ? 'Submitting...' : (activeHold ? holdCountdown : 'Hold to Confirm')"></span>
+          </span>
+        </button>
+      </div>
+      <p class="text-xs text-gray-500 text-center mt-2">Press and hold for 3 seconds</p>
     </div>
   </div>
 
@@ -338,7 +336,7 @@
     return {
       picks: {},
       cartOpen: false,
-      activeHold: null,
+      activeHold: false,
       holdProgress: 0,
       holdTimer: null,
       submitting: false,
@@ -379,13 +377,30 @@
         this.picks = newPicks;
       },
 
-      startHold(type) {
+      // Perimeter of the SVG rect border (approx for 280x48 rounded rect)
+      holdPerimeter: 640,
+
+      get holdCountdown() {
+        const remaining = Math.ceil(3 * (1 - this.holdProgress / 100));
+        return remaining > 0 ? `${remaining}s...` : 'Locked!';
+      },
+
+      startHold() {
         if (this.submitting || this.pickCount !== 3) return;
-        this.activeHold = type;
+        this.activeHold = true;
         this.holdProgress = 0;
-        const duration = 5000;
+        const duration = 3000;
         const interval = 1000 / 60;
         const step = (interval / duration) * 100;
+
+        // Measure actual button perimeter for accurate SVG trace
+        const btn = event?.target?.closest('.relative');
+        if (btn) {
+          const w = btn.offsetWidth - 3;
+          const h = btn.offsetHeight - 3;
+          const r = 12;
+          this.holdPerimeter = 2 * (w + h) - 8 * r + 2 * Math.PI * r;
+        }
 
         this.holdTimer = setInterval(() => {
           this.holdProgress = Math.min(100, this.holdProgress + step);
@@ -402,14 +417,14 @@
           this.holdTimer = null;
         }
         if (!this.submitting) {
-          this.activeHold = null;
+          this.activeHold = false;
           this.holdProgress = 0;
         }
       },
 
       async submitEntry() {
         this.submitting = true;
-        this.activeHold = null;
+        this.activeHold = false;
         this.holdProgress = 0;
 
         const formData = new FormData();
