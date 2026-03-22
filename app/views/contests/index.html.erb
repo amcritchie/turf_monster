@@ -237,6 +237,45 @@
             </span>
           </button>
         </div>
+        <!-- 5. Iker-style pill (circular progress + checkmark) -->
+        <button @mousedown="startHold('iker')" @mouseup="endHold()" @mouseleave="endHold()"
+                @touchstart.prevent="startHold('iker')" @touchend="endHold()" @touchcancel="endHold()"
+                :disabled="submitting"
+                class="w-full py-3 px-5 rounded-full font-bold text-sm select-none transition flex items-center justify-center gap-2"
+                :class="holdSuccess ? 'bg-mint text-navy shadow-lg shadow-mint/30' : 'bg-navy-600 text-gray-200 hover:bg-navy-500 shadow-md'"
+                :style="(activeHold === 'iker' || holdSuccess) ? 'transform: scale(0.96)' : ''">
+          <div class="relative w-5 h-5 shrink-0">
+            <!-- background ring -->
+            <svg class="absolute inset-0 w-5 h-5" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="8" fill="none" stroke-width="2"
+                      :stroke="holdSuccess ? '#1A1535' : '#58517e'" opacity="0.4"/>
+            </svg>
+            <!-- progress ring -->
+            <svg class="absolute inset-0 w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="8" fill="none" stroke-width="2.5"
+                      :stroke="holdSuccess ? '#1A1535' : '#06D6A0'"
+                      stroke-linecap="round"
+                      :stroke-dasharray="50.27"
+                      :stroke-dashoffset="50.27 - (50.27 * (activeHold === 'iker' ? holdProgress : (holdSuccess ? 100 : 0)) / 100)"
+                      style="transition: none"/>
+            </svg>
+            <!-- arrow icon (hidden on success) -->
+            <svg x-show="!holdSuccess" class="absolute inset-0 w-5 h-5 p-1" viewBox="0 0 16 16" :fill="activeHold === 'iker' ? '#06D6A0' : '#F6F8FF'"
+                 style="transition: opacity 0.2s, transform 0.2s"
+                 :style="activeHold === 'iker' ? 'opacity: 0; transform: translateY(-3px) scale(0.6)' : ''">
+              <polygon points="1.3,6.7 2.7,8.1 7,3.8 7,16 9,16 9,3.8 13.3,8.1 14.7,6.7 8,0"/>
+            </svg>
+            <!-- tick checkmark (shown on success) -->
+            <svg x-show="holdSuccess" x-transition class="absolute inset-0 w-5 h-5" viewBox="0 0 24 24"
+                 fill="none" stroke="#1A1535" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="18,7 11,16 6,12"
+                        stroke-dasharray="18"
+                        :stroke-dashoffset="holdSuccess ? 0 : 18"
+                        style="transition: stroke-dashoffset 0.4s ease 0.2s"/>
+            </svg>
+          </div>
+          <span x-text="holdSuccess ? 'Submitted!' : (submitting ? 'Submitting...' : (activeHold === 'iker' ? holdCountdown : '⑤ Hold to Publish'))"></span>
+        </button>
         <p class="text-xs text-gray-500 text-center">Hold any button for 3 seconds</p>
       </div>
     </div>
@@ -357,6 +396,41 @@
           </span>
         </button>
       </div>
+      <!-- 5. Iker-style pill (circular progress + checkmark) -->
+      <button @mousedown="startHold('iker')" @mouseup="endHold()" @mouseleave="endHold()"
+              @touchstart.prevent="startHold('iker')" @touchend="endHold()" @touchcancel="endHold()"
+              :disabled="submitting"
+              class="w-full py-3 px-5 rounded-full font-bold text-sm select-none transition flex items-center justify-center gap-2"
+              :class="holdSuccess ? 'bg-mint text-navy shadow-lg shadow-mint/30' : 'bg-navy-600 text-gray-200 hover:bg-navy-500 shadow-md'"
+              :style="(activeHold === 'iker' || holdSuccess) ? 'transform: scale(0.96)' : ''">
+        <div class="relative w-5 h-5 shrink-0">
+          <svg class="absolute inset-0 w-5 h-5" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8" fill="none" stroke-width="2"
+                    :stroke="holdSuccess ? '#1A1535' : '#58517e'" opacity="0.4"/>
+          </svg>
+          <svg class="absolute inset-0 w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8" fill="none" stroke-width="2.5"
+                    :stroke="holdSuccess ? '#1A1535' : '#06D6A0'"
+                    stroke-linecap="round"
+                    :stroke-dasharray="50.27"
+                    :stroke-dashoffset="50.27 - (50.27 * (activeHold === 'iker' ? holdProgress : (holdSuccess ? 100 : 0)) / 100)"
+                    style="transition: none"/>
+          </svg>
+          <svg x-show="!holdSuccess" class="absolute inset-0 w-5 h-5 p-1" viewBox="0 0 16 16" :fill="activeHold === 'iker' ? '#06D6A0' : '#F6F8FF'"
+               style="transition: opacity 0.2s, transform 0.2s"
+               :style="activeHold === 'iker' ? 'opacity: 0; transform: translateY(-3px) scale(0.6)' : ''">
+            <polygon points="1.3,6.7 2.7,8.1 7,3.8 7,16 9,16 9,3.8 13.3,8.1 14.7,6.7 8,0"/>
+          </svg>
+          <svg x-show="holdSuccess" x-transition class="absolute inset-0 w-5 h-5" viewBox="0 0 24 24"
+               fill="none" stroke="#1A1535" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18,7 11,16 6,12"
+                      stroke-dasharray="18"
+                      :stroke-dashoffset="holdSuccess ? 0 : 18"
+                      style="transition: stroke-dashoffset 0.4s ease 0.2s"/>
+          </svg>
+        </div>
+        <span x-text="holdSuccess ? 'Submitted!' : (submitting ? 'Submitting...' : (activeHold === 'iker' ? holdCountdown : '⑤ Hold to Publish'))"></span>
+      </button>
       <p class="text-xs text-gray-500 text-center">Hold any button for 3 seconds</p>
     </div>
   </div>
@@ -405,6 +479,7 @@
       holdProgress: 0,
       holdTimer: null,
       submitting: false,
+      holdSuccess: false,
       error: null,
       errorTimer: null,
       contestId: '<%= @contest&.id %>',
