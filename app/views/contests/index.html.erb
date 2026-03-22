@@ -182,7 +182,7 @@
                 class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
           <div class="absolute inset-y-0 left-0 bg-mint transition-none"
                :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
-          <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? holdCountdown : 'Hold to Submit')"></span>
+          <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? holdCountdown : '① Hold to Submit')"></span>
         </button>
         <!-- 2. Circular ring -->
         <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
@@ -196,7 +196,7 @@
                     :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
                     stroke-linecap="round"/>
           </svg>
-          <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? holdCountdown : 'Hold to Confirm')"></span>
+          <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? holdCountdown : '② Hold to Confirm')"></span>
         </button>
         <!-- 3. Shrinking outline -->
         <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
@@ -205,7 +205,7 @@
                 class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
                 :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
                 :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
-          <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : 'Hold to Lock In')"></span>
+          <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : '③ Hold to Lock In')"></span>
         </button>
         <!-- 4. SVG border trace -->
         <div class="relative"
@@ -233,7 +233,7 @@
                 <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
                 <path d="M12 6v6l4 2"/>
               </svg>
-              <span x-text="submitting ? 'Submitting...' : (activeHold === 'trace' ? holdCountdown : 'Hold to Trace')"></span>
+              <span x-text="submitting ? 'Submitting...' : (activeHold === 'trace' ? holdCountdown : '④ Hold to Trace')"></span>
             </span>
           </button>
         </div>
@@ -302,7 +302,7 @@
               class="w-full py-3 rounded-xl font-bold text-sm relative overflow-hidden border-2 border-mint text-mint hover:text-navy transition select-none">
         <div class="absolute inset-y-0 left-0 bg-mint transition-none"
              :style="'width: ' + (activeHold === 'fill' ? holdProgress : 0) + '%'"></div>
-        <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? holdCountdown : 'Hold to Submit')"></span>
+        <span class="relative z-10" x-text="submitting ? 'Submitting...' : (activeHold === 'fill' ? holdCountdown : '① Hold to Submit')"></span>
       </button>
       <!-- 2. Circular ring -->
       <button @mousedown="startHold('ring')" @mouseup="endHold()" @mouseleave="endHold()"
@@ -316,7 +316,7 @@
                   :stroke-dashoffset="62.83 - (62.83 * (activeHold === 'ring' ? holdProgress : 0) / 100)"
                   stroke-linecap="round"/>
         </svg>
-        <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? holdCountdown : 'Hold to Confirm')"></span>
+        <span x-text="submitting ? 'Submitting...' : (activeHold === 'ring' ? holdCountdown : '② Hold to Confirm')"></span>
       </button>
       <!-- 3. Shrinking outline -->
       <button @mousedown="startHold('shrink')" @mouseup="endHold()" @mouseleave="endHold()"
@@ -325,7 +325,7 @@
               class="w-full py-3 rounded-xl font-bold text-sm transition select-none"
               :class="activeHold === 'shrink' ? 'text-white' : 'text-mint'"
               :style="'border: ' + (activeHold === 'shrink' ? Math.max(2, 2 + (holdProgress / 100) * 22) : 2) + 'px solid #06D6A0'">
-        <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : 'Hold to Lock In')"></span>
+        <span x-text="submitting ? 'Submitting...' : (activeHold === 'shrink' ? holdCountdown : '③ Hold to Lock In')"></span>
       </button>
       <!-- 4. SVG border trace -->
       <div class="relative"
@@ -353,7 +353,7 @@
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
               <path d="M12 6v6l4 2"/>
             </svg>
-            <span x-text="submitting ? 'Submitting...' : (activeHold === 'trace' ? holdCountdown : 'Hold to Trace')"></span>
+            <span x-text="submitting ? 'Submitting...' : (activeHold === 'trace' ? holdCountdown : '④ Hold to Trace')"></span>
           </span>
         </button>
       </div>
