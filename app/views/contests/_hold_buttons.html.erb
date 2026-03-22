@@ -258,36 +258,53 @@
   }
 </style>
 
-<%# ── Button markup helper ── %>
-<% hold_button = ->(num, variant, default_text, hold_text, success_text) { %>
-  <button class="hold-btn hold-btn-<%= variant %>"
-          data-hold-type="hold<%= variant %>"
-          @mousedown="startClassHold($el, 'hold<%= variant %>')"
-          @mouseup="endClassHold($el)"
-          @mouseleave="endClassHold($el)"
-          @touchstart.prevent="startClassHold($el, 'hold<%= variant %>')"
-          @touchend="endClassHold($el)"
-          @touchcancel="endClassHold($el)"
-          :disabled="submitting">
-    <div class="hold-icon">
-      <svg class="progress" viewBox="0 0 32 32">
-        <circle r="8" cx="16" cy="16"/>
-      </svg>
-      <svg class="tick" viewBox="0 0 24 24">
-        <polyline points="18,7 11,16 6,12"/>
-      </svg>
-    </div>
-    <ul class="hold-text">
-      <li><%= num %> <%= default_text %></li>
-      <li><%= hold_text %></li>
-      <li><%= success_text %></li>
-    </ul>
-  </button>
-<% } %>
+<!-- ⑥ Deep Press -->
+<button class="hold-btn hold-btn-6" data-hold-type="hold6"
+        @mousedown="startClassHold($el, 'hold6')" @mouseup="endClassHold($el)" @mouseleave="endClassHold($el)"
+        @touchstart.prevent="startClassHold($el, 'hold6')" @touchend="endClassHold($el)" @touchcancel="endClassHold($el)"
+        :disabled="submitting">
+  <div class="hold-icon">
+    <svg class="progress" viewBox="0 0 32 32"><circle r="8" cx="16" cy="16"/></svg>
+    <svg class="tick" viewBox="0 0 24 24"><polyline points="18,7 11,16 6,12"/></svg>
+  </div>
+  <ul class="hold-text">
+    <li>⑥ Hold to Submit</li>
+    <li>Keep holding...</li>
+    <li>Submitted!</li>
+  </ul>
+</button>
 
-<%= hold_button.call("⑥", 6, "Hold to Submit", "Keep holding...", "Submitted!") %>
-<%= hold_button.call("⑦", 7, "Hold to Confirm", "Almost there...", "Confirmed!") %>
-<%= hold_button.call("⑧", 8, "Hold to Lock In", "Locking in...", "Locked In!") %>
+<!-- ⑦ Glow Build -->
+<button class="hold-btn hold-btn-7" data-hold-type="hold7"
+        @mousedown="startClassHold($el, 'hold7')" @mouseup="endClassHold($el)" @mouseleave="endClassHold($el)"
+        @touchstart.prevent="startClassHold($el, 'hold7')" @touchend="endClassHold($el)" @touchcancel="endClassHold($el)"
+        :disabled="submitting">
+  <div class="hold-icon">
+    <svg class="progress" viewBox="0 0 32 32"><circle r="8" cx="16" cy="16"/></svg>
+    <svg class="tick" viewBox="0 0 24 24"><polyline points="18,7 11,16 6,12"/></svg>
+  </div>
+  <ul class="hold-text">
+    <li>⑦ Hold to Confirm</li>
+    <li>Almost there...</li>
+    <li>Confirmed!</li>
+  </ul>
+</button>
+
+<!-- ⑧ Depth Shift -->
+<button class="hold-btn hold-btn-8" data-hold-type="hold8"
+        @mousedown="startClassHold($el, 'hold8')" @mouseup="endClassHold($el)" @mouseleave="endClassHold($el)"
+        @touchstart.prevent="startClassHold($el, 'hold8')" @touchend="endClassHold($el)" @touchcancel="endClassHold($el)"
+        :disabled="submitting">
+  <div class="hold-icon">
+    <svg class="progress" viewBox="0 0 32 32"><circle r="8" cx="16" cy="16"/></svg>
+    <svg class="tick" viewBox="0 0 24 24"><polyline points="18,7 11,16 6,12"/></svg>
+  </div>
+  <ul class="hold-text">
+    <li>⑧ Hold to Lock In</li>
+    <li>Locking in...</li>
+    <li>Locked In!</li>
+  </ul>
+</button>
 
 <script>
   // Class-based hold button methods (called from Alpine @event handlers)
