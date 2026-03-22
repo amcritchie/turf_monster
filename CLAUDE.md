@@ -64,6 +64,10 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **Decisions**: Present 2-3 options briefly with a recommendation for architectural choices.
 - **Refactoring**: Proactively clean up code smells when spotted.
 
+## TODO
+
+- [ ] Set up Google OAuth credentials (console.cloud.google.com) — create OAuth client ID, configure consent screen, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars, add redirect URI `http://localhost:3000/auth/google_oauth2/callback`
+
 ## Session Protocol
 
 - **End-of-session refactoring**: When the user signals the end of a session, review and refactor ALL CLAUDE.md files in the project tree. Update them to reflect the current state of the project — remove outdated info, add new patterns discovered, document decisions made, and keep instructions accurate and concise. The user will be clear about when they are ending a session.
