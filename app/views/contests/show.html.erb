@@ -1,6 +1,6 @@
 <!-- Contest Header -->
 <section class="mb-8">
-  <div class="bg-gray-800 rounded-xl shadow p-6">
+  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20">
     <div class="flex justify-between items-start mb-4">
       <div>
         <h2 class="text-2xl font-bold text-white"><%= @contest.name %></h2>
@@ -10,22 +10,29 @@
           <% end %>
         </p>
       </div>
-      <% badge_color = { "open" => "green", "locked" => "yellow", "settled" => "gray", "draft" => "blue" }[@contest.status] || "gray" %>
-      <span class="px-3 py-1 rounded-full text-sm font-medium bg-<%= badge_color %>-900/50 text-<%= badge_color %>-400 border border-<%= badge_color %>-700">
+      <%
+        badge_styles = {
+          "open"    => "bg-mint-900/30 text-mint border-mint-700",
+          "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
+          "settled" => "bg-gray-800 text-gray-400 border-gray-600",
+          "draft"   => "bg-violet-900/30 text-violet border-violet-700"
+        }
+      %>
+      <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= badge_styles[@contest.status] %>">
         <%= @contest.status.upcase %>
       </span>
     </div>
     <div class="grid grid-cols-3 gap-4 text-center">
-      <div class="bg-gray-900 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase">Entry Fee</p>
+      <div class="bg-navy-600 rounded-lg p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
         <p class="font-mono text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
       </div>
-      <div class="bg-gray-900 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase">Pool</p>
-        <p class="font-mono text-lg text-green-400">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+      <div class="bg-navy-600 rounded-lg p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
+        <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
       </div>
-      <div class="bg-gray-900 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase">Entries</p>
+      <div class="bg-navy-600 rounded-lg p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
         <p class="font-mono text-lg text-white"><%= @entries.count %></p>
       </div>
     </div>
@@ -37,10 +44,10 @@
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Enter Contest</h2>
     <%= form_tag enter_contest_path(@contest), method: :post do %>
-      <div class="bg-gray-800 rounded-xl shadow p-6 mb-4">
+      <div class="bg-navy-400 rounded-xl shadow p-6 mb-4 border border-navy-300/20">
         <div class="mb-4">
-          <label class="block text-sm text-gray-400 mb-2">Select Player</label>
-          <select name="user_id" class="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white w-full md:w-64" x-data>
+          <label class="block text-sm text-gray-400 mb-2 font-medium">Select Player</label>
+          <select name="user_id" class="bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-2 text-white w-full md:w-64 focus:border-mint focus:outline-none">
             <% @users.each do |user| %>
               <option value="<%= user.id %>"><%= user.name %> ($<%= sprintf('%.2f', user.balance_dollars) %>)</option>
             <% end %>
@@ -49,17 +56,17 @@
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <% @props.each do |prop| %>
-            <div class="bg-gray-900 rounded-xl p-4 text-center">
+            <div class="bg-navy-600 rounded-xl p-4 text-center">
               <p class="font-bold text-white mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-              <p class="font-mono text-xl text-yellow-400 mb-3">O/U <%= prop.line %></p>
+              <p class="font-mono text-xl text-violet mb-3">O/U <%= prop.line %></p>
               <div class="flex gap-2">
                 <label class="flex-1 cursor-pointer">
                   <input type="radio" name="picks[<%= prop.id %>]" value="more" class="hidden peer">
-                  <span class="block w-full py-2 rounded-lg text-sm font-medium border border-green-700 text-green-400 peer-checked:bg-green-700 peer-checked:text-white transition">OVER</span>
+                  <span class="block w-full py-2 rounded-lg text-sm font-semibold border border-mint-700 text-mint peer-checked:bg-mint peer-checked:text-navy transition">OVER</span>
                 </label>
                 <label class="flex-1 cursor-pointer">
                   <input type="radio" name="picks[<%= prop.id %>]" value="less" class="hidden peer">
-                  <span class="block w-full py-2 rounded-lg text-sm font-medium border border-red-700 text-red-400 peer-checked:bg-red-700 peer-checked:text-white transition">UNDER</span>
+                  <span class="block w-full py-2 rounded-lg text-sm font-semibold border border-red-700 text-red-400 peer-checked:bg-red-600 peer-checked:text-white transition">UNDER</span>
                 </label>
               </div>
             </div>
@@ -67,7 +74,7 @@
         </div>
       </div>
 
-      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow transition">
+      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow hover:shadow-lg hover:shadow-mint/20 transition">
         Submit Entry ($<%= sprintf('%.2f', @contest.entry_fee_dollars) %>)
       </button>
     <% end %>
@@ -78,31 +85,31 @@
 <% if @entries.any? %>
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Leaderboard</h2>
-    <div class="bg-gray-800 rounded-xl shadow overflow-hidden">
+    <div class="bg-navy-400 rounded-xl shadow overflow-hidden border border-navy-300/20">
       <table class="w-full">
         <thead>
-          <tr class="border-b border-gray-700">
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase">#</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase">Player</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase">Score</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase">Picks</th>
+          <tr class="border-b border-navy-300/20">
+            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">#</th>
+            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Player</th>
+            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Score</th>
+            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Picks</th>
           </tr>
         </thead>
         <tbody>
           <% @entries.each_with_index do |entry, i| %>
-            <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
+            <tr class="border-b border-navy-300/10 hover:bg-navy-300/10">
               <td class="px-4 py-3 font-mono text-gray-400"><%= i + 1 %></td>
               <td class="px-4 py-3 font-medium text-white"><%= entry.user.name %></td>
-              <td class="px-4 py-3 font-mono text-yellow-400"><%= entry.score %></td>
+              <td class="px-4 py-3 font-mono text-violet"><%= entry.score %></td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <% entry.picks.each do |pick| %>
                     <%
                       pill_bg = case pick.result
-                                when "win" then "bg-green-900/50 text-green-400 border-green-700"
+                                when "win" then "bg-mint-900/30 text-mint border-mint-700"
                                 when "loss" then "bg-red-900/50 text-red-400 border-red-700"
                                 when "push" then "bg-yellow-900/50 text-yellow-400 border-yellow-700"
-                                else "bg-gray-700 text-gray-300 border-gray-600"
+                                else "bg-navy-600 text-gray-300 border-navy-300/30"
                                 end
                     %>
                     <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>">
@@ -126,17 +133,17 @@
     <%= form_tag grade_contest_path(@contest), method: :post do %>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <% @props.each do |prop| %>
-          <div class="bg-gray-800 rounded-xl shadow p-4">
+          <div class="bg-navy-400 rounded-xl shadow p-4 border border-navy-300/20">
             <p class="font-bold text-white text-sm mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-            <p class="text-xs text-gray-500 mb-2">Line: <span class="font-mono text-yellow-400"><%= prop.line %></span></p>
+            <p class="text-xs text-gray-500 mb-2">Line: <span class="font-mono text-violet"><%= prop.line %></span></p>
             <input type="number" name="results[<%= prop.id %>]" step="0.1" min="0"
               value="<%= prop.result_value %>"
               placeholder="Result"
-              class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-blue-500 focus:outline-none">
+              class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-mint focus:outline-none">
           </div>
         <% end %>
       </div>
-      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition">
+      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow hover:shadow-lg hover:shadow-violet/20 transition">
         Grade Contest
       </button>
     <% end %>
@@ -146,5 +153,5 @@
 <!-- JSON Debug Block -->
 <details class="mt-8">
   <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
-  <pre class="mt-2 bg-gray-900 rounded-xl p-4 text-green-400 font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
+  <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
 </details>

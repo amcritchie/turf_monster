@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="dark">
   <head>
-    <title><%= content_for(:title) || "Turf Picks" %></title>
+    <title><%= content_for(:title) || "Turf Monster" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
@@ -14,10 +14,63 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
+        theme: {
+          fontFamily: {
+            sans: ['Montserrat', 'system-ui', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          extend: {
+            colors: {
+              mint: {
+                DEFAULT: '#06D6A0',
+                50: '#e6faf4',
+                100: '#b3f0de',
+                200: '#80e6c8',
+                300: '#4ddcb2',
+                400: '#1ad29c',
+                500: '#06D6A0',
+                600: '#05b888',
+                700: '#049a70',
+                800: '#037c58',
+                900: '#025e40',
+              },
+              navy: {
+                DEFAULT: '#1A1535',
+                50: '#e8e7ed',
+                100: '#b8b5c8',
+                200: '#8883a3',
+                300: '#58517e',
+                400: '#3a3359',
+                500: '#1A1535',
+                600: '#16122e',
+                700: '#120f27',
+                800: '#0e0c20',
+                900: '#0a0919',
+              },
+              violet: {
+                DEFAULT: '#8E82FE',
+                50: '#f0eeff',
+                100: '#d1ccfe',
+                200: '#b2aafe',
+                300: '#9388fe',
+                400: '#8E82FE',
+                500: '#7a6efe',
+                600: '#6558e5',
+                700: '#5042cc',
+                800: '#3b2cb3',
+                900: '#26169a',
+              },
+            },
+          },
+        },
       }
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -26,16 +79,17 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="bg-gray-950 text-gray-100 min-h-screen">
+  <body class="bg-navy text-gray-100 min-h-screen">
     <div class="max-w-7xl mx-auto px-4 py-6">
-      <header class="mb-8">
-        <%= link_to root_path, class: "inline-block" do %>
-          <h1 class="text-3xl font-bold text-white">Turf Picks</h1>
+      <header class="mb-8 flex items-center gap-4">
+        <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
+          <img src="/logo.jpeg" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
+          <h1 class="text-3xl font-extrabold text-white tracking-tight">Turf <span class="text-mint">Monster</span></h1>
         <% end %>
       </header>
 
       <% if flash[:notice] %>
-        <div class="mb-4 p-3 bg-green-900/50 border border-green-700 rounded-lg text-green-300">
+        <div class="mb-4 p-3 bg-mint-900/30 border border-mint-700 rounded-lg text-mint-300">
           <%= flash[:notice] %>
         </div>
       <% end %>

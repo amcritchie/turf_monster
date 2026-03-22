@@ -1,4 +1,4 @@
-# Turf Picks (turf_monster)
+# Turf Monster (turf_monster)
 
 Peer-to-peer sports pick'em game focused on team-based over/under props for the World Cup.
 
@@ -7,8 +7,21 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
 - Tailwind CSS via CDN (no build step)
 - Alpine.js via CDN for interactivity
+- Montserrat font (Google Fonts CDN)
 - ERB views, import maps, no JS frameworks
 - No authentication, no background jobs, no external APIs
+
+## Branding
+
+- **Primary**: `#06D6A0` Mint — used for OVER, positive values, balances, CTAs, success states
+- **Background**: `#1A1535` Deep Navy — body bg, card bg uses navy-400/navy-600
+- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, Grade button
+- **Text**: `#FFFFFF` White — headings, primary text
+- **Negative**: Red (Tailwind default) — UNDER, losses
+- **Font**: Montserrat (all weights 400-900)
+- **Logo**: `/public/logo.jpeg` — green monster mascot, shown in header at 48px rounded
+- Tailwind custom colors defined in layout: `mint`, `navy`, `violet` with full shade scales
+- Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 
 ## Architecture
 
@@ -35,10 +48,11 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 
 ## UI
 
-- Dark mode default (html class="dark")
-- Green = OVER/positive, Red = UNDER/negative
-- Status badges: green=open, yellow=locked, gray=settled, blue=draft
-- Cards: rounded-xl, shadow, hover transitions
+- Dark mode default (html class="dark"), navy background
+- Mint = OVER/positive, Red = UNDER/negative, Violet = accents/lines
+- Status badges: mint=open, yellow=locked, gray=settled, violet=draft
+- Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
+- JSON blocks: bg-navy-800, text-mint, font-mono
 
 ## Session Protocol
 

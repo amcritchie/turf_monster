@@ -7,16 +7,16 @@
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Players</h2>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <% @users.each do |user| %>
-        <div class="bg-gray-800 rounded-xl shadow p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all">
+        <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 hover:-translate-y-0.5 transition-all border border-navy-300/20">
           <div class="flex justify-between items-center">
             <div>
               <p class="font-bold text-white"><%= user.name %></p>
               <p class="text-sm text-gray-400"><%= user.email %></p>
             </div>
             <div class="text-right">
-              <p class="font-mono text-lg text-green-400">$<%= sprintf('%.2f', user.balance_dollars) %></p>
+              <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', user.balance_dollars) %></p>
               <%= button_to "+$100", add_funds_user_path(user), method: :post,
-                class: "mt-1 px-3 py-1 bg-green-700 hover:bg-green-600 text-white text-xs rounded-lg transition" %>
+                class: "mt-1 px-3 py-1 bg-mint-700 hover:bg-mint-600 text-white text-xs font-semibold rounded-lg transition" %>
             </div>
           </div>
         </div>
@@ -26,7 +26,7 @@
 
   <!-- Contest Header -->
   <section class="mb-8">
-    <div class="bg-gray-800 rounded-xl shadow p-6">
+    <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20">
       <div class="flex justify-between items-start mb-4">
         <div>
           <h2 class="text-2xl font-bold text-white"><%= @contest.name %></h2>
@@ -36,28 +36,35 @@
             <% end %>
           </p>
         </div>
-        <% badge_color = { "open" => "green", "locked" => "yellow", "settled" => "gray", "draft" => "blue" }[@contest.status] || "gray" %>
-        <span class="px-3 py-1 rounded-full text-sm font-medium bg-<%= badge_color %>-900/50 text-<%= badge_color %>-400 border border-<%= badge_color %>-700">
+        <%
+          badge_styles = {
+            "open"    => "bg-mint-900/30 text-mint border-mint-700",
+            "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
+            "settled" => "bg-gray-800 text-gray-400 border-gray-600",
+            "draft"   => "bg-violet-900/30 text-violet border-violet-700"
+          }
+        %>
+        <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= badge_styles[@contest.status] %>">
           <%= @contest.status.upcase %>
         </span>
       </div>
       <div class="grid grid-cols-3 gap-4 text-center">
-        <div class="bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase">Entry Fee</p>
+        <div class="bg-navy-600 rounded-lg p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
           <p class="font-mono text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
         </div>
-        <div class="bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase">Pool</p>
-          <p class="font-mono text-lg text-green-400">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+        <div class="bg-navy-600 rounded-lg p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
+          <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
         </div>
-        <div class="bg-gray-900 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase">Entries</p>
+        <div class="bg-navy-600 rounded-lg p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
           <p class="font-mono text-lg text-white"><%= @contest.entries.count %></p>
         </div>
       </div>
       <div class="mt-4 text-center">
         <%= link_to "View Contest Details", contest_path(@contest),
-          class: "text-blue-400 hover:text-blue-300 text-sm underline" %>
+          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
       </div>
     </div>
   </section>
@@ -68,16 +75,16 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <% @props.each do |prop| %>
         <%= link_to prop_path(prop), class: "block" do %>
-          <div class="bg-gray-800 rounded-xl shadow p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all text-center">
+          <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 hover:-translate-y-0.5 transition-all text-center border border-navy-300/20">
             <p class="font-bold text-white text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-            <p class="font-mono text-2xl text-yellow-400 mb-1">O/U <%= prop.line %></p>
-            <p class="text-xs text-gray-500 uppercase"><%= prop.stat_type || "total goals" %></p>
+            <p class="font-mono text-2xl text-violet mb-1">O/U <%= prop.line %></p>
+            <p class="text-xs text-gray-500 uppercase tracking-wider"><%= prop.stat_type || "total goals" %></p>
             <div class="flex justify-between mt-3 text-sm">
-              <span class="text-green-400 font-medium">OVER</span>
-              <span class="text-red-400 font-medium">UNDER</span>
+              <span class="text-mint font-semibold">OVER</span>
+              <span class="text-red-400 font-semibold">UNDER</span>
             </div>
             <% if prop.graded? %>
-              <div class="mt-2 px-2 py-1 bg-gray-900 rounded text-xs font-mono text-yellow-300">
+              <div class="mt-2 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
                 Result: <%= prop.result_value %>
               </div>
             <% end %>
@@ -90,7 +97,7 @@
   <!-- JSON Debug Block -->
   <details class="mt-8">
     <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
-    <pre class="mt-2 bg-gray-900 rounded-xl p-4 text-green-400 font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
+    <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
   </details>
 
 <% end %>
