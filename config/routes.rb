@@ -12,6 +12,9 @@ Rails.application.routes.draw do
   get  "signup", to: "registrations#new"
   post "signup", to: "registrations#create"
 
+  get "auth/:provider/callback", to: "omniauth_callbacks#create"
+  get "auth/failure", to: "omniauth_callbacks#failure"
+
   resources :contests, only: [:index, :show] do
     member do
       post :enter

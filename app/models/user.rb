@@ -4,6 +4,29 @@ class User < ApplicationRecord
 
   validates :email, presence: true, uniqueness: true
 
+  def self.from_omniauth(auth)
+    # Returning Google user
+    user = find_by(provider: auth.provider, uid: auth.uid)
+    return user if user
+
+    # Existing password user logging in with Google — link the account
+    user = find_by(email: auth.info.email)
+    if user
+      user.update!(provider: auth.provider, uid: auth.uid)
+      return user
+    end
+
+    # Brand new user via Google
+    create!(
+      email: auth.info.email,
+      name: auth.info.name,
+      provider: auth.provider,
+      uid: auth.uid,
+      password: SecureRandom.hex(16),
+      balance_cents: 0
+    )
+  end
+
   def display_name
     name.presence || email.split("@").first.capitalize
   end
