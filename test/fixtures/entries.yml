@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  contest: one
+  score: 1.5
+  status: MyString
+
+two:
+  user: two
+  contest: two
+  score: 1.5
+  status: MyString

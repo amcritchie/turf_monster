@@ -1,0 +1,19 @@
+class User < ApplicationRecord
+  has_many :entries, dependent: :destroy
+
+  validates :name, presence: true
+  validates :email, presence: true, uniqueness: true
+
+  def balance_dollars
+    balance_cents / 100.0
+  end
+
+  def add_funds!(cents)
+    increment!(:balance_cents, cents)
+  end
+
+  def deduct_funds!(cents)
+    raise "Insufficient funds" if balance_cents < cents
+    decrement!(:balance_cents, cents)
+  end
+end

@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  contest: one
+  description: MyString
+  line: 1.5
+  stat_type: MyString
+  result_value: 1.5
+  status: MyString
+
+two:
+  contest: two
+  description: MyString
+  line: 1.5
+  stat_type: MyString
+  result_value: 1.5
+  status: MyString

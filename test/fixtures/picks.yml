@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  entry: one
+  prop: one
+  selection: MyString
+  result: MyString
+
+two:
+  entry: two
+  prop: two
+  selection: MyString
+  result: MyString
