@@ -1,0 +1,281 @@
+<%#
+  Reusable hold-to-confirm button module.
+
+  Locals:
+    default_text - Button label in idle state (default: "Hold to Confirm")
+    hold_text    - Text shown while holding (default: "Almost there...")
+    success_text - Text shown on completion (default: "Confirmed!")
+    duration     - Hold duration in ms (default: 3000)
+    hold_id      - Unique ID for this button instance (default: "hold")
+    guard        - JS expression that must be truthy to allow hold (default: "true")
+    on_success   - JS to execute on successful hold (default: none)
+%>
+<% default_text ||= "Hold to Confirm" %>
+<% hold_text    ||= "Almost there..." %>
+<% success_text ||= "Confirmed!" %>
+<% duration     ||= 3000 %>
+<% hold_id      ||= "hold" %>
+<% guard        ||= "true" %>
+<% on_success   ||= nil %>
+
+<style>
+  /* ── Hold Button Base ── */
+  .hold-btn {
+    --duration: <%= duration %>ms;
+    --color: #F6F8FF;
+    --bg: #1e1b35;
+    --shadow: rgba(0, 9, 61, 0.2);
+    --shadow-active: rgba(0, 9, 61, 0.32);
+    --progress-border: #3a3359;
+    --progress-active: #F6F8FF;
+    --progress-success: #06D6A0;
+    --tick-stroke: var(--progress-active);
+
+    position: relative;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 19px;
+    padding: 14px 32px;
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    outline: none;
+    user-select: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    backface-visibility: hidden;
+    color: var(--color);
+    background: var(--bg);
+    transition: transform .3s, box-shadow .3s, background .3s, border-color .3s;
+    transform: scale(var(--scale, 1));
+
+    /* ⑦ Glow Build */
+    border: 1px solid rgba(6, 214, 160, 0.15);
+    box-shadow: 0 0 0 rgba(6, 214, 160, 0);
+  }
+
+  /* ── Progress circle ── */
+  .hold-btn > .hold-icon {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    width: 20px;
+    height: 20px;
+    margin-top: -10px;
+    border-radius: 50%;
+    background: var(--progress-border);
+    opacity: var(--icon-o, 0);
+    transform: translateX(var(--icon-x, -4px));
+    transition: transform .3s, opacity .2s;
+  }
+  .hold-btn > .hold-icon::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    z-index: 1;
+    position: absolute;
+    background: var(--bg);
+    border-radius: inherit;
+    transform: scale(var(--bg-scale, 1));
+    transition: transform .32s ease;
+  }
+  .hold-btn > .hold-icon svg {
+    display: block;
+    fill: none;
+    width: 20px;
+    height: 20px;
+  }
+  .hold-btn > .hold-icon svg.progress {
+    transform: rotate(-90deg) scale(var(--progress-scale, 1));
+    transition: transform .5s ease;
+  }
+  .hold-btn > .hold-icon svg.progress circle {
+    stroke-dashoffset: 1;
+    stroke-dasharray: var(--progress-array, 0) 52;
+    stroke-width: 16;
+    stroke: var(--progress-active);
+    transition: stroke-dasharray var(--duration) linear;
+  }
+  .hold-btn > .hold-icon svg.tick {
+    position: absolute;
+    left: 0;
+    top: 0;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke: var(--tick-stroke);
+    transition: stroke .3s ease .7s;
+  }
+  .hold-btn > .hold-icon svg.tick polyline {
+    stroke-dasharray: 18 18 18;
+    stroke-dashoffset: var(--tick-offset, 18);
+    transition: stroke-dashoffset .4s ease .7s;
+  }
+
+  /* ── Sliding text ── */
+  .hold-btn .hold-text {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: center;
+    pointer-events: none;
+    position: relative;
+    backface-visibility: hidden;
+    transition: transform .3s;
+    transform: translate3d(var(--ul-x, 0), 0, 0);
+  }
+  .hold-btn .hold-text li {
+    backface-visibility: hidden;
+    transform: translateY(var(--ul-y, 0));
+    transition: transform .3s ease .16s, opacity .2s ease .16s;
+  }
+  .hold-btn .hold-text li:not(:first-child) {
+    position: absolute;
+    left: 0;
+    right: 0;
+  }
+  .hold-btn .hold-text li:nth-child(1) { top: 0; opacity: var(--ul-o-1, 1); }
+  .hold-btn .hold-text li:nth-child(2) { top: 100%; opacity: var(--ul-o-2, 0); }
+  .hold-btn .hold-text li:nth-child(3) { top: 200%; opacity: var(--ul-o-3, 0); }
+
+  /* ── State: hover ── */
+  .hold-btn:hover:not(.process):not(.success) {
+    --shadow-color: var(--shadow-active);
+    border-color: rgba(6, 214, 160, 0.3);
+  }
+  .hold-btn:active:not(.success) {
+    --scale: .97;
+  }
+
+  /* ── State: process (holding) ── */
+  .hold-btn.process {
+    --icon-x: 0;
+    --ul-y: -100%;
+    --ul-o-1: 0;
+    --ul-o-2: 1;
+    --ul-o-3: 0;
+    border-color: rgba(6, 214, 160, 0.7);
+    box-shadow:
+      0 0 30px rgba(6, 214, 160, 0.45),
+      0 0 80px rgba(6, 214, 160, 0.25),
+      0 0 120px rgba(6, 214, 160, 0.1),
+      inset 0 0 40px rgba(6, 214, 160, 0.1);
+    transition: transform .3s, box-shadow 2.5s ease-out, border-color 1s, background .3s;
+  }
+  .hold-btn.process,
+  .hold-btn.success {
+    --ul-x: 8px;
+    --icon-o: 1;
+    --progress-array: 52;
+  }
+
+  /* ── State: success ── */
+  .hold-btn.success {
+    --scale: 1.03;
+    --icon-x: 6px;
+    --progress-border: none;
+    --progress-scale: .11;
+    --tick-stroke: var(--progress-success);
+    --bg-scale: 0;
+    --tick-offset: 36;
+    --ul-y: -200%;
+    --ul-o-1: 0;
+    --ul-o-2: 0;
+    --ul-o-3: 1;
+    border-color: #06D6A0;
+    background: linear-gradient(135deg, #025e40, #06D6A0);
+    --color: #fff;
+    box-shadow:
+      0 0 40px rgba(6, 214, 160, 0.7),
+      0 0 100px rgba(6, 214, 160, 0.4),
+      0 0 160px rgba(6, 214, 160, 0.15);
+    animation: hold-glow-pulse .8s ease-in-out 1;
+  }
+  .hold-btn.success > .hold-icon svg.progress {
+    animation: hold-tick .3s linear forwards .4s;
+  }
+
+  @keyframes hold-tick {
+    100% { transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale)); }
+  }
+  @keyframes hold-glow-pulse {
+    50% {
+      box-shadow:
+        0 0 60px rgba(6, 214, 160, 0.9),
+        0 0 140px rgba(6, 214, 160, 0.5),
+        0 0 200px rgba(6, 214, 160, 0.2);
+    }
+  }
+</style>
+
+<button class="hold-btn" data-hold-id="<%= hold_id %>"
+        @mousedown="holdBtnStart($el)" @mouseup="holdBtnEnd($el)" @mouseleave="holdBtnEnd($el)"
+        @touchstart.prevent="holdBtnStart($el)" @touchend="holdBtnEnd($el)" @touchcancel="holdBtnEnd($el)">
+  <div class="hold-icon">
+    <svg class="progress" viewBox="0 0 32 32"><circle r="8" cx="16" cy="16"/></svg>
+    <svg class="tick" viewBox="0 0 24 24"><polyline points="18,7 11,16 6,12"/></svg>
+  </div>
+  <ul class="hold-text">
+    <li><%= default_text %></li>
+    <li><%= hold_text %></li>
+    <li><%= success_text %></li>
+  </ul>
+</button>
+
+<script>
+  (function() {
+    if (window._holdBtnInit) return;
+    window._holdBtnInit = true;
+
+    var timers = {};
+    var duration = <%= duration %>;
+
+    window.holdBtnStart = function(el) {
+      var scope = el.closest('[x-data]');
+      var guard = true;
+      if (scope) {
+        try {
+          var data = Alpine.$data(scope);
+          if (data && data.submitting) return;
+          <% if guard != "true" %>
+            if (!(data && (<%= guard %>))) return;
+          <% end %>
+        } catch(e) {}
+      }
+
+      var id = el.dataset.holdId || 'hold';
+      el.style.setProperty('--duration', duration + 'ms');
+      el.classList.remove('success');
+      el.classList.add('process');
+
+      timers[id] = setTimeout(function() {
+        el.classList.remove('process');
+        el.classList.add('success');
+
+        <% if on_success %>
+          setTimeout(function() {
+            try {
+              var s = el.closest('[x-data]');
+              if (s) {
+                var d = Alpine.$data(s);
+                if (d) { <%= on_success %> }
+              }
+            } catch(e) {}
+          }, 600);
+        <% end %>
+      }, duration);
+    };
+
+    window.holdBtnEnd = function(el) {
+      if (el.classList.contains('success')) return;
+      var id = el.dataset.holdId || 'hold';
+      el.classList.remove('process');
+      if (timers[id]) {
+        clearTimeout(timers[id]);
+        delete timers[id];
+      }
+    };
+  })();
+</script>
