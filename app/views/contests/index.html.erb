@@ -2,7 +2,7 @@
   <p class="text-gray-400">No contests yet.</p>
 <% else %>
 
-<div x-data="pickBoard()" x-cloak>
+<div x-data="pickBoard()" x-cloak x-init="init()">
 
   <% if logged_in? %>
     <!-- Current Player Card -->
@@ -135,7 +135,20 @@
     <div class="flex flex-col h-full">
       <!-- Cart header -->
       <div class="flex items-center justify-between p-4 border-b border-navy-300/20">
-        <h3 class="text-lg font-bold text-white">Your Picks</h3>
+        <div class="flex items-center gap-2">
+          <h3 class="text-lg font-bold text-white">Your Picks</h3>
+          <% if logged_in? %>
+            <template x-if="syncStatus === 'saving'">
+              <span class="text-xs text-gray-400 animate-pulse">saving...</span>
+            </template>
+            <template x-if="syncStatus === 'saved'">
+              <span class="text-xs text-mint transition-opacity" x-transition>saved</span>
+            </template>
+            <template x-if="syncStatus === 'error'">
+              <button @click="saveToServer()" class="text-xs text-red-400 hover:text-red-300 underline">sync failed</button>
+            </template>
+          <% end %>
+        </div>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
                 :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
@@ -200,7 +213,20 @@
     </div>
     <!-- Cart header -->
     <div class="flex items-center justify-between px-4 pb-3 border-b border-navy-300/20">
-      <h3 class="text-lg font-bold text-white">Your Picks</h3>
+      <div class="flex items-center gap-2">
+        <h3 class="text-lg font-bold text-white">Your Picks</h3>
+        <% if logged_in? %>
+          <template x-if="syncStatus === 'saving'">
+            <span class="text-xs text-gray-400 animate-pulse">saving...</span>
+          </template>
+          <template x-if="syncStatus === 'saved'">
+            <span class="text-xs text-mint transition-opacity" x-transition>saved</span>
+          </template>
+          <template x-if="syncStatus === 'error'">
+            <button @click="saveToServer()" class="text-xs text-red-400 hover:text-red-300 underline">sync failed</button>
+          </template>
+        <% end %>
+      </div>
       <div class="flex items-center gap-3">
         <span class="px-2 py-0.5 rounded-full text-xs font-bold"
               :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
@@ -287,6 +313,7 @@
         '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>' }<%= i < @props.length - 1 ? ',' : '' %>
       <% end %>
     };
+    const validPropIds = new Set(Object.keys(propData));
 
     return {
       picks: {},
@@ -296,6 +323,11 @@
       errorTimer: null,
       contestId: '<%= @contest&.id %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
+      loggedIn: <%= logged_in? ? 'true' : 'false' %>,
+      alreadyEntered: <%= (logged_in? && @contest&.entries&.exists?(user: current_user)) ? 'true' : 'false' %>,
+      syncStatus: 'idle',
+      saveTimer: null,
+      savedTimer: null,
 
       get pickCount() {
         return Object.keys(this.picks).length;
@@ -310,6 +342,124 @@
         }));
       },
 
+      init() {
+        this.rehydrate();
+        window.addEventListener('beforeunload', () => {
+          this.saveToLocalStorage();
+          if (this.loggedIn && this.pickCount > 0 && !this.alreadyEntered) {
+            const data = JSON.stringify({ picks: this.picks });
+            navigator.sendBeacon(
+              `/contests/${this.contestId}/draft_picks/beacon`,
+              new Blob([data], { type: 'application/json' })
+            );
+          }
+        });
+      },
+
+      // --- localStorage ---
+      localStorageKey() {
+        return `turf_draft_${this.contestId}`;
+      },
+
+      saveToLocalStorage() {
+        const payload = { picks: this.picks, updated_at: new Date().toISOString() };
+        try { localStorage.setItem(this.localStorageKey(), JSON.stringify(payload)); } catch(e) {}
+      },
+
+      loadFromLocalStorage() {
+        try {
+          const raw = localStorage.getItem(this.localStorageKey());
+          return raw ? JSON.parse(raw) : null;
+        } catch(e) { return null; }
+      },
+
+      clearLocalStorage() {
+        try { localStorage.removeItem(this.localStorageKey()); } catch(e) {}
+      },
+
+      // --- Rehydration ---
+      async rehydrate() {
+        if (this.alreadyEntered) {
+          this.clearLocalStorage();
+          return;
+        }
+
+        const local = this.loadFromLocalStorage();
+        let server = null;
+
+        if (this.loggedIn) {
+          try {
+            const resp = await fetch(`/contests/${this.contestId}/draft_picks`, {
+              headers: { 'Accept': 'application/json' }
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.picks && Object.keys(data.picks).length > 0) {
+                server = data;
+              }
+            }
+          } catch(e) {}
+        }
+
+        let source = null;
+        if (local && server) {
+          const localTime = new Date(local.updated_at).getTime();
+          const serverTime = new Date(server.updated_at).getTime();
+          source = serverTime >= localTime ? server : local;
+        } else {
+          source = server || local;
+        }
+
+        if (source && source.picks) {
+          const filtered = {};
+          for (const [id, sel] of Object.entries(source.picks)) {
+            if (validPropIds.has(id) && (sel === 'more' || sel === 'less')) {
+              filtered[id] = sel;
+            }
+          }
+          if (Object.keys(filtered).length > 0) {
+            this.picks = filtered;
+            this.cartOpen = true;
+          }
+        }
+      },
+
+      // --- Server sync ---
+      scheduleSave() {
+        this.saveToLocalStorage();
+        if (!this.loggedIn || this.alreadyEntered) return;
+
+        if (this.saveTimer) clearTimeout(this.saveTimer);
+        this.saveTimer = setTimeout(() => this.saveToServer(), 500);
+      },
+
+      async saveToServer() {
+        if (!this.loggedIn || this.alreadyEntered) return;
+        this.syncStatus = 'saving';
+        if (this.savedTimer) { clearTimeout(this.savedTimer); this.savedTimer = null; }
+
+        try {
+          const resp = await fetch(`/contests/${this.contestId}/draft_picks`, {
+            method: 'PATCH',
+            headers: {
+              'X-CSRF-Token': this.csrfToken,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ picks: this.picks })
+          });
+          if (resp.ok) {
+            this.syncStatus = 'saved';
+            this.savedTimer = setTimeout(() => { this.syncStatus = 'idle'; }, 2000);
+          } else {
+            this.syncStatus = 'error';
+          }
+        } catch(e) {
+          this.syncStatus = 'error';
+        }
+      },
+
+      // --- Pick actions ---
       togglePick(propId, selection) {
         if (this.picks[propId] === selection) {
           let newPicks = { ...this.picks };
@@ -321,12 +471,14 @@
           this.picks = { ...this.picks, [propId]: selection };
           if (!this.cartOpen) this.cartOpen = true;
         }
+        this.scheduleSave();
       },
 
       removePick(propId) {
         let newPicks = { ...this.picks };
         delete newPicks[propId];
         this.picks = newPicks;
+        this.scheduleSave();
       },
 
       async submitEntry() {
@@ -350,6 +502,7 @@
           const data = await response.json();
 
           if (data.success) {
+            this.clearLocalStorage();
             window.location.href = data.redirect || '/';
           } else {
             this.showError(data.error || 'Something went wrong');

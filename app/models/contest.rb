@@ -1,6 +1,7 @@
 class Contest < ApplicationRecord
   has_many :props, dependent: :destroy
   has_many :entries, dependent: :destroy
+  has_many :draft_picks, dependent: :destroy
 
   validates :name, presence: true
 
@@ -36,6 +37,7 @@ class Contest < ApplicationRecord
         entry.picks.create!(prop_id: prop_id, selection: selection)
       end
 
+      DraftPick.clear_draft(user, self)
       entry
     end
   end

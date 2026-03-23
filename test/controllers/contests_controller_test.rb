@@ -53,6 +53,17 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "enter clears draft picks on success" do
+    log_in_as(@user)
+    DraftPick.save_draft(@user, @contest, { @prop1.id.to_s => "more", @prop2.id.to_s => "less" })
+    assert DraftPick.load_draft(@user, @contest).present?
+
+    post enter_contest_path(@contest),
+      params: { picks: { @prop1.id.to_s => "more", @prop2.id.to_s => "less", @prop3.id.to_s => "more" } }
+
+    assert_nil DraftPick.load_draft(@user, @contest)
+  end
+
   test "enter with HTML redirects with alert on error" do
     log_in_as(@user)
 

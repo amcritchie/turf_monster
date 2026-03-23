@@ -20,6 +20,9 @@ Rails.application.routes.draw do
       post :enter
       post :grade
     end
+    resource :draft_picks, only: [:show, :update] do
+      post :beacon, on: :collection
+    end
   end
 
   resources :props, only: [:show]
