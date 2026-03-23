@@ -1,4 +1,6 @@
 class Entry < ApplicationRecord
+  include Sluggable
+
   belongs_to :user
   belongs_to :contest
   has_many :picks, dependent: :destroy
@@ -14,5 +16,9 @@ class Entry < ApplicationRecord
       user.deduct_funds!(contest.entry_fee_cents) if contest.entry_fee_cents > 0
       update!(status: :active)
     end
+  end
+
+  def name_slug
+    "#{user.name.parameterize}-#{contest.name_slug}"
   end
 end

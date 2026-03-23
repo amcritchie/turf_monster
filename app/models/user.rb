@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  include Sluggable
+
   has_secure_password
   has_many :entries, dependent: :destroy
 
@@ -42,5 +44,9 @@ class User < ApplicationRecord
   def deduct_funds!(cents)
     raise "Insufficient funds" if balance_cents < cents
     decrement!(:balance_cents, cents)
+  end
+
+  def name_slug
+    "#{name}-#{email}".downcase.gsub(/\s+/, "-")
   end
 end

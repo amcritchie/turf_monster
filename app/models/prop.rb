@@ -1,4 +1,6 @@
 class Prop < ApplicationRecord
+  include Sluggable
+
   belongs_to :contest
   has_many :picks, dependent: :destroy
 
@@ -6,4 +8,8 @@ class Prop < ApplicationRecord
   validates :line, presence: true
 
   enum :status, { pending: "pending", graded: "graded" }
+
+  def name_slug
+    "#{description.parameterize}-#{line}"
+  end
 end

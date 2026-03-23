@@ -1,4 +1,6 @@
 class Contest < ApplicationRecord
+  include Sluggable
+
   has_many :props, dependent: :destroy
   has_many :entries, dependent: :destroy
 
@@ -43,5 +45,9 @@ class Contest < ApplicationRecord
 
       update!(status: "settled")
     end
+  end
+
+  def name_slug
+    name.parameterize
   end
 end

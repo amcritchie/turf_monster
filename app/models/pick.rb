@@ -1,4 +1,6 @@
 class Pick < ApplicationRecord
+  include Sluggable
+
   belongs_to :entry
   belongs_to :prop
 
@@ -26,5 +28,9 @@ class Pick < ApplicationRecord
       update!(result: "loss")
       0.0
     end
+  end
+
+  def name_slug
+    "#{prop.description.parameterize}-#{selection}"
   end
 end

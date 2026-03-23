@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_23_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -22,6 +22,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
     t.datetime "starts_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
   end
 
   create_table "entries", force: :cascade do |t|
@@ -31,6 +32,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
     t.string "status", default: "cart", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["user_id", "contest_id"], name: "index_entries_on_user_id_and_contest_id", unique: true
     t.index ["user_id"], name: "index_entries_on_user_id"
@@ -43,6 +45,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
     t.string "result", default: "pending", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
     t.index ["entry_id", "prop_id"], name: "index_picks_on_entry_id_and_prop_id", unique: true
     t.index ["entry_id"], name: "index_picks_on_entry_id"
     t.index ["prop_id"], name: "index_picks_on_prop_id"
@@ -57,6 +60,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
     t.string "status", default: "pending", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug"
     t.index ["contest_id"], name: "index_props_on_contest_id"
   end
 
@@ -69,6 +73,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
     t.string "password_digest", default: "", null: false
     t.string "provider"
     t.string "uid"
+    t.string "slug"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
   end
