@@ -318,9 +318,9 @@
       var id = el.dataset.holdId || 'hold';
       var circle = el.querySelector('svg.progress circle');
 
-      // Stop nudge while holding
-      stopNudgeCycle(id);
+      // Restart nudge cycle from hold start (suppressed visually by .process)
       el.classList.remove('nudge', 'nudge-soft');
+      startNudgeCycle(el);
 
       // Snap progress to 0 instantly before starting
       if (circle) {
@@ -372,9 +372,6 @@
         clearTimeout(timers[id]);
         delete timers[id];
       }
-
-      // Restart nudge cycle after releasing
-      startNudgeCycle(el);
     };
   })();
 </script>
