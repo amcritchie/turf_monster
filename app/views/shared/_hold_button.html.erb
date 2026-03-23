@@ -246,8 +246,19 @@
       }
 
       var id = el.dataset.holdId || 'hold';
+      var circle = el.querySelector('svg.progress circle');
+
+      // Snap progress to 0 instantly before starting
+      if (circle) {
+        circle.style.transition = 'none';
+        el.classList.remove('process', 'success');
+        void circle.offsetWidth; // force reflow
+        circle.style.transition = '';
+      } else {
+        el.classList.remove('process', 'success');
+      }
+
       el.style.setProperty('--duration', duration + 'ms');
-      el.classList.remove('success');
       el.classList.add('process');
 
       timers[id] = setTimeout(function() {
@@ -271,7 +282,18 @@
     window.holdBtnEnd = function(el) {
       if (el.classList.contains('success')) return;
       var id = el.dataset.holdId || 'hold';
-      el.classList.remove('process');
+
+      // Snap progress circle back to 0 instantly (no reverse animation)
+      var circle = el.querySelector('svg.progress circle');
+      if (circle) {
+        circle.style.transition = 'none';
+        el.classList.remove('process');
+        void circle.offsetWidth; // force reflow
+        circle.style.transition = '';
+      } else {
+        el.classList.remove('process');
+      }
+
       if (timers[id]) {
         clearTimeout(timers[id]);
         delete timers[id];
