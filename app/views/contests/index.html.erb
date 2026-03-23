@@ -4,8 +4,12 @@
 
 <%
   cart_picks = {}
+  cart_pick_order = []
   if @cart_entry
-    @cart_entry.picks.each { |p| cart_picks[p.prop_id.to_s] = p.selection }
+    @cart_entry.picks.order(:created_at).each do |p|
+      cart_picks[p.prop_id.to_s] = p.selection
+      cart_pick_order << p.prop_id.to_s
+    end
   end
 %>
 
@@ -265,6 +269,7 @@
 
     return {
       picks: <%= cart_picks.to_json.html_safe %>,
+      pickOrder: <%= cart_pick_order.to_json.html_safe %>,
       cartOpen: <%= cart_picks.any? ? 'true' : 'false' %>,
       blurDismissed: false,
       blurUsed: false,
@@ -281,9 +286,9 @@
       },
 
       get pickSlots() {
-        return Object.entries(this.picks).map(([propId, selection]) => ({
+        return this.pickOrder.filter(id => this.picks[id]).map(propId => ({
           propId,
-          selection,
+          selection: this.picks[propId],
           name: propData[propId]?.name || propId,
           line: propData[propId]?.line || ''
         }));
@@ -292,26 +297,30 @@
       togglePick(propId, selection) {
         // Optimistic UI update
         const oldPicks = { ...this.picks };
+        const oldOrder = [...this.pickOrder];
 
         if (this.picks[propId] === selection) {
           let newPicks = { ...this.picks };
           delete newPicks[propId];
           this.picks = newPicks;
+          this.pickOrder = this.pickOrder.filter(id => id !== propId);
           this.blurDismissed = false;
         } else if (this.picks[propId]) {
           this.picks = { ...this.picks, [propId]: selection };
           this.triggerShake(propId);
         } else if (this.pickCount < 3) {
           this.picks = { ...this.picks, [propId]: selection };
+          this.pickOrder = [...this.pickOrder, propId];
           if (!this.cartOpen) this.cartOpen = true;
           this.triggerShake(propId);
         } else {
           // Replace the most recent (3rd) pick
-          let keys = Object.keys(this.picks);
+          let removedId = this.pickOrder[this.pickOrder.length - 1];
           let newPicks = { ...this.picks };
-          delete newPicks[keys[keys.length - 1]];
+          delete newPicks[removedId];
           newPicks[propId] = selection;
           this.picks = newPicks;
+          this.pickOrder = [...this.pickOrder.slice(0, -1), propId];
           this.blurDismissed = false;
           this.triggerShake(propId);
         }
@@ -332,11 +341,13 @@
         .then(({ ok, data }) => {
           if (!ok) {
             this.picks = oldPicks;
+            this.pickOrder = oldOrder;
             this.showError(data.error || 'Failed to save pick');
           }
         })
         .catch(() => {
           this.picks = oldPicks;
+          this.pickOrder = oldOrder;
           this.showError('Network error. Pick not saved.');
         });
       },
