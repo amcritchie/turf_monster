@@ -51,7 +51,9 @@
 
     border: 1px solid rgba(142, 130, 254, 0.5);
     box-shadow: 0 0 20px rgba(142, 130, 254, 0.25);
-    animation: hold-nudge 0.4s ease-in-out 3s 1;
+  }
+  .hold-btn.nudge {
+    animation: hold-nudge 0.5s ease-in-out 1;
   }
 
   /* ── Progress circle ── */
@@ -219,10 +221,12 @@
   }
   @keyframes hold-nudge {
     0%, 100% { transform: scale(1) rotate(0deg); }
-    20% { transform: scale(1.03) rotate(-1deg); }
-    40% { transform: scale(1.03) rotate(1deg); }
-    60% { transform: scale(1.02) rotate(-0.5deg); }
-    80% { transform: scale(1.01) rotate(0.5deg); }
+    15% { transform: scale(1.06) rotate(-2deg); }
+    30% { transform: scale(1.06) rotate(2deg); }
+    45% { transform: scale(1.04) rotate(-1.5deg); }
+    60% { transform: scale(1.03) rotate(1deg); }
+    75% { transform: scale(1.02) rotate(-0.5deg); }
+    90% { transform: scale(1.01) rotate(0.3deg); }
   }
 </style>
 
@@ -246,7 +250,45 @@
     window._holdBtnInit = true;
 
     var timers = {};
+    var nudgeTimers = {};
     var duration = <%= duration %>;
+
+    function triggerNudge(el) {
+      if (el.classList.contains('process') || el.classList.contains('success')) return;
+      el.classList.remove('nudge');
+      void el.offsetWidth;
+      el.classList.add('nudge');
+    }
+
+    function startNudgeCycle(el) {
+      var id = el.dataset.holdId || 'hold';
+      stopNudgeCycle(id);
+      nudgeTimers[id] = {};
+      nudgeTimers[id].initial = setTimeout(function() {
+        triggerNudge(el);
+        nudgeTimers[id].interval = setInterval(function() {
+          triggerNudge(el);
+        }, 10000);
+      }, 3000);
+    }
+
+    function stopNudgeCycle(id) {
+      if (nudgeTimers[id]) {
+        clearTimeout(nudgeTimers[id].initial);
+        clearInterval(nudgeTimers[id].interval);
+        delete nudgeTimers[id];
+      }
+    }
+
+    // Auto-start nudge for any hold buttons already visible
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.hold-btn').forEach(function(el) {
+        el.addEventListener('animationend', function(e) {
+          if (e.animationName === 'hold-nudge') el.classList.remove('nudge');
+        });
+        startNudgeCycle(el);
+      });
+    });
 
     window.holdBtnStart = function(el) {
       var scope = el.closest('[x-data]');
@@ -263,6 +305,10 @@
 
       var id = el.dataset.holdId || 'hold';
       var circle = el.querySelector('svg.progress circle');
+
+      // Stop nudge while holding
+      stopNudgeCycle(id);
+      el.classList.remove('nudge');
 
       // Snap progress to 0 instantly before starting
       if (circle) {
@@ -314,6 +360,9 @@
         clearTimeout(timers[id]);
         delete timers[id];
       }
+
+      // Restart nudge cycle after releasing
+      startNudgeCycle(el);
     };
   })();
 </script>
