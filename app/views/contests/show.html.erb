@@ -71,7 +71,7 @@
                                 end
                     %>
                     <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>">
-                      <%= pick.prop.description.gsub(" Total Goals", "")[0..2] %>:<%= pick.selection == "more" ? "O" : "U" %>
+                      <% if pick.prop.team %><%= pick.prop.team.emoji %><% end %><%= pick.prop.description.gsub(" Total Goals", "")[0..2] %>:<%= pick.selection == "more" ? "O" : "U" %>
                     </span>
                   <% end %>
                 </div>
@@ -92,6 +92,13 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <% @props.each do |prop| %>
           <div class="bg-navy-400 rounded-xl shadow p-4 border border-navy-300/20">
+            <% if prop.team && prop.opponent_team %>
+              <div class="flex items-center gap-1 mb-1 text-sm">
+                <span><%= prop.team.emoji %></span>
+                <span class="text-[10px] text-gray-500 font-bold">VS</span>
+                <span><%= prop.opponent_team.emoji %></span>
+              </div>
+            <% end %>
             <p class="font-bold text-white text-sm mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
             <p class="text-xs text-gray-500 mb-2">Line: <span class="font-mono text-violet"><%= prop.line %></span></p>
             <input type="number" name="results[<%= prop.id %>]" step="0.1" min="0"

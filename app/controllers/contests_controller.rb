@@ -3,7 +3,7 @@ class ContestsController < ApplicationController
 
   def index
     @contest = Contest.order(created_at: :desc).first
-    @props = @contest&.props || []
+    @props = @contest&.props&.includes(:team, :opponent_team, :game) || []
     @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user, picks: :prop) || []
 
     if logged_in? && @contest
@@ -13,7 +13,7 @@ class ContestsController < ApplicationController
 
   def show
     @contest = Contest.find(params[:id])
-    @props = @contest.props
+    @props = @contest.props.includes(:team, :opponent_team, :game)
     @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: :prop).order(score: :desc)
   end
 

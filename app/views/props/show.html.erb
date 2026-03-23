@@ -3,7 +3,17 @@
 <!-- Large Prop Card -->
 <section class="mb-8">
   <div class="bg-navy-400 rounded-xl shadow p-8 text-center border border-navy-300/20">
+    <% if @prop.team && @prop.opponent_team %>
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <span class="text-3xl" title="<%= @prop.team.name %>"><%= @prop.team.emoji %></span>
+        <span class="text-sm text-gray-500 font-bold">VS</span>
+        <span class="text-3xl" title="<%= @prop.opponent_team.name %>"><%= @prop.opponent_team.emoji %></span>
+      </div>
+    <% end %>
     <h2 class="text-3xl font-bold text-white mb-2"><%= @prop.description %></h2>
+    <% if @prop.opponent_team %>
+      <p class="text-sm text-gray-400 mb-2">vs <%= @prop.opponent_team.name %></p>
+    <% end %>
     <p class="font-mono text-4xl text-violet mb-4">O/U <%= @prop.line %></p>
     <div class="flex justify-center gap-8 text-lg">
       <span class="text-mint font-semibold">OVER = More than <%= @prop.line %></span>

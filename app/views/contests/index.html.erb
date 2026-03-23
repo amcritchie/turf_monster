@@ -35,9 +35,21 @@
                'border-red-500 shadow-lg shadow-red-500/20': picks['<%= prop.id %>'] === 'less',
                'border-navy-300/20': !picks['<%= prop.id %>']
              }">
+          <% if prop.team && prop.opponent_team %>
+            <div class="flex items-center justify-center gap-1.5 mb-1">
+              <span class="text-base md:text-lg" title="<%= prop.team.name %>"><%= prop.team.emoji %></span>
+              <span class="text-[10px] text-gray-500 font-bold">VS</span>
+              <span class="text-base md:text-lg" title="<%= prop.opponent_team.name %>"><%= prop.opponent_team.emoji %></span>
+            </div>
+          <% end %>
           <p class="font-bold text-white text-base md:text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
           <p class="font-mono text-xl md:text-2xl text-violet mb-1"><%= prop.line %></p>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-2 md:mb-3">Total Goals</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-2 md:mb-3">
+            Total Goals
+            <% if prop.opponent_team %>
+              <span class="text-gray-600">vs <%= prop.opponent_team.short_name %></span>
+            <% end %>
+          </p>
           <% if prop.graded? %>
             <div class="mb-2 md:mb-3 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
               Result: <%= prop.result_value %>
@@ -195,13 +207,20 @@
           <template x-if="pickSlots[i-1]">
             <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
                  :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']">
+              <template x-if="pickSlots[i-1].emoji">
+                <div class="flex items-center justify-center gap-1 mb-0.5">
+                  <span class="text-xs" x-text="pickSlots[i-1].emoji"></span>
+                  <span class="text-[8px] text-gray-500 font-bold">v</span>
+                  <span class="text-xs" x-text="pickSlots[i-1].opEmoji"></span>
+                </div>
+              </template>
               <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
-              <p class="text-xs font-bold mt-1"
+              <p class="text-xs font-bold mt-0.5"
                  :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
                  x-text="pickSlots[i-1].selection === 'more' ? 'OVER' : 'UNDER'"></p>
-              <p class="text-gray-500 text-xs mt-0.5">
+              <p class="text-gray-500 text-[10px] mt-0.5">
                 <span class="text-violet font-mono" x-text="pickSlots[i-1].line"></span>
-                <span>Total Goals</span>
+                <span>Goals</span>
               </p>
               <button @click="removePick(pickSlots[i-1].propId)"
                       class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-400 border border-navy-300/30 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
@@ -263,7 +282,7 @@
   function pickBoard() {
     const propData = {
       <% @props.each_with_index do |prop, i| %>
-        '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>' }<%= i < @props.length - 1 ? ',' : '' %>
+        '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>', emoji: '<%= prop.team&.emoji %>', opEmoji: '<%= prop.opponent_team&.emoji %>', opName: '<%= j(prop.opponent_team&.short_name.to_s) %>' }<%= i < @props.length - 1 ? ',' : '' %>
       <% end %>
     };
 
@@ -290,7 +309,10 @@
           propId,
           selection: this.picks[propId],
           name: propData[propId]?.name || propId,
-          line: propData[propId]?.line || ''
+          line: propData[propId]?.line || '',
+          emoji: propData[propId]?.emoji || '',
+          opEmoji: propData[propId]?.opEmoji || '',
+          opName: propData[propId]?.opName || ''
         }));
       },
 
