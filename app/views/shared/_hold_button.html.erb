@@ -55,6 +55,9 @@
   .hold-btn.nudge {
     animation: hold-nudge 0.5s ease-in-out 1;
   }
+  .hold-btn.nudge-soft {
+    animation: hold-nudge-soft 0.4s ease-in-out 1;
+  }
 
   /* ── Progress circle ── */
   .hold-btn > .hold-icon {
@@ -228,6 +231,13 @@
     75% { transform: scale(1.02) rotate(-0.5deg); }
     90% { transform: scale(1.01) rotate(0.3deg); }
   }
+  @keyframes hold-nudge-soft {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    20% { transform: scale(1.03) rotate(-1deg); }
+    40% { transform: scale(1.03) rotate(1deg); }
+    60% { transform: scale(1.02) rotate(-0.5deg); }
+    80% { transform: scale(1.01) rotate(0.5deg); }
+  }
 </style>
 
 <button class="hold-btn" data-hold-id="<%= hold_id %>"
@@ -253,11 +263,11 @@
     var nudgeTimers = {};
     var duration = <%= duration %>;
 
-    function triggerNudge(el) {
+    function triggerNudge(el, cls) {
       if (el.classList.contains('process') || el.classList.contains('success')) return;
-      el.classList.remove('nudge');
+      el.classList.remove('nudge', 'nudge-soft');
       void el.offsetWidth;
-      el.classList.add('nudge');
+      el.classList.add(cls);
     }
 
     function startNudgeCycle(el) {
@@ -265,9 +275,9 @@
       stopNudgeCycle(id);
       nudgeTimers[id] = {};
       nudgeTimers[id].initial = setTimeout(function() {
-        triggerNudge(el);
+        triggerNudge(el, 'nudge');
         nudgeTimers[id].interval = setInterval(function() {
-          triggerNudge(el);
+          triggerNudge(el, 'nudge-soft');
         }, 10000);
       }, 3000);
     }
@@ -284,7 +294,9 @@
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.hold-btn').forEach(function(el) {
         el.addEventListener('animationend', function(e) {
-          if (e.animationName === 'hold-nudge') el.classList.remove('nudge');
+          if (e.animationName === 'hold-nudge' || e.animationName === 'hold-nudge-soft') {
+            el.classList.remove('nudge', 'nudge-soft');
+          }
         });
         startNudgeCycle(el);
       });
@@ -308,7 +320,7 @@
 
       // Stop nudge while holding
       stopNudgeCycle(id);
-      el.classList.remove('nudge');
+      el.classList.remove('nudge', 'nudge-soft');
 
       // Snap progress to 0 instantly before starting
       if (circle) {
