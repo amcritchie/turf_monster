@@ -3,7 +3,7 @@
     <div>
       <template x-if="pickSlots[i-1]">
         <div class="bg-navy-600 rounded-xl p-3 border transition"
-             :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
+             :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']"
           <div class="flex items-center justify-between">
             <div>
               <p class="text-white font-semibold text-sm" x-text="pickSlots[i-1].name"></p>

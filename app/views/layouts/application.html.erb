@@ -96,6 +96,15 @@
         from { width: 100%; }
         to { width: 0%; }
       }
+      @keyframes card-shake {
+        0%, 100% { transform: translateX(0); }
+        15% { transform: translateX(-3px) rotate(-1deg); }
+        30% { transform: translateX(3px) rotate(1deg); }
+        45% { transform: translateX(-2px); }
+        60% { transform: translateX(2px); }
+        75% { transform: translateX(-1px); }
+      }
+      .shake { animation: card-shake 0.4s ease-out; }
     </style>
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>

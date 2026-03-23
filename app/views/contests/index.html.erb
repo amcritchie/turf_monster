@@ -190,7 +190,7 @@
         <div class="flex-1 min-w-0">
           <template x-if="pickSlots[i-1]">
             <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
-                 :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
+                 :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']"
               <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
               <p class="text-xs font-bold mt-1"
                  :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
@@ -267,6 +267,7 @@
       picks: <%= cart_picks.to_json.html_safe %>,
       cartOpen: <%= cart_picks.any? ? 'true' : 'false' %>,
       blurDismissed: false,
+      shakeKey: 0,
       submitting: false,
       error: null,
       errorTimer: null,
@@ -301,9 +302,11 @@
           this.blurDismissed = false;
         } else if (this.picks[propId]) {
           this.picks = { ...this.picks, [propId]: selection };
+          this.triggerShake(propId);
         } else if (this.pickCount < 3) {
           this.picks = { ...this.picks, [propId]: selection };
           if (!this.cartOpen) this.cartOpen = true;
+          this.triggerShake(propId);
         } else {
           // Replace the most recent (3rd) pick
           let keys = Object.keys(this.picks);
@@ -312,6 +315,7 @@
           newPicks[propId] = selection;
           this.picks = newPicks;
           this.blurDismissed = false;
+          this.triggerShake(propId);
         }
 
         if (!this.loggedIn) return;
@@ -341,6 +345,16 @@
 
       removePick(propId) {
         this.togglePick(propId, this.picks[propId]);
+      },
+
+      triggerShake(propId) {
+        this.shakeKey++;
+        this._shakePropId = propId;
+        setTimeout(() => { this._shakePropId = null; }, 400);
+      },
+
+      isShaking(propId) {
+        return this._shakePropId === propId;
       },
 
       async confirmEntry() {
