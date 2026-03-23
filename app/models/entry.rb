@@ -9,6 +9,30 @@ class Entry < ApplicationRecord
 
   enum :status, { cart: "cart", active: "active", complete: "complete" }
 
+  def toggle_pick!(prop, selection)
+    existing = picks.find_by(prop: prop)
+
+    if existing
+      if existing.selection == selection
+        existing.destroy!
+      else
+        existing.update!(selection: selection)
+      end
+    elsif picks.count < 3
+      picks.create!(prop: prop, selection: selection)
+    else
+      raise "Maximum 3 picks"
+    end
+
+    reload
+    if picks.empty?
+      destroy!
+      return nil
+    end
+
+    picks.each_with_object({}) { |p, h| h[p.prop_id.to_s] = p.selection }
+  end
+
   def confirm!
     raise "Contest is not open" unless contest.open?
     raise "Exactly 3 picks required" unless picks.count == 3
