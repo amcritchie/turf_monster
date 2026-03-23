@@ -84,7 +84,7 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal 1, entry.picks.count
   end
 
-  test "toggle_pick! rejects 4th pick" do
+  test "toggle_pick! replaces newest pick when adding 4th" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
@@ -92,8 +92,11 @@ class EntryTest < ActiveSupport::TestCase
 
     prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
 
-    error = assert_raises(RuntimeError) { entry.toggle_pick!(prop4, "more") }
-    assert_equal "Maximum 3 picks", error.message
+    picks_hash = entry.toggle_pick!(prop4, "more")
+
+    assert_equal 3, entry.picks.count
+    assert_includes picks_hash.keys, prop4.id.to_s
+    assert_not_includes picks_hash.keys, @prop3.id.to_s
   end
 
   test "toggle_pick! destroys entry when last pick removed" do

@@ -305,7 +305,13 @@
           this.picks = { ...this.picks, [propId]: selection };
           if (!this.cartOpen) this.cartOpen = true;
         } else {
-          return;
+          // Replace the most recent (3rd) pick
+          let keys = Object.keys(this.picks);
+          let newPicks = { ...this.picks };
+          delete newPicks[keys[keys.length - 1]];
+          newPicks[propId] = selection;
+          this.picks = newPicks;
+          this.blurDismissed = false;
         }
 
         if (!this.loggedIn) return;

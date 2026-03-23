@@ -64,7 +64,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "less", json["picks"][@prop1.id.to_s]
   end
 
-  test "toggle_pick rejects 4th pick" do
+  test "toggle_pick replaces newest pick when adding 4th" do
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
@@ -78,9 +78,11 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
       params: { prop_id: prop4.id, selection: "more" },
       as: :json
 
-    assert_response :unprocessable_entity
+    assert_response :success
     json = JSON.parse(response.body)
-    assert_equal "Maximum 3 picks", json["error"]
+    assert_equal 3, json["pick_count"]
+    assert json["picks"].key?(prop4.id.to_s)
+    assert_not json["picks"].key?(@prop3.id.to_s)
   end
 
   test "toggle_pick rejects if user already has active entry" do

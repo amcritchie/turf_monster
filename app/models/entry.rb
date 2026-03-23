@@ -21,7 +21,8 @@ class Entry < ApplicationRecord
     elsif picks.count < 3
       picks.create!(prop: prop, selection: selection)
     else
-      raise "Maximum 3 picks"
+      picks.order(created_at: :desc).first.destroy!
+      picks.create!(prop: prop, selection: selection)
     end
 
     reload
