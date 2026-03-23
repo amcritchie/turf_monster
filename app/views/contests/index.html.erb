@@ -2,7 +2,14 @@
   <p class="text-gray-400">No contests yet.</p>
 <% else %>
 
-<div x-data="pickBoard()" x-cloak x-init="init()">
+<%
+  cart_picks = {}
+  if @cart_entry
+    @cart_entry.picks.each { |p| cart_picks[p.prop_id.to_s] = p.selection }
+  end
+%>
+
+<div x-data="pickBoard()" x-cloak>
 
   <% if logged_in? %>
     <!-- Current Player Card -->
@@ -58,7 +65,7 @@
         </div>
         <div class="bg-navy-600 rounded-lg p-3">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
-          <p class="font-mono text-lg text-white"><%= @contest.entries.count %></p>
+          <p class="font-mono text-lg text-white"><%= @entries.count %></p>
         </div>
       </div>
       <div class="mt-4 text-center">
@@ -135,20 +142,7 @@
     <div class="flex flex-col h-full">
       <!-- Cart header -->
       <div class="flex items-center justify-between p-4 border-b border-navy-300/20">
-        <div class="flex items-center gap-2">
-          <h3 class="text-lg font-bold text-white">Your Picks</h3>
-          <% if logged_in? %>
-            <template x-if="syncStatus === 'saving'">
-              <span class="text-xs text-gray-400 animate-pulse">saving...</span>
-            </template>
-            <template x-if="syncStatus === 'saved'">
-              <span class="text-xs text-mint transition-opacity" x-transition>saved</span>
-            </template>
-            <template x-if="syncStatus === 'error'">
-              <button @click="saveToServer()" class="text-xs text-red-400 hover:text-red-300 underline">sync failed</button>
-            </template>
-          <% end %>
-        </div>
+        <h3 class="text-lg font-bold text-white">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
                 :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
@@ -195,7 +189,7 @@
           duration: 3000,
           hold_id: "desktop",
           guard: "data.pickCount === 3",
-          on_success: "d.submitEntry()" %>
+          on_success: "d.confirmEntry()" %>
       </div>
     </div>
   </div>
@@ -213,20 +207,7 @@
     </div>
     <!-- Cart header -->
     <div class="flex items-center justify-between px-4 pb-3 border-b border-navy-300/20">
-      <div class="flex items-center gap-2">
-        <h3 class="text-lg font-bold text-white">Your Picks</h3>
-        <% if logged_in? %>
-          <template x-if="syncStatus === 'saving'">
-            <span class="text-xs text-gray-400 animate-pulse">saving...</span>
-          </template>
-          <template x-if="syncStatus === 'saved'">
-            <span class="text-xs text-mint transition-opacity" x-transition>saved</span>
-          </template>
-          <template x-if="syncStatus === 'error'">
-            <button @click="saveToServer()" class="text-xs text-red-400 hover:text-red-300 underline">sync failed</button>
-          </template>
-        <% end %>
-      </div>
+      <h3 class="text-lg font-bold text-white">Your Picks</h3>
       <div class="flex items-center gap-3">
         <span class="px-2 py-0.5 rounded-full text-xs font-bold"
               :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
@@ -273,7 +254,7 @@
         duration: 3000,
         hold_id: "mobile",
         guard: "data.pickCount === 3",
-        on_success: "d.submitEntry()" %>
+        on_success: "d.confirmEntry()" %>
     </div>
   </div>
 
@@ -313,21 +294,17 @@
         '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>' }<%= i < @props.length - 1 ? ',' : '' %>
       <% end %>
     };
-    const validPropIds = new Set(Object.keys(propData));
 
     return {
-      picks: {},
-      cartOpen: false,
+      picks: <%= cart_picks.to_json.html_safe %>,
+      cartOpen: <%= cart_picks.any? ? 'true' : 'false' %>,
       submitting: false,
       error: null,
       errorTimer: null,
       contestId: '<%= @contest&.id %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
-      alreadyEntered: <%= (logged_in? && @contest&.entries&.exists?(user: current_user)) ? 'true' : 'false' %>,
-      syncStatus: 'idle',
-      saveTimer: null,
-      savedTimer: null,
+      alreadyEntered: <%= (logged_in? && @contest&.entries&.where(status: [:active, :complete])&.exists?(user: current_user)) ? 'true' : 'false' %>,
 
       get pickCount() {
         return Object.keys(this.picks).length;
@@ -342,134 +319,12 @@
         }));
       },
 
-      init() {
-        if (this._initialized) return;
-        this._initialized = true;
-        this.rehydrate();
-        window.addEventListener('beforeunload', () => {
-          this.saveToLocalStorage();
-          if (this.loggedIn && this.pickCount > 0 && !this.alreadyEntered) {
-            const data = JSON.stringify({ picks: { ...this.picks } });
-            navigator.sendBeacon(
-              `/contests/${this.contestId}/draft_picks/beacon`,
-              new Blob([data], { type: 'application/json' })
-            );
-          }
-        });
-      },
-
-      // --- localStorage ---
-      localStorageKey() {
-        return `turf_draft_${this.contestId}`;
-      },
-
-      saveToLocalStorage() {
-        const payload = { picks: { ...this.picks }, updated_at: new Date().toISOString() };
-        try {
-          localStorage.setItem(this.localStorageKey(), JSON.stringify(payload));
-        } catch(e) {
-          console.warn('Failed to save draft to localStorage:', e);
-        }
-      },
-
-      loadFromLocalStorage() {
-        try {
-          const raw = localStorage.getItem(this.localStorageKey());
-          return raw ? JSON.parse(raw) : null;
-        } catch(e) {
-          console.warn('Failed to load draft from localStorage:', e);
-          return null;
-        }
-      },
-
-      clearLocalStorage() {
-        try { localStorage.removeItem(this.localStorageKey()); } catch(e) {}
-      },
-
-      // --- Rehydration ---
-      async rehydrate() {
-        if (this.alreadyEntered) {
-          this.clearLocalStorage();
-          return;
-        }
-
-        const local = this.loadFromLocalStorage();
-        let server = null;
-
-        if (this.loggedIn) {
-          try {
-            const resp = await fetch(`/contests/${this.contestId}/draft_picks`, {
-              headers: { 'Accept': 'application/json' }
-            });
-            if (resp.ok) {
-              const data = await resp.json();
-              if (data.picks && Object.keys(data.picks).length > 0) {
-                server = data;
-              }
-            }
-          } catch(e) {}
-        }
-
-        let source = null;
-        if (local && server) {
-          const localTime = new Date(local.updated_at).getTime();
-          const serverTime = new Date(server.updated_at).getTime();
-          source = serverTime >= localTime ? server : local;
-        } else {
-          source = server || local;
-        }
-
-        if (source && source.picks) {
-          const filtered = {};
-          for (const [id, sel] of Object.entries(source.picks)) {
-            if (validPropIds.has(id) && (sel === 'more' || sel === 'less')) {
-              filtered[id] = sel;
-            }
-          }
-          if (Object.keys(filtered).length > 0) {
-            this.picks = filtered;
-            this.cartOpen = true;
-          }
-        }
-      },
-
-      // --- Server sync ---
-      scheduleSave() {
-        this.saveToLocalStorage();
-        if (!this.loggedIn || this.alreadyEntered) return;
-
-        if (this.saveTimer) clearTimeout(this.saveTimer);
-        this.saveTimer = setTimeout(() => this.saveToServer(), 500);
-      },
-
-      async saveToServer() {
-        if (!this.loggedIn || this.alreadyEntered) return;
-        this.syncStatus = 'saving';
-        if (this.savedTimer) { clearTimeout(this.savedTimer); this.savedTimer = null; }
-
-        try {
-          const resp = await fetch(`/contests/${this.contestId}/draft_picks`, {
-            method: 'PATCH',
-            headers: {
-              'X-CSRF-Token': this.csrfToken,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({ picks: { ...this.picks } })
-          });
-          if (resp.ok) {
-            this.syncStatus = 'saved';
-            this.savedTimer = setTimeout(() => { this.syncStatus = 'idle'; }, 2000);
-          } else {
-            this.syncStatus = 'error';
-          }
-        } catch(e) {
-          this.syncStatus = 'error';
-        }
-      },
-
-      // --- Pick actions ---
       togglePick(propId, selection) {
+        if (this.alreadyEntered) return;
+
+        // Optimistic UI update
+        const oldPicks = { ...this.picks };
+
         if (this.picks[propId] === selection) {
           let newPicks = { ...this.picks };
           delete newPicks[propId];
@@ -479,24 +334,46 @@
         } else if (this.pickCount < 3) {
           this.picks = { ...this.picks, [propId]: selection };
           if (!this.cartOpen) this.cartOpen = true;
+        } else {
+          return;
         }
-        this.scheduleSave();
+
+        if (!this.loggedIn) return;
+
+        // Server sync
+        fetch(`/contests/${this.contestId}/toggle_pick`, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-Token': this.csrfToken,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ prop_id: propId, selection: selection })
+        })
+        .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok) {
+            this.picks = oldPicks;
+            this.showError(data.error || 'Failed to save pick');
+          }
+        })
+        .catch(() => {
+          this.picks = oldPicks;
+          this.showError('Network error. Pick not saved.');
+        });
       },
 
       removePick(propId) {
-        let newPicks = { ...this.picks };
-        delete newPicks[propId];
-        this.picks = newPicks;
-        this.scheduleSave();
+        this.togglePick(propId, this.picks[propId]);
       },
 
-      async submitEntry() {
-        this.submitting = true;
+      async confirmEntry() {
+        if (!this.loggedIn) {
+          window.location.href = '/login';
+          return;
+        }
 
-        const formData = new FormData();
-        Object.entries(this.picks).forEach(([propId, selection]) => {
-          formData.append(`picks[${propId}]`, selection);
-        });
+        this.submitting = true;
 
         try {
           const response = await fetch(`/contests/${this.contestId}/enter`, {
@@ -504,14 +381,12 @@
             headers: {
               'X-CSRF-Token': this.csrfToken,
               'Accept': 'application/json'
-            },
-            body: formData
+            }
           });
 
           const data = await response.json();
 
           if (data.success) {
-            this.clearLocalStorage();
             window.location.href = data.redirect || '/';
           } else {
             this.showError(data.error || 'Something went wrong');

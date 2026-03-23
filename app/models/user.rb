@@ -1,7 +1,6 @@
 class User < ApplicationRecord
   has_secure_password
   has_many :entries, dependent: :destroy
-  has_many :draft_picks, dependent: :destroy
 
   validates :email, presence: true, uniqueness: true
 

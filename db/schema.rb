@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_23_002339) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_23_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -24,22 +24,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_002339) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "draft_picks", force: :cascade do |t|
-    t.bigint "user_id", null: false
-    t.bigint "contest_id", null: false
-    t.jsonb "picks"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["contest_id"], name: "index_draft_picks_on_contest_id"
-    t.index ["user_id", "contest_id"], name: "index_draft_picks_on_user_id_and_contest_id", unique: true
-    t.index ["user_id"], name: "index_draft_picks_on_user_id"
-  end
-
   create_table "entries", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "contest_id", null: false
     t.float "score", default: 0.0, null: false
-    t.string "status", default: "pending", null: false
+    t.string "status", default: "cart", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["contest_id"], name: "index_entries_on_contest_id"
@@ -84,8 +73,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_002339) do
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
   end
 
-  add_foreign_key "draft_picks", "contests"
-  add_foreign_key "draft_picks", "users"
   add_foreign_key "entries", "contests"
   add_foreign_key "entries", "users"
   add_foreign_key "picks", "entries"

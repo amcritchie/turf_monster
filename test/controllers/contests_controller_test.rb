@@ -9,35 +9,143 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     @prop3 = props(:three)
   end
 
-  test "enter with JSON returns success" do
+  # --- toggle_pick tests ---
+
+  test "toggle_pick creates entry and pick on first toggle" do
     log_in_as(@user)
 
+    assert_difference ["Entry.count", "Pick.count"], 1 do
+      post toggle_pick_contest_path(@contest),
+        params: { prop_id: @prop1.id, selection: "more" },
+        as: :json
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal({ @prop1.id.to_s => "more" }, json["picks"])
+    assert_equal 1, json["pick_count"]
+  end
+
+  test "toggle_pick removes pick when same selection toggled" do
+    log_in_as(@user)
+
+    # Create a cart entry with one pick
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+
+    assert_difference "Pick.count", -1 do
+      post toggle_pick_contest_path(@contest),
+        params: { prop_id: @prop1.id, selection: "more" },
+        as: :json
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal({}, json["picks"])
+    assert_equal 0, json["pick_count"]
+    # Entry should be destroyed when empty
+    assert_not Entry.exists?(entry.id)
+  end
+
+  test "toggle_pick switches selection" do
+    log_in_as(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+
+    assert_no_difference "Pick.count" do
+      post toggle_pick_contest_path(@contest),
+        params: { prop_id: @prop1.id, selection: "less" },
+        as: :json
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal "less", json["picks"][@prop1.id.to_s]
+  end
+
+  test "toggle_pick rejects 4th pick" do
+    log_in_as(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+
+    prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
+
+    post toggle_pick_contest_path(@contest),
+      params: { prop_id: prop4.id, selection: "more" },
+      as: :json
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_equal "Maximum 3 picks", json["error"]
+  end
+
+  test "toggle_pick rejects if user already has active entry" do
+    log_in_as(@user)
+
+    # Sam already has an active entry
+    entry = @contest.entries.create!(user: @user, status: :active)
+    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+
+    post toggle_pick_contest_path(@contest),
+      params: { prop_id: @prop1.id, selection: "more" },
+      as: :json
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_equal "Already entered", json["error"]
+  end
+
+  test "toggle_pick requires authentication" do
+    post toggle_pick_contest_path(@contest),
+      params: { prop_id: @prop1.id, selection: "more" },
+      as: :json
+
+    assert_response :redirect
+    assert_redirected_to login_path
+  end
+
+  # --- enter (confirm) tests ---
+
+  test "enter confirms cart entry with JSON" do
+    log_in_as(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+
+    balance_before = @user.balance_cents
+
     post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more", @prop2.id.to_s => "less", @prop3.id.to_s => "more" } },
       headers: { "Accept" => "application/json" }
 
     assert_response :success
     json = JSON.parse(response.body)
     assert json["success"]
     assert json["redirect"]
+    assert entry.reload.active?
+    assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
-  test "enter with JSON returns error on validation failure" do
+  test "enter with JSON returns error when no cart entry" do
     log_in_as(@user)
 
     post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more" } },
       headers: { "Accept" => "application/json" }
 
     assert_response :unprocessable_entity
     json = JSON.parse(response.body)
     assert_not json["success"]
-    assert_equal "Exactly 3 picks required", json["error"]
   end
 
   test "enter requires authentication" do
-    post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more", @prop2.id.to_s => "less", @prop3.id.to_s => "more" } }
+    post enter_contest_path(@contest)
 
     assert_response :redirect
     assert_redirected_to login_path
@@ -46,32 +154,14 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
   test "enter with HTML redirects on success" do
     log_in_as(@user)
 
-    post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more", @prop2.id.to_s => "less", @prop3.id.to_s => "more" } }
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+
+    post enter_contest_path(@contest)
 
     assert_response :redirect
     assert_redirected_to root_path
-  end
-
-  test "enter clears draft picks on success" do
-    log_in_as(@user)
-    DraftPick.save_draft(@user, @contest, { @prop1.id.to_s => "more", @prop2.id.to_s => "less" })
-    assert DraftPick.load_draft(@user, @contest).present?
-
-    post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more", @prop2.id.to_s => "less", @prop3.id.to_s => "more" } }
-
-    assert_nil DraftPick.load_draft(@user, @contest)
-  end
-
-  test "enter with HTML redirects with alert on error" do
-    log_in_as(@user)
-
-    post enter_contest_path(@contest),
-      params: { picks: { @prop1.id.to_s => "more" } }
-
-    assert_response :redirect
-    assert_redirected_to root_path
-    assert_equal "Exactly 3 picks required", flash[:alert]
   end
 end

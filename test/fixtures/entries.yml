@@ -2,10 +2,10 @@ one:
   user: alex
   contest: one
   score: 1.5
-  status: pending
+  status: active
 
 two:
   user: jordan
   contest: one
   score: 1.5
-  status: pending
+  status: active

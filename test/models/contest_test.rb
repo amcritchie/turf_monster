@@ -9,48 +9,38 @@ class ContestTest < ActiveSupport::TestCase
     @prop3 = props(:three)
   end
 
-  test "enter! requires exactly 3 picks" do
-    # Too few picks (2)
-    error = assert_raises(RuntimeError) do
-      @contest.enter!(@user, { @prop1.id.to_s => "more", @prop2.id.to_s => "less" })
-    end
-    assert_equal "Exactly 3 picks required", error.message
+  test "pool_cents only counts active and complete entries" do
+    # Fixtures have 2 active entries
+    assert_equal 2 * @contest.entry_fee_cents, @contest.pool_cents
+
+    # Cart entry should not count
+    @contest.entries.create!(user: @user, status: :cart)
+    assert_equal 2 * @contest.entry_fee_cents, @contest.pool_cents
   end
 
-  test "enter! rejects more than 3 picks" do
-    # Need a 4th prop
-    prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
+  test "grade! transitions active entries to complete" do
+    @prop1.update!(result_value: 2.0)
+    @prop2.update!(result_value: 1.0)
+    @prop3.update!(result_value: 3.0)
 
-    error = assert_raises(RuntimeError) do
-      @contest.enter!(@user, {
-        @prop1.id.to_s => "more",
-        @prop2.id.to_s => "less",
-        @prop3.id.to_s => "more",
-        prop4.id.to_s => "less"
-      })
+    @contest.grade!
+
+    @contest.entries.each do |entry|
+      assert entry.complete?, "Expected entry to be complete but was #{entry.status}"
     end
-    assert_equal "Exactly 3 picks required", error.message
+    assert @contest.settled?
   end
 
-  test "enter! accepts exactly 3 picks" do
-    entry = @contest.enter!(@user, {
-      @prop1.id.to_s => "more",
-      @prop2.id.to_s => "less",
-      @prop3.id.to_s => "more"
-    })
+  test "grade! ignores cart entries" do
+    cart_entry = @contest.entries.create!(user: @user, status: :cart)
+    cart_entry.picks.create!(prop: @prop1, selection: "more")
 
-    assert entry.persisted?
-    assert_equal 3, entry.picks.count
-  end
+    @prop1.update!(result_value: 2.0)
+    @prop2.update!(result_value: 1.0)
+    @prop3.update!(result_value: 3.0)
 
-  test "enter! ignores blank pick values when counting" do
-    error = assert_raises(RuntimeError) do
-      @contest.enter!(@user, {
-        @prop1.id.to_s => "more",
-        @prop2.id.to_s => "less",
-        @prop3.id.to_s => ""
-      })
-    end
-    assert_equal "Exactly 3 picks required", error.message
+    @contest.grade!
+
+    assert cart_entry.reload.cart?, "Cart entry should remain cart after grading"
   end
 end

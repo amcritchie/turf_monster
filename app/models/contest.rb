@@ -1,7 +1,6 @@
 class Contest < ApplicationRecord
   has_many :props, dependent: :destroy
   has_many :entries, dependent: :destroy
-  has_many :draft_picks, dependent: :destroy
 
   validates :name, presence: true
 
@@ -12,34 +11,11 @@ class Contest < ApplicationRecord
   end
 
   def pool_cents
-    entries.count * entry_fee_cents
+    entries.where(status: [:active, :complete]).count * entry_fee_cents
   end
 
   def pool_dollars
     pool_cents / 100.0
-  end
-
-  def enter!(user, picks_params)
-    raise "Contest is not open" unless open?
-    raise "Already entered" if entries.exists?(user: user)
-    raise "Contest is full" if max_entries.present? && entries.count >= max_entries
-
-    picks_hash = picks_params.respond_to?(:to_unsafe_h) ? picks_params.to_unsafe_h : picks_params.to_h
-    valid_picks = picks_hash.select { |_, v| v.present? }
-    raise "Exactly 3 picks required" unless valid_picks.size == 3
-
-    transaction do
-      user.deduct_funds!(entry_fee_cents) if entry_fee_cents > 0
-      entry = entries.create!(user: user)
-
-      picks_params.each do |prop_id, selection|
-        next if selection.blank?
-        entry.picks.create!(prop_id: prop_id, selection: selection)
-      end
-
-      DraftPick.clear_draft(user, self)
-      entry
-    end
   end
 
   def grade!
@@ -49,13 +25,14 @@ class Contest < ApplicationRecord
         prop.update!(status: "graded")
       end
 
-      entries.includes(:picks).find_each do |entry|
+      entries.active.includes(:picks).find_each do |entry|
         total = entry.picks.sum { |pick| pick.compute_result }
-        entry.update!(score: total, status: "scored")
+        entry.update!(score: total, status: "complete")
       end
 
-      max_score = entries.maximum(:score)
-      winners = entries.where(score: max_score)
+      completed = entries.complete
+      max_score = completed.maximum(:score)
+      winners = completed.where(score: max_score)
 
       if winners.any? && pool_cents > 0
         share = pool_cents / winners.count

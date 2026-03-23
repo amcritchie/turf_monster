@@ -5,5 +5,14 @@ class Entry < ApplicationRecord
 
   validates :user_id, uniqueness: { scope: :contest_id }
 
-  enum :status, { pending: "pending", scored: "scored" }
+  enum :status, { cart: "cart", active: "active", complete: "complete" }
+
+  def confirm!
+    raise "Contest is not open" unless contest.open?
+    raise "Exactly 3 picks required" unless picks.count == 3
+    transaction do
+      user.deduct_funds!(contest.entry_fee_cents) if contest.entry_fee_cents > 0
+      update!(status: :active)
+    end
+  end
 end

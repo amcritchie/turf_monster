@@ -17,11 +17,9 @@ Rails.application.routes.draw do
 
   resources :contests, only: [:index, :show] do
     member do
+      post :toggle_pick
       post :enter
       post :grade
-    end
-    resource :draft_picks, only: [:show, :update] do
-      post :beacon, on: :collection
     end
   end
 
