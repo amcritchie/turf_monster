@@ -43,4 +43,9 @@ class ContestTest < ActiveSupport::TestCase
 
     assert cart_entry.reload.cart?, "Cart entry should remain cart after grading"
   end
+
+  test "slug is set on save" do
+    @contest.save!
+    assert_equal "test-contest", @contest.slug
+  end
 end

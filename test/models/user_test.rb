@@ -65,4 +65,10 @@ class UserTest < ActiveSupport::TestCase
       assert_equal original.id, returning.id
     end
   end
+
+  test "slug is set on save" do
+    user = users(:alex)
+    user.save!
+    assert_equal "alex-alex@turf.com", user.slug
+  end
 end

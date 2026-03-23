@@ -52,4 +52,64 @@ class EntryTest < ActiveSupport::TestCase
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Insufficient funds", error.message
   end
+
+  # --- toggle_pick! tests ---
+
+  test "toggle_pick! creates a new pick" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+
+    picks_hash = entry.toggle_pick!(@prop1, "more")
+
+    assert_equal({ @prop1.id.to_s => "more" }, picks_hash)
+    assert_equal 1, entry.picks.count
+  end
+
+  test "toggle_pick! removes pick when same selection" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+
+    result = entry.toggle_pick!(@prop1, "more")
+
+    assert_nil result
+    assert_not Entry.exists?(entry.id)
+  end
+
+  test "toggle_pick! switches selection" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+
+    picks_hash = entry.toggle_pick!(@prop1, "less")
+
+    assert_equal "less", picks_hash[@prop1.id.to_s]
+    assert_equal 1, entry.picks.count
+  end
+
+  test "toggle_pick! rejects 4th pick" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+
+    prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
+
+    error = assert_raises(RuntimeError) { entry.toggle_pick!(prop4, "more") }
+    assert_equal "Maximum 3 picks", error.message
+  end
+
+  test "toggle_pick! destroys entry when last pick removed" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    entry.picks.create!(prop: @prop1, selection: "more")
+
+    result = entry.toggle_pick!(@prop1, "more")
+
+    assert_nil result
+    assert_not Entry.exists?(entry.id)
+  end
+
+  # --- slug test ---
+
+  test "slug is set on save" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    assert_equal "sam-test-contest", entry.slug
+  end
 end
