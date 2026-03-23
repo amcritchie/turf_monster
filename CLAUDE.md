@@ -58,7 +58,8 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - All errors logged to `error_logs` table via `ErrorLog.capture!` — DB only, no external services
 - Cleaned backtrace (app frames only via `Rails.backtrace_cleaner`)
 - Polymorphic `target` (the record that errored) and `parent` (broader context) with human-readable `_name` fields from slugs
-- Browse errors in Rails console: `ErrorLog.order(created_at: :desc).limit(10)`
+- Browse errors at `/error_logs` (link in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
+- **`rescue_and_log(target:, parent:)`** — `ApplicationController` helper, wrap action body to guarantee ErrorLog capture for any `StandardError`. Re-raises so outer rescue blocks handle the response. Use specific rescues (`RecordNotFound`, `StandardError`) on the outside for response formatting.
 - Auto-prune old logs eventually
 
 ## UI

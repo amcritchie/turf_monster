@@ -30,38 +30,41 @@ class ContestsController < ApplicationController
 
     prop = @contest.props.find(params[:prop_id])
     selection = params[:selection]
-
     entry = @contest.entries.find_or_create_by!(user: current_user, status: :cart)
-    picks_hash = entry.toggle_pick!(prop, selection)
 
-    if picks_hash.nil?
-      render json: { picks: {}, pick_count: 0 }
-    else
-      render json: { picks: picks_hash, pick_count: picks_hash.size }
+    rescue_and_log(target: entry, parent: @contest) do
+      picks_hash = entry.toggle_pick!(prop, selection)
+
+      if picks_hash.nil?
+        render json: { picks: {}, pick_count: 0 }
+      else
+        render json: { picks: picks_hash, pick_count: picks_hash.size }
+      end
     end
   rescue ActiveRecord::RecordNotFound
     render json: { error: "Record not found" }, status: :not_found
-  rescue ActiveRecord::RecordInvalid, RuntimeError => e
-    ErrorLog.capture!(e, target: entry, parent: @contest)
+  rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def enter
     @contest = Contest.find(params[:id])
     entry = @contest.entries.cart.find_by!(user: current_user)
-    entry.confirm!
 
-    respond_to do |format|
-      format.html { redirect_to root_path, notice: "#{current_user.display_name} entered the contest!" }
-      format.json { render json: { success: true, redirect: root_path } }
+    rescue_and_log(target: entry, parent: @contest) do
+      entry.confirm!
+
+      respond_to do |format|
+        format.html { redirect_to root_path, notice: "#{current_user.display_name} entered the contest!" }
+        format.json { render json: { success: true, redirect: root_path } }
+      end
     end
   rescue ActiveRecord::RecordNotFound
     respond_to do |format|
       format.html { redirect_to root_path, alert: "No cart entry found" }
       format.json { render json: { success: false, error: "No cart entry found" }, status: :unprocessable_entity }
     end
-  rescue ActiveRecord::RecordInvalid, RuntimeError => e
-    ErrorLog.capture!(e, target: entry, parent: @contest)
+  rescue StandardError => e
     respond_to do |format|
       format.html { redirect_to root_path, alert: e.message }
       format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
@@ -71,19 +74,20 @@ class ContestsController < ApplicationController
   def grade
     @contest = Contest.find(params[:id])
 
-    if params[:results].present?
-      params[:results].each do |prop_id, value|
-        next if value.blank?
-        Prop.find(prop_id).update!(result_value: value.to_f)
+    rescue_and_log(target: @contest) do
+      if params[:results].present?
+        params[:results].each do |prop_id, value|
+          next if value.blank?
+          Prop.find(prop_id).update!(result_value: value.to_f)
+        end
       end
-    end
 
-    @contest.grade!
-    redirect_to @contest, notice: "Contest graded and settled!"
+      @contest.grade!
+      redirect_to @contest, notice: "Contest graded and settled!"
+    end
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: "Contest or prop not found"
-  rescue ActiveRecord::RecordInvalid, RuntimeError => e
-    ErrorLog.capture!(e, target: @contest)
+  rescue StandardError => e
     redirect_to @contest, alert: e.message
   end
 end
