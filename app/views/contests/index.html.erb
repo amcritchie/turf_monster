@@ -11,6 +11,15 @@
 
 <div x-data="pickBoard()" x-cloak>
 
+  <!-- Blur overlay (click to dismiss) -->
+  <div x-show="pickCount === 3 && !blurDismissed"
+       @click="blurDismissed = true"
+       class="fixed inset-0 z-20 cursor-pointer"></div>
+
+  <!-- Blurrable page content -->
+  <div class="transition-all duration-300"
+       :class="{ 'blur-sm select-none opacity-60': pickCount === 3 && !blurDismissed }">
+
   <!-- Prop Cards Grid (top of page) -->
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-40 md:pb-0': pickCount > 0 }">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Props</h2>
@@ -114,6 +123,8 @@
       </div>
     </section>
   <% end %>
+
+  </div><!-- /blurrable -->
 
   <!-- FAB: pick count badge to reopen cart (desktop only) -->
   <button x-show="!cartOpen && pickCount > 0"
@@ -255,6 +266,7 @@
     return {
       picks: <%= cart_picks.to_json.html_safe %>,
       cartOpen: <%= cart_picks.any? ? 'true' : 'false' %>,
+      blurDismissed: false,
       submitting: false,
       error: null,
       errorTimer: null,
@@ -286,6 +298,7 @@
           let newPicks = { ...this.picks };
           delete newPicks[propId];
           this.picks = newPicks;
+          this.blurDismissed = false;
         } else if (this.picks[propId]) {
           this.picks = { ...this.picks, [propId]: selection };
         } else if (this.pickCount < 3) {
