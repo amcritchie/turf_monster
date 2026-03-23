@@ -40,7 +40,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **User** — name, email, balance_cents, slug
 - **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
 - **Prop** — belongs_to contest, description, line, stat_type, result_value, status, slug
-- **Entry** — belongs_to user + contest (unique pair), score, status, slug
+- **Entry** — belongs_to user + contest (multiple entries allowed), score, status, slug (includes id for uniqueness)
 - **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
 - **ErrorLog** — polymorphic target + parent, message, inspect, backtrace (JSON), target_name, parent_name, slug
 
@@ -51,6 +51,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
 - `ErrorLog.capture!(exception, target:, parent:)` — structured error logging with cleaned backtrace and human-readable slugs
+- Users can enter a contest multiple times; UI focuses on the current cart entry
 - Entry status flow: cart → active → complete
 
 ## Error Logging
@@ -83,7 +84,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 ## Testing
 
 - **Rails tests**: `bin/rails test` — 48 minitest tests with fixtures
-- **Playwright smoke tests**: `npx playwright test` — 8 UI tests, auto-starts Rails on port 3001
+- **Playwright smoke tests**: `npx playwright test` — 9 UI tests, auto-starts Rails on port 3001
   - Config: `playwright.config.js`, tests in `e2e/`, seed data in `e2e/seed.rb`
   - Covers: index load, login, pick toggling, cart persistence, confirm button, contest show
   - `npx playwright test --ui` for interactive debugging

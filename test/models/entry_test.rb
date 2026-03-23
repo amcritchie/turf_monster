@@ -113,6 +113,7 @@ class EntryTest < ActiveSupport::TestCase
 
   test "slug is set on save" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    assert_equal "sam-test-contest", entry.slug
+    entry.reload
+    assert_equal "sam-test-contest-#{entry.id}", entry.slug
   end
 end

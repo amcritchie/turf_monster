@@ -274,7 +274,6 @@
       contestId: '<%= @contest&.id %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
-      alreadyEntered: <%= (logged_in? && @entries.any? { |e| e.user_id == current_user.id }) ? 'true' : 'false' %>,
 
       get pickCount() {
         return Object.keys(this.picks).length;
@@ -290,8 +289,6 @@
       },
 
       togglePick(propId, selection) {
-        if (this.alreadyEntered) return;
-
         // Optimistic UI update
         const oldPicks = { ...this.picks };
 

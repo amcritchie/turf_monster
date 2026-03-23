@@ -85,7 +85,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_not json["picks"].key?(@prop3.id.to_s)
   end
 
-  test "toggle_pick rejects if user already has active entry" do
+  test "toggle_pick allows picks after confirming an entry" do
     log_in_as(@user)
 
     # Sam already has an active entry
@@ -94,13 +94,18 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry.picks.create!(prop: @prop2, selection: "less")
     entry.picks.create!(prop: @prop3, selection: "more")
 
-    post toggle_pick_contest_path(@contest),
-      params: { prop_id: @prop1.id, selection: "more" },
-      as: :json
+    assert_difference "Entry.count", 1 do
+      post toggle_pick_contest_path(@contest),
+        params: { prop_id: @prop1.id, selection: "more" },
+        as: :json
+    end
 
-    assert_response :unprocessable_entity
+    assert_response :success
     json = JSON.parse(response.body)
-    assert_equal "Already entered", json["error"]
+    assert_equal({ @prop1.id.to_s => "more" }, json["picks"])
+    # New cart entry created separate from the active one
+    new_entry = @contest.entries.cart.find_by(user: @user)
+    assert_not_equal entry.id, new_entry.id
   end
 
   test "toggle_pick requires authentication" do

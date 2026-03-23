@@ -1,11 +1,12 @@
 class Entry < ApplicationRecord
   include Sluggable
 
+  after_create :update_slug_with_id
+
   belongs_to :user
   belongs_to :contest
   has_many :picks, dependent: :destroy
 
-  validates :user_id, uniqueness: { scope: :contest_id }
 
   enum :status, { cart: "cart", active: "active", complete: "complete" }
 
@@ -44,6 +45,12 @@ class Entry < ApplicationRecord
   end
 
   def name_slug
-    "#{user.name.parameterize}-#{contest.name_slug}"
+    "#{user.name.parameterize}-#{contest.name_slug}-#{id}"
+  end
+
+  private
+
+  def update_slug_with_id
+    update_column(:slug, name_slug)
   end
 end

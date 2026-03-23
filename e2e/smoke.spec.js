@@ -107,6 +107,60 @@ test("selecting 3 picks shows Hold to Confirm button", async ({ page }) => {
 });
 
 // ---------------------------------------------------------------------------
+// Second entry after confirming
+// ---------------------------------------------------------------------------
+
+test("user can start a second entry after confirming the first", async ({ page }) => {
+  await login(page, "alex@turf.com", "pass");
+
+  // Alex may have picks from previous test — dismiss blur overlay if present
+  const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
+  if (await blurOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+    await blurOverlay.click();
+  }
+
+  // Ensure we have 3 picks (alex may already have some from test #7)
+  const overButtons = page.getByRole("button", { name: "OVER" });
+  while (!(await page.locator("body").textContent()).includes("3/3")) {
+    const underButtons = page.getByRole("button", { name: "UNDER" });
+    // Click next available UNDER to fill slots
+    for (let i = 0; i < 4; i++) {
+      const btn = underButtons.nth(i);
+      if (await btn.isVisible().catch(() => false)) {
+        await btn.click();
+        await page.waitForTimeout(200);
+        if ((await page.locator("body").textContent()).includes("3/3")) break;
+      }
+    }
+    break;
+  }
+  await expect(page.locator("body")).toContainText("3/3");
+
+  // Confirm entry via POST (hold button interaction already tested separately)
+  await page.evaluate(async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    // Extract contestId from the View Contest Details link
+    const link = document.querySelector('a[href*="/contests/"]');
+    const contestId = link.href.match(/\/contests\/(\d+)/)[1];
+    await fetch(`/contests/${contestId}/enter`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  });
+
+  // Reload to get fresh page state after confirm
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // Entry is now active — try to toggle a pick on the first prop
+  const firstOver = page.getByRole("button", { name: "OVER" }).first();
+  await firstOver.click();
+
+  // Should see the pick registered in the cart (1/3)
+  await expect(page.locator("body")).toContainText("1/3");
+});
+
+// ---------------------------------------------------------------------------
 // Contest show page
 // ---------------------------------------------------------------------------
 

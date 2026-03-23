@@ -24,10 +24,6 @@ class ContestsController < ApplicationController
       return render json: { error: "Contest is not open" }, status: :unprocessable_entity
     end
 
-    if @contest.entries.where(user: current_user, status: [:active, :complete]).exists?
-      return render json: { error: "Already entered" }, status: :unprocessable_entity
-    end
-
     prop = @contest.props.find(params[:prop_id])
     selection = params[:selection]
     entry = @contest.entries.find_or_create_by!(user: current_user, status: :cart)
