@@ -2,7 +2,7 @@
   <p class="text-gray-400">No contests yet.</p>
 <% else %>
 
-<div x-data="pickBoard()" x-cloak>
+<div x-data="pickBoard()" x-cloak x-init="init()">
 
   <% if logged_in? %>
     <!-- Current Player Card -->
@@ -343,6 +343,8 @@
       },
 
       init() {
+        if (this._initialized) return;
+        this._initialized = true;
         this.rehydrate();
         window.addEventListener('beforeunload', () => {
           this.saveToLocalStorage();
