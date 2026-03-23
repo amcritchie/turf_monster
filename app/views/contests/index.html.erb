@@ -190,7 +190,7 @@
         <div class="flex-1 min-w-0">
           <template x-if="pickSlots[i-1]">
             <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
-                 :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']"
+                 :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']">
               <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
               <p class="text-xs font-bold mt-1"
                  :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
