@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_23_100001) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_23_100002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -36,6 +36,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100001) do
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["user_id", "contest_id"], name: "index_entries_on_user_id_and_contest_id", unique: true
     t.index ["user_id"], name: "index_entries_on_user_id"
+  end
+
+  create_table "error_logs", force: :cascade do |t|
+    t.text "message", null: false
+    t.text "inspect"
+    t.text "backtrace"
+    t.string "target_type"
+    t.bigint "target_id"
+    t.string "target_name"
+    t.string "parent_type"
+    t.bigint "parent_id"
+    t.string "parent_name"
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_error_logs_on_created_at"
+    t.index ["parent_type", "parent_id"], name: "index_error_logs_on_parent_type_and_parent_id"
+    t.index ["target_type", "target_id"], name: "index_error_logs_on_target_type_and_target_id"
   end
 
   create_table "picks", force: :cascade do |t|
