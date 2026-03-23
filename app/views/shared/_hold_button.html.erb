@@ -333,16 +333,16 @@
       el.classList.add(cls);
     }
 
-    function startNudgeCycle(el) {
+    function startNudgeCycle(el, softOnly) {
       var id = el.dataset.holdId || 'hold';
       stopNudgeCycle(id);
       nudgeTimers[id] = {};
 
-      var firstDelay = 3;
+      var firstDelay = softOnly ? 10 : 3;
       var repeatDelay = 10;
       var secsLeft = firstDelay;
       var total = firstDelay;
-      var isFirst = true;
+      var isFirst = !softOnly;
 
       updateDebugRing(el, secsLeft, total);
 
@@ -450,8 +450,8 @@
         delete timers[id];
       }
 
-      // Restart nudge cycle fresh from release
-      startNudgeCycle(el);
+      // Restart with soft-only nudges (big nudge already seen)
+      startNudgeCycle(el, true);
     };
   })();
 </script>
