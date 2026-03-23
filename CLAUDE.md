@@ -9,7 +9,8 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Alpine.js via CDN for interactivity
 - Montserrat font (Google Fonts CDN)
 - ERB views, import maps, no JS frameworks
-- No authentication, no background jobs, no external APIs
+- bcrypt password auth + Google OAuth (OmniAuth)
+- Playwright for UI smoke tests (standalone Node.js, no build step)
 
 ## Branding
 
@@ -42,9 +43,11 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 
 ## Key Business Logic
 
-- `Contest#enter!(user, picks_params)` — validates and creates entry + picks in transaction
+- `ContestsController#toggle_pick` — JSON endpoint, creates/updates/deletes picks in cart entry
+- `Entry#confirm!` — validates 3 picks, deducts entry fee, moves cart → active
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
+- Entry status flow: cart → active → complete
 
 ## UI
 
@@ -63,6 +66,15 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **UI**: Style as we build using the brand palette — make it look right the first time.
 - **Decisions**: Present 2-3 options briefly with a recommendation for architectural choices.
 - **Refactoring**: Proactively clean up code smells when spotted.
+
+## Testing
+
+- **Rails tests**: `bin/rails test` — 34 minitest tests with fixtures
+- **Playwright smoke tests**: `npx playwright test` — 8 UI tests, auto-starts Rails on port 3001
+  - Config: `playwright.config.js`, tests in `e2e/`, seed data in `e2e/seed.rb`
+  - Covers: index load, login, pick toggling, cart persistence, confirm button, contest show
+  - `npx playwright test --ui` for interactive debugging
+- Playwright runs against the test DB; `e2e/seed.rb` creates users (alex/sam@turf.com, password: "pass"), 1 open contest, 4 props
 
 ## TODO
 
