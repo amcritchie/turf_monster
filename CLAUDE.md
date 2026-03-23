@@ -32,22 +32,34 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Scoring: win=1, loss=0, push=0.5
 - Ties split the pool evenly among all winners
 - Every page shows JSON debug block of its primary record
+- Every model has a `slug` column — human-readable identifier set via `Sluggable` concern + `name_slug` method
+- Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 
 ## Models
 
-- **User** — name, email, balance_cents
-- **Contest** — name, entry_fee_cents, status, max_entries, starts_at
-- **Prop** — belongs_to contest, description, line, stat_type, result_value, status
-- **Entry** — belongs_to user + contest (unique pair), score, status
-- **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result
+- **User** — name, email, balance_cents, slug
+- **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
+- **Prop** — belongs_to contest, description, line, stat_type, result_value, status, slug
+- **Entry** — belongs_to user + contest (unique pair), score, status, slug
+- **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
+- **ErrorLog** — polymorphic target + parent, message, inspect, backtrace (JSON), target_name, parent_name, slug
 
 ## Key Business Logic
 
-- `ContestsController#toggle_pick` — JSON endpoint, creates/updates/deletes picks in cart entry
+- `Entry#toggle_pick!(prop, selection)` — find/destroy/update/create pick, destroy entry if empty, returns picks hash or nil
 - `Entry#confirm!` — validates 3 picks, deducts entry fee, moves cart → active
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
+- `ErrorLog.capture!(exception, target:, parent:)` — structured error logging with cleaned backtrace and human-readable slugs
 - Entry status flow: cart → active → complete
+
+## Error Logging
+
+- All errors logged to `error_logs` table via `ErrorLog.capture!` — DB only, no external services
+- Cleaned backtrace (app frames only via `Rails.backtrace_cleaner`)
+- Polymorphic `target` (the record that errored) and `parent` (broader context) with human-readable `_name` fields from slugs
+- Browse errors in Rails console: `ErrorLog.order(created_at: :desc).limit(10)`
+- Auto-prune old logs eventually
 
 ## UI
 
@@ -69,7 +81,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 
 ## Testing
 
-- **Rails tests**: `bin/rails test` — 34 minitest tests with fixtures
+- **Rails tests**: `bin/rails test` — 48 minitest tests with fixtures
 - **Playwright smoke tests**: `npx playwright test` — 8 UI tests, auto-starts Rails on port 3001
   - Config: `playwright.config.js`, tests in `e2e/`, seed data in `e2e/seed.rb`
   - Covers: index load, login, pick toggling, cart persistence, confirm button, contest show
