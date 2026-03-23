@@ -119,6 +119,8 @@
             <img src="/logo.jpeg" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
             <h1 class="text-3xl font-extrabold text-white tracking-tight">Turf <span class="text-mint">Monster</span></h1>
           <% end %>
+          <%= link_to "Teams", teams_path, class: "text-gray-500 hover:text-mint text-sm font-medium transition" %>
+          <%= link_to "Games", games_path, class: "text-gray-500 hover:text-violet text-sm font-medium transition" %>
           <%= link_to "Errors", error_logs_path, class: "text-gray-500 hover:text-red-400 text-sm font-medium transition" %>
         </div>
 

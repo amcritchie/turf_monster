@@ -56,6 +56,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100003) do
     t.index ["target_type", "target_id"], name: "index_error_logs_on_target_type_and_target_id"
   end
 
+  create_table "games", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "home_team_slug", null: false
+    t.string "away_team_slug", null: false
+    t.datetime "kickoff_at"
+    t.string "venue"
+    t.string "status", default: "scheduled"
+    t.integer "home_score"
+    t.integer "away_score"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["away_team_slug"], name: "index_games_on_away_team_slug"
+    t.index ["home_team_slug"], name: "index_games_on_home_team_slug"
+    t.index ["slug"], name: "index_games_on_slug", unique: true
+  end
+
   create_table "picks", force: :cascade do |t|
     t.bigint "entry_id", null: false
     t.bigint "prop_id", null: false
@@ -69,6 +85,18 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100003) do
     t.index ["prop_id"], name: "index_picks_on_prop_id"
   end
 
+  create_table "players", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "team_slug"
+    t.string "name", null: false
+    t.string "position"
+    t.integer "jersey_number"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_players_on_slug", unique: true
+    t.index ["team_slug"], name: "index_players_on_team_slug"
+  end
+
   create_table "props", force: :cascade do |t|
     t.bigint "contest_id", null: false
     t.string "description", null: false
@@ -79,7 +107,26 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_23_100003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "slug"
+    t.string "team_slug"
+    t.string "opponent_team_slug"
+    t.string "game_slug"
     t.index ["contest_id"], name: "index_props_on_contest_id"
+    t.index ["game_slug"], name: "index_props_on_game_slug"
+    t.index ["opponent_team_slug"], name: "index_props_on_opponent_team_slug"
+    t.index ["team_slug"], name: "index_props_on_team_slug"
+  end
+
+  create_table "teams", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "name", null: false
+    t.string "short_name"
+    t.string "location"
+    t.string "emoji"
+    t.string "color_primary"
+    t.string "color_secondary"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_teams_on_slug", unique: true
   end
 
   create_table "users", force: :cascade do |t|
