@@ -11,86 +11,22 @@
 
 <div x-data="pickBoard()" x-cloak>
 
-  <% if logged_in? %>
-    <!-- Current Player Card -->
-    <section class="mb-8">
-      <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 transition-all border border-navy-300/20 max-w-md">
-        <div class="flex justify-between items-center">
-          <div>
-            <p class="font-bold text-white"><%= current_user.display_name %></p>
-            <p class="text-sm text-gray-400"><%= current_user.email %></p>
-          </div>
-          <div class="text-right">
-            <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></p>
-            <%= button_to "+$100", add_funds_path, method: :post,
-              class: "mt-1 px-3 py-1 bg-mint-700 hover:bg-mint-600 text-white text-xs font-semibold rounded-lg transition" %>
-          </div>
-        </div>
-      </div>
-    </section>
-  <% end %>
-
-  <!-- Contest Header -->
-  <section class="mb-8">
-    <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20">
-      <div class="flex justify-between items-start mb-4">
-        <div>
-          <h2 class="text-2xl font-bold text-white"><%= @contest.name %></h2>
-          <p class="text-sm text-gray-400 mt-1">
-            <% if @contest.starts_at %>
-              Starts: <%= @contest.starts_at.strftime("%b %d, %Y %I:%M %p") %>
-            <% end %>
-          </p>
-        </div>
-        <%
-          badge_styles = {
-            "open"    => "bg-mint-900/30 text-mint border-mint-700",
-            "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
-            "settled" => "bg-gray-800 text-gray-400 border-gray-600",
-            "draft"   => "bg-violet-900/30 text-violet border-violet-700"
-          }
-        %>
-        <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= badge_styles[@contest.status] %>">
-          <%= @contest.status.upcase %>
-        </span>
-      </div>
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div class="bg-navy-600 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
-          <p class="font-mono text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
-        </div>
-        <div class="bg-navy-600 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
-          <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
-        </div>
-        <div class="bg-navy-600 rounded-lg p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
-          <p class="font-mono text-lg text-white"><%= @entries.count %></p>
-        </div>
-      </div>
-      <div class="mt-4 text-center">
-        <%= link_to "View Contest Details", contest_path(@contest),
-          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
-      </div>
-    </div>
-  </section>
-
-  <!-- Prop Cards Grid -->
-  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
+  <!-- Prop Cards Grid (top of page) -->
+  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-40 md:pb-0': pickCount > 0 }">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Props</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       <% @props.each do |prop| %>
-        <div class="bg-navy-400 rounded-xl shadow p-4 transition-all text-center border-2"
+        <div class="bg-navy-400 rounded-xl shadow p-3 md:p-4 transition-all text-center border-2"
              :class="{
                'border-mint shadow-lg shadow-mint/20': picks['<%= prop.id %>'] === 'more',
                'border-red-500 shadow-lg shadow-red-500/20': picks['<%= prop.id %>'] === 'less',
                'border-navy-300/20': !picks['<%= prop.id %>']
              }">
-          <p class="font-bold text-white text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-          <p class="font-mono text-2xl text-violet mb-1"><%= prop.line %></p>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-3">Total Goals</p>
+          <p class="font-bold text-white text-base md:text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
+          <p class="font-mono text-xl md:text-2xl text-violet mb-1"><%= prop.line %></p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-2 md:mb-3">Total Goals</p>
           <% if prop.graded? %>
-            <div class="mb-3 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
+            <div class="mb-2 md:mb-3 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
               Result: <%= prop.result_value %>
             </div>
           <% end %>
@@ -115,22 +51,77 @@
     </div>
   </section>
 
-  <!-- FAB: pick count badge to reopen cart -->
+  <!-- Contest Header -->
+  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
+    <div class="bg-navy-400 rounded-xl shadow p-4 md:p-6 border border-navy-300/20">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h2 class="text-xl md:text-2xl font-bold text-white"><%= @contest.name %></h2>
+          <p class="text-sm text-gray-400 mt-1">
+            <% if @contest.starts_at %>
+              Starts: <%= @contest.starts_at.strftime("%b %d, %Y %I:%M %p") %>
+            <% end %>
+          </p>
+        </div>
+        <%
+          badge_styles = {
+            "open"    => "bg-mint-900/30 text-mint border-mint-700",
+            "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
+            "settled" => "bg-gray-800 text-gray-400 border-gray-600",
+            "draft"   => "bg-violet-900/30 text-violet border-violet-700"
+          }
+        %>
+        <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= badge_styles[@contest.status] %>">
+          <%= @contest.status.upcase %>
+        </span>
+      </div>
+      <div class="grid grid-cols-3 gap-3 md:gap-4 text-center">
+        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
+          <p class="font-mono text-base md:text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
+        </div>
+        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
+          <p class="font-mono text-base md:text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+        </div>
+        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
+          <p class="font-mono text-base md:text-lg text-white"><%= @entries.count %></p>
+        </div>
+      </div>
+      <div class="mt-4 text-center">
+        <%= link_to "View Contest Details", contest_path(@contest),
+          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
+      </div>
+    </div>
+  </section>
+
+  <% if logged_in? %>
+    <!-- Current Player Card -->
+    <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
+      <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 transition-all border border-navy-300/20 max-w-md">
+        <div class="flex justify-between items-center">
+          <div>
+            <p class="font-bold text-white"><%= current_user.display_name %></p>
+            <p class="text-sm text-gray-400"><%= current_user.email %></p>
+          </div>
+          <div class="text-right">
+            <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></p>
+            <%= button_to "+$100", add_funds_path, method: :post,
+              class: "mt-1 px-3 py-1 bg-mint-700 hover:bg-mint-600 text-white text-xs font-semibold rounded-lg transition" %>
+          </div>
+        </div>
+      </div>
+    </section>
+  <% end %>
+
+  <!-- FAB: pick count badge to reopen cart (desktop only) -->
   <button x-show="!cartOpen && pickCount > 0"
           x-transition
           @click="cartOpen = true"
-          class="fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 flex items-center justify-center text-lg font-bold transition md:bottom-6 md:right-6">
+          class="hidden md:flex fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 items-center justify-center text-lg font-bold transition">
     <span x-text="pickCount"></span><span class="text-xs">/3</span>
   </button>
-
-  <!-- Mobile backdrop -->
-  <div x-show="cartOpen"
-       x-transition:enter="transition ease-out duration-300"
-       x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-       x-transition:leave="transition ease-in duration-200"
-       x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-       @click="cartOpen = false"
-       class="fixed inset-0 bg-black/50 z-30 md:hidden"></div>
 
   <!-- Cart Sidebar: Desktop (right panel) -->
   <div x-show="cartOpen"
@@ -167,32 +158,49 @@
     </div>
   </div>
 
-  <!-- Cart: Mobile (bottom sheet) -->
-  <div x-show="cartOpen"
-       x-transition:enter="transition ease-out duration-300"
+  <!-- Cart: Mobile (compact bottom bar, always visible when picks exist) -->
+  <div x-show="pickCount > 0"
+       x-transition:enter="transition ease-out duration-200"
        x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
-       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave="transition ease-in duration-150"
        x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-       class="md:hidden fixed bottom-0 left-0 right-0 bg-navy-400 border-t border-navy-300/20 shadow-2xl z-40 rounded-t-2xl max-h-[85vh] flex flex-col">
-    <!-- Drag handle -->
-    <div class="flex justify-center pt-2 pb-1">
-      <div class="w-10 h-1 bg-navy-300/30 rounded-full"></div>
+       class="md:hidden fixed bottom-0 left-0 right-0 bg-navy-400 border-t border-navy-300/20 shadow-2xl z-40 rounded-t-xl">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 pt-3 pb-2">
+      <h3 class="text-sm font-bold text-white">Your Picks</h3>
+      <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+            :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+        <span x-text="pickCount"></span>/3
+      </span>
     </div>
-    <!-- Cart header -->
-    <div class="flex items-center justify-between px-4 pb-3 border-b border-navy-300/20">
-      <h3 class="text-lg font-bold text-white">Your Picks</h3>
-      <div class="flex items-center gap-3">
-        <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-              :class="pickCount === 3 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
-          <span x-text="pickCount"></span>/3
-        </span>
-        <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
-      </div>
+    <!-- Compact pick pills (horizontal) -->
+    <div class="px-4 pb-2 flex gap-2">
+      <template x-for="i in 3" :key="i">
+        <div class="flex-1 min-w-0">
+          <template x-if="pickSlots[i-1]">
+            <div class="bg-navy-600 rounded-lg px-2 py-1.5 border text-center relative"
+                 :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
+              <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
+              <div class="flex items-center justify-center gap-1 mt-0.5">
+                <span class="text-xs font-semibold"
+                      :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
+                      x-text="pickSlots[i-1].selection === 'more' ? 'O' : 'U'"></span>
+                <span class="text-violet font-mono text-xs" x-text="pickSlots[i-1].line"></span>
+              </div>
+              <button @click="removePick(pickSlots[i-1].propId)"
+                      class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-400 border border-navy-300/30 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
+            </div>
+          </template>
+          <template x-if="!pickSlots[i-1]">
+            <div class="border border-dashed border-navy-300/20 rounded-lg px-2 py-2.5 text-center">
+              <p class="text-gray-600 text-xs">Pick <span x-text="i"></span></p>
+            </div>
+          </template>
+        </div>
+      </template>
     </div>
-    <!-- Pick slots -->
-    <%= render "contests/cart_pick_slots" %>
     <!-- Hold button (when 3 picks selected) -->
-    <div x-show="pickCount === 3" x-transition class="p-4 border-t border-navy-300/20">
+    <div x-show="pickCount === 3" x-transition class="px-4 pb-3 pt-1">
       <%= render 'shared/hold_button',
         default_text: "Hold to Confirm",
         hold_text: "Almost there...",
@@ -226,10 +234,12 @@
   </div>
 
   <!-- JSON Debug Block -->
-  <details class="mt-8">
-    <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
-    <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
-  </details>
+  <section class="transition-all" :class="{ 'md:mr-80': cartOpen }">
+    <details class="mt-8">
+      <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
+      <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
+    </details>
+  </section>
 
 </div>
 
