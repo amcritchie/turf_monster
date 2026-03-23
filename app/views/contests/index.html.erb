@@ -173,26 +173,27 @@
         <span x-text="pickCount"></span>/3
       </span>
     </div>
-    <!-- Compact pick pills (horizontal) -->
+    <!-- Pick cards (horizontal) -->
     <div class="px-4 pb-2 flex gap-2">
       <template x-for="i in 3" :key="i">
         <div class="flex-1 min-w-0">
           <template x-if="pickSlots[i-1]">
-            <div class="bg-navy-600 rounded-lg px-2 py-1.5 border text-center relative"
+            <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
                  :class="pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700'">
               <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
-              <div class="flex items-center justify-center gap-1 mt-0.5">
-                <span class="text-xs font-semibold"
-                      :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
-                      x-text="pickSlots[i-1].selection === 'more' ? 'O' : 'U'"></span>
-                <span class="text-violet font-mono text-xs" x-text="pickSlots[i-1].line"></span>
-              </div>
+              <p class="text-xs font-bold mt-1"
+                 :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
+                 x-text="pickSlots[i-1].selection === 'more' ? 'OVER' : 'UNDER'"></p>
+              <p class="text-gray-500 text-xs mt-0.5">
+                <span class="text-violet font-mono" x-text="pickSlots[i-1].line"></span>
+                <span>Total Goals</span>
+              </p>
               <button @click="removePick(pickSlots[i-1].propId)"
                       class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-400 border border-navy-300/30 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
             </div>
           </template>
           <template x-if="!pickSlots[i-1]">
-            <div class="border border-dashed border-navy-300/20 rounded-lg px-2 py-2.5 text-center">
+            <div class="border border-dashed border-navy-300/20 rounded-lg px-2 py-4 text-center">
               <p class="text-gray-600 text-xs">Pick <span x-text="i"></span></p>
             </div>
           </template>
