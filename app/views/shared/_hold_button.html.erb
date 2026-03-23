@@ -231,6 +231,51 @@
     75% { transform: scale(1.02) rotate(-0.5deg); }
     90% { transform: scale(1.01) rotate(0.3deg); }
   }
+  /* ── Debug nudge countdown ── */
+  .nudge-debug {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+  }
+  .nudge-debug svg {
+    width: 24px;
+    height: 24px;
+    transform: rotate(-90deg);
+  }
+  .nudge-debug svg circle.track {
+    fill: none;
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 3;
+  }
+  .nudge-debug svg circle.fill {
+    fill: none;
+    stroke: rgba(142, 130, 254, 0.5);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 56.55;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.3s linear;
+  }
+  .nudge-debug .countdown-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(142, 130, 254, 0.7);
+    font-family: ui-monospace, monospace;
+  }
+  .hold-btn.process .nudge-debug,
+  .hold-btn.success .nudge-debug {
+    opacity: 0;
+  }
+
   @keyframes hold-nudge-soft {
     0%, 100% { transform: scale(1) rotate(0deg); }
     20% { transform: scale(1.03) rotate(-1deg); }
@@ -252,6 +297,13 @@
     <li><%= hold_text %></li>
     <li><%= success_text %></li>
   </ul>
+  <div class="nudge-debug">
+    <svg viewBox="0 0 24 24">
+      <circle class="track" cx="12" cy="12" r="9"/>
+      <circle class="fill" cx="12" cy="12" r="9"/>
+    </svg>
+    <span class="countdown-num"></span>
+  </div>
 </button>
 
 <script>
@@ -262,6 +314,17 @@
     var timers = {};
     var nudgeTimers = {};
     var duration = <%= duration %>;
+    var CIRCUMFERENCE = 2 * Math.PI * 9; // ~56.55, matches r=9
+
+    function updateDebugRing(el, secondsLeft, totalSeconds) {
+      var debug = el.querySelector('.nudge-debug');
+      if (!debug) return;
+      var fill = debug.querySelector('circle.fill');
+      var num = debug.querySelector('.countdown-num');
+      var fraction = secondsLeft / totalSeconds;
+      fill.style.strokeDashoffset = (CIRCUMFERENCE * fraction).toFixed(2);
+      num.textContent = secondsLeft;
+    }
 
     function triggerNudge(el, cls) {
       if (el.classList.contains('process') || el.classList.contains('success')) return;
@@ -274,18 +337,32 @@
       var id = el.dataset.holdId || 'hold';
       stopNudgeCycle(id);
       nudgeTimers[id] = {};
-      nudgeTimers[id].initial = setTimeout(function() {
-        triggerNudge(el, 'nudge');
-        nudgeTimers[id].interval = setInterval(function() {
-          triggerNudge(el, 'nudge-soft');
-        }, 10000);
-      }, 3000);
+
+      var firstDelay = 3;
+      var repeatDelay = 10;
+      var secsLeft = firstDelay;
+      var total = firstDelay;
+      var isFirst = true;
+
+      updateDebugRing(el, secsLeft, total);
+
+      nudgeTimers[id].tick = setInterval(function() {
+        secsLeft--;
+        if (secsLeft <= 0) {
+          triggerNudge(el, isFirst ? 'nudge' : 'nudge-soft');
+          isFirst = false;
+          total = repeatDelay;
+          secsLeft = repeatDelay;
+        }
+        updateDebugRing(el, secsLeft, total);
+      }, 1000);
     }
 
     function stopNudgeCycle(id) {
       if (nudgeTimers[id]) {
         clearTimeout(nudgeTimers[id].initial);
         clearInterval(nudgeTimers[id].interval);
+        clearInterval(nudgeTimers[id].tick);
         delete nudgeTimers[id];
       }
     }
