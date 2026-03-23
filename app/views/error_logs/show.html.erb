@@ -1,0 +1,59 @@
+<section>
+  <div class="mb-6">
+    <%= link_to "&larr; All Errors".html_safe, error_logs_path, class: "text-gray-400 hover:text-white text-sm transition" %>
+  </div>
+
+  <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-6 mb-6">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-xl font-bold text-red-400"><%= @error_log.message %></h2>
+      <span class="text-xs text-gray-500 whitespace-nowrap ml-4"><%= @error_log.created_at.strftime("%b %d, %Y %I:%M:%S %p") %></span>
+    </div>
+
+    <!-- Metadata -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-navy-600 rounded-lg p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Target</p>
+        <% if @error_log.target_type.present? %>
+          <p class="text-white font-semibold text-sm"><%= @error_log.target_type %> #<%= @error_log.target_id %></p>
+          <% if @error_log.target_name.present? %>
+            <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.target_name %></p>
+          <% end %>
+        <% else %>
+          <p class="text-gray-600 text-sm">None</p>
+        <% end %>
+      </div>
+      <div class="bg-navy-600 rounded-lg p-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Parent</p>
+        <% if @error_log.parent_type.present? %>
+          <p class="text-white font-semibold text-sm"><%= @error_log.parent_type %> #<%= @error_log.parent_id %></p>
+          <% if @error_log.parent_name.present? %>
+            <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.parent_name %></p>
+          <% end %>
+        <% else %>
+          <p class="text-gray-600 text-sm">None</p>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Inspect -->
+    <div class="mb-6">
+      <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Exception</p>
+      <pre class="bg-navy-800 rounded-lg p-4 text-red-300 font-mono text-xs overflow-x-auto"><%= @error_log.inspect_field %></pre>
+    </div>
+
+    <!-- Backtrace -->
+    <% if @error_log.backtrace.present? %>
+      <div>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Backtrace</p>
+        <div class="bg-navy-800 rounded-lg p-4 overflow-x-auto">
+          <% JSON.parse(@error_log.backtrace).each_with_index do |frame, i| %>
+            <p class="font-mono text-xs leading-relaxed <%= i == 0 ? 'text-red-300' : 'text-gray-500' %>"><%= frame %></p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Slug -->
+  <p class="text-xs text-gray-600 text-center"><%= @error_log.slug %></p>
+</section>

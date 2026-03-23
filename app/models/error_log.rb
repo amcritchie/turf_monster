@@ -2,6 +2,10 @@ class ErrorLog < ApplicationRecord
   belongs_to :target, polymorphic: true, optional: true
   belongs_to :parent, polymorphic: true, optional: true
 
+  def inspect_field
+    read_attribute(:inspect)
+  end
+
   def self.capture!(exception, target: nil, parent: nil)
     cleaned = Rails.backtrace_cleaner.clean(exception.backtrace || [])
 

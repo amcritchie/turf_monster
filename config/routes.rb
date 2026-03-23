@@ -24,6 +24,7 @@ Rails.application.routes.draw do
   end
 
   resources :props, only: [:show]
+  resources :error_logs, only: [:index, :show]
 
   post "add_funds", to: "users#add_funds"
 end
