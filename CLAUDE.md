@@ -33,6 +33,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Ties split the pool evenly among all winners
 - Every page shows JSON debug block of its primary record
 - Every model has a `slug` column — human-readable identifier set via `Sluggable` concern + `name_slug` method
+- Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 
 ## Models
@@ -70,6 +71,10 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
 - JSON blocks: bg-navy-800, text-mint, font-mono
+- **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Includes a nudge animation (fires once after 3s idle). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
+- **Blur overlay**: fires once per page load when 3 picks selected (`blurUsed` flag prevents repeat)
+- **Pick order**: `pickOrder` array in Alpine state tracks insertion order; `pickSlots` renders from it. Server-rendered initial state uses `picks.order(:created_at)`.
+- Alpine state pattern: optimistic UI updates with server sync rollback (restore both `picks` and `pickOrder` on error)
 
 ## Workflow Preferences
 
@@ -86,7 +91,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **Rails tests**: `bin/rails test` — 48 minitest tests with fixtures
 - **Playwright smoke tests**: `npx playwright test` — 9 UI tests, auto-starts Rails on port 3001
   - Config: `playwright.config.js`, tests in `e2e/`, seed data in `e2e/seed.rb`
-  - Covers: index load, login, pick toggling, cart persistence, confirm button, contest show
+  - Covers: index load, login, pick toggling, cart persistence, confirm button, second entry after confirm, contest show
   - `npx playwright test --ui` for interactive debugging
 - Playwright runs against the test DB; `e2e/seed.rb` creates users (alex/sam@turf.com, password: "pass"), 1 open contest, 4 props
 
