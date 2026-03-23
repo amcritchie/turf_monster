@@ -2,7 +2,7 @@
   <p class="text-gray-400">No contests yet.</p>
 <% else %>
 
-<div x-data="pickBoard()" x-cloak x-init="init()">
+<div x-data="pickBoard()" x-cloak>
 
   <% if logged_in? %>
     <!-- Current Player Card -->
@@ -347,7 +347,7 @@
         window.addEventListener('beforeunload', () => {
           this.saveToLocalStorage();
           if (this.loggedIn && this.pickCount > 0 && !this.alreadyEntered) {
-            const data = JSON.stringify({ picks: this.picks });
+            const data = JSON.stringify({ picks: { ...this.picks } });
             navigator.sendBeacon(
               `/contests/${this.contestId}/draft_picks/beacon`,
               new Blob([data], { type: 'application/json' })
@@ -362,15 +362,22 @@
       },
 
       saveToLocalStorage() {
-        const payload = { picks: this.picks, updated_at: new Date().toISOString() };
-        try { localStorage.setItem(this.localStorageKey(), JSON.stringify(payload)); } catch(e) {}
+        const payload = { picks: { ...this.picks }, updated_at: new Date().toISOString() };
+        try {
+          localStorage.setItem(this.localStorageKey(), JSON.stringify(payload));
+        } catch(e) {
+          console.warn('Failed to save draft to localStorage:', e);
+        }
       },
 
       loadFromLocalStorage() {
         try {
           const raw = localStorage.getItem(this.localStorageKey());
           return raw ? JSON.parse(raw) : null;
-        } catch(e) { return null; }
+        } catch(e) {
+          console.warn('Failed to load draft from localStorage:', e);
+          return null;
+        }
       },
 
       clearLocalStorage() {
@@ -446,7 +453,7 @@
               'Content-Type': 'application/json',
               'Accept': 'application/json'
             },
-            body: JSON.stringify({ picks: this.picks })
+            body: JSON.stringify({ picks: { ...this.picks } })
           });
           if (resp.ok) {
             this.syncStatus = 'saved';
