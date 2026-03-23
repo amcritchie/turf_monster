@@ -116,7 +116,7 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="bg-navy text-gray-100 min-h-screen" :class="{ 'dev-mode': $store.devMode }">
+  <body x-data class="bg-navy text-gray-100 min-h-screen" :class="{ 'dev-mode': $store.devMode }">
     <div class="max-w-7xl mx-auto px-4 py-6">
       <header class="mb-8 flex items-center justify-between">
         <div class="flex items-center gap-6">
