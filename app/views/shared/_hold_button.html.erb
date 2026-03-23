@@ -23,7 +23,7 @@
   .hold-btn {
     --duration: <%= duration %>ms;
     --color: #F6F8FF;
-    --bg: #1e1b35;
+    --bg: #8E82FE;
     --shadow: rgba(0, 9, 61, 0.2);
     --shadow-active: rgba(0, 9, 61, 0.32);
     --progress-border: #3a3359;
@@ -49,9 +49,9 @@
     transition: transform .3s, box-shadow .3s, background .3s, border-color .3s;
     transform: scale(var(--scale, 1));
 
-    /* ⑦ Glow Build */
-    border: 1px solid rgba(6, 214, 160, 0.15);
-    box-shadow: 0 0 0 rgba(6, 214, 160, 0);
+    border: 1px solid rgba(142, 130, 254, 0.5);
+    box-shadow: 0 0 20px rgba(142, 130, 254, 0.25);
+    animation: hold-nudge 0.4s ease-in-out 3s 1;
   }
 
   /* ── Progress circle ── */
@@ -143,10 +143,18 @@
   /* ── State: hover ── */
   .hold-btn:hover:not(.process):not(.success) {
     --shadow-color: var(--shadow-active);
-    border-color: rgba(6, 214, 160, 0.3);
+    --bg: #7b6efe;
+    border-color: rgba(142, 130, 254, 0.7);
+    box-shadow: 0 0 30px rgba(142, 130, 254, 0.4);
   }
   .hold-btn:active:not(.success) {
     --scale: .97;
+  }
+
+  /* ── Stop nudge during hold/success ── */
+  .hold-btn.process,
+  .hold-btn.success {
+    animation: none;
   }
 
   /* ── State: process (holding) ── */
@@ -156,13 +164,14 @@
     --ul-o-1: 0;
     --ul-o-2: 1;
     --ul-o-3: 0;
+    --bg: #1e1b35;
     border-color: rgba(6, 214, 160, 0.7);
     box-shadow:
       0 0 30px rgba(6, 214, 160, 0.45),
       0 0 80px rgba(6, 214, 160, 0.25),
       0 0 120px rgba(6, 214, 160, 0.1),
       inset 0 0 40px rgba(6, 214, 160, 0.1);
-    transition: transform .3s, box-shadow 2.5s ease-out, border-color 1s, background .3s;
+    transition: transform .3s, box-shadow 2.5s ease-out, border-color 1s, background .5s;
   }
   .hold-btn.process,
   .hold-btn.success {
@@ -207,6 +216,13 @@
         0 0 140px rgba(6, 214, 160, 0.5),
         0 0 200px rgba(6, 214, 160, 0.2);
     }
+  }
+  @keyframes hold-nudge {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    20% { transform: scale(1.03) rotate(-1deg); }
+    40% { transform: scale(1.03) rotate(1deg); }
+    60% { transform: scale(1.02) rotate(-0.5deg); }
+    80% { transform: scale(1.01) rotate(0.5deg); }
   }
 </style>
 
