@@ -19,6 +19,7 @@ Rails.application.routes.draw do
     member do
       post :toggle_pick
       post :enter
+      post :clear_picks
       post :grade
     end
   end

@@ -67,6 +67,25 @@ class ContestsController < ApplicationController
     end
   end
 
+  def clear_picks
+    @contest = Contest.find(params[:id])
+    entry = @contest.entries.cart.find_by(user: current_user)
+
+    if entry
+      entry.update!(status: :abandoned)
+    end
+
+    respond_to do |format|
+      format.html { redirect_to root_path, notice: "Picks cleared" }
+      format.json { render json: { success: true } }
+    end
+  rescue StandardError => e
+    respond_to do |format|
+      format.html { redirect_to root_path, alert: e.message }
+      format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
+    end
+  end
+
   def grade
     @contest = Contest.find(params[:id])
 

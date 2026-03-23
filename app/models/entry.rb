@@ -8,7 +8,7 @@ class Entry < ApplicationRecord
   has_many :picks, dependent: :destroy
 
 
-  enum :status, { cart: "cart", active: "active", complete: "complete" }
+  enum :status, { cart: "cart", active: "active", complete: "complete", abandoned: "abandoned" }
 
   def toggle_pick!(prop, selection)
     existing = picks.find_by(prop: prop)
