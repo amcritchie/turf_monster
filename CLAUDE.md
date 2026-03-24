@@ -82,7 +82,9 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Cleaned backtrace (app frames only via `Rails.backtrace_cleaner`)
 - Polymorphic `target` (the record that errored) and `parent` (broader context) with human-readable `_name` fields from slugs
 - Browse errors at `/error_logs` (link in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
-- **`rescue_and_log(target:, parent:)`** — `ApplicationController` helper, wrap action body to guarantee ErrorLog capture for any `StandardError`. Re-raises so outer rescue blocks handle the response. Use specific rescues (`RecordNotFound`, `StandardError`) on the outside for response formatting.
+- **Two-layer error handling architecture:**
+  - **Layer 1 (automatic)**: `rescue_from StandardError` in `ApplicationController` catches any unhandled error, logs via `ErrorLog.capture!` (no context), returns friendly response. `RecordNotFound` handled separately → 404, no logging. Re-raises in dev/test so Rails error pages still show.
+  - **Layer 2 (opt-in)**: `rescue_and_log(target:, parent:)` wraps action body for richer error context. Sets `@_error_logged` flag to prevent double-logging when Layer 1 catches the re-raise. Pair with outer `rescue` block for response control.
 - Auto-prune old logs eventually
 
 ## Seeds / World Cup Data

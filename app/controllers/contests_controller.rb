@@ -63,13 +63,15 @@ class ContestsController < ApplicationController
   def clear_picks
     entry = @contest.entries.cart.find_by(user: current_user)
 
-    if entry
-      entry.update!(status: :abandoned)
-    end
+    rescue_and_log(target: entry, parent: @contest) do
+      if entry
+        entry.update!(status: :abandoned)
+      end
 
-    respond_to do |format|
-      format.html { redirect_to root_path, notice: "Picks cleared" }
-      format.json { render json: { success: true } }
+      respond_to do |format|
+        format.html { redirect_to root_path, notice: "Picks cleared" }
+        format.json { render json: { success: true } }
+      end
     end
   rescue StandardError => e
     respond_to do |format|
