@@ -1,44 +1,81 @@
-<section class="mb-6">
-  <div class="flex items-center justify-between mb-6">
+<section class="mb-6" x-data="{
+  loading: false,
+  search(url) {
+    this.loading = true;
+    setTimeout(() => { window.location.href = url }, 500);
+  }
+}">
+  <div class="flex items-center justify-between mb-4">
     <h2 class="text-2xl font-bold text-white">Error Logs</h2>
-    <span class="text-sm text-gray-500"><%= @error_logs.size %> recent errors</span>
+    <span class="text-sm text-gray-500"><%= @error_logs.size %> <%= params[:q].present? ? "results" : "recent errors" %></span>
   </div>
 
-  <% if @error_logs.empty? %>
-    <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-8 text-center">
-      <p class="text-gray-400 text-lg">No errors logged yet.</p>
-      <p class="text-gray-600 text-sm mt-1">Errors will appear here when captured via ErrorLog.capture!</p>
+  <form method="get" action="<%= error_logs_path %>" class="mb-6 relative"
+        @submit.prevent="
+          const q = $refs.input.value.trim();
+          const url = q ? '<%= error_logs_path %>?q=' + encodeURIComponent(q) : '<%= error_logs_path %>';
+          search(url);
+        "
+        @keydown.escape.prevent="
+          if ($refs.input.value) {
+            $refs.input.value = '';
+            search('<%= error_logs_path %>');
+          }
+        ">
+    <input type="text" name="q" value="<%= params[:q] %>" placeholder="Search errors... (Esc to clear)" autofocus x-ref="input"
+           class="w-full bg-navy-600 border border-navy-300/20 rounded-lg px-4 py-2.5 pr-10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition"
+           :readonly="loading" />
+    <div x-show="loading" x-cloak class="absolute right-3 top-1/2 -translate-y-1/2">
+      <svg class="animate-spin h-4 w-4 text-violet-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
     </div>
-  <% else %>
-    <div class="space-y-2">
-      <% @error_logs.each do |log| %>
-        <%= link_to error_log_path(log), class: "block bg-navy-400 rounded-xl border border-navy-300/20 p-4 hover:border-red-700/50 hover:shadow-lg hover:shadow-red-900/10 transition" do %>
-          <div class="flex items-start justify-between gap-4">
-            <div class="flex-1 min-w-0">
-              <p class="text-red-400 font-semibold text-sm truncate"><%= log.message %></p>
-              <div class="flex items-center gap-3 mt-1.5">
-                <% if log.target_type.present? %>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-900/30 border border-violet-700/50 rounded text-xs text-violet-300">
-                    <%= log.target_type %>
-                    <% if log.target_name.present? %>
-                      <span class="text-violet-400 font-mono"><%= log.target_name %></span>
-                    <% end %>
-                  </span>
-                <% end %>
-                <% if log.parent_type.present? %>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-navy-600 border border-navy-300/20 rounded text-xs text-gray-400">
-                    <%= log.parent_type %>
-                    <% if log.parent_name.present? %>
-                      <span class="text-gray-300 font-mono"><%= log.parent_name %></span>
-                    <% end %>
-                  </span>
+  </form>
+
+  <!-- Loading state -->
+  <div x-show="loading" x-cloak class="py-16 text-center">
+    <svg class="animate-spin h-8 w-8 text-violet-400 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    <p class="text-gray-500 text-sm">Searching...</p>
+  </div>
+
+  <!-- Results -->
+  <div x-show="!loading">
+    <% if @error_logs.empty? %>
+      <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-8 text-center">
+        <% if params[:q].present? %>
+          <p class="text-gray-400 text-lg">No errors matching "<%= params[:q] %>"</p>
+        <% else %>
+          <p class="text-gray-400 text-lg">No errors logged yet.</p>
+          <p class="text-gray-600 text-sm mt-1">Errors will appear here when captured via ErrorLog.capture!</p>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="space-y-2">
+        <% @error_logs.each do |log| %>
+          <%= link_to error_log_path(log, q: params[:q].presence), class: "block bg-navy-400 rounded-xl border border-navy-300/20 p-4 hover:border-red-700/50 hover:shadow-lg hover:shadow-red-900/10 transition" do %>
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <p class="text-red-400 font-semibold text-sm truncate"><%= log.message %></p>
+                <% if log.backtrace.present? %>
+                  <p class="text-gray-500 font-mono text-xs mt-1 truncate"><%= JSON.parse(log.backtrace).first %></p>
                 <% end %>
               </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <% if log.target_name.present? %>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-900/30 border border-violet-700/50 rounded text-xs text-violet-300">
+                    <span class="text-violet-400 font-mono"><%= log.target_name %></span>
+                  </span>
+                <% end %>
+                <span class="text-xs text-gray-600 whitespace-nowrap"><%= time_ago_in_words(log.created_at) %> ago</span>
+              </div>
             </div>
-            <span class="text-xs text-gray-600 whitespace-nowrap"><%= time_ago_in_words(log.created_at) %> ago</span>
-          </div>
+          <% end %>
         <% end %>
-      <% end %>
-    </div>
-  <% end %>
+      </div>
+    <% end %>
+  </div>
 </section>

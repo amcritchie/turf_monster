@@ -72,9 +72,19 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
 - `Contest#clear_picks` — marks cart entry as `abandoned` (soft delete, entry preserved in DB but hidden from user)
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
-- `ErrorLog.capture!(exception, target:, parent:)` — structured error logging with cleaned backtrace and human-readable slugs
+- `ErrorLog.capture!(exception)` — structured error logging with cleaned backtrace. Target/parent set via ActiveRecord setters after creation.
 - Users can enter a contest multiple times; UI focuses on the current cart entry
 - Entry status flow: cart → active → complete (abandoned = soft-deleted cart, never shown)
+
+## New Controller Checklist
+
+See top-level `CLAUDE.md` for the full checklist. Quick summary:
+
+1. Identify write actions (create, update, destroy, state transitions)
+2. Wrap each with `rescue_and_log(target:, parent:)` + bang methods inside
+3. Add outer `rescue StandardError => e` for response control
+4. Ensure model has `to_param` returning `slug` if it appears in URLs
+5. Read-only actions are covered by Layer 1 automatically
 
 ## Error Logging
 
@@ -86,6 +96,8 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
 - ContestsController: all 4 write actions (toggle_pick, enter, clear_picks, grade) wrapped with `target: entry, parent: @contest`
+- **Error logs UI**: Search with ILIKE (message, target_name, parent_name, target_type), Esc to clear, 500ms minimum loading animation, backtrace first frame in index, target_name badge. Show page has copyable `Model.find_by(id: X)` commands for target/parent.
+- **Turbo prefetching gotcha**: Turbo 8+ prefetches links on hover. Test raises on show actions will fire for hovered-over links, not just clicked ones. This only affects test raises — normal pages don't error on prefetch.
 - Auto-prune old logs eventually
 
 ## Seeds / World Cup Data
@@ -129,10 +141,12 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/contests/:id/enter` — POST, confirm cart entry
 - `/contests/:id/clear_picks` — POST, abandon cart entry
 - `/contests/:id/grade` — POST, grade contest
-- `/teams` — teams index
+- `/teams` — teams index (clickable grid → show)
+- `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
 - `/props/:id` — prop show
-- `/error_logs` — error logs index
+- `/error_logs` — error logs index (search, loading animation)
+- `/error_logs/:slug` — error log detail (backtrace, target/parent with copy-to-clipboard console commands, JSON)
 
 ## Workflow Preferences
 
