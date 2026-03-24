@@ -1,26 +1,33 @@
 puts "Seeding Turf Picks..."
 
 # Users
-alex = User.find_or_create_by!(email: "alex@turf.com") do |u|
-  u.name = "Alex"
+alex = User.find_or_create_by!(email: "alex@mcritchie.studio") do |u|
+  u.name = "Alex McRitchie"
   u.balance_cents = 100_000
   u.password = "pass"
 end
 alex.update!(password: "pass") if alex.password_digest.blank?
 
-jordan = User.find_or_create_by!(email: "jordan@turf.com") do |u|
-  u.name = "Jordan"
+mason = User.find_or_create_by!(email: "mason@mcritchie.studio") do |u|
+  u.name = "Mason McRitchie"
   u.balance_cents = 100_000
   u.password = "pass"
 end
-jordan.update!(password: "pass") if jordan.password_digest.blank?
+mason.update!(password: "pass") if mason.password_digest.blank?
 
-sam = User.find_or_create_by!(email: "sam@turf.com") do |u|
-  u.name = "Sam"
+mack = User.find_or_create_by!(email: "mack@mcritchie.studio") do |u|
+  u.name = "Mack McRitchie"
   u.balance_cents = 100_000
   u.password = "pass"
 end
-sam.update!(password: "pass") if sam.password_digest.blank?
+mack.update!(password: "pass") if mack.password_digest.blank?
+
+turf = User.find_or_create_by!(email: "turf@mcritchie.studio") do |u|
+  u.name = "Turf Monster"
+  u.balance_cents = 100_000
+  u.password = "pass"
+end
+turf.update!(password: "pass") if turf.password_digest.blank?
 
 puts "  Created #{User.count} users"
 
@@ -433,7 +440,7 @@ end
 puts "  Created #{props.size} props"
 
 # Entries with random picks for Alex and Jordan
-[alex, jordan].each do |user|
+[alex, mason].each do |user|
   next if Entry.exists?(user: user, contest: contest)
 
   entry = Entry.create!(user: user, contest: contest)

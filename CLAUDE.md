@@ -2,6 +2,11 @@
 
 Peer-to-peer sports pick'em game focused on team-based over/under props for the World Cup.
 
+## Dev Server
+
+- **Port 3001** — `bin/rails server -p 3001`
+- McRitchie Studio runs on port 3000
+
 ## Tech Stack
 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
@@ -35,14 +40,18 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Every model has a `slug` column — human-readable identifier set via `Sluggable` concern + `name_slug` method
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
+- **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
 
 ## Models
 
 - **User** — name, email, balance_cents, slug
 - **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
-- **Prop** — belongs_to contest, description, line, stat_type, result_value, status, slug
-- **Entry** — belongs_to user + contest (multiple entries allowed), score, status, slug (includes id for uniqueness)
+- **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
+- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), slug (includes id for uniqueness)
 - **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
+- **Team** — name, short_name, location, emoji, color_primary, color_secondary, slug. Has many players, home_games, away_games.
+- **Game** — belongs_to home_team + away_team (Team via slug FKs). kickoff_at, venue, status, home_score, away_score, slug.
+- **Player** — belongs_to team (via slug FK, optional). name, position, jersey_number, slug.
 - **ErrorLog** — polymorphic target + parent, message, inspect, backtrace (JSON), target_name, parent_name, slug
 
 ## Key Business Logic
@@ -50,10 +59,11 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - `Entry#toggle_pick!(prop, selection)` — find/destroy/update/create pick, destroy entry if empty, returns picks hash or nil
 - `Entry#confirm!` — validates 3 picks, deducts entry fee, moves cart → active
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
+- `Contest#clear_picks` — marks cart entry as `abandoned` (soft delete, entry preserved in DB but hidden from user)
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
 - `ErrorLog.capture!(exception, target:, parent:)` — structured error logging with cleaned backtrace and human-readable slugs
 - Users can enter a contest multiple times; UI focuses on the current cart entry
-- Entry status flow: cart → active → complete
+- Entry status flow: cart → active → complete (abandoned = soft-deleted cart, never shown)
 
 ## Error Logging
 
@@ -64,6 +74,15 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **`rescue_and_log(target:, parent:)`** — `ApplicationController` helper, wrap action body to guarantee ErrorLog capture for any `StandardError`. Re-raises so outer rescue blocks handle the response. Use specific rescues (`RecordNotFound`, `StandardError`) on the outside for response formatting.
 - Auto-prune old logs eventually
 
+## Seeds / World Cup Data
+
+- 48 teams seeded with real World Cup 2026 draw (42 confirmed + 6 TBD playoff placeholders)
+- 72 group stage matches with real dates, kickoff times (ET/EDT), venues across 16 host cities
+- 67 notable players across 21 teams
+- Props wired to teams/games via slug columns (team_slug, opponent_team_slug, game_slug)
+- TBD playoff teams: UEFA Playoff A/B/C/D (decided March 26-31, 2026), IC Playoff 1/2
+- Seed is idempotent (`find_or_create_by!`) — safe to re-run
+
 ## UI
 
 - Dark mode default (html class="dark"), navy background
@@ -71,10 +90,35 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
 - JSON blocks: bg-navy-800, text-mint, font-mono
-- **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Includes a nudge animation (fires once after 3s idle). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
+- **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
+- **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
+- **Nudge animation**: JS-driven cycle. Big nudge (scale 1.06, ±2deg) fires 3s after button appears. Soft nudge (scale 1.03, ±1deg) repeats every 10s after. Hold start resets the cycle; hold release restarts with soft-only 10s cycle. Nudge suppressed during `.process` and `.success` states.
+- **Clear All button**: In both desktop sidebar and mobile cart. Clears local picks and marks cart entry as `abandoned` server-side via `POST /contests/:id/clear_picks`.
 - **Blur overlay**: fires once per page load when 3 picks selected (`blurUsed` flag prevents repeat)
 - **Pick order**: `pickOrder` array in Alpine state tracks insertion order; `pickSlots` renders from it. Server-rendered initial state uses `picks.order(:created_at)`.
 - Alpine state pattern: optimistic UI updates with server sync rollback (restore both `picks` and `pickOrder` on error)
+
+## Dev Mode
+
+- Global `Alpine.store('devMode')` persisted to `localStorage`
+- `<body x-data :class="{ 'dev-mode': $store.devMode }">` — adds `dev-mode` class to body when active
+- **DEV toggle** in header nav bar — yellow badge when active, subtle dark button when off
+- Debug tools hidden by default, visible when `.dev-mode` is on body:
+  - **Nudge countdown ring**: small circular SVG on hold button showing seconds until next jiggle
+- Future debug tools should use `.dev-mode` ancestor selector or `$store.devMode` in Alpine
+
+## Routes
+
+- `/` — contests#index (main dashboard)
+- `/contests/:id` — contest show (leaderboard + grading)
+- `/contests/:id/toggle_pick` — POST, toggle a pick on cart entry
+- `/contests/:id/enter` — POST, confirm cart entry
+- `/contests/:id/clear_picks` — POST, abandon cart entry
+- `/contests/:id/grade` — POST, grade contest
+- `/teams` — teams index
+- `/games` — games index
+- `/props/:id` — prop show
+- `/error_logs` — error logs index
 
 ## Workflow Preferences
 
@@ -98,6 +142,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 ## TODO
 
 - [ ] Set up Google OAuth credentials (console.cloud.google.com) — create OAuth client ID, configure consent screen, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars, add redirect URI `http://localhost:3000/auth/google_oauth2/callback`
+- [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
 
 ## Session Protocol
 

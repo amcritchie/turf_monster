@@ -6,13 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
 
     <%= yield :head %>
-
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/icon.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,7 +118,7 @@
       <header class="mb-8 flex items-center justify-between">
         <div class="flex items-center gap-6">
           <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
-            <img src="/logo.jpeg" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
+            <img src="/logo.png" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
             <h1 class="text-3xl font-extrabold text-white tracking-tight">Turf <span class="text-mint">Monster</span></h1>
           <% end %>
           <%= link_to "Teams", teams_path, class: "text-gray-500 hover:text-mint text-sm font-medium transition" %>
