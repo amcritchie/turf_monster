@@ -1,5 +1,6 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show]
+  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade]
 
   def index
     @contest = Contest.order(created_at: :desc).first
@@ -12,19 +13,18 @@ class ContestsController < ApplicationController
   end
 
   def show
-    @contest = Contest.find(params[:id])
     @props = @contest.props.includes(:team, :opponent_team, :game)
     @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: :prop).order(score: :desc)
   end
 
   def toggle_pick
-    @contest = Contest.find(params[:id])
-
     unless @contest.open?
       return render json: { error: "Contest is not open" }, status: :unprocessable_entity
     end
 
-    prop = @contest.props.find(params[:prop_id])
+    prop = @contest.props.find_by(id: params[:prop_id])
+    return render json: { error: "Prop not found" }, status: :not_found unless prop
+
     selection = params[:selection]
     entry = @contest.entries.find_or_create_by!(user: current_user, status: :cart)
 
@@ -37,15 +37,13 @@ class ContestsController < ApplicationController
         render json: { picks: picks_hash, pick_count: picks_hash.size }
       end
     end
-  rescue ActiveRecord::RecordNotFound
-    render json: { error: "Record not found" }, status: :not_found
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def enter
-    @contest = Contest.find(params[:id])
-    entry = @contest.entries.cart.find_by!(user: current_user)
+    entry = @contest.entries.cart.find_by(user: current_user)
+    return redirect_to root_path, alert: "No cart entry found" unless entry
 
     rescue_and_log(target: entry, parent: @contest) do
       entry.confirm!
@@ -55,11 +53,6 @@ class ContestsController < ApplicationController
         format.json { render json: { success: true, redirect: root_path } }
       end
     end
-  rescue ActiveRecord::RecordNotFound
-    respond_to do |format|
-      format.html { redirect_to root_path, alert: "No cart entry found" }
-      format.json { render json: { success: false, error: "No cart entry found" }, status: :unprocessable_entity }
-    end
   rescue StandardError => e
     respond_to do |format|
       format.html { redirect_to root_path, alert: e.message }
@@ -68,7 +61,6 @@ class ContestsController < ApplicationController
   end
 
   def clear_picks
-    @contest = Contest.find(params[:id])
     entry = @contest.entries.cart.find_by(user: current_user)
 
     if entry
@@ -87,22 +79,32 @@ class ContestsController < ApplicationController
   end
 
   def grade
-    @contest = Contest.find(params[:id])
-
     rescue_and_log(target: @contest) do
       if params[:results].present?
         params[:results].each do |prop_id, value|
           next if value.blank?
-          Prop.find(prop_id).update!(result_value: value.to_f)
+          prop = Prop.find_by(id: prop_id)
+          next unless prop
+          prop.update!(result_value: value.to_f)
         end
       end
 
       @contest.grade!
       redirect_to @contest, notice: "Contest graded and settled!"
     end
-  rescue ActiveRecord::RecordNotFound
-    redirect_to root_path, alert: "Contest or prop not found"
   rescue StandardError => e
-    redirect_to @contest, alert: e.message
+    redirect_to @contest || root_path, alert: e.message
+  end
+
+  private
+
+  def set_contest
+    @contest = Contest.find_by(slug: params[:id])
+    return if @contest
+
+    respond_to do |format|
+      format.html { redirect_to root_path, alert: "Contest not found" }
+      format.json { render json: { error: "Contest not found" }, status: :not_found }
+    end
   end
 end

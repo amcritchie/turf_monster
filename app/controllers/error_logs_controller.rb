@@ -6,6 +6,7 @@ class ErrorLogsController < ApplicationController
   end
 
   def show
-    @error_log = ErrorLog.find(params[:id])
+    @error_log = ErrorLog.find_by(slug: params[:id])
+    return redirect_to error_logs_path, alert: "Error log not found" unless @error_log
   end
 end
