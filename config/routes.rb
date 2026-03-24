@@ -25,7 +25,7 @@ Rails.application.routes.draw do
   end
 
   resources :props, only: [:show]
-  resources :teams, only: [:index]
+  resources :teams, only: [:index, :show]
   resources :games, only: [:index]
   resources :error_logs, only: [:index, :show]
 

@@ -5,6 +5,10 @@ module Sluggable
     before_save :set_slug
   end
 
+  def to_param
+    slug
+  end
+
   private
 
   def set_slug

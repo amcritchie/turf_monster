@@ -78,13 +78,14 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 
 ## Error Logging
 
-- All errors logged to `error_logs` table via `ErrorLog.capture!` — DB only, no external services
-- Cleaned backtrace (app frames only via `Rails.backtrace_cleaner`)
-- Polymorphic `target` (the record that errored) and `parent` (broader context) with human-readable `_name` fields from slugs
+Every write action MUST use `rescue_and_log` with target/parent context. See top-level `CLAUDE.md` for full pattern docs.
+
+- All errors logged to `error_logs` table — DB only, no external services
 - Browse errors at `/error_logs` (link in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
-- **Two-layer error handling architecture:**
-  - **Layer 1 (automatic)**: `rescue_from StandardError` in `ApplicationController` catches any unhandled error, logs via `ErrorLog.capture!` (no context), returns friendly response. `RecordNotFound` handled separately → 404, no logging. Re-raises in dev/test so Rails error pages still show.
-  - **Layer 2 (opt-in)**: `rescue_and_log(target:, parent:)` wraps action body for richer error context. Sets `@_error_logged` flag to prevent double-logging when Layer 1 catches the re-raise. Pair with outer `rescue` block for response control.
+- **Layer 1 (automatic)**: `rescue_from StandardError` in `ApplicationController` catches unhandled errors, logs via `create_error_log(exception)` (no context). `RecordNotFound` → 404, no logging. Re-raises in dev/test.
+- **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
+- **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
+- ContestsController: all 4 write actions (toggle_pick, enter, clear_picks, grade) wrapped with `target: entry, parent: @contest`
 - Auto-prune old logs eventually
 
 ## Seeds / World Cup Data

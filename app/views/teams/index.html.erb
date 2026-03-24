@@ -11,7 +11,7 @@
   <% else %>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <% @teams.each do |team| %>
-        <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-4 hover:border-mint-700/50 hover:shadow-lg hover:shadow-mint-900/10 transition">
+        <%= link_to team_path(team), class: "block bg-navy-400 rounded-xl border border-navy-300/20 p-4 hover:border-mint-700/50 hover:shadow-lg hover:shadow-mint-900/10 transition" do %>
           <div class="flex items-center gap-3">
             <span class="text-2xl"><%= team.emoji %></span>
             <div class="flex-1 min-w-0">
@@ -39,7 +39,7 @@
               <p class="text-xs text-gray-500"><%= team.players.count %> players</p>
             </div>
           <% end %>
-        </div>
+        <% end %>
       <% end %>
     </div>
   <% end %>

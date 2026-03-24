@@ -13,14 +13,24 @@ class ErrorLogTest < ActiveSupport::TestCase
     assert_equal "error-log-#{log.id}", log.slug
   end
 
-  test "capture! with target and parent" do
+  test "capture! creates log without target or parent, which can be set after" do
     user = users(:alex)
     contest = contests(:one)
     exception = RuntimeError.new("bad pick")
     exception.set_backtrace(caller)
 
-    log = ErrorLog.capture!(exception, target: user, parent: contest)
+    log = ErrorLog.capture!(exception)
 
+    assert_nil log.target_type
+    assert_nil log.parent_type
+
+    log.target = user
+    log.target_name = user.slug
+    log.parent = contest
+    log.parent_name = contest.slug
+    log.save!
+
+    log.reload
     assert_equal "User", log.target_type
     assert_equal user.id, log.target_id
     assert_equal user.slug, log.target_name

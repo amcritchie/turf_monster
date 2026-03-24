@@ -15,9 +15,7 @@
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Target</p>
         <% if @error_log.target_type.present? %>
           <p class="text-white font-semibold text-sm"><%= @error_log.target_type %> #<%= @error_log.target_id %></p>
-          <% if @error_log.target_name.present? %>
-            <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.target_name %></p>
-          <% end %>
+          <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.target_name %></p>
         <% else %>
           <p class="text-gray-600 text-sm">None</p>
         <% end %>
@@ -26,9 +24,7 @@
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Parent</p>
         <% if @error_log.parent_type.present? %>
           <p class="text-white font-semibold text-sm"><%= @error_log.parent_type %> #<%= @error_log.parent_id %></p>
-          <% if @error_log.parent_name.present? %>
-            <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.parent_name %></p>
-          <% end %>
+          <p class="text-violet font-mono text-xs mt-0.5"><%= @error_log.parent_name %></p>
         <% else %>
           <p class="text-gray-600 text-sm">None</p>
         <% end %>
@@ -55,5 +51,10 @@
   </div>
 
   <!-- Slug -->
-  <p class="text-xs text-gray-600 text-center"><%= @error_log.slug %></p>
+  <p class="text-xs text-gray-600 text-center mb-6"><%= @error_log.slug %></p>
+
+  <div class="bg-navy-800 rounded-xl border border-navy-300/20 p-4 overflow-x-auto">
+    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">JSON</p>
+    <pre class="text-mint font-mono text-xs whitespace-pre-wrap"><%= JSON.pretty_generate(@error_log.as_json) %></pre>
+  </div>
 </section>
