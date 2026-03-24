@@ -7,6 +7,17 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **Port 3001** — `bin/rails server -p 3001`
 - McRitchie Studio runs on port 3000
 
+## Deployment
+
+- **Heroku app**: `turf-monster`
+- **URL**: https://turf.mcritchie.studio
+- **Heroku URL**: https://turf-monster-76a543809064.herokuapp.com/
+- **Database**: Heroku Postgres (essential-0)
+- **DNS**: Google Domains — `turf` CNAME → Heroku DNS target
+- **Deploy**: `git push heroku main` (then `heroku run bin/rails db:migrate --app turf-monster` if new migrations)
+- **Env vars**: `RAILS_MASTER_KEY`, `RAILS_SERVE_STATIC_FILES`, `DATABASE_URL` (auto from addon)
+- **ACM**: Enabled (auto SSL via Let's Encrypt)
+
 ## Tech Stack
 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
