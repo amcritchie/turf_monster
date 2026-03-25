@@ -31,12 +31,12 @@
 
         <% if logged_in? %>
           <div class="flex items-center gap-4">
-            <div class="text-right">
+            <div class="relative">
               <%= link_to account_path, class: "text-white font-semibold hover:text-mint transition" do %>
                 <%= current_user.display_name %>
               <% end %>
               <% if current_user.wallet_connected? %>
-                <div class="text-xs text-gray-500 font-mono"><%= current_user.truncated_wallet %></div>
+                <div class="wallet-badge absolute right-0 text-gray-500 font-mono whitespace-nowrap"><%= current_user.truncated_wallet %></div>
               <% end %>
             </div>
             <span class="font-mono text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></span>

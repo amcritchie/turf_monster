@@ -13,3 +13,8 @@
  *= require_tree .
  *= require_self
  */
+
+.wallet-badge {
+  top: 20px;
+  font-size: 8px;
+}
