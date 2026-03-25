@@ -1,6 +1,6 @@
 <!-- Contest Header -->
 <section class="mb-8">
-  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20">
+  <div class="card shadow p-6">
     <div class="flex justify-between items-start mb-4">
       <div>
         <h2 class="text-2xl font-bold text-white"><%= @contest.name %></h2>
@@ -24,15 +24,15 @@
     </div>
     <div class="grid grid-cols-3 gap-4 text-center">
       <div class="bg-navy-600 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
+        <p class="label-upper">Entry Fee</p>
         <p class="font-mono text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
       </div>
       <div class="bg-navy-600 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
+        <p class="label-upper">Pool</p>
         <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
       </div>
       <div class="bg-navy-600 rounded-lg p-3">
-        <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
+        <p class="label-upper">Entries</p>
         <p class="font-mono text-lg text-white"><%= @entries.count %></p>
       </div>
     </div>
@@ -43,14 +43,14 @@
 <% if @entries.any? %>
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Leaderboard</h2>
-    <div class="bg-navy-400 rounded-xl shadow overflow-hidden border border-navy-300/20">
+    <div class="card shadow overflow-hidden">
       <table class="w-full">
         <thead>
           <tr class="border-b border-navy-300/20">
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">#</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Player</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Score</th>
-            <th class="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">Picks</th>
+            <th class="px-4 py-3 text-left label-upper">#</th>
+            <th class="px-4 py-3 text-left label-upper">Player</th>
+            <th class="px-4 py-3 text-left label-upper">Score</th>
+            <th class="px-4 py-3 text-left label-upper">Picks</th>
           </tr>
         </thead>
         <tbody>
@@ -91,7 +91,7 @@
     <%= form_tag grade_contest_path(@contest), method: :post do %>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <% @props.each do |prop| %>
-          <div class="bg-navy-400 rounded-xl shadow p-4 border border-navy-300/20">
+          <div class="card shadow p-4">
             <% if prop.team && prop.opponent_team %>
               <div class="flex items-center gap-1 mb-1 text-sm">
                 <span><%= prop.team.emoji %></span>
@@ -104,7 +104,7 @@
             <input type="number" name="results[<%= prop.id %>]" step="0.1" min="0"
               value="<%= prop.result_value %>"
               placeholder="Result"
-              class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-mint focus:outline-none">
+              class="input-field px-3 py-2 font-mono text-sm">
           </div>
         <% end %>
       </div>
@@ -115,8 +115,4 @@
   </section>
 <% end %>
 
-<!-- JSON Debug Block -->
-<details class="mt-8">
-  <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
-  <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
-</details>
+<%= render "components/json_debug", record: @contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } }), label: "Contest JSON", collapsible: true %>

@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: 6c20bea25180a4e9ed227cc535cfebf8acdad8f1
+  revision: 4acd4c58bf243966f99fb0f3aea0918f10105306
   specs:
     studio (0.1.0)
       rails (>= 7.0)
@@ -187,8 +187,6 @@ GEM
     nio4r (2.7.5)
     nokogiri (1.18.10)
       mini_portile2 (~> 2.8.2)
-      racc (~> 1.4)
-    nokogiri (1.18.10-arm64-darwin)
       racc (~> 1.4)
     oauth2 (2.0.18)
       faraday (>= 0.17.3, < 4.0)

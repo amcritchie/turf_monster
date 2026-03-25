@@ -2,29 +2,15 @@
 <html class="dark">
   <head>
     <title><%= content_for(:title) || "Turf Monster" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <%= csrf_meta_tags %>
-    <%= csp_meta_tag %>
-    <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="apple-touch-icon" href="/favicon.png">
-
-    <%= yield :head %>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-    <script>
-      document.addEventListener('alpine:init', () => {
-        Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
-      });
-    </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
-    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
-    <%= javascript_importmap_tags %>
+    <% content_for :head do %>
+      <script>
+        document.addEventListener('alpine:init', () => {
+          Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
+        });
+      </script>
+    <% end %>
+    <%= render "layouts/studio/head" %>
   </head>
 
   <body x-data class="bg-navy text-gray-100 min-h-screen" :class="{ 'dev-mode': $store.devMode }">
@@ -57,25 +43,7 @@
         <% end %>
       </header>
 
-      <% if flash[:notice] %>
-        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             x-transition:leave="transition ease-in duration-300"
-             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-             class="mb-4 p-3 bg-mint-900/30 border border-mint-700 rounded-lg text-mint-300 relative overflow-hidden">
-          <%= flash[:notice] %>
-          <div class="absolute bottom-0 left-0 h-0.5 bg-mint-600" style="animation: progress-countdown 5s linear forwards"></div>
-        </div>
-      <% end %>
-
-      <% if flash[:alert] %>
-        <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
-             x-transition:leave="transition ease-in duration-300"
-             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-             class="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 relative overflow-hidden">
-          <%= flash[:alert] %>
-          <div class="absolute bottom-0 left-0 h-0.5 bg-red-600" style="animation: progress-countdown 5s linear forwards"></div>
-        </div>
-      <% end %>
+      <%= render "layouts/studio/flash" %>
 
       <%= yield %>
     </div>

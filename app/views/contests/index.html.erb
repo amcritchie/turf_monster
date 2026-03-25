@@ -78,7 +78,7 @@
 
   <!-- Contest Header -->
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <div class="bg-navy-400 rounded-xl shadow p-4 md:p-6 border border-navy-300/20">
+    <div class="card shadow p-4 md:p-6">
       <div class="flex justify-between items-start mb-4">
         <div>
           <h2 class="text-xl md:text-2xl font-bold text-white"><%= @contest.name %></h2>
@@ -102,15 +102,15 @@
       </div>
       <div class="grid grid-cols-3 gap-3 md:gap-4 text-center">
         <div class="bg-navy-600 rounded-lg p-2 md:p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Entry Fee</p>
+          <p class="label-upper">Entry Fee</p>
           <p class="font-mono text-base md:text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
         </div>
         <div class="bg-navy-600 rounded-lg p-2 md:p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Pool</p>
+          <p class="label-upper">Pool</p>
           <p class="font-mono text-base md:text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
         </div>
         <div class="bg-navy-600 rounded-lg p-2 md:p-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Entries</p>
+          <p class="label-upper">Entries</p>
           <p class="font-mono text-base md:text-lg text-white"><%= @entries.count %></p>
         </div>
       </div>
@@ -124,7 +124,7 @@
   <% if logged_in? %>
     <!-- Current Player Card -->
     <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
-      <div class="bg-navy-400 rounded-xl shadow p-4 hover:shadow-lg hover:shadow-mint/10 transition-all border border-navy-300/20 max-w-md">
+      <div class="card shadow p-4 hover:shadow-lg hover:shadow-mint/10 transition-all max-w-md">
         <div class="flex justify-between items-center">
           <div>
             <p class="font-bold text-white"><%= current_user.display_name %></p>
@@ -282,10 +282,7 @@
 
   <!-- JSON Debug Block -->
   <section class="transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <details class="mt-8">
-      <summary class="text-gray-500 text-sm cursor-pointer hover:text-gray-300">Contest JSON</summary>
-      <pre class="mt-2 bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } })) %></pre>
-    </details>
+    <%= render "components/json_debug", record: @contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } }), label: "Contest JSON", collapsible: true %>
   </section>
 
 </div>

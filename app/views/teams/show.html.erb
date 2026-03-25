@@ -3,7 +3,7 @@
     <%= link_to "&larr; All Teams".html_safe, teams_path, class: "text-gray-400 hover:text-white text-sm transition" %>
   </div>
 
-  <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-6 mb-6">
+  <div class="card p-6 mb-6">
     <div class="flex items-center gap-4 mb-4">
       <span class="text-4xl"><%= @team.emoji %></span>
       <div>
@@ -33,7 +33,7 @@
       <h3 class="text-lg font-bold text-white mb-3">Players (<%= @team.players.count %>)</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <% @team.players.order(:name).each do |player| %>
-          <div class="bg-navy-400 rounded-lg border border-navy-300/20 p-3 flex items-center gap-3">
+          <div class="card p-3 flex items-center gap-3">
             <% if player.jersey_number.present? %>
               <span class="text-violet-500 font-bold font-mono text-sm w-6 text-right">#<%= player.jersey_number %></span>
             <% end %>
@@ -55,7 +55,7 @@
       <h3 class="text-lg font-bold text-white mb-3">Games (<%= games.count %>)</h3>
       <div class="space-y-2">
         <% games.each do |game| %>
-          <div class="bg-navy-400 rounded-lg border border-navy-300/20 p-3 flex items-center justify-between">
+          <div class="card p-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-sm"><%= game.home_team&.emoji %></span>
               <span class="text-white text-sm font-semibold"><%= game.home_team&.short_name || game.home_team_slug %></span>
@@ -73,8 +73,5 @@
     </div>
   <% end %>
 
-  <div class="bg-navy-800 rounded-xl border border-navy-300/20 p-4 overflow-x-auto">
-    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">JSON</p>
-    <pre class="text-mint font-mono text-xs whitespace-pre-wrap"><%= JSON.pretty_generate(@team.as_json) %></pre>
-  </div>
+  <%= render "components/json_debug", record: @team %>
 </section>

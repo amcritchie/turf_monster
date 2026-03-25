@@ -5,13 +5,11 @@
   </div>
 
   <% if @games.empty? %>
-    <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-8 text-center">
-      <p class="text-gray-400 text-lg">No games scheduled yet.</p>
-    </div>
+    <%= render "components/empty_state", message: "No games scheduled yet." %>
   <% else %>
     <div class="space-y-3">
       <% @games.each do |game| %>
-        <div class="bg-navy-400 rounded-xl border border-navy-300/20 p-4 hover:border-violet-700/50 hover:shadow-lg hover:shadow-violet-900/10 transition">
+        <div class="card p-4 hover:border-violet-700/50 hover:shadow-lg hover:shadow-violet-900/10 transition">
           <div class="flex items-center justify-between gap-4">
             <!-- Home Team -->
             <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -57,15 +55,15 @@
             <% if game.venue.present? %>
               <span class="text-xs text-gray-500"><%= game.venue %></span>
             <% end %>
-            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium
-              <%= case game.status
-                  when 'scheduled' then 'bg-violet-900/30 border border-violet-700/50 text-violet-300'
-                  when 'in_progress' then 'bg-mint-900/30 border border-mint-700/50 text-mint-300'
-                  when 'final' then 'bg-gray-700/30 border border-gray-600/50 text-gray-400'
-                  else 'bg-navy-600 border border-navy-300/20 text-gray-400'
-                  end %>">
-              <%= game.status.titleize %>
-            </span>
+            <%
+              game_scheme = case game.status
+                when 'scheduled' then 'violet'
+                when 'in_progress' then 'success'
+                when 'final' then 'neutral'
+                else 'neutral'
+                end
+            %>
+            <%= render "components/badge", text: game.status.titleize, scheme: game_scheme %>
           </div>
         </div>
       <% end %>

@@ -2,7 +2,7 @@
 
 <!-- Large Prop Card -->
 <section class="mb-8">
-  <div class="bg-navy-400 rounded-xl shadow p-8 text-center border border-navy-300/20">
+  <div class="card shadow p-8 text-center">
     <% if @prop.team && @prop.opponent_team %>
       <div class="flex items-center justify-center gap-3 mb-3">
         <span class="text-3xl" title="<%= @prop.team.name %>"><%= @prop.team.emoji %></span>
@@ -30,12 +30,12 @@
 <!-- Detail Cards -->
 <section class="mb-8">
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-navy-400 rounded-xl shadow p-4 text-center border border-navy-300/20">
-      <p class="text-xs text-gray-500 uppercase tracking-wider">Stat Type</p>
+    <div class="card shadow p-4 text-center">
+      <p class="label-upper">Stat Type</p>
       <p class="font-mono text-lg text-white"><%= @prop.stat_type || "—" %></p>
     </div>
-    <div class="bg-navy-400 rounded-xl shadow p-4 text-center border border-navy-300/20">
-      <p class="text-xs text-gray-500 uppercase tracking-wider">Status</p>
+    <div class="card shadow p-4 text-center">
+      <p class="label-upper">Status</p>
       <% if @prop.graded? %>
         <span class="inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold bg-mint-900/30 text-mint border border-mint-700">
           GRADED
@@ -46,12 +46,12 @@
         </span>
       <% end %>
     </div>
-    <div class="bg-navy-400 rounded-xl shadow p-4 text-center border border-navy-300/20">
-      <p class="text-xs text-gray-500 uppercase tracking-wider">Pick Count</p>
+    <div class="card shadow p-4 text-center">
+      <p class="label-upper">Pick Count</p>
       <p class="font-mono text-lg text-white"><%= @picks.count %></p>
     </div>
-    <div class="bg-navy-400 rounded-xl shadow p-4 text-center border border-navy-300/20">
-      <p class="text-xs text-gray-500 uppercase tracking-wider">Result Value</p>
+    <div class="card shadow p-4 text-center">
+      <p class="label-upper">Result Value</p>
       <p class="font-mono text-lg text-white"><%= @prop.result_value || "—" %></p>
     </div>
   </div>
@@ -61,7 +61,7 @@
 <% if @picks.any? %>
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-gray-300">Picks</h2>
-    <div class="bg-navy-400 rounded-xl shadow overflow-hidden border border-navy-300/20">
+    <div class="card shadow overflow-hidden">
       <table class="w-full">
         <thead>
           <tr class="border-b border-navy-300/20">
@@ -104,6 +104,5 @@
 
 <!-- JSON Debug Block -->
 <section>
-  <h2 class="text-xl font-semibold mb-4 text-gray-300">Prop JSON</h2>
-  <pre class="bg-navy-800 rounded-xl p-4 text-mint font-mono text-xs overflow-x-auto"><%= JSON.pretty_generate(@prop.as_json(include: { picks: { include: { entry: { include: { user: { only: [:id, :name] } } } } } })) %></pre>
+  <%= render "components/json_debug", record: @prop.as_json(include: { picks: { include: { entry: { include: { user: { only: [:id, :name] } } } } } }), label: "Prop JSON" %>
 </section>
