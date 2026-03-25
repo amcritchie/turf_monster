@@ -48,6 +48,8 @@ end
 
 **Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
 
+**SSO:** Shared `_studio_session` cookie across `*.mcritchie.studio`. Login here → auto-logged-in at `app.mcritchie.studio`. Auto-provisioned SSO users get `balance_cents = 0` via `configure_sso_user`. Requires shared `SECRET_KEY_BASE` in `.env` (dev) and Heroku config (prod).
+
 **Updating:** After changes to the studio repo, run `bundle update studio` here.
 
 ## Branding
