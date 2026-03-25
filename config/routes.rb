@@ -7,6 +7,17 @@ Rails.application.routes.draw do
 
   Studio.routes(self)
 
+  # Wallet auth (SIWE)
+  get  "auth/wallet/nonce",  to: "wallet_sessions#nonce"
+  post "auth/wallet/verify", to: "wallet_sessions#verify"
+
+  # Account management
+  resource :account, only: [:show, :update] do
+    post :link_wallet
+    post :unlink_google
+    post :change_password
+  end
+
   resources :contests, only: [:index, :show] do
     member do
       post :toggle_pick

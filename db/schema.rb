@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_22_000009) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -20,9 +20,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
     t.string "status", default: "draft", null: false
     t.integer "max_entries"
     t.datetime "starts_at"
+    t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "slug"
   end
 
   create_table "entries", force: :cascade do |t|
@@ -30,9 +30,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
     t.bigint "contest_id", null: false
     t.float "score", default: 0.0, null: false
     t.string "status", default: "cart", null: false
+    t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "slug"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["user_id", "contest_id"], name: "index_entries_on_user_id_and_contest_id"
     t.index ["user_id"], name: "index_entries_on_user_id"
@@ -77,9 +77,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
     t.bigint "prop_id", null: false
     t.string "selection", null: false
     t.string "result", default: "pending", null: false
+    t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "slug"
     t.index ["entry_id", "prop_id"], name: "index_picks_on_entry_id_and_prop_id", unique: true
     t.index ["entry_id"], name: "index_picks_on_entry_id"
     t.index ["prop_id"], name: "index_picks_on_prop_id"
@@ -104,12 +104,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
     t.string "stat_type"
     t.float "result_value"
     t.string "status", default: "pending", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
     t.string "slug"
     t.string "team_slug"
     t.string "opponent_team_slug"
     t.string "game_slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["contest_id"], name: "index_props_on_contest_id"
     t.index ["game_slug"], name: "index_props_on_game_slug"
     t.index ["opponent_team_slug"], name: "index_props_on_opponent_team_slug"
@@ -131,20 +131,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_24_031044) do
 
   create_table "users", force: :cascade do |t|
     t.string "name"
-    t.string "email", null: false
+    t.string "email"
     t.integer "balance_cents", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
     t.string "password_digest", default: "", null: false
     t.string "provider"
     t.string "uid"
+    t.string "wallet_address"
     t.string "slug"
     t.string "first_name"
     t.string "last_name"
     t.date "birth_date"
     t.integer "birth_year"
-    t.index ["email"], name: "index_users_on_email", unique: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
+    t.index ["wallet_address"], name: "index_users_on_wallet_address", unique: true, where: "(wallet_address IS NOT NULL)"
   end
 
   add_foreign_key "entries", "contests"

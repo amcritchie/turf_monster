@@ -9,7 +9,6 @@ class CreateGames < ActiveRecord::Migration[7.2]
       t.string :status, default: "scheduled"
       t.integer :home_score
       t.integer :away_score
-
       t.timestamps
     end
 

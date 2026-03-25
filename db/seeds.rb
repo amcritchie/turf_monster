@@ -4,30 +4,37 @@ puts "Seeding Turf Picks..."
 alex = User.find_or_create_by!(email: "alex@mcritchie.studio") do |u|
   u.name = "Alex McRitchie"
   u.balance_cents = 100_000
-  u.password = "pass"
+  u.password = "password"
 end
-alex.update!(password: "pass") if alex.password_digest.blank?
+alex.update!(password: "password") if alex.password_digest.blank?
 
 mason = User.find_or_create_by!(email: "mason@mcritchie.studio") do |u|
   u.name = "Mason McRitchie"
   u.balance_cents = 100_000
-  u.password = "pass"
+  u.password = "password"
 end
-mason.update!(password: "pass") if mason.password_digest.blank?
+mason.update!(password: "password") if mason.password_digest.blank?
 
 mack = User.find_or_create_by!(email: "mack@mcritchie.studio") do |u|
   u.name = "Mack McRitchie"
   u.balance_cents = 100_000
-  u.password = "pass"
+  u.password = "password"
 end
-mack.update!(password: "pass") if mack.password_digest.blank?
+mack.update!(password: "password") if mack.password_digest.blank?
 
 turf = User.find_or_create_by!(email: "turf@mcritchie.studio") do |u|
   u.name = "Turf Monster"
   u.balance_cents = 100_000
-  u.password = "pass"
+  u.password = "password"
 end
-turf.update!(password: "pass") if turf.password_digest.blank?
+turf.update!(password: "password") if turf.password_digest.blank?
+
+# Wallet-only test user (no email)
+wallet_user = User.find_or_create_by!(wallet_address: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045") do |u|
+  u.name = "vitalik.eth"
+  u.balance_cents = 100_000
+  u.password = SecureRandom.hex(16)
+end
 
 puts "  Created #{User.count} users"
 

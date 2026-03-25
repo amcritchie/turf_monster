@@ -1,8 +1,8 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: 3e61d965d5058973e7bd0829eb828e835f44e35e
+  revision: ed7fbe4f9a67fb4f9538def430a18b8343279228
   specs:
-    studio (0.2.2)
+    studio (0.2.3)
       rails (>= 7.0)
       tailwindcss-rails (~> 2.7)
 
@@ -121,12 +121,24 @@ GEM
       cgi (>= 0.3.3)
     error_highlight (0.7.0)
     erubi (1.13.1)
+    eth (0.5.13)
+      forwardable (~> 1.3)
+      keccak (~> 1.3)
+      konstructor (~> 1.0)
+      openssl (>= 2.2, < 4.0)
+      rbsecp256k1 (~> 6.0)
+      scrypt (~> 3.0)
     faraday (2.14.1)
       faraday-net_http (>= 2.0, < 3.5)
       json
       logger
     faraday-net_http (3.4.2)
       net-http (~> 0.5)
+    ffi (1.17.3)
+    ffi-compiler (1.3.2)
+      ffi (>= 1.15.5)
+      rake
+    forwardable (1.4.0)
     globalid (1.3.0)
       activesupport (>= 6.1)
     hashie (5.1.0)
@@ -152,6 +164,8 @@ GEM
       bigdecimal (>= 3.1, < 5)
     jwt (3.1.2)
       base64
+    keccak (1.3.3)
+    konstructor (1.0.2)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
@@ -212,6 +226,7 @@ GEM
     omniauth-rails_csrf_protection (1.0.2)
       actionpack (>= 4.2)
       omniauth (~> 2.0)
+    openssl (3.3.2)
     parallel (1.27.0)
     parser (3.3.10.2)
       ast (~> 2.4.1)
@@ -219,6 +234,7 @@ GEM
     pg (1.6.3-aarch64-linux)
     pg (1.6.3-arm64-darwin)
     pg (1.6.3-x86_64-linux)
+    pkg-config (1.6.5)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -275,6 +291,10 @@ GEM
       zeitwerk (~> 2.6)
     rainbow (3.1.1)
     rake (13.3.1)
+    rbsecp256k1 (6.0.0)
+      mini_portile2 (~> 2.8)
+      pkg-config (~> 1.5)
+      rubyzip (~> 2.3)
     rdoc (7.2.0)
       erb
       psych (>= 4.0.0)
@@ -314,6 +334,9 @@ GEM
       rubocop-rails (>= 2.30)
     ruby-progressbar (1.13.0)
     rubyzip (2.4.1)
+    scrypt (3.1.0)
+      ffi-compiler (>= 1.0, < 2.0)
+      rake (~> 13)
     securerandom (0.4.1)
     selenium-webdriver (4.32.0)
       base64 (~> 0.2)
@@ -382,6 +405,7 @@ DEPENDENCIES
   debug
   dotenv-rails
   error_highlight (>= 0.4.0)
+  eth (~> 0.5)
   importmap-rails
   jbuilder
   omniauth

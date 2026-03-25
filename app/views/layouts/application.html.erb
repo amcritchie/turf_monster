@@ -31,7 +31,14 @@
 
         <% if logged_in? %>
           <div class="flex items-center gap-4">
-            <span class="text-white font-semibold"><%= current_user.display_name %></span>
+            <div class="text-right">
+              <%= link_to account_path, class: "text-white font-semibold hover:text-mint transition" do %>
+                <%= current_user.display_name %>
+              <% end %>
+              <% if current_user.wallet_connected? %>
+                <div class="text-xs text-gray-500 font-mono"><%= current_user.truncated_wallet %></div>
+              <% end %>
+            </div>
             <span class="font-mono text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></span>
             <%= link_to "Log out", logout_path, class: "text-gray-400 hover:text-white text-sm font-medium transition" %>
           </div>

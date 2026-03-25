@@ -12,7 +12,7 @@ module ActiveSupport
 end
 
 class ActionDispatch::IntegrationTest
-  def log_in_as(user, password: "pass")
+  def log_in_as(user, password: "password")
     post login_path, params: { email: user.email, password: password }
   end
 end

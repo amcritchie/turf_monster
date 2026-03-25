@@ -6,7 +6,7 @@ class CreateContests < ActiveRecord::Migration[7.2]
       t.string :status, default: "draft", null: false
       t.integer :max_entries
       t.datetime :starts_at
-
+      t.string :slug
       t.timestamps
     end
   end

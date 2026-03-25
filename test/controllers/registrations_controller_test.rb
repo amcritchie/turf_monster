@@ -8,7 +8,7 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
   test "signup with valid info" do
     assert_difference "User.count", 1 do
-      post signup_path, params: { user: { email: "new@turf.com", password: "pass", password_confirmation: "pass" } }
+      post signup_path, params: { user: { email: "new@turf.com", password: "password", password_confirmation: "password" } }
     end
     assert_redirected_to root_path
     follow_redirect!
@@ -17,7 +17,7 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
 
   test "signup with mismatched password" do
     assert_no_difference "User.count" do
-      post signup_path, params: { user: { email: "new@turf.com", password: "pass", password_confirmation: "wrong" } }
+      post signup_path, params: { user: { email: "new@turf.com", password: "password", password_confirmation: "wrong" } }
     end
     assert_response :unprocessable_entity
   end

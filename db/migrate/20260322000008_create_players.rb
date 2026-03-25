@@ -6,7 +6,6 @@ class CreatePlayers < ActiveRecord::Migration[7.2]
       t.string :name, null: false
       t.string :position
       t.integer :jersey_number
-
       t.timestamps
     end
 
