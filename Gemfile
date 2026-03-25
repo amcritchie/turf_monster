@@ -64,3 +64,5 @@ group :test do
   gem "selenium-webdriver"
 end
 gem "dotenv-rails", groups: [:development, :test]
+gem "tailwindcss-rails", "~> 2.7"
+gem "studio", git: "https://github.com/amcritchie/studio.git"

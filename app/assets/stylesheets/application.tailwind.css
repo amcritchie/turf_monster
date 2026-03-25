@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes hold-fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+@keyframes hold-ring {
+  from { stroke-dashoffset: 283; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes hold-shrink {
+  from { border-width: 2px; }
+  to { border-width: 24px; }
+}
+@keyframes slide-down {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes progress-countdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+@keyframes card-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-3px) rotate(-1deg); }
+  30% { transform: translateX(3px) rotate(1deg); }
+  45% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  75% { transform: translateX(-1px); }
+}
+.shake { animation: card-shake 0.4s ease-out; }

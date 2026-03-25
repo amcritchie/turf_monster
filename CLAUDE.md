@@ -27,6 +27,28 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - ERB views, import maps, no JS frameworks
 - bcrypt password auth + Google OAuth (OmniAuth)
 - Playwright for UI smoke tests (standalone Node.js, no build step)
+- **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
+
+## Studio Engine
+
+Shared code lives in the [studio engine](https://github.com/amcritchie/studio). This app includes it via `config/initializers/studio.rb`:
+
+```ruby
+Studio.configure do |config|
+  config.app_name = "Turf Monster"
+  config.welcome_message = ->(user) { "Welcome to Turf Monster, #{user.display_name}!" }
+  config.registration_params = [:email, :password, :password_confirmation]
+  config.configure_new_user = ->(user) { user.balance_cents = 0 }
+end
+```
+
+**From the engine:** `Studio::ErrorHandling` concern (in ApplicationController), `ErrorLog` model, `Sluggable` concern, auth controllers (sessions, registrations, omniauth_callbacks, error_logs), error log views, generic login/signup views (overridden by app-branded versions).
+
+**Overridden locally:** `sessions/new.html.erb` and `registrations/new.html.erb` (mint-branded with logo).
+
+**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
+
+**Updating:** After changes to the studio repo, run `bundle update studio` here.
 
 ## Branding
 
@@ -48,7 +70,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - Scoring: win=1, loss=0, push=0.5
 - Ties split the pool evenly among all winners
 - Every page shows JSON debug block of its primary record
-- Every model has a `slug` column — human-readable identifier set via `Sluggable` concern + `name_slug` method
+- Every model has a `slug` column — human-readable identifier set via `Sluggable` concern (from studio engine) + `name_slug` method
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
@@ -72,7 +94,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
 - `Contest#clear_picks` — marks cart entry as `abandoned` (soft delete, entry preserved in DB but hidden from user)
 - `Pick#compute_result` — compares result_value to line to determine win/loss/push
-- `ErrorLog.capture!(exception)` — structured error logging with cleaned backtrace. Target/parent set via ActiveRecord setters after creation.
+- `ErrorLog.capture!(exception)` (from studio engine) — structured error logging with cleaned backtrace. Target/parent set via ActiveRecord setters after creation.
 - Users can enter a contest multiple times; UI focuses on the current cart entry
 - Entry status flow: cart → active → complete (abandoned = soft-deleted cart, never shown)
 
@@ -92,9 +114,10 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 - All errors logged to `error_logs` table — DB only, no external services
 - Browse errors at `/error_logs` (link in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
-- **Layer 1 (automatic)**: `rescue_from StandardError` in `ApplicationController` catches unhandled errors, logs via `create_error_log(exception)` (no context). `RecordNotFound` → 404, no logging. Re-raises in dev/test.
+- **Layer 1 (automatic)**: `rescue_from StandardError` via `Studio::ErrorHandling` concern (included in `ApplicationController`). Logs via `create_error_log(exception)` (no context). `RecordNotFound` → 404, no logging. Re-raises in dev/test.
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
+- **Auth + error log controllers**: Provided by studio engine. Do not recreate locally.
 - ContestsController: all 4 write actions (toggle_pick, enter, clear_picks, grade) wrapped with `target: entry, parent: @contest`
 - **Error logs UI**: Search with ILIKE (message, target_name, parent_name, target_type), Esc to clear, 500ms minimum loading animation, backtrace first frame in index, target_name badge. Show page has copyable `Model.find_by(id: X)` commands for target/parent.
 - **Turbo prefetching gotcha**: Turbo 8+ prefetches links on hover. Test raises on show actions will fire for hovered-over links, not just clicked ones. This only affects test raises — normal pages don't error on prefetch.

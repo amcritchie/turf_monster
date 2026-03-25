@@ -40,3 +40,6 @@ test-results/
 playwright-report/
 playwright/.cache/
 .env
+
+/app/assets/builds/*
+!/app/assets/builds/.keep

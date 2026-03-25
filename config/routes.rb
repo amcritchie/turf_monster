@@ -5,15 +5,7 @@ Rails.application.routes.draw do
 
   root "contests#index"
 
-  get  "login",  to: "sessions#new"
-  post "login",  to: "sessions#create"
-  get  "logout", to: "sessions#destroy"
-
-  get  "signup", to: "registrations#new"
-  post "signup", to: "registrations#create"
-
-  get "auth/:provider/callback", to: "omniauth_callbacks#create"
-  get "auth/failure", to: "omniauth_callbacks#failure"
+  Studio.routes(self)
 
   resources :contests, only: [:index, :show] do
     member do
@@ -27,7 +19,6 @@ Rails.application.routes.draw do
   resources :props, only: [:show]
   resources :teams, only: [:index, :show]
   resources :games, only: [:index]
-  resources :error_logs, only: [:index, :show]
 
   post "add_funds", to: "users#add_funds"
 end

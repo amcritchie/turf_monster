@@ -15,61 +15,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          fontFamily: {
-            sans: ['Montserrat', 'system-ui', 'sans-serif'],
-            mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
-          },
-          extend: {
-            colors: {
-              mint: {
-                DEFAULT: '#06D6A0',
-                50: '#e6faf4',
-                100: '#b3f0de',
-                200: '#80e6c8',
-                300: '#4ddcb2',
-                400: '#1ad29c',
-                500: '#06D6A0',
-                600: '#05b888',
-                700: '#049a70',
-                800: '#037c58',
-                900: '#025e40',
-              },
-              navy: {
-                DEFAULT: '#1A1535',
-                50: '#e8e7ed',
-                100: '#b8b5c8',
-                200: '#8883a3',
-                300: '#58517e',
-                400: '#3a3359',
-                500: '#1A1535',
-                600: '#16122e',
-                700: '#120f27',
-                800: '#0e0c20',
-                900: '#0a0919',
-              },
-              violet: {
-                DEFAULT: '#8E82FE',
-                50: '#f0eeff',
-                100: '#d1ccfe',
-                200: '#b2aafe',
-                300: '#9388fe',
-                400: '#8E82FE',
-                500: '#7a6efe',
-                600: '#6558e5',
-                700: '#5042cc',
-                800: '#3b2cb3',
-                900: '#26169a',
-              },
-            },
-          },
-        },
-      }
-    </script>
     <script>
       document.addEventListener('alpine:init', () => {
         Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
@@ -77,38 +22,7 @@
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <style>
-      @keyframes hold-fill {
-        from { width: 0%; }
-        to { width: 100%; }
-      }
-      @keyframes hold-ring {
-        from { stroke-dashoffset: 283; }
-        to { stroke-dashoffset: 0; }
-      }
-      @keyframes hold-shrink {
-        from { border-width: 2px; }
-        to { border-width: 24px; }
-      }
-      @keyframes slide-down {
-        from { transform: translateY(-100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-      @keyframes progress-countdown {
-        from { width: 100%; }
-        to { width: 0%; }
-      }
-      @keyframes card-shake {
-        0%, 100% { transform: translateX(0); }
-        15% { transform: translateX(-3px) rotate(-1deg); }
-        30% { transform: translateX(3px) rotate(1deg); }
-        45% { transform: translateX(-2px); }
-        60% { transform: translateX(2px); }
-        75% { transform: translateX(-1px); }
-      }
-      .shake { animation: card-shake 0.4s ease-out; }
-    </style>
-
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>

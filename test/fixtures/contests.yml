@@ -1,5 +1,6 @@
 one:
   name: Test Contest
+  slug: test-contest
   entry_fee_cents: 1000
   status: open
   max_entries: 10
