@@ -15,7 +15,7 @@ class OmniauthCallbacksControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to root_path
-    assert_equal User.find_by(email: "googleuser@example.com").id, session[:user_id]
+    assert_equal User.find_by(email: "googleuser@example.com").id, session[:turf_user_id]
   end
 
   test "google callback logs in existing user" do
@@ -31,7 +31,7 @@ class OmniauthCallbacksControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to root_path
-    assert_equal alex.id, session[:user_id]
+    assert_equal alex.id, session[:turf_user_id]
   end
 
   test "failure redirects to login" do

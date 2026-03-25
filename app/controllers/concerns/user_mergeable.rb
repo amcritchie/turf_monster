@@ -34,7 +34,7 @@ module UserMergeable
       absorbed.destroy!
     end
 
-    set_sso_session(survivor)
+    set_app_session(survivor)
     survivor
   end
 end

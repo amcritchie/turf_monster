@@ -40,7 +40,7 @@ class WalletSessionsController < ApplicationController
         balance_cents: 0
       )
 
-      set_sso_session(user)
+      set_app_session(user)
       render json: { success: true, redirect: "/" }
     end
   rescue StandardError => e

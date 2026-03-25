@@ -24,7 +24,7 @@ class OmniauthCallbacksController < ApplicationController
       # Normal login/signup flow
       user = User.from_omniauth(auth)
       rescue_and_log(target: user) do
-        set_sso_session(user)
+        set_app_session(user)
         redirect_to root_path, notice: "Signed in with Google!"
       end
     end
