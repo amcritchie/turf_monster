@@ -5,10 +5,7 @@
         <div class="w-9 h-9 rounded-full bg-white/15 ring-2 ring-white/30 group-hover:ring-white/50 transition flex-shrink-0 flex items-center justify-center overflow-hidden">
           <img src="/studio-logo.svg" alt="McRitchie Studio" width="22" height="22" class="object-contain">
         </div>
-        <div class="flex-1 text-left">
-          <div class="text-sm font-bold">Continue as <%= sso_display_name %></div>
-          <div class="text-xs text-white/60">Signed in on McRitchie Studio</div>
-        </div>
+        <span class="flex-1 text-left text-sm font-bold">Continue as <%= sso_display_name %></span>
         <svg class="w-5 h-5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
       </button>
     <% end %>
