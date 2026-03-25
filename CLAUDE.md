@@ -17,16 +17,18 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 - **Deploy**: `git push heroku main` (then `heroku run bin/rails db:migrate --app turf-monster` if new migrations)
 - **Env vars**: `RAILS_MASTER_KEY`, `RAILS_SERVE_STATIC_FILES`, `DATABASE_URL` (auto from addon)
 - **ACM**: Enabled (auto SSL via Let's Encrypt)
+- **eth gem native extensions**: Requires `secp256k1`, `automake`, `libtool` on build host. Heroku heroku-24 handles this.
 
 ## Tech Stack
 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
 - Tailwind CSS via CDN (no build step)
 - Alpine.js via CDN for interactivity
+- ethers.js v6 via CDN (wallet connect pages only, loaded via `content_for :head`)
 - Montserrat font (Google Fonts CDN)
 - ERB views, import maps, no JS frameworks
-- bcrypt password auth + Google OAuth (OmniAuth)
-- Playwright for UI smoke tests (standalone Node.js, no build step)
+- bcrypt password auth + Google OAuth (OmniAuth) + Ethereum wallet auth (SIWE)
+- `eth` gem (~> 0.5) for server-side signature verification
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
 
 ## Studio Engine
@@ -44,11 +46,11 @@ end
 
 **From the engine:** `Studio::ErrorHandling` concern (in ApplicationController), `ErrorLog` model, `Sluggable` concern, auth controllers (sessions, registrations, omniauth_callbacks, error_logs), error log views, generic login/signup views (overridden by app-branded versions).
 
-**Overridden locally:** `sessions/new.html.erb` and `registrations/new.html.erb` (mint-branded with logo).
+**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
 **Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
 
-**SSO:** Shared `_studio_session` cookie across `*.mcritchie.studio`. Login here → auto-logged-in at `app.mcritchie.studio`. Auto-provisioned SSO users get `balance_cents = 0` via `configure_sso_user`. Requires shared `SECRET_KEY_BASE` in `.env` (dev) and Heroku config (prod).
+**SSO:** Shared `_studio_session` cookie across `*.mcritchie.studio`. Login here → auto-logged-in at `app.mcritchie.studio`. Wallet-only users (no email) cannot SSO cross-app — engine guards with early return in `create_sso_user`. Requires shared `SECRET_KEY_BASE`.
 
 **Updating:** After changes to the studio repo, run `bundle update studio` here.
 
@@ -56,7 +58,7 @@ end
 
 - **Primary**: `#06D6A0` Mint — used for OVER, positive values, balances, CTAs, success states
 - **Background**: `#1A1535` Deep Navy — body bg, card bg uses navy-400/navy-600
-- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, Grade button
+- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, wallet connect button
 - **Text**: `#FFFFFF` White — headings, primary text
 - **Negative**: Red (Tailwind default) — UNDER, losses
 - **Font**: Montserrat (all weights 400-900)
@@ -76,10 +78,61 @@ end
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
+- **Consolidated migrations**: 9 clean migrations (one per table), no incremental alter migrations. Fresh DB via `db:drop db:create db:migrate db:seed`.
+
+## Authentication
+
+Three auth methods, all optional — user needs at least one:
+
+- **Email + password** — traditional signup/login via studio engine controllers
+- **Google OAuth** — via OmniAuth, links to existing email users automatically
+- **Ethereum wallet (SIWE)** — Sign-In with Ethereum, no smart contract needed
+
+### User Model Auth Design
+
+```ruby
+has_secure_password validations: false  # wallet users have no password
+validates :email, uniqueness: true, allow_nil: true
+validates :wallet_address, uniqueness: true, allow_nil: true
+validates :password, length: { minimum: 6 }, if: -> { password.present? }
+validates :password, confirmation: true, if: -> { password_confirmation.present? }
+validate :has_authentication_method  # must have email, wallet, or provider+uid
+```
+
+- `email` is **nullable** — wallet-only users have no email
+- `wallet_address` is nullable, downcased before save, conditional unique index
+- `password_digest` keeps `null: false, default: ""` (has_secure_password needs it)
+- Predicate helpers: `wallet_connected?`, `google_connected?`, `has_password?`, `has_email?`
+- `display_name` fallback chain: name → email prefix → truncated wallet → "anon"
+- `truncated_wallet` — `"0x1234...abcd"` format
+- `User.from_wallet(address)` — class method, finds by downcased address
+
+### Wallet Auth Flow (SIWE)
+
+1. Frontend: `walletConnect()` Alpine component checks for `window.ethereum`
+2. Frontend: connects via `ethers.BrowserProvider`, gets signer + address
+3. Frontend: fetches nonce from `GET /auth/wallet/nonce` (stored in session)
+4. Frontend: constructs SIWE message, calls `signer.signMessage(message)`
+5. Frontend: POSTs message + signature to `POST /auth/wallet/verify`
+6. Backend: recovers signer via `Eth::Signature.personal_recover`, verifies address + nonce match
+7. Backend: finds or creates user, calls `set_sso_session`, returns redirect
+
+### Account Management (`/account`)
+
+- **AccountsController** — show, update, link_wallet, unlink_google, change_password
+- **UserMergeable concern** — merges accounts when linking reveals overlap (lower ID survives)
+- **OmniauthCallbacksController** (app override) — merge support when linking Google while logged in
+- Merge transfers entries, sums balances, fills blank auth fields, updates ErrorLog references
+- Wallet connect partial accepts `link_mode` local — POSTs to `/account/link_wallet` instead of verify
+
+### Passwords
+
+- Minimum 6 characters (enforced in model validation)
+- Seed/fixture password: `"password"` (not "pass" — too short for min 6 validation)
 
 ## Models
 
-- **User** — name, email, balance_cents, slug
+- **User** — name, email (nullable), wallet_address (nullable), balance_cents, provider, uid, password_digest, first_name, last_name, birth_date, birth_year, slug
 - **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
 - **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
 - **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), slug (includes id for uniqueness)
@@ -119,14 +172,13 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Layer 1 (automatic)**: `rescue_from StandardError` via `Studio::ErrorHandling` concern (included in `ApplicationController`). Logs via `create_error_log(exception)` (no context). `RecordNotFound` → 404, no logging. Re-raises in dev/test.
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
-- **Auth + error log controllers**: Provided by studio engine. Do not recreate locally.
+- **Auth + error log controllers**: Provided by studio engine. Do not recreate locally (except OmniauthCallbacksController, overridden for merge support).
 - ContestsController: all 4 write actions (toggle_pick, enter, clear_picks, grade) wrapped with `target: entry, parent: @contest`
-- **Error logs UI**: Search with ILIKE (message, target_name, parent_name, target_type), Esc to clear, 500ms minimum loading animation, backtrace first frame in index, target_name badge. Show page has copyable `Model.find_by(id: X)` commands for target/parent.
-- **Turbo prefetching gotcha**: Turbo 8+ prefetches links on hover. Test raises on show actions will fire for hovered-over links, not just clicked ones. This only affects test raises — normal pages don't error on prefetch.
-- Auto-prune old logs eventually
+- AccountsController: all 5 write actions (update, link_wallet, unlink_google, change_password) wrapped with `target: current_user`
 
 ## Seeds / World Cup Data
 
+- 5 seeded users: 4 email users (password: "password") + 1 wallet-only user (vitalik.eth)
 - 48 teams seeded with real World Cup 2026 draw (42 confirmed + 6 TBD playoff placeholders)
 - 72 group stage matches with real dates, kickoff times (ET/EDT), venues across 16 host cities
 - 67 notable players across 21 teams
@@ -137,17 +189,15 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## UI
 
 - Dark mode default (html class="dark"), navy background
-- Mint = OVER/positive, Red = UNDER/negative, Violet = accents/lines
+- Mint = OVER/positive, Red = UNDER/negative, Violet = accents/lines/wallet button
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
 - JSON blocks: bg-navy-800, text-mint, font-mono
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
-- **Nudge animation**: JS-driven cycle. Big nudge (scale 1.06, ±2deg) fires 3s after button appears. Soft nudge (scale 1.03, ±1deg) repeats every 10s after. Hold start resets the cycle; hold release restarts with soft-only 10s cycle. Nudge suppressed during `.process` and `.success` states.
-- **Clear All button**: In both desktop sidebar and mobile cart. Clears local picks and marks cart entry as `abandoned` server-side via `POST /contests/:id/clear_picks`.
-- **Blur overlay**: fires once per page load when 3 picks selected (`blurUsed` flag prevents repeat)
-- **Pick order**: `pickOrder` array in Alpine state tracks insertion order; `pickSlots` renders from it. Server-rendered initial state uses `picks.order(:created_at)`.
-- Alpine state pattern: optimistic UI updates with server sync rollback (restore both `picks` and `pickOrder` on error)
+- **Wallet connect** (`_wallet_connect.html.erb`): Alpine component with states: Connect Wallet → Connecting → Sign message → Verifying → redirect. Accepts `link_mode` local for /account use.
+- **Navbar**: Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
+- **Account page** (`/account`): Four sections — Profile (name/email), Password (set/change), Google (link/unlink), Wallet (connect/display).
 
 ## Dev Mode
 
@@ -170,14 +220,23 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
 - `/props/:id` — prop show
+- `/account` — GET account settings, PATCH update profile
+- `/account/link_wallet` — POST, link wallet via SIWE signature
+- `/account/unlink_google` — POST, unlink Google OAuth
+- `/account/change_password` — POST, set or change password
+- `/auth/wallet/nonce` — GET, generate wallet nonce (JSON)
+- `/auth/wallet/verify` — POST, verify SIWE signature (JSON)
 - `/error_logs` — error logs index (search, loading animation)
-- `/error_logs/:slug` — error log detail (backtrace, target/parent with copy-to-clipboard console commands, JSON)
+- `/error_logs/:slug` — error log detail
+
+**Route name gotcha**: `resource :account` with member routes generates `link_wallet_account_path` (not `account_link_wallet_path`). The action name comes first.
 
 ## Workflow Preferences
 
 - **Debugging**: When hitting a bug, STOP — show the issue and ask before fixing. Document the root cause and decision in CLAUDE.md files for future reference.
 - **Testing**: Write tests as we go alongside features. We move fast and break things — when tests fail, it may be a dead part of the app, so assess before fixing.
 - **Database**: Migrate and seed freely without asking.
+- **Server**: Restart Rails servers proactively whenever warranted (e.g. after adding gems, changing initializers, modifying routes). Do not ask — just restart.
 - **Git**: Small frequent commits after each logical change. Always push immediately after committing.
 - **UI**: Style as we build using the brand palette — make it look right the first time.
 - **Decisions**: Present 2-3 options briefly with a recommendation for architectural choices.
@@ -185,17 +244,17 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Testing
 
-- **Rails tests**: `bin/rails test` — 48 minitest tests with fixtures
-- **Playwright smoke tests**: `npx playwright test` — 9 UI tests, auto-starts Rails on port 3001
-  - Config: `playwright.config.js`, tests in `e2e/`, seed data in `e2e/seed.rb`
-  - Covers: index load, login, pick toggling, cart persistence, confirm button, second entry after confirm, contest show
-  - `npx playwright test --ui` for interactive debugging
-- Playwright runs against the test DB; `e2e/seed.rb` creates users (alex/sam@turf.com, password: "pass"), 1 open contest, 4 props
+- **Rails tests**: `bin/rails test` — 66 minitest tests with fixtures
+- **Test password**: All fixtures use `"password"` (minimum 6 chars required)
+- **Test helper**: `log_in_as(user)` defaults to password "password"
+- **Wallet user fixture**: `wallet_user` — no email, has wallet_address
+- **Known failure**: `ContestsControllerTest#test_enter_with_JSON_returns_error_when_no_cart_entry` — pre-existing, returns 302 instead of 422
 
 ## TODO
 
 - [ ] Set up Google OAuth credentials (console.cloud.google.com) — create OAuth client ID, configure consent screen, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars, add redirect URI `http://localhost:3000/auth/google_oauth2/callback`
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
+- [ ] Test wallet auth end-to-end with MetaMask
 
 ## Session Protocol
 
