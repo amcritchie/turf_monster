@@ -50,9 +50,9 @@ end
 
 **Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
-**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
+**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
 
-**Sessions:** Independent per-app sessions via `session[:turf_user_id]`. Shared `_studio_session` cookie still spans `*.mcritchie.studio` but only `sso_*` awareness fields are shared. Login page shows "Continue as [name]" button when user is logged into McRitchie Studio. Logout only clears this app's session, not the other. Wallet-only users (no email) cannot cross-app (no `sso_email`). Requires shared `SECRET_KEY_BASE`.
+**SSO Satellite Role:** This app receives one-way SSO from McRitchie Studio (the hub). Login page shows "Continue as [name]" button (from engine's `_sso_continue.html.erb` partial) when user is logged into Studio. `GET /sso_login` provides one-click SSO from the hub's nav link. Logout only clears this app's session. Wallet-only users (no email) cannot SSO. Hub logo at `public/studio-logo.svg`. Requires shared `SECRET_KEY_BASE`.
 
 **Updating:** After changes to the studio repo, run `bundle update studio` here.
 
