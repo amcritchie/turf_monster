@@ -1,8 +1,8 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: 4acd4c58bf243966f99fb0f3aea0918f10105306
+  revision: 4c0c9be90b67f934438561089036c8a3d1e32d1f
   specs:
-    studio (0.1.0)
+    studio (0.2.0)
       rails (>= 7.0)
       tailwindcss-rails (~> 2.7)
 
