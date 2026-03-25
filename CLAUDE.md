@@ -38,9 +38,11 @@ Shared code lives in the [studio engine](https://github.com/amcritchie/studio). 
 ```ruby
 Studio.configure do |config|
   config.app_name = "Turf Monster"
+  config.session_key = :turf_user_id
   config.welcome_message = ->(user) { "Welcome to Turf Monster, #{user.display_name}!" }
   config.registration_params = [:email, :password, :password_confirmation]
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
+  config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 end
 ```
 
@@ -48,9 +50,9 @@ end
 
 **Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
-**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
+**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
 
-**SSO:** Shared `_studio_session` cookie across `*.mcritchie.studio`. Login here → auto-logged-in at `app.mcritchie.studio`. Wallet-only users (no email) cannot SSO cross-app — engine guards with early return in `create_sso_user`. Requires shared `SECRET_KEY_BASE`.
+**Sessions:** Independent per-app sessions via `session[:turf_user_id]`. Shared `_studio_session` cookie still spans `*.mcritchie.studio` but only `sso_*` awareness fields are shared. Login page shows "Continue as [name]" button when user is logged into McRitchie Studio. Logout only clears this app's session, not the other. Wallet-only users (no email) cannot cross-app (no `sso_email`). Requires shared `SECRET_KEY_BASE`.
 
 **Updating:** After changes to the studio repo, run `bundle update studio` here.
 
@@ -115,7 +117,7 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 4. Frontend: constructs SIWE message, calls `signer.signMessage(message)`
 5. Frontend: POSTs message + signature to `POST /auth/wallet/verify`
 6. Backend: recovers signer via `Eth::Signature.personal_recover`, verifies address + nonce match
-7. Backend: finds or creates user, calls `set_sso_session`, returns redirect
+7. Backend: finds or creates user, calls `set_app_session`, returns redirect
 
 ### Account Management (`/account`)
 
