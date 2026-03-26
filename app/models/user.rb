@@ -42,6 +42,10 @@ class User < ApplicationRecord
     find_by(wallet_address: address.downcase)
   end
 
+  def admin?
+    admin
+  end
+
   # --- Display ---
 
   def display_name

@@ -27,7 +27,7 @@ class Contest < ApplicationRecord
         prop.update!(status: "graded")
       end
 
-      entries.active.includes(:picks).find_each do |entry|
+      entries.active.includes(picks: :prop).find_each do |entry|
         total = entry.picks.sum { |pick| pick.compute_result }
         entry.update!(score: total, status: "complete")
       end
@@ -38,7 +38,7 @@ class Contest < ApplicationRecord
 
       if winners.any? && pool_cents > 0
         share = pool_cents / winners.count
-        winners.each do |entry|
+        winners.includes(:user).each do |entry|
           entry.user.add_funds!(share)
         end
       end

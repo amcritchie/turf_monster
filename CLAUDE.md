@@ -22,7 +22,7 @@ Peer-to-peer sports pick'em game focused on team-based over/under props for the 
 ## Tech Stack
 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
-- Tailwind CSS via CDN (no build step)
+- Tailwind CSS via `tailwindcss-rails` gem (compiled with `@apply` support, not CDN)
 - Alpine.js via CDN for interactivity
 - ethers.js v6 via CDN (wallet connect pages only, loaded via `content_for :head`)
 - Montserrat font (Google Fonts CDN)
@@ -64,7 +64,7 @@ end
 - **Text**: `#FFFFFF` White — headings, primary text
 - **Negative**: Red (Tailwind default) — UNDER, losses
 - **Font**: Montserrat (all weights 400-900)
-- **Logo**: `/public/logo.jpeg` — green monster mascot, shown in header at 48px rounded
+- **Logo**: Two files exist — `/public/logo.png` (1.3MB, used in layout navbar) and `/public/logo.jpeg` (272KB, used in auth pages). Both are the green monster mascot. Should be consolidated to one file.
 - Tailwind custom colors defined in layout: `mint`, `navy`, `violet` with full shade scales
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 
@@ -80,7 +80,7 @@ end
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table), no incremental alter migrations. Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 1 incremental (add admin to users). Fresh DB via `db:drop db:create db:migrate db:seed`.
 
 ## Authentication
 
@@ -127,6 +127,14 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 - Merge transfers entries, sums balances, fills blank auth fields, updates ErrorLog references
 - Wallet connect partial accepts `link_mode` local — POSTs to `/account/link_wallet` instead of verify
 
+### Admin Authorization
+
+- `admin` boolean column on User (default `false`, null: false)
+- `admin?` predicate method on User model
+- `require_admin` before_action in ApplicationController — redirects non-admins to root with alert
+- Grade action on ContestsController is admin-gated (`before_action :require_admin, only: [:grade]`)
+- Seed admin: `alex@mcritchie.studio`
+
 ### Passwords
 
 - Minimum 6 characters (enforced in model validation)
@@ -134,7 +142,7 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 
 ## Models
 
-- **User** — name, email (nullable), wallet_address (nullable), balance_cents, provider, uid, password_digest, first_name, last_name, birth_date, birth_year, slug
+- **User** — name, email (nullable), wallet_address (nullable), balance_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
 - **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
 - **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
 - **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), slug (includes id for uniqueness)
@@ -175,12 +183,12 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
 - **Auth + error log controllers**: Provided by studio engine. Do not recreate locally (except OmniauthCallbacksController, overridden for merge support).
-- ContestsController: all 4 write actions (toggle_pick, enter, clear_picks, grade) wrapped with `target: entry, parent: @contest`
+- ContestsController: toggle_pick, enter, clear_picks wrapped with `target: entry, parent: @contest`. Grade wrapped with `target: @contest` (no entry/parent — operates on the contest itself).
 - AccountsController: all 5 write actions (update, link_wallet, unlink_google, change_password) wrapped with `target: current_user`
 
 ## Seeds / World Cup Data
 
-- 5 seeded users: 4 email users (password: "password") + 1 wallet-only user (vitalik.eth)
+- 5 seeded users: 4 email users (password: "password") + 1 wallet-only user (vitalik.eth). Alex is seeded as admin.
 - 48 teams seeded with real World Cup 2026 draw (42 confirmed + 6 TBD playoff placeholders)
 - 72 group stage matches with real dates, kickoff times (ET/EDT), venues across 16 host cities
 - 67 notable players across 21 teams
@@ -217,7 +225,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/contests/:id/toggle_pick` — POST, toggle a pick on cart entry
 - `/contests/:id/enter` — POST, confirm cart entry
 - `/contests/:id/clear_picks` — POST, abandon cart entry
-- `/contests/:id/grade` — POST, grade contest
+- `/contests/:id/grade` — POST, grade contest (admin only)
 - `/teams` — teams index (clickable grid → show)
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
@@ -254,7 +262,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## TODO
 
-- [ ] Set up Google OAuth credentials (console.cloud.google.com) — create OAuth client ID, configure consent screen, set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars, add redirect URI `http://localhost:3000/auth/google_oauth2/callback`
+- [x] Set up Google OAuth credentials — `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` set in `.env` (local) and Heroku config vars (production). Redirect URIs: `http://localhost:3000/auth/google_oauth2/callback`, `http://localhost:3001/auth/google_oauth2/callback`, `https://app.mcritchie.studio/auth/google_oauth2/callback`, `https://turf.mcritchie.studio/auth/google_oauth2/callback`
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
 - [ ] Test wallet auth end-to-end with MetaMask
 

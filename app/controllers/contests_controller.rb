@@ -1,11 +1,12 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show]
   before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade]
+  before_action :require_admin, only: [:grade]
 
   def index
     @contest = Contest.order(created_at: :desc).first
     @props = @contest&.props&.includes(:team, :opponent_team, :game) || []
-    @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user, picks: :prop) || []
+    @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user, picks: { prop: :team }) || []
 
     if logged_in? && @contest
       @cart_entry = @contest.entries.cart.find_by(user: current_user)
@@ -14,7 +15,7 @@ class ContestsController < ApplicationController
 
   def show
     @props = @contest.props.includes(:team, :opponent_team, :game)
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: :prop).order(score: :desc)
+    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: { prop: :team }).order(score: :desc)
   end
 
   def toggle_pick
