@@ -93,8 +93,9 @@ class Contest < ApplicationRecord
     raise "Contest is not open" unless open?
 
     # Generate all possible 2-pick combos: [prop_id, selection] pairs
+    # Exclude combos where both picks are on the same prop
     options = props.flat_map { |p| [[p.id, "more"], [p.id, "less"]] }
-    all_combos = options.combination(2).to_a
+    all_combos = options.combination(2).reject { |a, b| a[0] == b[0] }.to_a
 
     # Exclude combos already used by active/complete entries
     existing_combos = entries.where(status: [:active, :complete]).includes(:picks).map do |entry|
