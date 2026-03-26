@@ -18,3 +18,17 @@ three:
   line: 2.5
   stat_type: goals
   status: pending
+
+four:
+  contest: one
+  description: France Total Goals
+  line: 2.0
+  stat_type: goals
+  status: pending
+
+five:
+  contest: one
+  description: Spain Total Goals
+  line: 1.5
+  stat_type: goals
+  status: pending

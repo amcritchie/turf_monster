@@ -7,6 +7,8 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     @prop1 = props(:one)
     @prop2 = props(:two)
     @prop3 = props(:three)
+    @prop4 = props(:four)
+    @prop5 = props(:five)
   end
 
   # --- toggle_pick tests ---
@@ -64,22 +66,24 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "less", json["picks"][@prop1.id.to_s]
   end
 
-  test "toggle_pick replaces newest pick when adding 3rd" do
+  test "toggle_pick replaces newest pick when adding 5th" do
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     post toggle_pick_contest_path(@contest),
-      params: { prop_id: @prop3.id, selection: "more" },
+      params: { prop_id: @prop5.id, selection: "more" },
       as: :json
 
     assert_response :success
     json = JSON.parse(response.body)
-    assert_equal 2, json["pick_count"]
-    assert json["picks"].key?(@prop3.id.to_s)
-    assert_not json["picks"].key?(@prop2.id.to_s)
+    assert_equal 4, json["pick_count"]
+    assert json["picks"].key?(@prop5.id.to_s)
+    assert_not json["picks"].key?(@prop4.id.to_s)
   end
 
   test "toggle_pick allows picks after confirming an entry" do
@@ -121,6 +125,8 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     balance_before = @user.balance_cents
 
@@ -159,6 +165,8 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     post enter_contest_path(@contest)
 

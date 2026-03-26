@@ -30,6 +30,13 @@
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                   class="text-xs font-mono px-2 py-1 rounded-md border transition"
                   :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-navy-600 text-gray-500 border-navy-300/20 hover:text-gray-300 hover:border-gray-500'">DEV</button>
+          <% if current_user&.admin? %>
+            <% contest = Contest.order(created_at: :desc).first %>
+            <% if contest %>
+              <%= button_to "Reset", reset_contest_path(contest), method: :post, data: { turbo_confirm: "Reset contest? This clears all entries and results." },
+                class: "text-xs font-mono px-2 py-1 rounded-md border border-red-700/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition" %>
+            <% end %>
+          <% end %>
         </div>
 
         <% if logged_in? %>

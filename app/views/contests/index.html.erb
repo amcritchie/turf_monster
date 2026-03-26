@@ -16,13 +16,13 @@
 <div x-data="pickBoard()" x-cloak>
 
   <!-- Blur overlay (click to dismiss) -->
-  <div x-show="pickCount === 2 && !blurDismissed && !blurUsed"
+  <div x-show="pickCount === 4 && !blurDismissed && !blurUsed"
        @click="blurDismissed = true; blurUsed = true"
        class="fixed inset-0 z-20 cursor-pointer"></div>
 
   <!-- Blurrable page content -->
   <div class="transition-all duration-300"
-       :class="{ 'blur-sm select-none opacity-60': pickCount === 2 && !blurDismissed && !blurUsed }">
+       :class="{ 'blur-sm select-none opacity-60': pickCount === 4 && !blurDismissed && !blurUsed }">
 
   <!-- Prop Cards Grid (top of page) -->
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-40 md:pb-0': pickCount > 0 }">
@@ -147,7 +147,7 @@
           x-transition
           @click="cartOpen = true"
           class="hidden md:flex fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 items-center justify-center text-lg font-bold transition">
-    <span x-text="pickCount"></span><span class="text-xs">/2</span>
+    <span x-text="pickCount"></span><span class="text-xs">/4</span>
   </button>
 
   <!-- Cart Sidebar: Desktop (right panel) -->
@@ -163,8 +163,8 @@
         <h3 class="text-lg font-bold text-white">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-                :class="pickCount === 2 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
-            <span x-text="pickCount"></span>/2
+                :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+            <span x-text="pickCount"></span>/4
           </span>
           <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
         </div>
@@ -173,14 +173,14 @@
       <%= render "contests/cart_pick_slots" %>
       <!-- Clear / Confirm buttons -->
       <div class="p-4 border-t border-navy-300/20 space-y-2">
-        <div x-show="pickCount === 2" x-transition>
+        <div x-show="pickCount === 4" x-transition>
         <%= render 'shared/hold_button',
           default_text: "Hold to Confirm",
           hold_text: "Almost there...",
           success_text: "Confirmed!",
           duration: 3000,
           hold_id: "desktop",
-          guard: "data.pickCount === 2",
+          guard: "data.pickCount === 4",
           on_success: "d.confirmEntry()" %>
         </div>
         <button x-show="pickCount > 0" @click="clearPicks()"
@@ -202,13 +202,13 @@
     <div class="flex items-center justify-between px-4 pt-3 pb-2">
       <h3 class="text-sm font-bold text-white">Your Picks</h3>
       <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="pickCount === 2 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
-        <span x-text="pickCount"></span>/2
+            :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+        <span x-text="pickCount"></span>/4
       </span>
     </div>
     <!-- Pick cards (horizontal) -->
     <div class="px-4 pb-2 flex gap-2">
-      <template x-for="i in 2" :key="i">
+      <template x-for="i in 4" :key="i">
         <div class="flex-1 min-w-0">
           <template x-if="pickSlots[i-1]">
             <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
@@ -242,14 +242,14 @@
     </div>
     <!-- Hold button + Clear -->
     <div class="px-4 pb-3 pt-1 space-y-1">
-      <div x-show="pickCount === 2" x-transition>
+      <div x-show="pickCount === 4" x-transition>
         <%= render 'shared/hold_button',
           default_text: "Hold to Confirm",
           hold_text: "Almost there...",
           success_text: "Confirmed!",
           duration: 3000,
           hold_id: "mobile",
-          guard: "data.pickCount === 2",
+          guard: "data.pickCount === 4",
           on_success: "d.confirmEntry()" %>
       </div>
       <button @click="clearPicks()"
@@ -339,13 +339,13 @@
         } else if (this.picks[propId]) {
           this.picks = { ...this.picks, [propId]: selection };
           this.triggerShake(propId);
-        } else if (this.pickCount < 2) {
+        } else if (this.pickCount < 4) {
           this.picks = { ...this.picks, [propId]: selection };
           this.pickOrder = [...this.pickOrder, propId];
           if (!this.cartOpen) this.cartOpen = true;
           this.triggerShake(propId);
         } else {
-          // Replace the most recent (2nd) pick
+          // Replace the most recent (4th) pick
           let removedId = this.pickOrder[this.pickOrder.length - 1];
           let newPicks = { ...this.picks };
           delete newPicks[removedId];

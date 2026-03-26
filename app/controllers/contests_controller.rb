@@ -1,7 +1,7 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade, :fill, :lock]
-  before_action :require_admin, only: [:grade, :fill, :lock]
+  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade, :fill, :lock, :jump, :reset]
+  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :reset]
 
   def index
     @contest = Contest.order(created_at: :desc).first
@@ -62,8 +62,8 @@ class ContestsController < ApplicationController
       entry.confirm!
 
       respond_to do |format|
-        format.html { redirect_to root_path, notice: "#{current_user.display_name} entered the contest!" }
-        format.json { render json: { success: true, redirect: root_path } }
+        format.html { redirect_to @contest, notice: "#{current_user.display_name} entered the contest!" }
+        format.json { render json: { success: true, redirect: contest_path(@contest) } }
       end
     end
   rescue StandardError => e
@@ -130,6 +130,24 @@ class ContestsController < ApplicationController
     end
   rescue StandardError => e
     redirect_to @contest || root_path, alert: e.message
+  end
+
+  def jump
+    rescue_and_log(target: @contest) do
+      @contest.jump!
+      redirect_to @contest, notice: "Contest jumped! Results simulated and settled."
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
+  end
+
+  def reset
+    rescue_and_log(target: @contest) do
+      @contest.reset!
+      redirect_to root_path, notice: "Contest reset!"
+    end
+  rescue StandardError => e
+    redirect_to root_path, alert: e.message
   end
 
   private

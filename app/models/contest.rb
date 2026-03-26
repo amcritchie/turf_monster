@@ -34,28 +34,10 @@ class Contest < ApplicationRecord
         entry.update!(score: total, status: "complete")
       end
 
-      # Rank entries by score DESC with tie handling
       ranked = entries.complete.order(score: :desc).includes(:user).to_a
       return update!(status: "settled") if ranked.empty?
 
-      # Assign ranks (ties get same rank, skip next)
-      current_rank = 1
-      ranked.each_with_index do |entry, i|
-        if i > 0 && entry.score < ranked[i - 1].score
-          current_rank = i + 1
-        end
-        entry.update_column(:rank, current_rank) if entry.respond_to?(:rank)
-      end
-
-      # Group by rank for payout calculation
-      by_rank = ranked.group_by.with_index { |entry, i|
-        rank = 1
-        (0...i).each { |j| rank = j + 2 if ranked[j].score > entry.score }
-        # Recalculate: first entry = rank 1, next different score = rank (count of higher + 1)
-        rank
-      }
-
-      # Simpler: build rank array
+      # Build ranks array (ties get same rank, next rank skips)
       ranks = []
       ranked.each_with_index do |entry, i|
         rank = if i == 0
@@ -68,56 +50,100 @@ class Contest < ApplicationRecord
         ranks << rank
       end
 
-      # Pay out by rank groups
+      # Pay out by rank groups and persist rank + payout on each entry
       ranked.each_with_index do |entry, i|
         rank = ranks[i]
-        next if rank > 5 # Only top 5 paid
+        share = 0
 
-        # Find all entries at this rank
-        tied_indices = ranks.each_index.select { |j| ranks[j] == rank }
-        tied_count = tied_indices.size
+        if rank <= 5
+          tied_indices = ranks.each_index.select { |j| ranks[j] == rank }
+          tied_count = tied_indices.size
+          spanned_ranks = (rank..(rank + tied_count - 1)).to_a
+          total_prize = spanned_ranks.sum { |r| PAYOUTS[r] || 0 }
+          share = total_prize / tied_count
+          entry.user.add_funds!(share) if share > 0
+        end
 
-        # Sum prizes for all ranks these tied entries span
-        spanned_ranks = (rank..(rank + tied_count - 1)).to_a
-        total_prize = spanned_ranks.sum { |r| PAYOUTS[r] || 0 }
-        share = total_prize / tied_count
-
-        entry.user.add_funds!(share) if share > 0
+        entry.update!(rank: rank, payout_cents: share)
       end
 
       update!(status: "settled")
     end
   end
 
+  def jump!
+    raise "Contest is already settled" if settled?
+
+    transaction do
+      props.includes(:game).each do |prop|
+        game = prop.game
+        next unless game
+
+        # 50/50 coin flip: result lands above or below the line
+        if [true, false].sample
+          result = prop.line + rand(1..3) # over
+        else
+          result = [prop.line - rand(1..2), 0].max # under
+        end
+
+        home_score = (result / 2.0).ceil.to_i
+        away_score = (result - home_score).to_i
+        game.update!(home_score: home_score, away_score: away_score, status: "completed")
+        prop.update!(result_value: result)
+      end
+
+      update!(status: :locked) if open?
+      grade!
+    end
+  end
+
   def fill!(users:)
     raise "Contest is not open" unless open?
 
-    # Generate all possible 2-pick combos: [prop_id, selection] pairs
-    # Exclude combos where both picks are on the same prop
-    options = props.flat_map { |p| [[p.id, "more"], [p.id, "less"]] }
-    all_combos = options.combination(2).reject { |a, b| a[0] == b[0] }.to_a
+    prop_ids = props.pluck(:id)
+    raise "Need at least 4 props" if prop_ids.size < 4
 
-    # Exclude combos already used by active/complete entries
     existing_combos = entries.where(status: [:active, :complete]).includes(:picks).map do |entry|
       entry.picks.map { |p| [p.prop_id, p.selection] }.sort
     end.to_set
-
-    available_combos = all_combos.map(&:sort).reject { |c| existing_combos.include?(c) }
 
     active_count = entries.where(status: [:active, :complete]).count
     slots = (max_entries || 15) - active_count
     return if slots <= 0
 
-    combos_to_use = available_combos.first(slots)
     user_cycle = users.cycle
+    attempts = 0
 
-    combos_to_use.each do |combo|
+    slots.times do
+      combo = nil
+      loop do
+        attempts += 1
+        break if attempts > slots * 100 # safety valve
+        four_props = prop_ids.sample(4)
+        combo = four_props.map { |pid| [pid, ["more", "less"].sample] }.sort
+        break unless existing_combos.include?(combo)
+        combo = nil
+      end
+      break unless combo
+
+      existing_combos << combo
       user = user_cycle.next
       entry = entries.create!(user: user, contest: self)
       combo.each do |prop_id, selection|
         entry.picks.create!(prop_id: prop_id, selection: selection)
       end
       entry.confirm!
+    end
+  end
+
+  def reset!
+    transaction do
+      entries.destroy_all
+      props.update_all(result_value: nil, status: "pending")
+      props.includes(:game).find_each do |prop|
+        prop.game&.update!(home_score: nil, away_score: nil, status: "scheduled")
+      end
+      update!(status: :open)
     end
   end
 

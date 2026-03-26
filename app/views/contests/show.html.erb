@@ -52,6 +52,8 @@
         <%= button_to "Lock Contest", lock_contest_path(@contest), method: :post,
           class: "px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition" %>
       <% end %>
+      <%= button_to "Jump", jump_contest_path(@contest), method: :post,
+        class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow transition" %>
     </div>
   </section>
 <% end %>
@@ -72,10 +74,24 @@
         </thead>
         <tbody>
           <% @entries.each_with_index do |entry, i| %>
-            <tr class="border-b border-navy-300/10 hover:bg-navy-300/10">
-              <td class="px-4 py-3 font-mono text-gray-400"><%= i + 1 %></td>
-              <td class="px-4 py-3 font-medium text-white"><%= entry.user.display_name %></td>
-              <td class="px-4 py-3 font-mono text-violet"><%= entry.score %></td>
+            <%
+              paid = @contest.settled? && entry.payout_cents.to_i > 0
+              display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
+              # Insert divider after last paid row
+              next_entry = @entries[i + 1] if @contest.settled?
+              show_divider = paid && (next_entry.nil? || next_entry.payout_cents.to_i == 0)
+            %>
+            <tr class="<%= paid ? 'border-l-4 border-l-mint' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-mint/30' : 'border-b-navy-300/10' %> hover:bg-navy-300/10">
+              <td class="px-4 py-3 font-mono text-gray-400">
+                <div class="flex items-center gap-2">
+                  <span><%= display_rank %></span>
+                  <% if paid %>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-mint/20 text-mint">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
+                  <% end %>
+                </div>
+              </td>
+              <td class="px-4 py-3 font-medium <%= paid ? 'text-white' : (@contest.settled? ? 'text-gray-500' : 'text-white') %>"><%= entry.user.display_name %></td>
+              <td class="px-4 py-3 font-mono <%= paid ? 'text-violet' : (@contest.settled? ? 'text-gray-500' : 'text-violet') %>"><%= entry.score %></td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <% entry.picks.each do |pick| %>

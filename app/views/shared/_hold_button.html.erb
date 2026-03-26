@@ -393,7 +393,7 @@
           var data = Alpine.$data(scope);
           if (data && data.submitting) return;
           <% if guard != "true" %>
-            if (!(data && (<%= guard %>))) return;
+            if (!(data && (<%== guard %>))) return;
           <% end %>
         } catch(e) {}
       }

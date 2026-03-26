@@ -19,7 +19,7 @@ class Entry < ApplicationRecord
       else
         existing.update!(selection: selection)
       end
-    elsif picks.count < 2
+    elsif picks.count < 4
       picks.create!(prop: prop, selection: selection)
     else
       picks.order(created_at: :desc).first.destroy!
@@ -37,7 +37,7 @@ class Entry < ApplicationRecord
 
   def confirm!
     raise "Contest is not open" unless contest.open?
-    raise "Exactly 2 picks required" unless picks.count == 2
+    raise "Exactly 4 picks required" unless picks.count == 4
 
     # Sybil check: no duplicate pick combos from same user
     my_combo = picks.map { |p| [p.prop_id, p.selection] }.sort

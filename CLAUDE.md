@@ -2,6 +2,46 @@
 
 Peer-to-peer sports pick'em game focused on team-based over/under props for the World Cup.
 
+## Game Rules
+
+- Each contest has a set of **props** — over/under bets on total goals in a match
+- Players pick **4 props** per entry, choosing OVER or UNDER on each
+- Each pick is scored: **win = 1, loss = 0, push = 0.5** (when result exactly equals the line)
+- Entry score = sum of 4 pick results (max 4.0, min 0.0)
+- Entries ranked by score DESC; ties get the same rank
+- **Payouts**: 1st = $100, 2nd-5th = $40 each. Ties split the combined prize pool for their spanned ranks evenly.
+- Multiple entries per user per contest allowed (different pick combos required)
+- Entry fee deducted from user balance on confirm
+
+## Contest Lifecycle
+
+```
+draft → open → locked → settled
+```
+
+- **draft**: Contest created, not yet accepting entries
+- **open**: Players can submit entries (toggle picks, hold-to-confirm)
+- **locked**: No new entries, waiting for game results
+- **settled**: All picks graded, entries scored/ranked, payouts distributed
+
+### Admin Actions (contest show page + navbar)
+
+- **Fill Contest** — generates random entries (4 random props, coin-flip over/under each). Cycles through seeded users. Deduplicates against existing entries.
+- **Lock Contest** — transitions open → locked
+- **Jump** — simulates all game results (50/50 coin flip per prop: result lands above or below the line) and settles the contest in one click. Mint button on contest show page.
+- **Grade Contest** — manually enter result values per prop, then grade. Scores entries, assigns ranks, distributes payouts.
+- **Reset** (navbar) — red button, clears all entries/picks, resets props and games to pending/scheduled, sets contest back to open. Has Turbo confirmation dialog.
+
+### Key Model Methods
+
+- `Contest#fill!(users:)` — random entries, 4 random props each, coin-flip selections, no duplicate combos
+- `Contest#jump!` — simulate results (50/50 per prop) + grade in one transaction
+- `Contest#grade!` — grade props → score entries → rank → distribute payouts → settle. Persists `rank` and `payout_cents` on each entry.
+- `Contest#reset!` — destroy entries, clear prop results, reset game scores, reopen contest
+- `Entry#toggle_pick!(prop, selection)` — add/remove/switch pick, destroy entry if empty, cap at 4 picks
+- `Entry#confirm!` — validates exactly 4 picks, deducts entry fee, cart → active
+- `Pick#compute_result` — compares result_value to line: win/loss/push
+
 ## Dev Server
 
 - **Port 3001** — `bin/rails server -p 3001`
@@ -71,16 +111,17 @@ end
 ## Architecture
 
 - Money stored in cents, displayed in dollars
-- Contest flow: draft -> open -> locked -> settled
+- Contest flow: draft → open → locked → settled
 - Picks use "more"/"less" internally (displayed as OVER/UNDER)
+- **4 picks per entry** — toggle_pick! caps at 4, confirm! validates exactly 4
 - Scoring: win=1, loss=0, push=0.5
-- Ties split the pool evenly among all winners
+- Payouts: 1st=$100, 2nd-5th=$40. Ties split combined prize for spanned ranks.
 - Every page shows JSON debug block of its primary record
 - Every model has a `slug` column — human-readable identifier set via `Sluggable` concern (from studio engine) + `name_slug` method
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table) + 1 incremental (add admin to users). Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries). Fresh DB via `db:drop db:create db:migrate db:seed`.
 
 ## Authentication
 
@@ -132,7 +173,7 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 - `admin` boolean column on User (default `false`, null: false)
 - `admin?` predicate method on User model
 - `require_admin` before_action in ApplicationController — redirects non-admins to root with alert
-- Grade action on ContestsController is admin-gated (`before_action :require_admin, only: [:grade]`)
+- Admin-gated actions on ContestsController: `grade`, `fill`, `lock`, `jump`, `reset`
 - Seed admin: `alex@mcritchie.studio`
 
 ### Passwords
@@ -145,23 +186,12 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 - **User** — name, email (nullable), wallet_address (nullable), balance_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
 - **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
 - **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
-- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), slug (includes id for uniqueness)
+- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, slug (includes id for uniqueness)
 - **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
 - **Team** — name, short_name, location, emoji, color_primary, color_secondary, slug. Has many players, home_games, away_games.
 - **Game** — belongs_to home_team + away_team (Team via slug FKs). kickoff_at, venue, status, home_score, away_score, slug.
 - **Player** — belongs_to team (via slug FK, optional). name, position, jersey_number, slug.
 - **ErrorLog** — polymorphic target + parent, message, inspect, backtrace (JSON), target_name, parent_name, slug
-
-## Key Business Logic
-
-- `Entry#toggle_pick!(prop, selection)` — find/destroy/update/create pick, destroy entry if empty, returns picks hash or nil
-- `Entry#confirm!` — validates 3 picks, deducts entry fee, moves cart → active
-- `Contest#grade!` — grades picks, scores entries, splits pool among winners, settles contest
-- `Contest#clear_picks` — marks cart entry as `abandoned` (soft delete, entry preserved in DB but hidden from user)
-- `Pick#compute_result` — compares result_value to line to determine win/loss/push
-- `ErrorLog.capture!(exception)` (from studio engine) — structured error logging with cleaned backtrace. Target/parent set via ActiveRecord setters after creation.
-- Users can enter a contest multiple times; UI focuses on the current cart entry
-- Entry status flow: cart → active → complete (abandoned = soft-deleted cart, never shown)
 
 ## New Controller Checklist
 
@@ -183,7 +213,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
 - **Auth + error log controllers**: Provided by studio engine. Do not recreate locally (except OmniauthCallbacksController, overridden for merge support).
-- ContestsController: toggle_pick, enter, clear_picks wrapped with `target: entry, parent: @contest`. Grade wrapped with `target: @contest` (no entry/parent — operates on the contest itself).
+- ContestsController: toggle_pick, enter, clear_picks wrapped with `target: entry, parent: @contest`. Grade, fill, lock, jump, reset wrapped with `target: @contest`.
 - AccountsController: all 5 write actions (update, link_wallet, unlink_google, change_password) wrapped with `target: current_user`
 
 ## Seeds / World Cup Data
@@ -206,8 +236,10 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
 - **Wallet connect** (`_wallet_connect.html.erb`): Alpine component with states: Connect Wallet → Connecting → Sign message → Verifying → redirect. Accepts `link_mode` local for /account use.
-- **Navbar**: Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
+- **Navbar**: Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected. Admin-only red Reset button next to DEV toggle.
 - **Account page** (`/account`): Four sections — Profile (name/email), Password (set/change), Google (link/unlink), Wallet (connect/display).
+- **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
+- **After confirming entry**: redirects to contest show page (leaderboard)
 
 ## Dev Mode
 
@@ -220,12 +252,16 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Routes
 
-- `/` — contests#index (main dashboard)
-- `/contests/:id` — contest show (leaderboard + grading)
+- `/` — contests#index (main dashboard, pick toggling, cart, hold-to-confirm)
+- `/contests/:id` — contest show (leaderboard + grading + admin actions)
 - `/contests/:id/toggle_pick` — POST, toggle a pick on cart entry
-- `/contests/:id/enter` — POST, confirm cart entry
+- `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show
 - `/contests/:id/clear_picks` — POST, abandon cart entry
 - `/contests/:id/grade` — POST, grade contest (admin only)
+- `/contests/:id/fill` — POST, fill contest with random entries (admin only)
+- `/contests/:id/lock` — POST, lock contest (admin only)
+- `/contests/:id/jump` — POST, simulate results + settle (admin only)
+- `/contests/:id/reset` — POST, reset contest to open (admin only)
 - `/teams` — teams index (clickable grid → show)
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
@@ -241,6 +277,11 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 **Route name gotcha**: `resource :account` with member routes generates `link_wallet_account_path` (not `account_link_wallet_path`). The action name comes first.
 
+## Known Gotchas
+
+- **Hold button guard**: The `_hold_button.html.erb` partial renders JS inside `<script>` tags. Guard expressions must use `<%== %>` (raw output), NOT `<%= %>`, because `<script>` tags don't decode HTML entities. `>=` gets escaped to `&gt;=` which breaks the entire script block. Use `===` in guards when possible, or `<%== %>` for raw output.
+- **Pick count = 4**: Hardcoded in multiple places — `Entry#toggle_pick!` (cap), `Entry#confirm!` (validation), `Contest#fill!` (combo generation), index view JS (`pickCount === 4`), cart pick slots partial (`x-for="i in 4"`), mobile cart template. Search for "< 4", "=== 4", "in 4", "Exactly 4" when changing.
+
 ## Workflow Preferences
 
 - **Debugging**: When hitting a bug, STOP — show the issue and ask before fixing. Document the root cause and decision in CLAUDE.md files for future reference.
@@ -255,6 +296,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## Testing
 
 - **Rails tests**: `bin/rails test` — 66 minitest tests with fixtures
+- **Test fixtures**: 5 props (one, two, three, four, five), all on contest :one
 - **Test password**: All fixtures use `"password"` (minimum 6 chars required)
 - **Test helper**: `log_in_as(user)` defaults to password "password"
 - **Wallet user fixture**: `wallet_user` — no email, has wallet_address

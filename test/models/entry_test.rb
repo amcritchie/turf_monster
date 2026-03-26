@@ -7,12 +7,16 @@ class EntryTest < ActiveSupport::TestCase
     @prop1 = props(:one)
     @prop2 = props(:two)
     @prop3 = props(:three)
+    @prop4 = props(:four)
+    @prop5 = props(:five)
   end
 
   test "confirm! charges fee and sets status to active" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     balance_before = @user.balance_cents
     entry.confirm!
@@ -21,12 +25,13 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
-  test "confirm! rejects with less than 2 picks" do
+  test "confirm! rejects with less than 4 picks" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
+    entry.picks.create!(prop: @prop2, selection: "less")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
-    assert_equal "Exactly 2 picks required", error.message
+    assert_equal "Exactly 4 picks required", error.message
     assert entry.reload.cart?
   end
 
@@ -35,6 +40,8 @@ class EntryTest < ActiveSupport::TestCase
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Contest is not open", error.message
@@ -45,6 +52,8 @@ class EntryTest < ActiveSupport::TestCase
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Insufficient funds", error.message
@@ -81,16 +90,18 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal 1, entry.picks.count
   end
 
-  test "toggle_pick! replaces newest pick when adding 3rd" do
+  test "toggle_pick! replaces newest pick when adding 5th" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
+    entry.picks.create!(prop: @prop3, selection: "more")
+    entry.picks.create!(prop: @prop4, selection: "less")
 
-    picks_hash = entry.toggle_pick!(@prop3, "more")
+    picks_hash = entry.toggle_pick!(@prop5, "more")
 
-    assert_equal 2, entry.picks.count
-    assert_includes picks_hash.keys, @prop3.id.to_s
-    assert_not_includes picks_hash.keys, @prop2.id.to_s
+    assert_equal 4, entry.picks.count
+    assert_includes picks_hash.keys, @prop5.id.to_s
+    assert_not_includes picks_hash.keys, @prop4.id.to_s
   end
 
   test "toggle_pick! destroys entry when last pick removed" do
