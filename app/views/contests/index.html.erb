@@ -305,7 +305,7 @@
       submitting: false,
       error: null,
       errorTimer: null,
-      contestId: '<%= @contest&.id %>',
+      contestId: '<%= @contest&.slug %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
 
