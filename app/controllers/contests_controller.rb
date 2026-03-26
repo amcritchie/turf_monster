@@ -1,5 +1,5 @@
 class ContestsController < ApplicationController
-  skip_before_action :require_authentication, only: [:index, :show]
+  skip_before_action :require_authentication, only: [:index, :show, :my]
   before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade, :fill, :lock]
   before_action :require_admin, only: [:grade, :fill, :lock]
 
@@ -10,6 +10,15 @@ class ContestsController < ApplicationController
 
     if logged_in? && @contest
       @cart_entry = @contest.entries.cart.find_by(user: current_user)
+    end
+  end
+
+  def my
+    @contests = Contest.where(status: [:open, :locked, :settled]).order(created_at: :desc)
+    if logged_in?
+      @my_entries = current_user.entries.where(status: [:active, :complete]).includes(:contest, picks: { prop: [:team, :opponent_team] }).group_by(&:contest_id)
+    else
+      @my_entries = {}
     end
   end
 

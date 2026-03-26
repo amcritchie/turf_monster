@@ -1,0 +1,100 @@
+<h2 class="text-2xl font-bold text-white mb-6">My Contests</h2>
+
+<% if !logged_in? %>
+  <div class="card shadow p-6 text-center">
+    <p class="text-gray-400 mb-4">Log in to see your contest entries.</p>
+    <%= link_to "Log in", login_path, class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl transition" %>
+  </div>
+<% elsif @my_entries.empty? %>
+  <div class="card shadow p-6 text-center">
+    <p class="text-gray-400 mb-4">You haven't entered any contests yet.</p>
+    <%= link_to "Browse Contests", root_path, class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl transition" %>
+  </div>
+<% else %>
+  <div class="space-y-6">
+    <% @contests.each do |contest| %>
+      <% entries = @my_entries[contest.id] %>
+      <% next unless entries %>
+
+      <div class="card shadow p-5">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <%= link_to contest_path(contest), class: "text-xl font-bold text-white hover:text-mint transition" do %>
+              <%= contest.name %>
+            <% end %>
+            <p class="text-sm text-gray-400 mt-1">
+              <% if contest.starts_at %>
+                <%= contest.starts_at.strftime("%b %d, %Y %I:%M %p") %>
+              <% end %>
+            </p>
+          </div>
+          <%
+            badge_styles = {
+              "open"    => "bg-mint-900/30 text-mint border-mint-700",
+              "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
+              "settled" => "bg-gray-800 text-gray-400 border-gray-600",
+              "draft"   => "bg-violet-900/30 text-violet border-violet-700"
+            }
+          %>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold border <%= badge_styles[contest.status] %>">
+            <%= contest.status.upcase %>
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 text-center mb-4">
+          <div class="bg-navy-600 rounded-lg p-2">
+            <p class="label-upper">Entry Fee</p>
+            <p class="font-mono text-white">$<%= sprintf('%.2f', contest.entry_fee_dollars) %></p>
+          </div>
+          <div class="bg-navy-600 rounded-lg p-2">
+            <p class="label-upper">My Entries</p>
+            <p class="font-mono text-mint"><%= entries.size %></p>
+          </div>
+          <div class="bg-navy-600 rounded-lg p-2">
+            <p class="label-upper">Best Score</p>
+            <p class="font-mono text-violet"><%= entries.map(&:score).compact.max || "—" %></p>
+          </div>
+        </div>
+
+        <!-- Entry cards -->
+        <div class="space-y-2">
+          <% entries.each_with_index do |entry, i| %>
+            <div class="bg-navy-600 rounded-lg p-3 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-gray-500 font-mono text-sm">#<%= i + 1 %></span>
+                <div class="flex gap-1.5">
+                  <% entry.picks.each do |pick| %>
+                    <%
+                      pill_bg = case pick.result
+                                when "win" then "bg-mint-900/30 text-mint border-mint-700"
+                                when "loss" then "bg-red-900/50 text-red-400 border-red-700"
+                                when "push" then "bg-yellow-900/50 text-yellow-400 border-yellow-700"
+                                else "bg-navy-400 text-gray-300 border-navy-300/30"
+                                end
+                    %>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>">
+                      <% if pick.prop.team && pick.prop.opponent_team %>
+                        <span><%= pick.prop.team.emoji %></span>
+                        <span class="text-[8px] text-gray-500">v</span>
+                        <span><%= pick.prop.opponent_team.emoji %></span>
+                      <% end %>
+                      <span class="<%= pick.selection == 'more' ? 'text-mint' : 'text-red-400' %>"><%= pick.selection == "more" ? "O" : "U" %></span>
+                      <span class="text-violet"><%= pick.prop.line %></span>
+                    </span>
+                  <% end %>
+                </div>
+              </div>
+              <div class="text-right">
+                <% if entry.score %>
+                  <span class="font-mono text-violet font-bold"><%= entry.score %></span>
+                <% else %>
+                  <span class="text-gray-500 text-sm">Pending</span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>

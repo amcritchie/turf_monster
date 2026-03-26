@@ -19,6 +19,9 @@ Rails.application.routes.draw do
   end
 
   resources :contests, only: [:index, :show] do
+    collection do
+      get :my
+    end
     member do
       post :toggle_pick
       post :enter
