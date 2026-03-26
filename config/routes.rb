@@ -24,6 +24,8 @@ Rails.application.routes.draw do
       post :enter
       post :clear_picks
       post :grade
+      post :fill
+      post :lock
     end
   end
 

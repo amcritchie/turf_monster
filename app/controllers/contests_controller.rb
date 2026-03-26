@@ -1,7 +1,7 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show]
-  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade]
-  before_action :require_admin, only: [:grade]
+  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade, :fill, :lock]
+  before_action :require_admin, only: [:grade, :fill, :lock]
 
   def index
     @contest = Contest.order(created_at: :desc).first
@@ -47,6 +47,9 @@ class ContestsController < ApplicationController
     return redirect_to root_path, alert: "No cart entry found" unless entry
 
     rescue_and_log(target: entry, parent: @contest) do
+      active_count = @contest.entries.where(status: [:active, :complete]).count
+      raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
+
       entry.confirm!
 
       respond_to do |format|
@@ -94,6 +97,27 @@ class ContestsController < ApplicationController
 
       @contest.grade!
       redirect_to @contest, notice: "Contest graded and settled!"
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
+  end
+
+  def fill
+    rescue_and_log(target: @contest) do
+      @contest.fill!(users: User.where(email: [
+        "alex@mcritchie.studio", "mason@mcritchie.studio",
+        "mack@mcritchie.studio", "turf@mcritchie.studio"
+      ]))
+      redirect_to @contest, notice: "Contest filled with #{@contest.entries.where(status: [:active, :complete]).count} entries!"
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
+  end
+
+  def lock
+    rescue_and_log(target: @contest) do
+      @contest.update!(status: :locked)
+      redirect_to @contest, notice: "Contest locked!"
     end
   rescue StandardError => e
     redirect_to @contest || root_path, alert: e.message

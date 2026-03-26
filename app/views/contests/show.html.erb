@@ -39,6 +39,23 @@
   </div>
 </section>
 
+<!-- Admin Actions -->
+<% if current_user&.admin? && !@contest.settled? %>
+  <section class="mb-8">
+    <div class="flex gap-3">
+      <% if @contest.open? %>
+        <% active_count = @contest.entries.where(status: [:active, :complete]).count %>
+        <% if @contest.max_entries.nil? || active_count < @contest.max_entries %>
+          <%= button_to "Fill Contest", fill_contest_path(@contest), method: :post,
+            class: "px-6 py-2 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow transition" %>
+        <% end %>
+        <%= button_to "Lock Contest", lock_contest_path(@contest), method: :post,
+          class: "px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition" %>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
 <!-- Leaderboard -->
 <% if @entries.any? %>
   <section class="mb-8">

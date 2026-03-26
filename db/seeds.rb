@@ -368,102 +368,69 @@ end
 puts "  Created #{Player.count} players"
 
 # ─── Contest ─────────────────────────────────────────────────────
-contest = Contest.find_or_create_by!(name: "World Cup 2026 — Group Stage Day 1") do |c|
-  c.entry_fee_cents = 10_00
+contest = Contest.find_or_create_by!(name: "World Cup 2026 — Matchday 1") do |c|
+  c.entry_fee_cents = 20_00
   c.status = "open"
-  c.starts_at = Time.new(2026, 6, 11, 15, 0, 0)
+  c.max_entries = 15
+  c.starts_at = Time.new(2026, 6, 11, 15, 0, 0, "-04:00")
 end
 
 puts "  Created contest: #{contest.name}"
 
-# ─── Props (with team + game slug links) ─────────────────────────
-# Each prop references the team's first group stage match
-PROP_TEAM_MAP = {
-  "Argentina Total Goals" =>   { team: "ARG", opponent: "ALG", home: "ARG", away: "ALG" },
-  "Brazil Total Goals" =>      { team: "BRA", opponent: "MAR", home: "BRA", away: "MAR" },
-  "France Total Goals" =>      { team: "FRA", opponent: "SEN", home: "FRA", away: "SEN" },
-  "Germany Total Goals" =>     { team: "GER", opponent: "CUW", home: "GER", away: "CUW" },
-  "Spain Total Goals" =>       { team: "ESP", opponent: "CPV", home: "ESP", away: "CPV" },
-  "England Total Goals" =>     { team: "ENG", opponent: "CRO", home: "ENG", away: "CRO" },
-  "Portugal Total Goals" =>    { team: "POR", opponent: "IC1", home: "POR", away: "IC1" },
-  "Netherlands Total Goals" => { team: "NED", opponent: "JPN", home: "NED", away: "JPN" },
-  "Belgium Total Goals" =>     { team: "BEL", opponent: "EGY", home: "BEL", away: "EGY" },
-  "Uruguay Total Goals" =>     { team: "URU", opponent: "KSA", home: "KSA", away: "URU" },
-  "Mexico Total Goals" =>      { team: "MEX", opponent: "RSA", home: "MEX", away: "RSA" },
-  "USA Total Goals" =>         { team: "USA", opponent: "PAR", home: "USA", away: "PAR" },
-  "Japan Total Goals" =>       { team: "JPN", opponent: "NED", home: "NED", away: "JPN" },
-  "South Korea Total Goals" => { team: "KOR", opponent: "UPD", home: "KOR", away: "UPD" },
-  "Croatia Total Goals" =>     { team: "CRO", opponent: "ENG", home: "ENG", away: "CRO" },
-  "Senegal Total Goals" =>     { team: "SEN", opponent: "FRA", home: "FRA", away: "SEN" },
-}
-
-prop_defs = [
-  ["Argentina Total Goals", 1.5],
-  ["Brazil Total Goals", 1.5],
-  ["France Total Goals", 1.5],
-  ["Germany Total Goals", 1.5],
-  ["Spain Total Goals", 2.5],
-  ["England Total Goals", 1.5],
-  ["Portugal Total Goals", 1.5],
-  ["Netherlands Total Goals", 1.5],
-  ["Belgium Total Goals", 1.5],
-  ["Uruguay Total Goals", 0.5],
-  ["Mexico Total Goals", 0.5],
-  ["USA Total Goals", 1.5],
-  ["Japan Total Goals", 0.5],
-  ["South Korea Total Goals", 0.5],
-  ["Croatia Total Goals", 1.5],
-  ["Senegal Total Goals", 0.5],
+# ─── Props (24 game total goals — one per Matchday 1 game) ──────
+# Lines: 2.5 for strong-vs-weak, 1.5 for competitive, 2.0 for mid-tier
+MATCHDAY_1_PROPS = [
+  # June 11
+  { home: "MEX", away: "RSA", line: 2.0 },
+  { home: "KOR", away: "UPD", line: 2.0 },
+  # June 12
+  { home: "CAN", away: "UPA", line: 2.0 },
+  { home: "USA", away: "PAR", line: 2.0 },
+  # June 13
+  { home: "AUS", away: "UPC", line: 2.0 },
+  { home: "QAT", away: "SUI", line: 2.0 },
+  { home: "BRA", away: "MAR", line: 1.5 },
+  { home: "HAI", away: "SCO", line: 2.0 },
+  # June 14
+  { home: "GER", away: "CUW", line: 2.5 },
+  { home: "NED", away: "JPN", line: 1.5 },
+  { home: "CIV", away: "ECU", line: 1.5 },
+  { home: "UPB", away: "TUN", line: 1.5 },
+  # June 15
+  { home: "ESP", away: "CPV", line: 2.5 },
+  { home: "BEL", away: "EGY", line: 2.0 },
+  { home: "KSA", away: "URU", line: 2.0 },
+  { home: "IRN", away: "NZL", line: 1.5 },
+  # June 16
+  { home: "FRA", away: "SEN", line: 2.0 },
+  { home: "IC2", away: "NOR", line: 1.5 },
+  { home: "ARG", away: "ALG", line: 2.0 },
+  { home: "AUT", away: "JOR", line: 2.0 },
+  # June 17
+  { home: "POR", away: "IC1", line: 2.5 },
+  { home: "ENG", away: "CRO", line: 1.5 },
+  { home: "GHA", away: "PAN", line: 2.0 },
+  { home: "UZB", away: "COL", line: 2.0 },
 ]
 
-props = prop_defs.map do |desc, line|
-  mapping = PROP_TEAM_MAP[desc]
-  team = mapping ? teams[mapping[:team]] : nil
-  opponent = mapping ? teams[mapping[:opponent]] : nil
-  game = if mapping
-    home_team = teams[mapping[:home]]
-    away_team = teams[mapping[:away]]
-    Game.find_by(home_team_slug: home_team&.slug, away_team_slug: away_team&.slug)
-  end
+props = MATCHDAY_1_PROPS.map do |data|
+  home_team = teams[data[:home]]
+  away_team = teams[data[:away]]
+  game = Game.find_by(home_team_slug: home_team&.slug, away_team_slug: away_team&.slug)
+  desc = "#{home_team&.name || data[:home]} vs #{away_team&.name || data[:away]} Total Goals"
 
-  prop = Prop.find_or_create_by!(contest: contest, description: desc) do |p|
-    p.line = line
+  Prop.find_or_create_by!(contest: contest, description: desc) do |p|
+    p.line = data[:line]
     p.stat_type = "goals"
-    p.team_slug = team&.slug
-    p.opponent_team_slug = opponent&.slug
+    p.team_slug = home_team&.slug
+    p.opponent_team_slug = away_team&.slug
     p.game_slug = game&.slug
   end
-
-  # Update existing props that didn't have slugs
-  if prop.team_slug.blank? && team
-    prop.update_columns(
-      team_slug: team.slug,
-      opponent_team_slug: opponent&.slug,
-      game_slug: game&.slug
-    )
-  end
-
-  prop
 end
 
 puts "  Created #{props.size} props"
 
-# Entries with random picks for Alex and Jordan
-[alex, mason].each do |user|
-  next if Entry.exists?(user: user, contest: contest)
-
-  entry = Entry.create!(user: user, contest: contest)
-  user.deduct_funds!(contest.entry_fee_cents)
-
-  props.each do |prop|
-    entry.picks.create!(
-      prop: prop,
-      selection: ["more", "less"].sample
-    )
-  end
-
-  puts "  Created entry for #{user.display_name} with #{entry.picks.count} picks"
-end
+# No pre-filled entries — use admin Fill button to populate
 
 puts "Done! #{User.count} users, #{Contest.count} contests, #{Prop.count} props, #{Entry.count} entries, #{Pick.count} picks"
 puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players"

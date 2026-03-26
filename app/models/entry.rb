@@ -19,7 +19,7 @@ class Entry < ApplicationRecord
       else
         existing.update!(selection: selection)
       end
-    elsif picks.count < 3
+    elsif picks.count < 2
       picks.create!(prop: prop, selection: selection)
     else
       picks.order(created_at: :desc).first.destroy!
@@ -37,7 +37,15 @@ class Entry < ApplicationRecord
 
   def confirm!
     raise "Contest is not open" unless contest.open?
-    raise "Exactly 3 picks required" unless picks.count == 3
+    raise "Exactly 2 picks required" unless picks.count == 2
+
+    # Sybil check: no duplicate pick combos from same user
+    my_combo = picks.map { |p| [p.prop_id, p.selection] }.sort
+    contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
+      other_combo = other.picks.map { |p| [p.prop_id, p.selection] }.sort
+      raise "You already have an entry with this exact pick combination" if other_combo == my_combo
+    end
+
     transaction do
       user.deduct_funds!(contest.entry_fee_cents) if contest.entry_fee_cents > 0
       update!(status: :active)

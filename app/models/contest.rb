@@ -20,6 +20,8 @@ class Contest < ApplicationRecord
     pool_cents / 100.0
   end
 
+  PAYOUTS = { 1 => 100_00, 2 => 40_00, 3 => 40_00, 4 => 40_00, 5 => 40_00 }
+
   def grade!
     transaction do
       props.each do |prop|
@@ -32,18 +34,89 @@ class Contest < ApplicationRecord
         entry.update!(score: total, status: "complete")
       end
 
-      completed = entries.complete
-      max_score = completed.maximum(:score)
-      winners = completed.where(score: max_score)
+      # Rank entries by score DESC with tie handling
+      ranked = entries.complete.order(score: :desc).includes(:user).to_a
+      return update!(status: "settled") if ranked.empty?
 
-      if winners.any? && pool_cents > 0
-        share = pool_cents / winners.count
-        winners.includes(:user).each do |entry|
-          entry.user.add_funds!(share)
+      # Assign ranks (ties get same rank, skip next)
+      current_rank = 1
+      ranked.each_with_index do |entry, i|
+        if i > 0 && entry.score < ranked[i - 1].score
+          current_rank = i + 1
         end
+        entry.update_column(:rank, current_rank) if entry.respond_to?(:rank)
+      end
+
+      # Group by rank for payout calculation
+      by_rank = ranked.group_by.with_index { |entry, i|
+        rank = 1
+        (0...i).each { |j| rank = j + 2 if ranked[j].score > entry.score }
+        # Recalculate: first entry = rank 1, next different score = rank (count of higher + 1)
+        rank
+      }
+
+      # Simpler: build rank array
+      ranks = []
+      ranked.each_with_index do |entry, i|
+        rank = if i == 0
+          1
+        elsif entry.score < ranked[i - 1].score
+          i + 1
+        else
+          ranks.last
+        end
+        ranks << rank
+      end
+
+      # Pay out by rank groups
+      ranked.each_with_index do |entry, i|
+        rank = ranks[i]
+        next if rank > 5 # Only top 5 paid
+
+        # Find all entries at this rank
+        tied_indices = ranks.each_index.select { |j| ranks[j] == rank }
+        tied_count = tied_indices.size
+
+        # Sum prizes for all ranks these tied entries span
+        spanned_ranks = (rank..(rank + tied_count - 1)).to_a
+        total_prize = spanned_ranks.sum { |r| PAYOUTS[r] || 0 }
+        share = total_prize / tied_count
+
+        entry.user.add_funds!(share) if share > 0
       end
 
       update!(status: "settled")
+    end
+  end
+
+  def fill!(users:)
+    raise "Contest is not open" unless open?
+
+    # Generate all possible 2-pick combos: [prop_id, selection] pairs
+    options = props.flat_map { |p| [[p.id, "more"], [p.id, "less"]] }
+    all_combos = options.combination(2).to_a
+
+    # Exclude combos already used by active/complete entries
+    existing_combos = entries.where(status: [:active, :complete]).includes(:picks).map do |entry|
+      entry.picks.map { |p| [p.prop_id, p.selection] }.sort
+    end.to_set
+
+    available_combos = all_combos.map(&:sort).reject { |c| existing_combos.include?(c) }
+
+    active_count = entries.where(status: [:active, :complete]).count
+    slots = (max_entries || 15) - active_count
+    return if slots <= 0
+
+    combos_to_use = available_combos.first(slots)
+    user_cycle = users.cycle
+
+    combos_to_use.each do |combo|
+      user = user_cycle.next
+      entry = entries.create!(user: user, contest: self)
+      combo.each do |prop_id, selection|
+        entry.picks.create!(prop_id: prop_id, selection: selection)
+      end
+      entry.confirm!
     end
   end
 

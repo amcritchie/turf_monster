@@ -13,7 +13,6 @@ class EntryTest < ActiveSupport::TestCase
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     balance_before = @user.balance_cents
     entry.confirm!
@@ -22,12 +21,12 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
-  test "confirm! rejects with less than 3 picks" do
+  test "confirm! rejects with less than 2 picks" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
-    assert_equal "Exactly 3 picks required", error.message
+    assert_equal "Exactly 2 picks required", error.message
     assert entry.reload.cart?
   end
 
@@ -36,7 +35,6 @@ class EntryTest < ActiveSupport::TestCase
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Contest is not open", error.message
@@ -47,7 +45,6 @@ class EntryTest < ActiveSupport::TestCase
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Insufficient funds", error.message
@@ -84,19 +81,16 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal 1, entry.picks.count
   end
 
-  test "toggle_pick! replaces newest pick when adding 4th" do
+  test "toggle_pick! replaces newest pick when adding 3rd" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
-    prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
+    picks_hash = entry.toggle_pick!(@prop3, "more")
 
-    picks_hash = entry.toggle_pick!(prop4, "more")
-
-    assert_equal 3, entry.picks.count
-    assert_includes picks_hash.keys, prop4.id.to_s
-    assert_not_includes picks_hash.keys, @prop3.id.to_s
+    assert_equal 2, entry.picks.count
+    assert_includes picks_hash.keys, @prop3.id.to_s
+    assert_not_includes picks_hash.keys, @prop2.id.to_s
   end
 
   test "toggle_pick! destroys entry when last pick removed" do

@@ -64,25 +64,22 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "less", json["picks"][@prop1.id.to_s]
   end
 
-  test "toggle_pick replaces newest pick when adding 4th" do
+  test "toggle_pick replaces newest pick when adding 3rd" do
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
-
-    prop4 = @contest.props.create!(description: "France Total Goals", line: 1.5, stat_type: "goals", status: "pending")
 
     post toggle_pick_contest_path(@contest),
-      params: { prop_id: prop4.id, selection: "more" },
+      params: { prop_id: @prop3.id, selection: "more" },
       as: :json
 
     assert_response :success
     json = JSON.parse(response.body)
-    assert_equal 3, json["pick_count"]
-    assert json["picks"].key?(prop4.id.to_s)
-    assert_not json["picks"].key?(@prop3.id.to_s)
+    assert_equal 2, json["pick_count"]
+    assert json["picks"].key?(@prop3.id.to_s)
+    assert_not json["picks"].key?(@prop2.id.to_s)
   end
 
   test "toggle_pick allows picks after confirming an entry" do
@@ -92,7 +89,6 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :active)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     assert_difference "Entry.count", 1 do
       post toggle_pick_contest_path(@contest),
@@ -125,7 +121,6 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     balance_before = @user.balance_cents
 
@@ -164,7 +159,6 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :cart)
     entry.picks.create!(prop: @prop1, selection: "more")
     entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
 
     post enter_contest_path(@contest)
 
