@@ -26,13 +26,17 @@ Rails.application.routes.draw do
     end
     member do
       post :toggle_pick
+      post :toggle_selection
       post :enter
       post :clear_picks
       post :grade
       post :fill
       post :lock
       post :jump
+      post :simulate_game
       post :reset
+      get :rank_matchups
+      patch :update_rankings
     end
   end
 

@@ -1,15 +1,24 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_pick, :enter, :clear_picks, :grade, :fill, :lock, :jump, :reset]
-  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :reset]
+  before_action :set_contest, only: [:show, :toggle_pick, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :reset, :rank_matchups, :update_rankings]
+  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset, :rank_matchups, :update_rankings]
 
   def index
     @contest = Contest.order(created_at: :desc).first
-    @props = @contest&.props&.includes(:team, :opponent_team, :game) || []
-    @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user, picks: { prop: :team }) || []
+    @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user) || []
 
-    if logged_in? && @contest
-      @cart_entry = @contest.entries.cart.find_by(user: current_user)
+    if @contest&.turf_totals?
+      @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
+      @entries = @entries.includes(selections: { contest_matchup: :team })
+      if logged_in?
+        @cart_entry = @contest.entries.cart.find_by(user: current_user)
+      end
+    else
+      @props = @contest&.props&.includes(:team, :opponent_team, :game) || []
+      @entries = @entries.includes(picks: { prop: :team })
+      if logged_in? && @contest
+        @cart_entry = @contest.entries.cart.find_by(user: current_user)
+      end
     end
   end
 
@@ -23,8 +32,13 @@ class ContestsController < ApplicationController
   end
 
   def show
-    @props = @contest.props.includes(:team, :opponent_team, :game)
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: { prop: :team }).order(score: :desc)
+    if @contest.turf_totals?
+      @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
+      @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { contest_matchup: :team }).order(score: :desc)
+    else
+      @props = @contest.props.includes(:team, :opponent_team, :game)
+      @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, picks: { prop: :team }).order(score: :desc)
+    end
   end
 
   def toggle_pick
@@ -91,6 +105,58 @@ class ContestsController < ApplicationController
       format.html { redirect_to root_path, alert: e.message }
       format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
     end
+  end
+
+  def toggle_selection
+    unless @contest.open?
+      return render json: { error: "Contest is not open" }, status: :unprocessable_entity
+    end
+
+    matchup = @contest.contest_matchups.find_by(id: params[:matchup_id])
+    return render json: { error: "Matchup not found" }, status: :not_found unless matchup
+
+    entry = @contest.entries.find_or_create_by!(user: current_user, status: :cart)
+
+    rescue_and_log(target: entry, parent: @contest) do
+      selections_hash = entry.toggle_selection!(matchup)
+
+      if selections_hash.nil?
+        render json: { selections: {}, selection_count: 0 }
+      else
+        render json: { selections: selections_hash, selection_count: selections_hash.size }
+      end
+    end
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def simulate_game
+    rescue_and_log(target: @contest) do
+      game = @contest.simulate_next_game!
+      redirect_to @contest, notice: "Simulated #{game.home_team.name} vs #{game.away_team.name}: #{game.home_score}-#{game.away_score}"
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
+  end
+
+  def rank_matchups
+    @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
+  end
+
+  def update_rankings
+    rescue_and_log(target: @contest) do
+      if params[:matchup_ids].present?
+        params[:matchup_ids].each_with_index do |id, index|
+          matchup = @contest.contest_matchups.find_by(id: id)
+          next unless matchup
+          rank = index + 1
+          matchup.update!(rank: rank, multiplier: rank * 0.1)
+        end
+      end
+      redirect_to rank_matchups_contest_path(@contest), notice: "Rankings saved! Multipliers generated."
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
   end
 
   def grade

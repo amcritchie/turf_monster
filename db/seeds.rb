@@ -432,5 +432,48 @@ puts "  Created #{props.size} props"
 
 # No pre-filled entries — use admin Fill button to populate
 
+# ─── Turf Totals Contest ──────────────────────────────────────────
+turf_totals = Contest.find_or_create_by!(name: "Turf Totals v1 — Matchday 1") do |c|
+  c.entry_fee_cents = 20_00
+  c.status = "open"
+  c.max_entries = 15
+  c.contest_type = "turf_totals"
+  c.starts_at = Time.new(2026, 6, 11, 15, 0, 0, "-04:00")
+end
+
+puts "  Created contest: #{turf_totals.name}"
+
+# Create 48 ContestMatchups — both teams from each Matchday 1 game
+matchup_count = 0
+MATCHDAY_1_PROPS.each do |data|
+  home_team = teams[data[:home]]
+  away_team = teams[data[:away]]
+  game = Game.find_by(home_team_slug: home_team&.slug, away_team_slug: away_team&.slug)
+
+  next unless home_team && away_team
+
+  # Home team matchup
+  ContestMatchup.find_or_create_by!(contest: turf_totals, team_slug: home_team.slug) do |m|
+    m.opponent_team_slug = away_team.slug
+    m.game_slug = game&.slug
+  end
+  matchup_count += 1
+
+  # Away team matchup
+  ContestMatchup.find_or_create_by!(contest: turf_totals, team_slug: away_team.slug) do |m|
+    m.opponent_team_slug = home_team.slug
+    m.game_slug = game&.slug
+  end
+  matchup_count += 1
+end
+
+# Default ranking: alphabetical by team name
+turf_totals.contest_matchups.includes(:team).sort_by { |m| m.team.name }.each_with_index do |matchup, i|
+  rank = i + 1
+  matchup.update!(rank: rank, multiplier: rank * 0.1)
+end
+
+puts "  Created #{ContestMatchup.where(contest: turf_totals).count} contest matchups with rankings"
+
 puts "Done! #{User.count} users, #{Contest.count} contests, #{Prop.count} props, #{Entry.count} entries, #{Pick.count} picks"
-puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players"
+puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players, #{ContestMatchup.count} matchups"

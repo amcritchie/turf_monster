@@ -10,9 +10,27 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_26_040000) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_28_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "contest_matchups", force: :cascade do |t|
+    t.bigint "contest_id", null: false
+    t.string "team_slug", null: false
+    t.string "opponent_team_slug"
+    t.string "game_slug"
+    t.integer "rank"
+    t.decimal "multiplier", precision: 3, scale: 1
+    t.integer "goals"
+    t.string "status", default: "pending", null: false
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contest_id", "team_slug"], name: "index_contest_matchups_on_contest_id_and_team_slug", unique: true
+    t.index ["contest_id"], name: "index_contest_matchups_on_contest_id"
+    t.index ["game_slug"], name: "index_contest_matchups_on_game_slug"
+    t.index ["slug"], name: "index_contest_matchups_on_slug", unique: true
+  end
 
   create_table "contests", force: :cascade do |t|
     t.string "name", null: false
@@ -23,6 +41,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_040000) do
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "contest_type", default: "over_under", null: false
   end
 
   create_table "entries", force: :cascade do |t|
@@ -118,6 +137,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_040000) do
     t.index ["team_slug"], name: "index_props_on_team_slug"
   end
 
+  create_table "selections", force: :cascade do |t|
+    t.bigint "entry_id", null: false
+    t.bigint "contest_matchup_id", null: false
+    t.decimal "points", precision: 5, scale: 1
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["contest_matchup_id"], name: "index_selections_on_contest_matchup_id"
+    t.index ["entry_id", "contest_matchup_id"], name: "index_selections_on_entry_id_and_contest_matchup_id", unique: true
+    t.index ["entry_id"], name: "index_selections_on_entry_id"
+    t.index ["slug"], name: "index_selections_on_slug", unique: true
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "slug", null: false
     t.string "name", null: false
@@ -152,9 +184,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_26_040000) do
     t.index ["wallet_address"], name: "index_users_on_wallet_address", unique: true, where: "(wallet_address IS NOT NULL)"
   end
 
+  add_foreign_key "contest_matchups", "contests"
   add_foreign_key "entries", "contests"
   add_foreign_key "entries", "users"
   add_foreign_key "picks", "entries"
   add_foreign_key "picks", "props"
   add_foreign_key "props", "contests"
+  add_foreign_key "selections", "contest_matchups"
+  add_foreign_key "selections", "entries"
 end

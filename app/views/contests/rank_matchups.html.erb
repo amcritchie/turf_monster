@@ -1,0 +1,104 @@
+<% content_for :title, "Rank Matchups — #{@contest.name}" %>
+
+<div class="max-w-3xl mx-auto py-8 px-2">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Rank Matchups</h1>
+      <p class="text-sm text-gray-400 mt-1"><%= @contest.name %></p>
+    </div>
+    <%= link_to "Back to Contest", contest_path(@contest),
+      class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
+  </div>
+
+  <p class="text-gray-400 text-sm mb-6">
+    Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier 0.1x). Rank 48 = weakest (highest multiplier 4.8x).
+    Higher multiplier = more points when that team scores.
+  </p>
+
+  <div x-data="rankManager()" x-cloak>
+    <form @submit.prevent="saveRankings()">
+      <div class="space-y-1" x-ref="sortableList">
+        <% @matchups.each_with_index do |matchup, i| %>
+          <div class="flex items-center gap-3 bg-navy-400 rounded-lg px-4 py-3 border border-navy-300/20 cursor-grab active:cursor-grabbing sortable-item"
+               data-matchup-id="<%= matchup.id %>">
+            <span class="font-mono text-gray-500 text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
+            <span class="text-lg"><%= matchup.team.emoji %></span>
+            <div class="flex-1">
+              <span class="text-white font-semibold text-sm"><%= matchup.team.name %></span>
+              <% if matchup.opponent_team %>
+                <span class="text-gray-500 text-xs ml-1">vs <%= matchup.opponent_team.short_name %></span>
+              <% end %>
+            </div>
+            <span class="font-mono text-violet text-sm w-12 text-right multiplier-display"><%= matchup.multiplier ? sprintf('%.1f', matchup.multiplier) : '—' %>x</span>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="mt-6 flex gap-3">
+        <button type="submit" class="flex-1 px-6 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow transition">
+          Save Rankings
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+  function rankManager() {
+    return {
+      contestId: '<%= @contest.slug %>',
+      csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
+
+      init() {
+        const list = this.$refs.sortableList;
+        Sortable.create(list, {
+          animation: 150,
+          ghostClass: 'opacity-30',
+          onEnd: () => this.updateNumbers()
+        });
+      },
+
+      updateNumbers() {
+        const items = this.$refs.sortableList.querySelectorAll('.sortable-item');
+        items.forEach((item, i) => {
+          const rank = i + 1;
+          item.querySelector('.rank-number').textContent = rank;
+          item.querySelector('.multiplier-display').textContent = (rank * 0.1).toFixed(1) + 'x';
+        });
+      },
+
+      async saveRankings() {
+        const items = this.$refs.sortableList.querySelectorAll('.sortable-item');
+        const ids = Array.from(items).map(item => item.dataset.matchupId);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/contests/${this.contestId}/update_rankings`;
+
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'patch';
+        form.appendChild(methodInput);
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'authenticity_token';
+        csrfInput.value = this.csrfToken;
+        form.appendChild(csrfInput);
+
+        ids.forEach(id => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'matchup_ids[]';
+          input.value = id;
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      }
+    };
+  }
+</script>

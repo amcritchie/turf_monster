@@ -1,79 +1,62 @@
-<% if @contest.nil? %>
-  <p class="text-gray-400">No contests yet.</p>
-<% elsif @contest.turf_totals? %>
-  <%= render "contests/turf_totals_board" %>
-<% else %>
-
 <%
-  cart_picks = {}
-  cart_pick_order = []
+  cart_selections = {}
+  cart_selection_order = []
   if @cart_entry
-    @cart_entry.picks.order(:created_at).each do |p|
-      cart_picks[p.prop_id.to_s] = p.selection
-      cart_pick_order << p.prop_id.to_s
+    @cart_entry.selections.order(:created_at).each do |s|
+      cart_selections[s.contest_matchup_id.to_s] = true
+      cart_selection_order << s.contest_matchup_id.to_s
     end
   end
 %>
 
-<div x-data="pickBoard()" x-cloak>
+<div x-data="selectionBoard()" x-cloak>
 
   <!-- Blur overlay (click to dismiss) -->
-  <div x-show="pickCount === 4 && !blurDismissed && !blurUsed"
+  <div x-show="selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed"
        @click="blurDismissed = true; blurUsed = true"
        class="fixed inset-0 z-20 cursor-pointer"></div>
 
   <!-- Blurrable page content -->
   <div class="transition-all duration-300"
-       :class="{ 'blur-sm select-none opacity-60': pickCount === 4 && !blurDismissed && !blurUsed }">
+       :class="{ 'blur-sm select-none opacity-60': selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed }">
 
-  <!-- Prop Cards Grid (top of page) -->
-  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-40 md:pb-0': pickCount > 0 }">
-    <h2 class="text-xl font-semibold mb-4 text-gray-300">Props</h2>
+  <!-- Matchup Cards Grid -->
+  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-48 md:pb-0': selectionCount > 0 }">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold text-gray-300">Pick 5 Teams</h2>
+      <% if current_user&.admin? %>
+        <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
+          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
+      <% end %>
+    </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-      <% @props.each do |prop| %>
-        <div class="bg-navy-400 rounded-xl shadow p-3 md:p-4 transition-all text-center border-2"
-             :class="{
-               'border-mint shadow-lg shadow-mint/20': picks['<%= prop.id %>'] === 'more',
-               'border-red-500 shadow-lg shadow-red-500/20': picks['<%= prop.id %>'] === 'less',
-               'border-navy-300/20': !picks['<%= prop.id %>']
-             }">
-          <% if prop.team && prop.opponent_team %>
-            <div class="flex items-center justify-center gap-1.5 mb-1">
-              <span class="text-base md:text-lg" title="<%= prop.team.name %>"><%= prop.team.emoji %></span>
-              <span class="text-[10px] text-gray-500 font-bold">VS</span>
-              <span class="text-base md:text-lg" title="<%= prop.opponent_team.name %>"><%= prop.opponent_team.emoji %></span>
-            </div>
+      <% @matchups.each do |matchup| %>
+        <% locked = matchup.locked? %>
+        <button @click="toggleSelection('<%= matchup.id %>')"
+                class="relative bg-navy-400 rounded-xl shadow p-3 md:p-4 transition-all text-center border-2 text-left <%= locked ? 'opacity-50 cursor-not-allowed' : '' %>"
+                :class="{
+                  'border-mint shadow-lg shadow-mint/20': selections['<%= matchup.id %>'],
+                  'border-navy-300/20 hover:border-navy-300/40': !selections['<%= matchup.id %>']
+                }"
+                <% if locked %>disabled<% end %>>
+          <!-- Rank badge -->
+          <% if matchup.rank %>
+            <span class="absolute top-2 right-2 text-[10px] font-mono text-gray-500">#<%= matchup.rank %></span>
           <% end %>
-          <p class="font-bold text-white text-base md:text-lg mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-          <p class="font-mono text-xl md:text-2xl text-violet mb-1"><%= prop.line %></p>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-2 md:mb-3">
-            Total Goals
-            <% if prop.opponent_team %>
-              <span class="text-gray-600">vs <%= prop.opponent_team.short_name %></span>
-            <% end %>
-          </p>
-          <% if prop.graded? %>
-            <div class="mb-2 md:mb-3 px-2 py-1 bg-navy-600 rounded text-xs font-mono text-violet-300">
-              Result: <%= prop.result_value %>
-            </div>
+          <% if locked %>
+            <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
           <% end %>
-          <div class="flex gap-2">
-            <button @click="togglePick('<%= prop.id %>', 'more')"
-                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition"
-                    :class="picks['<%= prop.id %>'] === 'more'
-                      ? 'bg-mint text-navy border-mint'
-                      : 'border-mint-700 text-mint hover:bg-mint-900/30'">
-              OVER
-            </button>
-            <button @click="togglePick('<%= prop.id %>', 'less')"
-                    class="flex-1 py-2 rounded-lg text-sm font-semibold border transition"
-                    :class="picks['<%= prop.id %>'] === 'less'
-                      ? 'bg-red-600 text-white border-red-600'
-                      : 'border-red-700 text-red-400 hover:bg-red-900/30'">
-              UNDER
-            </button>
+          <div class="flex items-center justify-center gap-1.5 mb-1">
+            <span class="text-base md:text-lg" title="<%= matchup.team.name %>"><%= matchup.team.emoji %></span>
           </div>
-        </div>
+          <p class="font-bold text-white text-sm md:text-base mb-0.5"><%= matchup.team.name %></p>
+          <% if matchup.opponent_team %>
+            <p class="text-xs text-gray-500 mb-1">vs <%= matchup.opponent_team.name %></p>
+          <% end %>
+          <% if matchup.multiplier %>
+            <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
+          <% end %>
+        </button>
       <% end %>
     </div>
   </section>
@@ -144,12 +127,12 @@
 
   </div><!-- /blurrable -->
 
-  <!-- FAB: pick count badge to reopen cart (desktop only) -->
-  <button x-show="!cartOpen && pickCount > 0"
+  <!-- FAB: selection count badge to reopen cart (desktop only) -->
+  <button x-show="!cartOpen && selectionCount > 0"
           x-transition
           @click="cartOpen = true"
           class="hidden md:flex fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 items-center justify-center text-lg font-bold transition">
-    <span x-text="pickCount"></span><span class="text-xs">/4</span>
+    <span x-text="selectionCount"></span><span class="text-xs">/<%= @contest.picks_required %></span>
   </button>
 
   <!-- Cart Sidebar: Desktop (right panel) -->
@@ -165,27 +148,27 @@
         <h3 class="text-lg font-bold text-white">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-                :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
-            <span x-text="pickCount"></span>/4
+                :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+            <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
           </span>
           <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
         </div>
       </div>
       <!-- Pick slots -->
-      <%= render "contests/cart_pick_slots" %>
+      <%= render "contests/turf_totals_cart_slots" %>
       <!-- Clear / Confirm buttons -->
       <div class="p-4 border-t border-navy-300/20 space-y-2">
-        <div x-show="pickCount === 4" x-transition>
+        <div x-show="selectionCount === <%= @contest.picks_required %>" x-transition>
         <%= render 'shared/hold_button',
           default_text: "Hold to Confirm",
           hold_text: "Almost there...",
           success_text: "Confirmed!",
           duration: 3000,
           hold_id: "desktop",
-          guard: "data.pickCount === 4",
+          guard: "data.selectionCount === #{@contest.picks_required}",
           on_success: "d.confirmEntry()" %>
         </div>
-        <button x-show="pickCount > 0" @click="clearPicks()"
+        <button x-show="selectionCount > 0" @click="clearSelections()"
                 class="w-full py-2 text-sm font-semibold text-gray-400 hover:text-red-400 transition">
           Clear All
         </button>
@@ -193,8 +176,8 @@
     </div>
   </div>
 
-  <!-- Cart: Mobile (compact bottom bar, always visible when picks exist) -->
-  <div x-show="pickCount > 0"
+  <!-- Cart: Mobile (compact bottom bar) -->
+  <div x-show="selectionCount > 0"
        x-transition:enter="transition ease-out duration-200"
        x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
        x-transition:leave="transition ease-in duration-150"
@@ -204,37 +187,32 @@
     <div class="flex items-center justify-between px-4 pt-3 pb-2">
       <h3 class="text-sm font-bold text-white">Your Picks</h3>
       <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
-        <span x-text="pickCount"></span>/4
+            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+        <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
       </span>
     </div>
     <!-- Pick cards (horizontal) -->
     <div class="px-4 pb-2 flex gap-2">
-      <template x-for="i in 4" :key="i">
+      <template x-for="i in <%= @contest.picks_required %>" :key="i">
         <div class="flex-1 min-w-0">
-          <template x-if="pickSlots[i-1]">
-            <div class="bg-navy-600 rounded-lg px-2 py-2 border text-center relative"
-                 :class="[pickSlots[i-1].selection === 'more' ? 'border-mint-700' : 'border-red-700', isShaking(pickSlots[i-1].propId) ? 'shake' : '']">
-              <template x-if="pickSlots[i-1].emoji">
-                <div class="flex items-center justify-center gap-1 mb-0.5">
-                  <span class="text-xs" x-text="pickSlots[i-1].emoji"></span>
-                  <span class="text-[8px] text-gray-500 font-bold">v</span>
-                  <span class="text-xs" x-text="pickSlots[i-1].opEmoji"></span>
+          <template x-if="selectionSlots[i-1]">
+            <div class="bg-navy-600 rounded-lg px-2 py-2 border border-mint-700 text-center relative"
+                 :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
+              <template x-if="selectionSlots[i-1].emoji">
+                <div class="text-xs mb-0.5">
+                  <span x-text="selectionSlots[i-1].emoji"></span>
                 </div>
               </template>
-              <p class="text-white font-semibold text-xs truncate" x-text="pickSlots[i-1].name"></p>
-              <p class="text-xs font-bold mt-0.5"
-                 :class="pickSlots[i-1].selection === 'more' ? 'text-mint' : 'text-red-400'"
-                 x-text="pickSlots[i-1].selection === 'more' ? 'OVER' : 'UNDER'"></p>
-              <p class="text-gray-500 text-[10px] mt-0.5">
-                <span class="text-violet font-mono" x-text="pickSlots[i-1].line"></span>
-                <span>Goals</span>
-              </p>
-              <button @click="removePick(pickSlots[i-1].propId)"
+              <p class="text-white font-semibold text-xs truncate" x-text="selectionSlots[i-1].name"></p>
+              <template x-if="selectionSlots[i-1].opName">
+                <p class="text-gray-500 text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
+              </template>
+              <p class="text-violet font-mono text-[10px] mt-0.5" x-text="selectionSlots[i-1].multiplier + 'x'"></p>
+              <button @click="removeSelection(selectionSlots[i-1].matchupId)"
                       class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-400 border border-navy-300/30 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
             </div>
           </template>
-          <template x-if="!pickSlots[i-1]">
+          <template x-if="!selectionSlots[i-1]">
             <div class="border border-dashed border-navy-300/20 rounded-lg px-2 py-4 text-center">
               <p class="text-gray-600 text-xs">Pick <span x-text="i"></span></p>
             </div>
@@ -244,17 +222,17 @@
     </div>
     <!-- Hold button + Clear -->
     <div class="px-4 pb-3 pt-1 space-y-1">
-      <div x-show="pickCount === 4" x-transition>
+      <div x-show="selectionCount === <%= @contest.picks_required %>" x-transition>
         <%= render 'shared/hold_button',
           default_text: "Hold to Confirm",
           hold_text: "Almost there...",
           success_text: "Confirmed!",
           duration: 3000,
           hold_id: "mobile",
-          guard: "data.pickCount === 4",
+          guard: "data.selectionCount === #{@contest.picks_required}",
           on_success: "d.confirmEntry()" %>
       </div>
-      <button @click="clearPicks()"
+      <button @click="clearSelections()"
               class="w-full py-1.5 text-xs font-semibold text-gray-400 hover:text-red-400 transition">
         Clear All
       </button>
@@ -284,23 +262,23 @@
 
   <!-- JSON Debug Block -->
   <section class="transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <%= render "components/json_debug", record: @contest.as_json(include: { props: {}, entries: { include: { user: { only: [:id, :name] }, picks: {} } } }), label: "Contest JSON", collapsible: true %>
+    <%= render "components/json_debug", record: @contest.as_json(include: { contest_matchups: { methods: [:locked?] }, entries: { include: { user: { only: [:id, :name] }, selections: {} } } }), label: "Contest JSON", collapsible: true %>
   </section>
 
 </div>
 
 <script>
-  function pickBoard() {
-    const propData = {
-      <% @props.each_with_index do |prop, i| %>
-        '<%= prop.id %>': { name: '<%= j(prop.description.gsub(" Total Goals", "")) %>', line: '<%= prop.line %>', emoji: '<%= prop.team&.emoji %>', opEmoji: '<%= prop.opponent_team&.emoji %>', opName: '<%= j(prop.opponent_team&.short_name.to_s) %>' }<%= i < @props.length - 1 ? ',' : '' %>
+  function selectionBoard() {
+    const matchupData = {
+      <% @matchups.each_with_index do |m, i| %>
+        '<%= m.id %>': { name: '<%= j(m.team.name) %>', emoji: '<%= m.team.emoji %>', opName: '<%= j(m.opponent_team&.short_name.to_s) %>', multiplier: '<%= m.multiplier ? sprintf("%.1f", m.multiplier) : "—" %>', locked: <%= m.locked? %> }<%= i < @matchups.length - 1 ? ',' : '' %>
       <% end %>
     };
 
     return {
-      picks: <%= cart_picks.to_json.html_safe %>,
-      pickOrder: <%= cart_pick_order.to_json.html_safe %>,
-      cartOpen: <%= cart_picks.any? ? 'true' : 'false' %>,
+      selections: <%= cart_selections.to_json.html_safe %>,
+      selectionOrder: <%= cart_selection_order.to_json.html_safe %>,
+      cartOpen: <%= cart_selections.any? ? 'true' : 'false' %>,
       blurDismissed: false,
       blurUsed: false,
       shakeKey: 0,
@@ -310,93 +288,89 @@
       contestId: '<%= @contest&.slug %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
+      picksRequired: <%= @contest.picks_required %>,
 
-      get pickCount() {
-        return Object.keys(this.picks).length;
+      get selectionCount() {
+        return Object.keys(this.selections).length;
       },
 
-      get pickSlots() {
-        return this.pickOrder.filter(id => this.picks[id]).map(propId => ({
-          propId,
-          selection: this.picks[propId],
-          name: propData[propId]?.name || propId,
-          line: propData[propId]?.line || '',
-          emoji: propData[propId]?.emoji || '',
-          opEmoji: propData[propId]?.opEmoji || '',
-          opName: propData[propId]?.opName || ''
+      get selectionSlots() {
+        return this.selectionOrder.filter(id => this.selections[id]).map(matchupId => ({
+          matchupId,
+          name: matchupData[matchupId]?.name || matchupId,
+          emoji: matchupData[matchupId]?.emoji || '',
+          opName: matchupData[matchupId]?.opName || '',
+          multiplier: matchupData[matchupId]?.multiplier || ''
         }));
       },
 
-      togglePick(propId, selection) {
-        // Optimistic UI update
-        const oldPicks = { ...this.picks };
-        const oldOrder = [...this.pickOrder];
+      toggleSelection(matchupId) {
+        if (matchupData[matchupId]?.locked) return;
 
-        if (this.picks[propId] === selection) {
-          let newPicks = { ...this.picks };
-          delete newPicks[propId];
-          this.picks = newPicks;
-          this.pickOrder = this.pickOrder.filter(id => id !== propId);
+        const oldSelections = { ...this.selections };
+        const oldOrder = [...this.selectionOrder];
+
+        if (this.selections[matchupId]) {
+          let newSelections = { ...this.selections };
+          delete newSelections[matchupId];
+          this.selections = newSelections;
+          this.selectionOrder = this.selectionOrder.filter(id => id !== matchupId);
           this.blurDismissed = false;
-        } else if (this.picks[propId]) {
-          this.picks = { ...this.picks, [propId]: selection };
-          this.triggerShake(propId);
-        } else if (this.pickCount < 4) {
-          this.picks = { ...this.picks, [propId]: selection };
-          this.pickOrder = [...this.pickOrder, propId];
+        } else if (this.selectionCount < this.picksRequired) {
+          this.selections = { ...this.selections, [matchupId]: true };
+          this.selectionOrder = [...this.selectionOrder, matchupId];
           if (!this.cartOpen) this.cartOpen = true;
-          this.triggerShake(propId);
+          this.triggerShake(matchupId);
         } else {
-          // Replace the most recent (4th) pick
-          let removedId = this.pickOrder[this.pickOrder.length - 1];
-          let newPicks = { ...this.picks };
-          delete newPicks[removedId];
-          newPicks[propId] = selection;
-          this.picks = newPicks;
-          this.pickOrder = [...this.pickOrder.slice(0, -1), propId];
+          // Replace oldest
+          let removedId = this.selectionOrder[0];
+          let newSelections = { ...this.selections };
+          delete newSelections[removedId];
+          newSelections[matchupId] = true;
+          this.selections = newSelections;
+          this.selectionOrder = [...this.selectionOrder.slice(1), matchupId];
           this.blurDismissed = false;
-          this.triggerShake(propId);
+          this.triggerShake(matchupId);
         }
 
         if (!this.loggedIn) return;
 
-        // Server sync
-        fetch(`/contests/${this.contestId}/toggle_pick`, {
+        fetch(`/contests/${this.contestId}/toggle_selection`, {
           method: 'POST',
           headers: {
             'X-CSRF-Token': this.csrfToken,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ prop_id: propId, selection: selection })
+          body: JSON.stringify({ matchup_id: matchupId })
         })
         .then(resp => resp.json().then(data => ({ ok: resp.ok, data })))
         .then(({ ok, data }) => {
           if (!ok) {
-            this.picks = oldPicks;
-            this.pickOrder = oldOrder;
-            this.showError(data.error || 'Failed to save pick');
+            this.selections = oldSelections;
+            this.selectionOrder = oldOrder;
+            this.showError(data.error || 'Failed to save selection');
           }
         })
         .catch(() => {
-          this.picks = oldPicks;
-          this.pickOrder = oldOrder;
-          this.showError('Network error. Pick not saved.');
+          this.selections = oldSelections;
+          this.selectionOrder = oldOrder;
+          this.showError('Network error. Selection not saved.');
         });
       },
 
-      removePick(propId) {
-        this.togglePick(propId, this.picks[propId]);
+      removeSelection(matchupId) {
+        this.toggleSelection(matchupId);
       },
 
-      triggerShake(propId) {
+      triggerShake(matchupId) {
         this.shakeKey++;
-        this._shakePropId = propId;
-        setTimeout(() => { this._shakePropId = null; }, 400);
+        this._shakeMatchupId = matchupId;
+        setTimeout(() => { this._shakeMatchupId = null; }, 400);
       },
 
-      isShaking(propId) {
-        return this._shakePropId === propId;
+      isShaking(matchupId) {
+        return this._shakeMatchupId === matchupId;
       },
 
       async confirmEntry() {
@@ -436,9 +410,9 @@
         this.errorTimer = setTimeout(() => this.dismissError(), 5000);
       },
 
-      async clearPicks() {
-        this.picks = {};
-        this.pickOrder = [];
+      async clearSelections() {
+        this.selections = {};
+        this.selectionOrder = [];
         this.cartOpen = false;
         this.blurDismissed = false;
 
@@ -453,7 +427,7 @@
             }
           });
         } catch (err) {
-          // silent — local state already cleared
+          // silent
         }
       },
 
@@ -467,5 +441,3 @@
     };
   }
 </script>
-
-<% end %>
