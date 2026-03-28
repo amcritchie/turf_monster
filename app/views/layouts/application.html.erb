@@ -26,6 +26,7 @@
           <% end %>
           <%= link_to "Teams", teams_path, class: "text-gray-500 hover:text-mint text-sm font-medium transition" %>
           <%= link_to "Games", games_path, class: "text-gray-500 hover:text-violet text-sm font-medium transition" %>
+          <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-gray-500 hover:text-mint text-sm font-medium transition" %>
           <%= link_to "Errors", error_logs_path, class: "text-gray-500 hover:text-red-400 text-sm font-medium transition" %>
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                   class="text-xs font-mono px-2 py-1 rounded-md border transition"

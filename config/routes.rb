@@ -5,6 +5,8 @@ Rails.application.routes.draw do
 
   root "contests#index"
 
+  get "turf-totals-v1", to: "pages#turf_totals_v1", as: :turf_totals_v1
+
   Studio.routes(self)
 
   # Wallet auth (SIWE)
