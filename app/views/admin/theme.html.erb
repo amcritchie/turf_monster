@@ -14,13 +14,8 @@
       <% %w[logo.png logo.jpeg icon.svg icon.png favicon.png].each do |file| %>
         <div class="card p-4 space-y-3">
           <p class="label-upper"><%= file %></p>
-          <div class="flex gap-2">
-            <div class="flex items-center justify-center w-16 h-16 rounded-lg" style="background: #1A1535;">
-              <img src="/<%= file %>" alt="<%= file %>" class="max-w-12 max-h-12 rounded">
-            </div>
-            <div class="flex items-center justify-center w-16 h-16 rounded-lg" style="background: #f8fafc;">
-              <img src="/<%= file %>" alt="<%= file %>" class="max-w-12 max-h-12 rounded">
-            </div>
+          <div class="flex items-center justify-center w-20 h-20 rounded-lg" style="background-color: #fff; background-image: linear-gradient(45deg, #d0d0d0 25%, transparent 25%, transparent 75%, #d0d0d0 75%), linear-gradient(45deg, #d0d0d0 25%, transparent 25%, transparent 75%, #d0d0d0 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px;">
+            <img src="/<%= file %>" alt="<%= file %>" class="max-w-16 max-h-16 rounded">
           </div>
         </div>
       <% end %>
@@ -72,7 +67,7 @@
         brand_colors = [
           { name: "Primary (Mint)",   bg: "bg-mint",    text_class: "text-navy" },
           { name: "Accent (Violet)",  bg: "bg-violet",  text_class: "text-white" },
-          { name: "Danger (Red)",     bg: "bg-red-500", text_class: "text-white" },
+          { name: "Danger (Red)",     bg: "bg-red-600", text_class: "text-white" },
           { name: "Navy",             bg: "bg-navy",    text_class: "text-white" },
         ]
       %>
@@ -115,7 +110,7 @@
         <div class="flex flex-wrap items-center gap-3">
           <button class="px-3 py-1.5 bg-mint hover:bg-mint-600 text-navy text-xs font-bold rounded-lg transition">Small</button>
           <button class="px-4 py-2 bg-mint hover:bg-mint-600 text-navy text-sm font-bold rounded-lg transition">Medium</button>
-          <button class="px-6 py-3 bg-mint hover:bg-mint-600 text-navy text-base font-bold rounded-lg transition">Large</button>
+          <button class="px-4 py-2.5 bg-mint hover:bg-mint-600 text-navy text-lg font-bold rounded-lg transition">Large</button>
         </div>
       </div>
       <div>
@@ -123,23 +118,23 @@
         <div class="flex flex-wrap items-center gap-3">
           <button class="px-3 py-1.5 border border-strong text-secondary hover:text-heading hover:border-mint text-xs font-medium rounded-lg transition">Small</button>
           <button class="px-4 py-2 border border-strong text-secondary hover:text-heading hover:border-mint text-sm font-medium rounded-lg transition">Medium</button>
-          <button class="px-6 py-3 border border-strong text-secondary hover:text-heading hover:border-mint text-base font-medium rounded-lg transition">Large</button>
+          <button class="px-4 py-2.5 border border-strong text-secondary hover:text-heading hover:border-mint text-lg font-medium rounded-lg transition">Large</button>
         </div>
       </div>
       <div>
         <p class="label-upper mb-3">Danger</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition">Small</button>
-          <button class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition">Medium</button>
-          <button class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white text-base font-bold rounded-lg transition">Large</button>
+          <button class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition">Small</button>
+          <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition">Medium</button>
+          <button class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-lg font-bold rounded-lg transition">Large</button>
         </div>
       </div>
       <div>
         <p class="label-upper mb-3">Disabled</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-4 py-2 bg-mint text-navy text-sm font-bold rounded-lg opacity-50 cursor-not-allowed" disabled>Primary</button>
-          <button class="px-4 py-2 border border-strong text-muted text-sm font-medium rounded-lg opacity-50 cursor-not-allowed" disabled>Secondary</button>
-          <button class="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-lg opacity-50 cursor-not-allowed" disabled>Danger</button>
+          <button class="px-4 py-2 bg-mint text-navy text-sm font-bold rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Primary</button>
+          <button class="px-4 py-2 border border-strong text-muted text-sm font-medium rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Secondary</button>
+          <button class="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Danger</button>
         </div>
       </div>
     </div>
@@ -171,7 +166,7 @@
         <div class="flex flex-wrap gap-2">
           <span class="badge bg-mint/10 text-mint border-mint/30">Mint</span>
           <span class="badge bg-violet/10 text-violet border-violet/30">Violet</span>
-          <span class="badge bg-red-500/10 text-red-400 border-red-500/30">Red</span>
+          <span class="badge bg-red-600/10 text-red-400 border-red-600/30">Red</span>
           <span class="badge bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Yellow</span>
           <span class="badge bg-surface-alt text-secondary border-subtle">Gray</span>
         </div>
