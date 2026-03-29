@@ -1,6 +1,6 @@
 <% if sso_user_available? %>
   <div class="mb-6">
-    <p class="text-xs text-muted uppercase tracking-wider text-center mb-3">Easy sign in</p>
+    <p class="text-sm text-mint uppercase tracking-widest font-bold text-center mb-3">Easy sign in</p>
 
     <%= form_with url: sso_continue_path, method: :post do %>
       <button type="submit" class="w-full px-8 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow-lg hover:shadow-violet/20 transition flex items-center justify-center gap-3">
