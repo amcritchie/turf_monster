@@ -300,12 +300,23 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Testing
 
-- **Rails tests**: `bin/rails test` — 66 minitest tests with fixtures
+### Rails Tests
+- `bin/rails test` — 66 minitest tests with fixtures
 - **Test fixtures**: 5 props (one, two, three, four, five), all on contest :one
 - **Test password**: All fixtures use `"password"` (minimum 6 chars required)
 - **Test helper**: `log_in_as(user)` defaults to password "password"
 - **Wallet user fixture**: `wallet_user` — no email, has wallet_address
 - **Known failure**: `ContestsControllerTest#test_enter_with_JSON_returns_error_when_no_cart_entry` — pre-existing, returns 302 instead of 422
+
+### Playwright E2E Tests
+- `npm test` — runs all Playwright tests (19 tests across 3 spec files)
+- `npm run test:headed` — runs with visible browser
+- `npm run test:ui` — opens Playwright UI mode
+- **Config**: `playwright.config.js` — Chromium only, port 3001, auto-starts test Rails server
+- **Seed**: `e2e/seed.rb` — 2 users (alex@turf.com / sam@turf.com, password: "password"), 1 contest, 4 props. Idempotent via delete_all.
+- **Helper**: `e2e/helpers.js` — `login(page, email, password)`
+- **Spec files**: `e2e/smoke.spec.js` (core flows), `e2e/theme.spec.js` (dark/light toggle), `e2e/navigation.spec.js` (page loads)
+- **Known failure**: "second entry after confirming" test — blur overlay + entry state interaction issue
 
 ## TODO
 

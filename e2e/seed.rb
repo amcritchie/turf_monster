@@ -16,16 +16,16 @@ User.delete_all
 alex = User.create!(
   name: "Alex",
   email: "alex@turf.com",
-  password: "pass",
-  password_confirmation: "pass",
+  password: "password",
+  password_confirmation: "password",
   balance_cents: 100_000
 )
 
 sam = User.create!(
   name: "Sam",
   email: "sam@turf.com",
-  password: "pass",
-  password_confirmation: "pass",
+  password: "password",
+  password_confirmation: "password",
   balance_cents: 100_000
 )
 
