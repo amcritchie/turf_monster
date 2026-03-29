@@ -8,7 +8,7 @@ class ContestsController < ApplicationController
     @entries = @contest&.entries&.where(status: [:active, :complete])&.includes(:user) || []
 
     if @contest&.turf_totals?
-      @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
+      @matchups = @contest.contest_matchups.includes(:team, :opponent_team, :game).order(rank: :desc)
       @entries = @entries.includes(selections: { contest_matchup: :team })
       if logged_in?
         @cart_entry = @contest.entries.cart.find_by(user: current_user)
