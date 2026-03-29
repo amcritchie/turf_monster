@@ -20,7 +20,13 @@
   <div class="transition-all duration-300"
        :class="{ 'blur-sm select-none opacity-60': selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed }">
 
-  <!-- Matchup Cards Grid -->
+  <!-- Matchup Cards Grid (paired by game) -->
+  <%
+    # Group matchups by game, pair them, sort by lower multiplier
+    game_pairs = @matchups.group_by(&:game_slug).values.select { |pair| pair.size == 2 }
+    game_pairs.each { |pair| pair.sort_by! { |m| m.multiplier || 999 } }
+    game_pairs.sort_by! { |pair| pair.first.multiplier || 999 }
+  %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-48 md:pb-0': selectionCount > 0 }">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-semibold text-gray-300">Pick 5 Teams</h2>
@@ -29,34 +35,35 @@
           class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
       <% end %>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-      <% @matchups.each do |matchup| %>
-        <% locked = matchup.locked? %>
-        <button @click="toggleSelection('<%= matchup.id %>')"
-                class="relative bg-navy-400 rounded-xl shadow p-3 md:p-4 transition-all text-center border-2 text-left <%= locked ? 'opacity-50 cursor-not-allowed' : '' %>"
-                :class="{
-                  'border-mint shadow-lg shadow-mint/20': selections['<%= matchup.id %>'],
-                  'border-navy-300/20 hover:border-navy-300/40': !selections['<%= matchup.id %>']
-                }"
-                <% if locked %>disabled<% end %>>
-          <!-- Rank badge -->
-          <% if matchup.rank %>
-            <span class="absolute top-2 right-2 text-[10px] font-mono text-gray-500">#<%= matchup.rank %></span>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+      <% game_pairs.each do |pair| %>
+        <% left, right = pair %>
+        <% locked = left.locked? %>
+        <div class="flex rounded-xl overflow-hidden shadow <%= locked ? 'opacity-50' : '' %>">
+          <% [left, right].each_with_index do |matchup, side| %>
+            <button @click="toggleSelection('<%= matchup.id %>')"
+                    class="relative flex-1 bg-navy-400 p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl border-r' : 'rounded-r-xl border-l' %>"
+                    :class="{
+                      'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'],
+                      'border-navy-300/20 hover:bg-navy-300/10': !selections['<%= matchup.id %>']
+                    }"
+                    <% if locked %>disabled<% end %>>
+              <% if locked && side == 0 %>
+                <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
+              <% end %>
+              <span class="text-xl md:text-2xl block mb-1"><%= matchup.team.emoji %></span>
+              <p class="font-bold text-white text-sm md:text-base mb-0.5 truncate"><%= matchup.team.name %></p>
+              <% if matchup.multiplier %>
+                <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
+              <% end %>
+            </button>
+            <% if side == 0 %>
+              <div class="flex items-center bg-navy-600 px-1">
+                <span class="text-[10px] text-gray-500 font-bold">VS</span>
+              </div>
+            <% end %>
           <% end %>
-          <% if locked %>
-            <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
-          <% end %>
-          <div class="flex items-center justify-center gap-1.5 mb-1">
-            <span class="text-base md:text-lg" title="<%= matchup.team.name %>"><%= matchup.team.emoji %></span>
-          </div>
-          <p class="font-bold text-white text-sm md:text-base mb-0.5"><%= matchup.team.name %></p>
-          <% if matchup.opponent_team %>
-            <p class="text-xs text-gray-500 mb-1">vs <%= matchup.opponent_team.name %></p>
-          <% end %>
-          <% if matchup.multiplier %>
-            <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
-          <% end %>
-        </button>
+        </div>
       <% end %>
     </div>
   </section>
