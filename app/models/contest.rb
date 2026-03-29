@@ -85,6 +85,9 @@ class Contest < ApplicationRecord
       end
 
       update!(status: "settled")
+
+      # Attempt onchain settlement (non-blocking)
+      settle_onchain! if onchain?
     end
   end
 
@@ -290,6 +293,9 @@ class Contest < ApplicationRecord
       end
 
       update!(status: "settled")
+
+      # Attempt onchain settlement (non-blocking)
+      settle_onchain! if onchain?
     end
   end
 
@@ -332,6 +338,54 @@ class Contest < ApplicationRecord
       end
       entry.confirm!
     end
+  end
+
+  # --- Onchain ---
+
+  def onchain?
+    onchain_contest_id.present?
+  end
+
+  def create_onchain!
+    return if onchain?
+    vault = Solana::Vault.new
+    payout_bps = turf_totals? ? TURF_TOTALS_PAYOUTS.values.map { |c| (c * 100 / entry_fee_cents).to_i } : PAYOUTS.values.map { |c| (c * 100 / entry_fee_cents).to_i }
+    bonus = turf_totals? ? Solana::Config.dollars_to_lamports(TURF_TOTALS_BONUS / 100.0) : 0
+
+    result = vault.create_contest(
+      slug,
+      entry_fee: Solana::Config.dollars_to_lamports(entry_fee_dollars),
+      max_entries: max_entries || 100,
+      payout_bps: payout_bps,
+      bonus: bonus
+    )
+
+    update!(
+      onchain_contest_id: result[:pda],
+      onchain_tx_signature: result[:signature]
+    )
+  end
+
+  def settle_onchain!
+    return unless onchain? && !onchain_settled?
+
+    winners = entries.complete.where("payout_cents > 0").includes(:user).map do |entry|
+      {
+        wallet: entry.user.solana_address,
+        entry_num: entry.entry_number || 0,
+        rank: entry.rank || 0,
+        payout: Solana::Config.dollars_to_lamports(entry.payout_cents / 100.0)
+      }
+    end.select { |w| w[:wallet].present? }
+
+    return update!(onchain_settled: true) if winners.empty?
+
+    vault = Solana::Vault.new
+    result = vault.settle_contest(slug, winners)
+    update!(onchain_settled: true)
+  rescue => e
+    Rails.logger.error "Onchain settlement failed: #{e.message}"
+    # Don't block DB settlement — onchain can be retried
   end
 
   def name_slug

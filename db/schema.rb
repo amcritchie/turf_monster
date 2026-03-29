@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_29_133414) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_29_133757) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -42,6 +42,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_133414) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contest_type", default: "over_under", null: false
+    t.string "onchain_contest_id"
+    t.boolean "onchain_settled", default: false, null: false
+    t.string "onchain_tx_signature"
   end
 
   create_table "entries", force: :cascade do |t|
@@ -54,6 +57,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_133414) do
     t.datetime "updated_at", null: false
     t.integer "rank"
     t.integer "payout_cents", default: 0
+    t.string "onchain_entry_id"
+    t.string "onchain_tx_signature"
+    t.integer "entry_number"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["user_id", "contest_id"], name: "index_entries_on_user_id_and_contest_id"
     t.index ["user_id"], name: "index_entries_on_user_id"

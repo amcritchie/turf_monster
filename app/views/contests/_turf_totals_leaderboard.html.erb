@@ -36,6 +36,17 @@
         <p class="font-mono text-lg text-heading"><%= @entries.count %></p>
       </div>
     </div>
+    <% if @contest.onchain? %>
+      <div class="mt-3 flex items-center gap-2 text-xs text-muted">
+        <svg class="w-3 h-3 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span>Onchain</span>
+        <a href="https://explorer.solana.com/address/<%= @contest.onchain_contest_id %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
+           target="_blank" class="font-mono hover:text-mint transition truncate max-w-xs"><%= @contest.onchain_contest_id %></a>
+        <% if @contest.onchain_settled? %>
+          <span class="px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint-700/30">Settled</span>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 </section>
 
@@ -130,7 +141,15 @@
                   <% end %>
                 </div>
               </td>
-              <td class="px-4 py-3 font-medium <%= paid ? 'text-heading' : (@contest.settled? ? 'text-muted' : 'text-heading') %>"><%= entry.user.display_name %></td>
+              <td class="px-4 py-3 font-medium <%= paid ? 'text-heading' : (@contest.settled? ? 'text-muted' : 'text-heading') %>">
+                <%= entry.user.display_name %>
+                <% if entry.onchain_tx_signature.present? %>
+                  <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
+                     target="_blank" class="inline-block ml-1 text-xs text-muted hover:text-mint transition" title="Verified onchain">
+                    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </a>
+                <% end %>
+              </td>
               <td class="px-4 py-3 font-mono <%= paid ? 'text-violet' : (@contest.settled? ? 'text-muted' : 'text-violet') %>"><%= sprintf('%.1f', entry.score) %></td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">

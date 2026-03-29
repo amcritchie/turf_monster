@@ -120,6 +120,30 @@ class Entry < ApplicationRecord
 
   public
 
+  # --- Onchain ---
+
+  def enter_onchain!
+    return unless contest.onchain? && user.solana_connected?
+
+    # Assign entry number (per-user, per-contest counter)
+    self.entry_number ||= contest.entries.where(user: user).where.not(entry_number: nil).count
+    save! if entry_number_changed?
+
+    vault = Solana::Vault.new
+    result = vault.enter_contest(user.solana_address, contest.slug, entry_number)
+    update!(
+      onchain_entry_id: result[:entry_pda],
+      onchain_tx_signature: result[:signature]
+    )
+  rescue => e
+    Rails.logger.error "Onchain entry failed: #{e.message}"
+    # Don't block DB entry — onchain can be retried
+  end
+
+  def onchain?
+    onchain_entry_id.present?
+  end
+
   def name_slug
     "#{user.name.parameterize}-#{contest.name_slug}-#{id}"
   end
