@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: 38b02aa429ef8af36edff18d6ed837be56ef837c
+  revision: 462f36268687bf731ceeff3c17c9b90a4501c9b9
   specs:
     studio (0.2.4)
       rails (>= 7.0)
@@ -88,7 +88,7 @@ GEM
     base64 (0.3.0)
     bcrypt (3.1.22)
     benchmark (0.5.0)
-    bigdecimal (4.0.1)
+    bigdecimal (4.1.0)
     bindex (0.8.1)
     bootsnap (1.23.0)
       msgpack (~> 1.2)
