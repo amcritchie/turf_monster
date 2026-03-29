@@ -209,7 +209,7 @@ See top-level `CLAUDE.md` for the full checklist. Quick summary:
 Every write action MUST use `rescue_and_log` with target/parent context. See top-level `CLAUDE.md` for full pattern docs.
 
 - All errors logged to `error_logs` table — DB only, no external services
-- Browse errors at `/error_logs` (link in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
+- Browse errors at `/error_logs` (via admin gear dropdown in navbar) or console: `ErrorLog.order(created_at: :desc).limit(10)`
 - **Layer 1 (automatic)**: `rescue_from StandardError` via `Studio::ErrorHandling` concern (included in `ApplicationController`). Logs via `create_error_log(exception)` (no context). `RecordNotFound` → 404, no logging. Re-raises in dev/test.
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
@@ -241,7 +241,10 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
   - Both views share the same Alpine `selections` state — picks persist across view switches.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
 - **Wallet connect** (`_wallet_connect.html.erb`): Alpine component with states: Connect Wallet → Connecting → Sign message → Verifying → redirect. Accepts `link_mode` local for /account use.
-- **Navbar**: Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected. Admin-only red Reset button next to DEV toggle.
+- **Navbar**: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
+- **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, links to `/admin/theme` and `/error_logs`.
+- **Theme styleguide** (`/admin/theme`): Visual reference page showing all logos (checkerboard backgrounds for transparency), semantic color tokens, brand colors, typography specimens, button sizes/variants, component classes, and forced dark/light side-by-side preview.
 - **Account page** (`/account`): Four sections — Profile (name/email), Password (set/change), Google (link/unlink), Wallet (connect/display).
 - **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 - **After confirming entry**: redirects to contest show page (leaderboard)
@@ -277,6 +280,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/account/change_password` — POST, set or change password
 - `/auth/wallet/nonce` — GET, generate wallet nonce (JSON)
 - `/auth/wallet/verify` — POST, verify SIWE signature (JSON)
+- `/admin/theme` — theme styleguide (logos, colors, typography, buttons, components, dark/light preview)
 - `/error_logs` — error logs index (search, loading animation)
 - `/error_logs/:slug` — error log detail
 
@@ -286,6 +290,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 - **Hold button guard**: The `_hold_button.html.erb` partial renders JS inside `<script>` tags. Guard expressions must use `<%== %>` (raw output), NOT `<%= %>`, because `<script>` tags don't decode HTML entities. `>=` gets escaped to `&gt;=` which breaks the entire script block. Use `===` in guards when possible, or `<%== %>` for raw output.
 - **Pick count = 4**: Hardcoded in multiple places — `Entry#toggle_pick!` (cap), `Entry#confirm!` (validation), `Contest#fill!` (combo generation), index view JS (`pickCount === 4`), cart pick slots partial (`x-for="i in 4"`), mobile cart template. Search for "< 4", "=== 4", "in 4", "Exactly 4" when changing.
+- **Tailwind class compilation**: `tailwindcss-rails` only compiles classes it finds in app views. Introducing a new utility (e.g. `bg-red-500`, `opacity-50`, `px-6`) on a single page won't work if no other view uses it. Fix: use classes already in use elsewhere, or use inline `style` for one-off values.
 
 ## Workflow Preferences
 

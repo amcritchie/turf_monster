@@ -24,9 +24,8 @@
           <% if logged_in? %>
             <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
           <% end %>
-          <%= link_to "Teams", teams_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
-          <%= link_to "Games", games_path, class: "text-secondary hover:text-violet text-sm font-medium transition" %>
           <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
+          <%= render "components/soccer_dropdown" %>
           <%= render "components/admin_dropdown" %>
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                   class="text-xs font-mono px-2 py-1 rounded-md border transition"
