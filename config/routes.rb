@@ -11,13 +11,18 @@ Rails.application.routes.draw do
 
   get "admin/theme", to: "admin#theme", as: :admin_theme
 
-  # Wallet auth (SIWE)
+  # Wallet auth (SIWE — legacy Ethereum)
   get  "auth/wallet/nonce",  to: "wallet_sessions#nonce"
   post "auth/wallet/verify", to: "wallet_sessions#verify"
+
+  # Solana wallet auth
+  get  "auth/solana/nonce",  to: "solana_sessions#nonce"
+  post "auth/solana/verify", to: "solana_sessions#verify"
 
   # Account management
   resource :account, only: [:show, :update] do
     post :link_wallet
+    post :link_solana
     post :unlink_google
     post :change_password
   end

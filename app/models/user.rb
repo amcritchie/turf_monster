@@ -6,6 +6,7 @@ class User < ApplicationRecord
 
   validates :email, uniqueness: true, allow_nil: true
   validates :wallet_address, uniqueness: true, allow_nil: true
+  validates :solana_address, uniqueness: true, allow_nil: true
   validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :password, confirmation: true, if: -> { password_confirmation.present? }
   validate :has_authentication_method
@@ -42,6 +43,10 @@ class User < ApplicationRecord
     find_by(wallet_address: address.downcase)
   end
 
+  def self.from_solana_wallet(address)
+    find_by(solana_address: address)
+  end
+
   def admin?
     admin
   end
@@ -49,7 +54,7 @@ class User < ApplicationRecord
   # --- Display ---
 
   def display_name
-    name.presence || (email.present? ? email.split("@").first.capitalize : truncated_wallet) || "anon"
+    name.presence || (email.present? ? email.split("@").first.capitalize : truncated_solana) || truncated_wallet || "anon"
   end
 
   def truncated_wallet
@@ -57,10 +62,27 @@ class User < ApplicationRecord
     "#{wallet_address[0..5]}...#{wallet_address[-4..]}"
   end
 
+  def truncated_solana
+    return nil unless solana_address.present?
+    "#{solana_address[0..3]}...#{solana_address[-4..]}"
+  end
+
   # --- Predicates ---
 
   def wallet_connected?
     wallet_address.present?
+  end
+
+  def solana_connected?
+    solana_address.present?
+  end
+
+  def custodial_wallet?
+    wallet_type == "custodial"
+  end
+
+  def phantom_wallet?
+    wallet_type == "phantom"
   end
 
   def google_connected?
@@ -73,6 +95,24 @@ class User < ApplicationRecord
 
   def has_email?
     email.present?
+  end
+
+  # --- Solana wallet ---
+
+  def solana_keypair
+    return nil unless encrypted_solana_private_key.present?
+    Solana::Keypair.from_encrypted(encrypted_solana_private_key)
+  end
+
+  def generate_custodial_wallet!
+    return if solana_address.present?
+    keypair = Solana::Keypair.generate
+    update!(
+      solana_address: keypair.to_base58,
+      encrypted_solana_private_key: keypair.encrypt,
+      wallet_type: "custodial"
+    )
+    keypair
   end
 
   # --- Money ---
@@ -93,8 +133,8 @@ class User < ApplicationRecord
   private
 
   def has_authentication_method
-    return if email.present? || wallet_address.present? || (provider.present? && uid.present?)
-    errors.add(:base, "Must have email, wallet address, or linked social account")
+    return if email.present? || wallet_address.present? || solana_address.present? || (provider.present? && uid.present?)
+    errors.add(:base, "Must have email, wallet address, Solana address, or linked social account")
   end
 
   def set_name_parts
@@ -108,7 +148,7 @@ class User < ApplicationRecord
   end
 
   def name_slug
-    base = name.presence || email.presence || wallet_address.presence || "user"
+    base = name.presence || email.presence || solana_address.presence || wallet_address.presence || "user"
     "#{base}-#{id}".downcase.gsub(/\s+/, "-")
   end
 end

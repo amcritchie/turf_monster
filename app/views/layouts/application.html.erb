@@ -46,7 +46,9 @@
               <%= link_to account_path, class: "text-heading font-semibold hover:text-mint transition" do %>
                 <%= current_user.display_name %>
               <% end %>
-              <% if current_user.wallet_connected? %>
+              <% if current_user.solana_connected? %>
+                <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
+              <% elsif current_user.wallet_connected? %>
                 <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_wallet %></div>
               <% end %>
             </div>

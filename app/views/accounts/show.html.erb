@@ -1,6 +1,4 @@
-<% content_for :head do %>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js" crossorigin="anonymous"></script>
-<% end %>
+<%# No CDN needed — Phantom injects its own provider %>
 
 <div class="max-w-2xl mx-auto">
   <h1 class="text-2xl font-extrabold text-heading mb-8">Account Settings</h1>
@@ -79,16 +77,32 @@
     <% end %>
   </div>
 
-  <%# -- Wallet -- %>
+  <%# -- Solana Wallet -- %>
   <div class="card shadow p-6 mb-6">
-    <h2 class="text-lg font-bold text-heading mb-4">Ethereum Wallet</h2>
-    <% if @user.wallet_connected? %>
+    <h2 class="text-lg font-bold text-heading mb-4">Solana Wallet</h2>
+    <% if @user.solana_connected? %>
       <div class="flex items-center gap-3">
         <svg class="w-5 h-5 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-        <span class="text-body font-mono text-sm"><%= @user.wallet_address %></span>
+        <span class="text-body font-mono text-sm"><%= @user.solana_address %></span>
+        <% if @user.custodial_wallet? %>
+          <span class="text-xs text-muted px-2 py-0.5 rounded bg-surface-alt">Custodial</span>
+        <% else %>
+          <span class="text-xs text-violet px-2 py-0.5 rounded bg-violet/10">Phantom</span>
+        <% end %>
       </div>
     <% else %>
-      <%= render "shared/wallet_connect", link_mode: true %>
+      <%= render "shared/solana_wallet_connect", link_mode: true %>
     <% end %>
   </div>
+
+  <%# -- Ethereum Wallet (Legacy) -- %>
+  <% if @user.wallet_connected? %>
+    <div class="card shadow p-6 mb-6 opacity-60">
+      <h2 class="text-lg font-bold text-heading mb-4">Ethereum Wallet <span class="text-xs text-muted">(Legacy)</span></h2>
+      <div class="flex items-center gap-3">
+        <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span class="text-muted font-mono text-sm"><%= @user.wallet_address %></span>
+      </div>
+    </div>
+  <% end %>
 </div>

@@ -51,6 +51,38 @@ class AccountsController < ApplicationController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  def link_solana
+    message = params[:message]
+    signature_b58 = params[:signature]
+    pubkey_b58 = params[:pubkey]
+
+    rescue_and_log(target: current_user) do
+      sig_bytes = Solana::Keypair.decode_base58(signature_b58)
+      pub_bytes = Solana::Keypair.decode_base58(pubkey_b58)
+
+      verify_key = Ed25519::VerifyKey.new(pub_bytes)
+      verify_key.verify(sig_bytes, message)
+
+      claimed_nonce = message.match(/Nonce: (\w+)/)&.captures&.first
+      unless claimed_nonce == session[:solana_nonce]
+        return render json: { error: "Invalid nonce" }, status: :unauthorized
+      end
+      session.delete(:solana_nonce)
+
+      # Check if Solana wallet belongs to another user
+      existing = User.from_solana_wallet(pubkey_b58)
+      if existing && existing.id != current_user.id
+        merge_users!(survivor: current_user, absorbed: existing)
+        return render json: { success: true, redirect: account_path, notice: "Accounts merged." }
+      end
+
+      current_user.update!(solana_address: pubkey_b58, wallet_type: "phantom")
+      render json: { success: true, redirect: account_path }
+    end
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def unlink_google
     rescue_and_log(target: current_user) do
       current_user.update!(provider: nil, uid: nil)

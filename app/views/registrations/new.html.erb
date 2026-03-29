@@ -1,6 +1,4 @@
-<% content_for :head do %>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js" crossorigin="anonymous"></script>
-<% end %>
+<%# No CDN needed — Phantom injects its own provider %>
 
 <div class="min-h-[70vh] flex items-center justify-center">
   <div class="w-full max-w-md">
@@ -58,7 +56,7 @@
       <% end %>
 
       <div class="mt-3">
-        <%= render "shared/wallet_connect" %>
+        <%= render "shared/solana_wallet_connect" %>
       </div>
 
       <p class="text-center text-secondary text-sm mt-6">

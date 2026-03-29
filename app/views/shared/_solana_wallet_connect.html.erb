@@ -1,0 +1,103 @@
+<%# locals: (link_mode: false) %>
+<div x-data="solanaWalletConnect(<%= link_mode %>)" x-cloak>
+  <template x-if="!walletAvailable">
+    <a href="https://phantom.app/download" target="_blank" rel="noopener"
+       class="w-full px-8 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-3">
+      <svg class="w-5 h-5" viewBox="0 0 128 128" fill="currentColor">
+        <path d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64 64-28.7 64-64S99.3 0 64 0zm32.5 72.3c-1.8 15.7-16.2 27.2-33.8 27.2H39.4c-2.5 0-4.5-2-4.5-4.5V33c0-2.5 2-4.5 4.5-4.5h23.3c17.6 0 32 11.5 33.8 27.2.9 8.3.9 8.3 0 16.6z"/>
+      </svg>
+      Install Phantom
+    </a>
+  </template>
+
+  <template x-if="walletAvailable">
+    <button @click="connect()" :disabled="connecting"
+            class="w-full px-8 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow hover:shadow-lg hover:shadow-violet/20 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-wait">
+      <svg class="w-5 h-5" viewBox="0 0 128 128" fill="currentColor">
+        <path d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64 64-28.7 64-64S99.3 0 64 0zm32.5 72.3c-1.8 15.7-16.2 27.2-33.8 27.2H39.4c-2.5 0-4.5-2-4.5-4.5V33c0-2.5 2-4.5 4.5-4.5h23.3c17.6 0 32 11.5 33.8 27.2.9 8.3.9 8.3 0 16.6z"/>
+      </svg>
+      <span x-text="statusText">Connect Phantom</span>
+    </button>
+  </template>
+
+  <template x-if="error">
+    <p class="text-red-400 text-sm mt-2 text-center" x-text="error"></p>
+  </template>
+</div>
+
+<script>
+// Minimal Base58 encoder (Bitcoin alphabet)
+const B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function encodeBase58(bytes) {
+  let num = BigInt(0);
+  for (const byte of bytes) num = num * 256n + BigInt(byte);
+  let result = '';
+  while (num > 0n) { result = B58_ALPHABET[Number(num % 58n)] + result; num = num / 58n; }
+  for (const byte of bytes) { if (byte !== 0) break; result = '1' + result; }
+  return result || '1';
+}
+
+function solanaWalletConnect(linkMode) {
+  return {
+    connecting: false,
+    error: null,
+    statusText: 'Connect Phantom',
+    walletAvailable: !!(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom),
+
+    async connect() {
+      this.connecting = true;
+      this.error = null;
+
+      try {
+        const provider = window.phantom.solana;
+
+        this.statusText = 'Connecting...';
+        const resp = await provider.connect();
+        const publicKey = resp.publicKey;
+        const pubkeyB58 = publicKey.toBase58();
+
+        this.statusText = 'Fetching nonce...';
+        const nonceResp = await fetch('/auth/solana/nonce');
+        const { nonce } = await nonceResp.json();
+
+        const domain = window.location.host;
+        const message = `${domain} wants you to sign in with your Solana account:\n${pubkeyB58}\n\nSign in to Turf Monster\n\nNonce: ${nonce}`;
+
+        this.statusText = 'Sign message in wallet...';
+        const encodedMessage = new TextEncoder().encode(message);
+        const signedMessage = await provider.signMessage(encodedMessage, 'utf8');
+        const signatureB58 = encodeBase58(signedMessage.signature);
+
+        this.statusText = 'Verifying...';
+        const verifyUrl = linkMode ? '/account/link_solana' : '/auth/solana/verify';
+        const verifyResp = await fetch(verifyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ message, signature: signatureB58, pubkey: pubkeyB58 })
+        });
+
+        const result = await verifyResp.json();
+
+        if (result.success) {
+          window.location.href = result.redirect || '/';
+        } else {
+          this.error = result.error || 'Verification failed';
+          this.statusText = 'Connect Phantom';
+          this.connecting = false;
+        }
+      } catch (e) {
+        if (e.code === 4001) {
+          this.error = 'Signature rejected';
+        } else {
+          this.error = e.message || 'Connection failed';
+        }
+        this.statusText = 'Connect Phantom';
+        this.connecting = false;
+      }
+    }
+  };
+}
+</script>
