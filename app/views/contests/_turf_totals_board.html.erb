@@ -227,7 +227,7 @@
               <template x-if="selectionSlots[i-1].opName">
                 <p class="text-muted text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
               </template>
-              <p class="text-violet font-mono text-[10px] mt-0.5" x-text="selectionSlots[i-1].multiplier + 'x'"></p>
+              <p class="text-violet font-mono text-[10px] mt-0.5" x-text="'x' + selectionSlots[i-1].multiplier"></p>
               <button @click="removeSelection(selectionSlots[i-1].matchupId)"
                       class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
             </div>

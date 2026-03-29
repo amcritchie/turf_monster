@@ -11,9 +11,10 @@
     <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
   <% end %>
   <span class="text-xl md:text-2xl block mb-1"><%= matchup.team.emoji %></span>
-  <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate"><%= matchup.team.name %></p>
+  <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate team-name"><%= matchup.team.name %></p>
+  <p class="text-xs text-secondary">Goals</p>
   <% if matchup.multiplier %>
-    <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
+    <p class="font-mono text-lg md:text-xl text-violet">x<%= sprintf('%.1f', matchup.multiplier) %></p>
   <% end %>
   <% if matchup.opponent_team %>
     <p class="text-muted text-xs mt-0.5">vs <%= matchup.opponent_team.short_name %></p>

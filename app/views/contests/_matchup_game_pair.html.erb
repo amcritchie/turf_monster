@@ -16,8 +16,9 @@
       <% end %>
       <span class="text-xl md:text-2xl block mb-1"><%= matchup.team.emoji %></span>
       <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate team-name"><%= matchup.team.name %></p>
+      <p class="text-xs text-secondary">Goals</p>
       <% if matchup.multiplier %>
-        <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
+        <p class="font-mono text-lg md:text-xl text-violet">x<%= sprintf('%.1f', matchup.multiplier) %></p>
       <% end %>
     </button>
     <% if side == 0 %>
