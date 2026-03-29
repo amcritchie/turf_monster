@@ -16,7 +16,8 @@
         <div x-data="{ revealed: false }">
           <div class="relative" :class="{ 'select-none': !revealed }">
             <div x-show="!revealed" @click="revealed = true"
-                 class="absolute inset-0 z-10 backdrop-blur-[6px] bg-surface/40 rounded-xl cursor-pointer flex items-end justify-center pb-4 transition hover:bg-surface/30">
+                 class="absolute inset-0 z-10 rounded-xl cursor-pointer flex items-end justify-center pb-4"
+                 style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: var(--color-surface, rgba(58,51,89,0.6)); opacity: 0.85;">
               <span class="text-muted text-xs font-medium uppercase tracking-wider">Click to show other options</span>
             </div>
             <div :class="{ 'pointer-events-none': !revealed }">
