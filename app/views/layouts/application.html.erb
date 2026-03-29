@@ -27,7 +27,7 @@
           <%= link_to "Teams", teams_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
           <%= link_to "Games", games_path, class: "text-secondary hover:text-violet text-sm font-medium transition" %>
           <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
-          <%= link_to "Errors", error_logs_path, class: "text-secondary hover:text-red-400 text-sm font-medium transition" %>
+          <%= render "components/admin_dropdown" %>
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                   class="text-xs font-mono px-2 py-1 rounded-md border transition"
                   :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>

@@ -1,0 +1,246 @@
+<% content_for(:title) { "Theme Styleguide — Turf Monster" } %>
+
+<div class="space-y-12">
+  <%# ── Header ── %>
+  <div>
+    <h1 class="text-3xl font-extrabold text-heading">Turf <span class="text-mint">Monster</span></h1>
+    <p class="text-secondary mt-1">Theme Styleguide</p>
+  </div>
+
+  <%# ── Logos ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Logos</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <% %w[logo.png logo.jpeg icon.svg icon.png favicon.png].each do |file| %>
+        <div class="card p-4 space-y-3">
+          <p class="label-upper"><%= file %></p>
+          <div class="flex gap-2">
+            <div class="flex items-center justify-center w-16 h-16 rounded-lg" style="background: #1A1535;">
+              <img src="/<%= file %>" alt="<%= file %>" class="max-w-12 max-h-12 rounded">
+            </div>
+            <div class="flex items-center justify-center w-16 h-16 rounded-lg" style="background: #f8fafc;">
+              <img src="/<%= file %>" alt="<%= file %>" class="max-w-12 max-h-12 rounded">
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# ── Color Palette ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Color Palette</h2>
+
+    <h3 class="text-sm font-semibold text-secondary mb-3">Semantic Tokens</h3>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <%
+        semantic_colors = [
+          { name: "Page",           utility: "bg-page",         var: "--color-page",           type: :bg },
+          { name: "Surface",        utility: "bg-surface",      var: "--color-surface",        type: :bg },
+          { name: "Surface Alt",    utility: "bg-surface-alt",  var: "--color-surface-alt",    type: :bg },
+          { name: "Inset",          utility: "bg-inset",        var: "--color-inset",          type: :bg },
+          { name: "Heading",        utility: "text-heading",    var: "--color-text",           type: :text },
+          { name: "Body",           utility: "text-body",       var: "--color-text-body",      type: :text },
+          { name: "Secondary",      utility: "text-secondary",  var: "--color-text-secondary", type: :text },
+          { name: "Muted",          utility: "text-muted",      var: "--color-text-muted",     type: :text },
+          { name: "Border",         utility: "border-subtle",   var: "--color-border",         type: :border },
+          { name: "Border Strong",  utility: "border-strong",   var: "--color-border-strong",  type: :border },
+        ]
+      %>
+      <% semantic_colors.each do |c| %>
+        <div class="card p-3 flex items-center gap-3">
+          <% if c[:type] == :bg %>
+            <div class="w-8 h-8 rounded-full border border-subtle shrink-0 <%= c[:utility] %>"></div>
+          <% elsif c[:type] == :text %>
+            <div class="w-8 h-8 rounded-full border border-subtle shrink-0 bg-surface flex items-center justify-center">
+              <span class="text-sm font-bold <%= c[:utility] %>">A</span>
+            </div>
+          <% else %>
+            <div class="w-8 h-8 rounded-full shrink-0 border-2 <%= c[:utility] %> bg-transparent"></div>
+          <% end %>
+          <div class="min-w-0">
+            <p class="text-heading text-sm font-semibold truncate"><%= c[:name] %></p>
+            <p class="text-muted text-xs font-mono truncate"><%= c[:utility] %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <h3 class="text-sm font-semibold text-secondary mb-3">Brand Colors</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <%
+        brand_colors = [
+          { name: "Primary (Mint)",   bg: "bg-mint",    text_class: "text-navy" },
+          { name: "Accent (Violet)",  bg: "bg-violet",  text_class: "text-white" },
+          { name: "Danger (Red)",     bg: "bg-red-500", text_class: "text-white" },
+          { name: "Navy",             bg: "bg-navy",    text_class: "text-white" },
+        ]
+      %>
+      <% brand_colors.each do |c| %>
+        <div class="card p-3 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full shrink-0 <%= c[:bg] %>"></div>
+          <div>
+            <p class="text-heading text-sm font-semibold"><%= c[:name] %></p>
+            <p class="text-muted text-xs font-mono"><%= c[:bg] %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <%# ── Typography ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Typography</h2>
+    <div class="card p-6 space-y-4">
+      <p class="text-heading text-3xl font-extrabold">Heading — Montserrat 800</p>
+      <p class="text-heading text-xl font-bold">Subheading — Montserrat 700</p>
+      <p class="text-body text-base">Body text — The quick brown fox jumps over the lazy dog. Montserrat 400</p>
+      <p class="text-secondary text-sm">Secondary text — Additional context and metadata. Montserrat 400</p>
+      <p class="text-muted text-xs">Muted text — Timestamps, hints, and fine print. Montserrat 400</p>
+      <hr class="border-subtle">
+      <div class="flex flex-wrap gap-4">
+        <% [400, 500, 600, 700, 800, 900].each do |w| %>
+          <span class="text-heading text-lg" style="font-weight: <%= w %>"><%= w %></span>
+        <% end %>
+      </div>
+    </div>
+  </section>
+
+  <%# ── Buttons ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Buttons</h2>
+    <div class="card p-6 space-y-6">
+      <div>
+        <p class="label-upper mb-3">Primary</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="px-3 py-1.5 bg-mint hover:bg-mint-600 text-navy text-xs font-bold rounded-lg transition">Small</button>
+          <button class="px-4 py-2 bg-mint hover:bg-mint-600 text-navy text-sm font-bold rounded-lg transition">Medium</button>
+          <button class="px-6 py-3 bg-mint hover:bg-mint-600 text-navy text-base font-bold rounded-lg transition">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Secondary / Outline</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="px-3 py-1.5 border border-strong text-secondary hover:text-heading hover:border-mint text-xs font-medium rounded-lg transition">Small</button>
+          <button class="px-4 py-2 border border-strong text-secondary hover:text-heading hover:border-mint text-sm font-medium rounded-lg transition">Medium</button>
+          <button class="px-6 py-3 border border-strong text-secondary hover:text-heading hover:border-mint text-base font-medium rounded-lg transition">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Danger</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition">Small</button>
+          <button class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition">Medium</button>
+          <button class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white text-base font-bold rounded-lg transition">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Disabled</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="px-4 py-2 bg-mint text-navy text-sm font-bold rounded-lg opacity-50 cursor-not-allowed" disabled>Primary</button>
+          <button class="px-4 py-2 border border-strong text-muted text-sm font-medium rounded-lg opacity-50 cursor-not-allowed" disabled>Secondary</button>
+          <button class="px-4 py-2 bg-red-500 text-white text-sm font-bold rounded-lg opacity-50 cursor-not-allowed" disabled>Danger</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <%# ── Components ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Components</h2>
+
+    <div class="space-y-6">
+      <%# Cards %>
+      <div>
+        <p class="label-upper mb-3">Cards</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="card p-6">
+            <p class="text-heading font-semibold mb-1">.card</p>
+            <p class="text-secondary text-sm">Static card with surface background and subtle border.</p>
+          </div>
+          <div class="card-hover p-6">
+            <p class="text-heading font-semibold mb-1">.card-hover</p>
+            <p class="text-secondary text-sm">Interactive card — hover to see mint border glow.</p>
+          </div>
+        </div>
+      </div>
+
+      <%# Badges %>
+      <div>
+        <p class="label-upper mb-3">Badges</p>
+        <div class="flex flex-wrap gap-2">
+          <span class="badge bg-mint/10 text-mint border-mint/30">Mint</span>
+          <span class="badge bg-violet/10 text-violet border-violet/30">Violet</span>
+          <span class="badge bg-red-500/10 text-red-400 border-red-500/30">Red</span>
+          <span class="badge bg-yellow-500/10 text-yellow-400 border-yellow-500/30">Yellow</span>
+          <span class="badge bg-surface-alt text-secondary border-subtle">Gray</span>
+        </div>
+      </div>
+
+      <%# Input %>
+      <div>
+        <p class="label-upper mb-3">Input Field</p>
+        <div class="max-w-md">
+          <input type="text" class="input-field" placeholder="Placeholder text...">
+        </div>
+      </div>
+
+      <%# Empty State %>
+      <div>
+        <p class="label-upper mb-3">Empty State</p>
+        <div class="empty-state">
+          <p class="text-secondary">No items found.</p>
+          <p class="text-muted text-sm mt-1">Try adjusting your search or filters.</p>
+        </div>
+      </div>
+
+      <%# Label Upper %>
+      <div>
+        <p class="label-upper mb-3">Label Upper</p>
+        <span class="label-upper">This is a .label-upper element</span>
+      </div>
+
+      <%# JSON Debug %>
+      <div>
+        <p class="label-upper mb-3">JSON Debug</p>
+        <div class="json-debug">
+          <pre class="text-mint text-sm font-mono"><%= JSON.pretty_generate({ id: 1, name: "Example", status: "active", created_at: Time.current.iso8601 }) %></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <%# ── Dark vs Light Side-by-Side ── %>
+  <section>
+    <h2 class="text-xl font-bold text-heading mb-4">Dark vs Light</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <%# Dark Panel %>
+      <div class="rounded-xl border p-6 space-y-3" style="background: #1A1535; border-color: rgba(88,81,126,0.2); color: #e2e8f0;">
+        <p class="text-xs font-medium uppercase tracking-wider" style="color: #64748b;">Dark Mode</p>
+        <div class="rounded-xl border p-4" style="background: #3a3359; border-color: rgba(88,81,126,0.2);">
+          <p class="font-bold mb-1" style="color: #ffffff;">Card Heading</p>
+          <p class="text-sm" style="color: #e2e8f0;">Body text on a surface card.</p>
+          <div class="flex items-center gap-2 mt-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border" style="background: rgba(6,214,160,0.1); color: #06D6A0; border-color: rgba(6,214,160,0.3);">Mint</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border" style="background: rgba(142,130,254,0.1); color: #8E82FE; border-color: rgba(142,130,254,0.3);">Violet</span>
+          </div>
+          <button class="mt-3 px-4 py-2 text-sm font-bold rounded-lg" style="background: #06D6A0; color: #1A1535;">Button</button>
+        </div>
+      </div>
+
+      <%# Light Panel %>
+      <div class="rounded-xl border p-6 space-y-3" style="background: #f8fafc; border-color: #e2e8f0; color: #334155;">
+        <p class="text-xs font-medium uppercase tracking-wider" style="color: #94a3b8;">Light Mode</p>
+        <div class="rounded-xl border p-4" style="background: #ffffff; border-color: #e2e8f0;">
+          <p class="font-bold mb-1" style="color: #0f172a;">Card Heading</p>
+          <p class="text-sm" style="color: #334155;">Body text on a surface card.</p>
+          <div class="flex items-center gap-2 mt-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border" style="background: rgba(6,214,160,0.1); color: #06D6A0; border-color: rgba(6,214,160,0.3);">Mint</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border" style="background: rgba(142,130,254,0.1); color: #8E82FE; border-color: rgba(142,130,254,0.3);">Violet</span>
+          </div>
+          <button class="mt-3 px-4 py-2 text-sm font-bold rounded-lg" style="background: #06D6A0; color: #0f172a;">Button</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
