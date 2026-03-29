@@ -77,6 +77,55 @@ namespace :solana do
     puts "\nStore the encrypted key in user.encrypted_solana_private_key"
   end
 
+  desc "Reconcile DB balances against onchain state"
+  task reconcile: :environment do
+    reconciler = Solana::Reconciler.new
+    result = reconciler.reconcile_all
+
+    puts "Checked #{result[:users_checked]} users"
+    if result[:discrepancies].empty?
+      puts "No discrepancies found."
+    else
+      puts "#{result[:discrepancies].size} discrepancies:"
+      result[:discrepancies].each do |d|
+        puts "  [#{d[:type]}] User #{d[:user_id]} (#{d[:user_name]}): #{d.except(:type, :user_id, :user_name).to_json}"
+      end
+    end
+  end
+
+  desc "Reconcile a specific contest"
+  task reconcile_contest: :environment do
+    slug = ENV["CONTEST"]
+    unless slug
+      puts "Usage: bin/rails solana:reconcile_contest CONTEST=<slug>"
+      exit 1
+    end
+
+    contest = Contest.find_by(slug: slug)
+    unless contest
+      puts "Contest not found: #{slug}"
+      exit 1
+    end
+
+    reconciler = Solana::Reconciler.new
+    result = reconciler.reconcile_contest(contest)
+
+    if result
+      puts "Onchain contest state:"
+      puts "  Entry fee:  #{result[:entry_fee]} lamports"
+      puts "  Max entries: #{result[:max_entries]}"
+      puts "  Current entries: #{result[:current_entries]}"
+      puts "  Prize pool: #{result[:prize_pool]} lamports"
+    else
+      puts "No onchain data found"
+    end
+
+    if reconciler.discrepancies.any?
+      puts "\nDiscrepancies:"
+      reconciler.discrepancies.each { |d| puts "  #{d.to_json}" }
+    end
+  end
+
   desc "Test key encryption roundtrip"
   task test_encryption: :environment do
     keypair = Solana::Keypair.generate

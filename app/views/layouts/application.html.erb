@@ -30,6 +30,9 @@
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                   class="text-xs font-mono px-2 py-1 rounded-md border transition"
                   :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>
+          <% if Solana::Config.devnet? %>
+            <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
+          <% end %>
           <% if current_user&.admin? %>
             <% contest = Contest.order(created_at: :desc).first %>
             <% if contest %>
