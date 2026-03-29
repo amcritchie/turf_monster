@@ -20,7 +20,7 @@ class ContestMatchup < ApplicationRecord
 
   def compute_multiplier!
     return unless rank.present?
-    update!(multiplier: rank * 0.1)
+    update!(multiplier: (Math.sqrt(rank) * 0.5).round(1))
   end
 
   def name_slug

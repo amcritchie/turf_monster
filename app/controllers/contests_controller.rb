@@ -150,7 +150,7 @@ class ContestsController < ApplicationController
           matchup = @contest.contest_matchups.find_by(id: id)
           next unless matchup
           rank = index + 1
-          matchup.update!(rank: rank, multiplier: rank * 0.1)
+          matchup.update!(rank: rank, multiplier: (Math.sqrt(rank) * 0.5).round(1))
         end
       end
       redirect_to rank_matchups_contest_path(@contest), notice: "Rankings saved! Multipliers generated."

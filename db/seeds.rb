@@ -470,7 +470,7 @@ end
 # Default ranking: alphabetical by team name
 turf_totals.contest_matchups.includes(:team).sort_by { |m| m.team.name }.each_with_index do |matchup, i|
   rank = i + 1
-  matchup.update!(rank: rank, multiplier: rank * 0.1)
+  matchup.update!(rank: rank, multiplier: (Math.sqrt(rank) * 0.5).round(1))
 end
 
 puts "  Created #{ContestMatchup.where(contest: turf_totals).count} contest matchups with rankings"
