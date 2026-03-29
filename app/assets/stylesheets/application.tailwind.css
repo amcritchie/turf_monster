@@ -2,35 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Dark theme (default) */
+:root, .dark {
+  --color-page: #1A1535;
+  --color-surface: #3a3359;
+  --color-surface-alt: #16122e;
+  --color-inset: #0e0c20;
+  --color-text: #ffffff;
+  --color-text-body: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border: rgba(88,81,126,0.2);
+  --color-border-strong: rgba(88,81,126,0.4);
+  --color-shadow: transparent;
   --color-primary: #06D6A0;
   --color-primary-hover: #05b384;
-  --color-surface: #2a2545;
   --color-success: #06D6A0;
   --color-danger: #EF4444;
 }
 
+/* Light theme */
+html:not(.dark) {
+  --color-page: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f5f9;
+  --color-inset: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-body: #334155;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-shadow: rgba(0,0,0,0.05);
+}
+
 @layer components {
   .card {
-    @apply bg-navy-400 rounded-xl border border-navy-300/20;
+    @apply bg-surface rounded-xl border border-subtle;
   }
   .card-hover {
-    @apply bg-navy-400 rounded-xl border border-navy-300/20 hover:border-mint-700/50 hover:shadow-lg hover:shadow-mint-900/10 transition;
+    @apply bg-surface rounded-xl border border-subtle hover:border-mint-700/50 hover:shadow-lg hover:shadow-mint-900/10 transition;
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border;
   }
   .input-field {
-    @apply w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none;
+    @apply w-full bg-surface-alt border border-strong rounded-lg px-4 py-3 text-heading focus:border-mint focus:outline-none;
   }
   .empty-state {
-    @apply bg-navy-400 rounded-xl border border-navy-300/20 p-8 text-center;
+    @apply bg-surface rounded-xl border border-subtle p-8 text-center;
   }
   .json-debug {
-    @apply bg-navy-800 rounded-xl border border-navy-300/20 p-4 overflow-x-auto;
+    @apply bg-inset rounded-xl border border-subtle p-4 overflow-x-auto;
   }
   .label-upper {
-    @apply text-xs text-gray-500 uppercase tracking-wider;
+    @apply text-xs text-muted uppercase tracking-wider;
+  }
+
+  /* Theme transition (applied during toggle) */
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease !important;
   }
 }
 

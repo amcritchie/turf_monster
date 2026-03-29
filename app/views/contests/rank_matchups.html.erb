@@ -3,14 +3,14 @@
 <div class="max-w-3xl mx-auto py-8 px-2">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-white">Rank Matchups</h1>
-      <p class="text-sm text-gray-400 mt-1"><%= @contest.name %></p>
+      <h1 class="text-2xl font-bold text-heading">Rank Matchups</h1>
+      <p class="text-sm text-secondary mt-1"><%= @contest.name %></p>
     </div>
     <%= link_to "Back to Contest", contest_path(@contest),
       class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
   </div>
 
-  <p class="text-gray-400 text-sm mb-6">
+  <p class="text-secondary text-sm mb-6">
     Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier 0.5x). Rank 48 = weakest (highest multiplier 3.5x).
     Higher multiplier = more points when that team scores. Formula: &radic;rank &times; 0.5
   </p>
@@ -19,14 +19,14 @@
     <form @submit.prevent="saveRankings()">
       <div class="space-y-1" x-ref="sortableList">
         <% @matchups.each_with_index do |matchup, i| %>
-          <div class="flex items-center gap-3 bg-navy-400 rounded-lg px-4 py-3 border border-navy-300/20 cursor-grab active:cursor-grabbing sortable-item"
+          <div class="flex items-center gap-3 bg-surface rounded-lg px-4 py-3 border border-subtle cursor-grab active:cursor-grabbing sortable-item"
                data-matchup-id="<%= matchup.id %>">
-            <span class="font-mono text-gray-500 text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
+            <span class="font-mono text-muted text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
             <span class="text-lg"><%= matchup.team.emoji %></span>
             <div class="flex-1">
-              <span class="text-white font-semibold text-sm"><%= matchup.team.name %></span>
+              <span class="text-heading font-semibold text-sm"><%= matchup.team.name %></span>
               <% if matchup.opponent_team %>
-                <span class="text-gray-500 text-xs ml-1">vs <%= matchup.opponent_team.short_name %></span>
+                <span class="text-muted text-xs ml-1">vs <%= matchup.opponent_team.short_name %></span>
               <% end %>
             </div>
             <span class="font-mono text-violet text-sm w-12 text-right multiplier-display"><%= matchup.multiplier ? sprintf('%.1f', matchup.multiplier) : '—' %>x</span>

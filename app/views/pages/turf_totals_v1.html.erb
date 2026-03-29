@@ -13,185 +13,185 @@
     <div class="mb-4 flex items-center justify-center gap-3">
       <span class="px-3 py-1 bg-mint-900/30 text-mint text-xs font-bold uppercase tracking-widest rounded-full border border-mint-700">World Cup 2026</span>
     </div>
-    <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-2">
+    <h1 class="text-4xl md:text-6xl font-extrabold text-heading mb-2">
       Turf <span class="text-mint">Totals</span>
       <span class="ml-2 px-2 py-0.5 bg-violet/20 text-violet text-sm md:text-base font-mono rounded-md align-middle border border-violet/30">v1</span>
     </h1>
-    <p class="text-2xl md:text-3xl font-bold text-gray-300 mt-4 mb-3">Pick. Multiply. Get Paid.</p>
-    <p class="text-gray-400 text-lg max-w-xl mx-auto mb-8">
+    <p class="text-2xl md:text-3xl font-bold text-body mt-4 mb-3">Pick. Multiply. Get Paid.</p>
+    <p class="text-secondary text-lg max-w-xl mx-auto mb-8">
       Pick 5 team offensive matchups from the World Cup. Each team has a multiplier based on how good their offense is — weaker teams = higher multiplier = bigger payoff when they score.
     </p>
     <%= link_to "Start Playing", root_path, class: "inline-block px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold text-lg rounded-xl shadow-lg shadow-mint/20 transition" %>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 01 — THE BASICS ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">01</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">The Basics</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">The Basics</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
       Each matchup card represents one team's offensive performance in a specific game. Pick a team, and you're betting on them to score goals. The more goals they score, the more points you earn — multiplied by their ranking.
     </p>
 
     <!-- Mock matchup card -->
     <div class="max-w-xs mx-auto">
-      <div class="bg-navy-600/50 rounded-2xl border border-navy-300/10 p-6 text-center relative">
-        <span class="absolute top-3 right-3 text-[10px] font-mono text-gray-500">#42</span>
+      <div class="bg-surface-alt rounded-2xl border border-subtle p-6 text-center relative">
+        <span class="absolute top-3 right-3 text-[10px] font-mono text-muted">#42</span>
         <div class="flex items-center justify-center mb-2">
           <span class="text-3xl">&#127482;&#127480;</span>
         </div>
-        <p class="font-bold text-white text-lg mb-1">United States</p>
-        <p class="text-xs text-gray-500 mb-2">vs Brazil</p>
+        <p class="font-bold text-heading text-lg mb-1">United States</p>
+        <p class="text-xs text-muted mb-2">vs Brazil</p>
         <p class="font-mono text-3xl text-violet mb-1">4.2x</p>
-        <p class="text-xs text-gray-500">multiplier</p>
+        <p class="text-xs text-muted">multiplier</p>
       </div>
-      <p class="text-center text-gray-500 text-xs mt-3 italic">Example matchup card — not a live pick</p>
+      <p class="text-center text-muted text-xs mt-3 italic">Example matchup card — not a live pick</p>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 02 — YOUR ENTRY ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">02</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Your Entry</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
-      Each entry is <span class="text-white font-semibold">5 team picks</span>. Select 5 offensive matchups from the card grid, then hold-to-confirm. You can submit multiple entries with different combos.
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Your Entry</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
+      Each entry is <span class="text-heading font-semibold">5 team picks</span>. Select 5 offensive matchups from the card grid, then hold-to-confirm. You can submit multiple entries with different combos.
     </p>
 
     <!-- Mock pick slots -->
-    <div class="bg-navy-600/50 rounded-2xl border border-navy-300/10 p-6">
+    <div class="bg-surface-alt rounded-2xl border border-subtle p-6">
       <div class="grid grid-cols-5 gap-2">
-        <div class="bg-navy-400 rounded-xl p-3 text-center border border-mint/30">
+        <div class="card p-3 text-center border border-mint/30">
           <div class="text-lg mb-1">&#127482;&#127480;</div>
-          <p class="text-xs text-gray-400 mb-0.5">USA</p>
-          <p class="text-[10px] text-gray-500">vs BRA</p>
+          <p class="text-xs text-secondary mb-0.5">USA</p>
+          <p class="text-[10px] text-muted">vs BRA</p>
           <p class="font-mono text-xs text-violet mt-1">4.2x</p>
         </div>
-        <div class="bg-navy-400 rounded-xl p-3 text-center border border-mint/30">
+        <div class="card p-3 text-center border border-mint/30">
           <div class="text-lg mb-1">&#127469;&#127481;</div>
-          <p class="text-xs text-gray-400 mb-0.5">Haiti</p>
-          <p class="text-[10px] text-gray-500">vs SCO</p>
+          <p class="text-xs text-secondary mb-0.5">Haiti</p>
+          <p class="text-[10px] text-muted">vs SCO</p>
           <p class="font-mono text-xs text-violet mt-1">4.5x</p>
         </div>
-        <div class="bg-navy-400 rounded-xl p-3 text-center border border-mint/30">
+        <div class="card p-3 text-center border border-mint/30">
           <div class="text-lg mb-1">&#127464;&#127484;</div>
-          <p class="text-xs text-gray-400 mb-0.5">Cura&ccedil;ao</p>
-          <p class="text-[10px] text-gray-500">vs GER</p>
+          <p class="text-xs text-secondary mb-0.5">Cura&ccedil;ao</p>
+          <p class="text-[10px] text-muted">vs GER</p>
           <p class="font-mono text-xs text-violet mt-1">3.5x</p>
         </div>
-        <div class="bg-navy-400 rounded-xl p-3 text-center border border-mint/30">
+        <div class="card p-3 text-center border border-mint/30">
           <div class="text-lg mb-1">&#127475;&#127487;</div>
-          <p class="text-xs text-gray-400 mb-0.5">NZL</p>
-          <p class="text-[10px] text-gray-500">vs IRN</p>
+          <p class="text-xs text-secondary mb-0.5">NZL</p>
+          <p class="text-[10px] text-muted">vs IRN</p>
           <p class="font-mono text-xs text-violet mt-1">3.8x</p>
         </div>
-        <div class="bg-navy-400 rounded-xl p-3 text-center border border-mint/30">
+        <div class="card p-3 text-center border border-mint/30">
           <div class="text-lg mb-1">&#127464;&#127485;</div>
-          <p class="text-xs text-gray-400 mb-0.5">CPV</p>
-          <p class="text-[10px] text-gray-500">vs ESP</p>
+          <p class="text-xs text-secondary mb-0.5">CPV</p>
+          <p class="text-[10px] text-muted">vs ESP</p>
           <p class="font-mono text-xs text-violet mt-1">4.6x</p>
         </div>
       </div>
       <div class="mt-4 text-center">
-        <p class="text-gray-500 text-sm">Entry fee: <span class="font-mono text-white">$20.00</span></p>
+        <p class="text-muted text-sm">Entry fee: <span class="font-mono text-heading">$20.00</span></p>
       </div>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 03 — MULTIPLIER SCORING ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">03</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Multiplier Scoring</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
-      Every team is ranked 1–48 by offensive strength. The multiplier is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5</span>. Better offenses get lower multipliers, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-white font-semibold">goals scored &times; multiplier</span>.
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Multiplier Scoring</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
+      Every team is ranked 1–48 by offensive strength. The multiplier is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5</span>. Better offenses get lower multipliers, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-heading font-semibold">goals scored &times; multiplier</span>.
     </p>
 
     <!-- Three example cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-      <div class="rounded-xl p-5 text-center bg-navy-600/50 border border-navy-300/10">
-        <p class="text-sm text-gray-500 mb-1">Rank #1 (best offense)</p>
+      <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
+        <p class="text-sm text-muted mb-1">Rank #1 (best offense)</p>
         <p class="text-3xl font-mono font-bold text-violet mb-1">0.5x</p>
-        <p class="text-gray-400 text-xs">Low reward, high chance of goals</p>
+        <p class="text-secondary text-xs">Low reward, high chance of goals</p>
       </div>
-      <div class="rounded-xl p-5 text-center bg-navy-600/50 border border-navy-300/10">
-        <p class="text-sm text-gray-500 mb-1">Rank #24 (mid-tier)</p>
+      <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
+        <p class="text-sm text-muted mb-1">Rank #24 (mid-tier)</p>
         <p class="text-3xl font-mono font-bold text-violet mb-1">2.4x</p>
-        <p class="text-gray-400 text-xs">Balanced risk/reward</p>
+        <p class="text-secondary text-xs">Balanced risk/reward</p>
       </div>
-      <div class="rounded-xl p-5 text-center bg-navy-600/50 border border-navy-300/10">
-        <p class="text-sm text-gray-500 mb-1">Rank #48 (weakest offense)</p>
+      <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
+        <p class="text-sm text-muted mb-1">Rank #48 (weakest offense)</p>
         <p class="text-3xl font-mono font-bold text-violet mb-1">3.5x</p>
-        <p class="text-gray-400 text-xs">High reward if they score</p>
+        <p class="text-secondary text-xs">High reward if they score</p>
       </div>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 04 — SCORING EXAMPLE ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">04</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Scoring Example</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Scoring Example</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
       Here's how an entry might play out. You pick 5 teams, their games are played, and points are calculated.
     </p>
 
     <!-- Scoring example table -->
-    <div class="bg-navy-400 rounded-xl border border-navy-300/20 overflow-hidden">
+    <div class="card overflow-hidden">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-navy-300/20">
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Team</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Match</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Multi</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Goals</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Points</th>
+          <tr class="border-b border-subtle">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Team</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Match</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Multi</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Goals</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">Points</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-navy-300/10">
+        <tbody class="divide-y divide-subtle">
           <tr>
-            <td class="px-4 py-3 text-gray-300">&#127469;&#127481; Haiti</td>
-            <td class="px-4 py-3 text-center text-gray-500">vs Scotland</td>
+            <td class="px-4 py-3 text-body">&#127469;&#127481; Haiti</td>
+            <td class="px-4 py-3 text-center text-muted">vs Scotland</td>
             <td class="px-4 py-3 text-center font-mono text-violet">4.5x</td>
-            <td class="px-4 py-3 text-center text-white font-bold">2</td>
+            <td class="px-4 py-3 text-center text-heading font-bold">2</td>
             <td class="px-4 py-3 text-right font-mono text-mint font-bold">9.0</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">&#127464;&#127484; Cura&ccedil;ao</td>
-            <td class="px-4 py-3 text-center text-gray-500">vs Germany</td>
+            <td class="px-4 py-3 text-body">&#127464;&#127484; Cura&ccedil;ao</td>
+            <td class="px-4 py-3 text-center text-muted">vs Germany</td>
             <td class="px-4 py-3 text-center font-mono text-violet">3.5x</td>
-            <td class="px-4 py-3 text-center text-white font-bold">1</td>
+            <td class="px-4 py-3 text-center text-heading font-bold">1</td>
             <td class="px-4 py-3 text-right font-mono text-mint font-bold">4.8</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">&#127482;&#127480; USA</td>
-            <td class="px-4 py-3 text-center text-gray-500">vs Paraguay</td>
+            <td class="px-4 py-3 text-body">&#127482;&#127480; USA</td>
+            <td class="px-4 py-3 text-center text-muted">vs Paraguay</td>
             <td class="px-4 py-3 text-center font-mono text-violet">4.2x</td>
-            <td class="px-4 py-3 text-center text-white font-bold">3</td>
+            <td class="px-4 py-3 text-center text-heading font-bold">3</td>
             <td class="px-4 py-3 text-right font-mono text-mint font-bold">12.6</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">&#127475;&#127487; New Zealand</td>
-            <td class="px-4 py-3 text-center text-gray-500">vs Iran</td>
+            <td class="px-4 py-3 text-body">&#127475;&#127487; New Zealand</td>
+            <td class="px-4 py-3 text-center text-muted">vs Iran</td>
             <td class="px-4 py-3 text-center font-mono text-violet">3.8x</td>
-            <td class="px-4 py-3 text-center text-white font-bold">0</td>
-            <td class="px-4 py-3 text-right font-mono text-gray-500 font-bold">0.0</td>
+            <td class="px-4 py-3 text-center text-heading font-bold">0</td>
+            <td class="px-4 py-3 text-right font-mono text-muted font-bold">0.0</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">&#127464;&#127485; Cape Verde</td>
-            <td class="px-4 py-3 text-center text-gray-500">vs Spain</td>
+            <td class="px-4 py-3 text-body">&#127464;&#127485; Cape Verde</td>
+            <td class="px-4 py-3 text-center text-muted">vs Spain</td>
             <td class="px-4 py-3 text-center font-mono text-violet">4.6x</td>
-            <td class="px-4 py-3 text-center text-white font-bold">1</td>
+            <td class="px-4 py-3 text-center text-heading font-bold">1</td>
             <td class="px-4 py-3 text-right font-mono text-mint font-bold">4.6</td>
           </tr>
         </tbody>
         <tfoot>
-          <tr class="border-t-2 border-violet/30 bg-navy-600/50">
-            <td colspan="4" class="px-4 py-3 text-right text-white font-semibold">Total Score</td>
+          <tr class="border-t-2 border-violet/30 bg-surface-alt">
+            <td colspan="4" class="px-4 py-3 text-right text-heading font-semibold">Total Score</td>
             <td class="px-4 py-3 text-right font-mono text-xl text-violet font-bold">31.0</td>
           </tr>
         </tfoot>
@@ -199,141 +199,141 @@
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 05 — PAYOUTS ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">05</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Payouts</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Payouts</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
       Top 6 entries double their money. The highest scorer gets a $50 bonus on top. Ties split combined prizes evenly.
     </p>
 
     <!-- Payout table -->
-    <div class="bg-navy-400 rounded-xl border border-navy-300/20 overflow-hidden mb-6">
+    <div class="card overflow-hidden mb-6">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-navy-300/20">
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Place</th>
-            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Payout</th>
+          <tr class="border-b border-subtle">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Place</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">Payout</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-navy-300/10">
+        <tbody class="divide-y divide-subtle">
           <tr class="border-l-4 border-l-mint">
-            <td class="px-4 py-3 text-white font-semibold">1st Place</td>
+            <td class="px-4 py-3 text-heading font-semibold">1st Place</td>
             <td class="px-4 py-3 text-right font-mono text-mint font-bold text-lg">$90.00</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">2nd Place</td>
-            <td class="px-4 py-3 text-right font-mono text-white">$40.00</td>
+            <td class="px-4 py-3 text-body">2nd Place</td>
+            <td class="px-4 py-3 text-right font-mono text-heading">$40.00</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">3rd Place</td>
-            <td class="px-4 py-3 text-right font-mono text-white">$40.00</td>
+            <td class="px-4 py-3 text-body">3rd Place</td>
+            <td class="px-4 py-3 text-right font-mono text-heading">$40.00</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">4th Place</td>
-            <td class="px-4 py-3 text-right font-mono text-white">$40.00</td>
+            <td class="px-4 py-3 text-body">4th Place</td>
+            <td class="px-4 py-3 text-right font-mono text-heading">$40.00</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">5th Place</td>
-            <td class="px-4 py-3 text-right font-mono text-white">$40.00</td>
+            <td class="px-4 py-3 text-body">5th Place</td>
+            <td class="px-4 py-3 text-right font-mono text-heading">$40.00</td>
           </tr>
           <tr>
-            <td class="px-4 py-3 text-gray-300">6th Place</td>
-            <td class="px-4 py-3 text-right font-mono text-white">$40.00</td>
+            <td class="px-4 py-3 text-body">6th Place</td>
+            <td class="px-4 py-3 text-right font-mono text-heading">$40.00</td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div class="grid grid-cols-2 gap-4 text-center text-sm">
-      <div class="bg-navy-600/50 rounded-lg p-3">
-        <p class="text-gray-500 mb-1">1st place bonus</p>
+      <div class="bg-surface-alt rounded-lg p-3">
+        <p class="text-muted mb-1">1st place bonus</p>
         <p class="font-mono text-mint font-bold">+$50.00</p>
       </div>
-      <div class="bg-navy-600/50 rounded-lg p-3">
-        <p class="text-gray-500 mb-1">Total prizes</p>
+      <div class="bg-surface-alt rounded-lg p-3">
+        <p class="text-muted mb-1">Total prizes</p>
         <p class="font-mono text-mint font-bold">$290.00</p>
       </div>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 06 — PER-GAME LOCK ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">06</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Per-Game Lock</h2>
-    <p class="text-gray-400 text-base md:text-lg leading-relaxed mb-8">
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Per-Game Lock</h2>
+    <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
       Each selection locks when its specific game kicks off — not all at once. You can change or swap picks for games that haven't started yet, even after confirming your entry.
     </p>
 
-    <div class="bg-navy-600 rounded-xl border border-violet/30 p-6">
-      <p class="text-white font-semibold mb-3">Example</p>
-      <p class="text-gray-400 text-sm leading-relaxed">
+    <div class="bg-surface-alt rounded-xl border border-violet/30 p-6">
+      <p class="text-heading font-semibold mb-3">Example</p>
+      <p class="text-secondary text-sm leading-relaxed">
         You picked USA (3pm game) and Haiti (9pm game). At 3:01pm, your USA pick is locked — but you can still swap Haiti for another team until 9pm.
       </p>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== 07 — QUICK REFERENCE ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-mint font-mono text-sm mb-2">07</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-white mb-4">Quick Reference</h2>
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Quick Reference</h2>
 
-    <div class="bg-navy-400 rounded-xl border-2 border-violet/50 p-6 shadow-lg shadow-violet/10">
+    <div class="card border-2 border-violet/50 p-6 shadow-lg shadow-violet/10">
       <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-        <div class="text-gray-400">Picks per entry</div>
-        <div class="font-mono text-white text-right">5 teams</div>
+        <div class="text-secondary">Picks per entry</div>
+        <div class="font-mono text-heading text-right">5 teams</div>
 
-        <div class="text-gray-400">Scoring</div>
-        <div class="text-right text-white">Goals &times; Multiplier</div>
+        <div class="text-secondary">Scoring</div>
+        <div class="text-right text-heading">Goals &times; Multiplier</div>
 
-        <div class="text-gray-400">Multiplier range</div>
+        <div class="text-secondary">Multiplier range</div>
         <div class="font-mono text-violet text-right">0.5x – 3.5x</div>
 
-        <div class="text-gray-400">Multiplier formula</div>
+        <div class="text-secondary">Multiplier formula</div>
         <div class="font-mono text-violet text-right">&radic;Rank &times; 0.5</div>
 
-        <div class="col-span-2 border-t border-navy-300/20 my-1"></div>
+        <div class="col-span-2 border-t border-subtle my-1"></div>
 
-        <div class="text-gray-400">1st place</div>
+        <div class="text-secondary">1st place</div>
         <div class="font-mono text-mint font-bold text-right">$40 + $50 bonus</div>
 
-        <div class="text-gray-400">2nd–6th place</div>
-        <div class="font-mono text-white text-right">$40.00 each</div>
+        <div class="text-secondary">2nd–6th place</div>
+        <div class="font-mono text-heading text-right">$40.00 each</div>
 
-        <div class="text-gray-400">Total prizes</div>
+        <div class="text-secondary">Total prizes</div>
         <div class="font-mono text-mint font-bold text-right">$290.00</div>
 
-        <div class="col-span-2 border-t border-navy-300/20 my-1"></div>
+        <div class="col-span-2 border-t border-subtle my-1"></div>
 
-        <div class="text-gray-400">Entry fee</div>
-        <div class="font-mono text-white text-right">$20.00</div>
+        <div class="text-secondary">Entry fee</div>
+        <div class="font-mono text-heading text-right">$20.00</div>
 
-        <div class="text-gray-400">Max entries</div>
-        <div class="font-mono text-white text-right">15</div>
+        <div class="text-secondary">Max entries</div>
+        <div class="font-mono text-heading text-right">15</div>
 
-        <div class="text-gray-400">Multiple entries</div>
-        <div class="text-white text-right">Allowed</div>
+        <div class="text-secondary">Multiple entries</div>
+        <div class="text-heading text-right">Allowed</div>
 
-        <div class="text-gray-400">Ties</div>
-        <div class="text-white text-right">Split evenly</div>
+        <div class="text-secondary">Ties</div>
+        <div class="text-heading text-right">Split evenly</div>
 
-        <div class="text-gray-400">Lock</div>
-        <div class="text-white text-right">Per-game kickoff</div>
+        <div class="text-secondary">Lock</div>
+        <div class="text-heading text-right">Per-game kickoff</div>
       </div>
     </div>
   </section>
 
-  <hr class="border-navy-300/20 my-10">
+  <hr class="border-subtle my-10">
 
   <!-- ========== FOOTER CTA ========== -->
   <section class="text-center py-8">
-    <p class="text-2xl md:text-3xl font-bold text-white mb-6">Ready to play?</p>
+    <p class="text-2xl md:text-3xl font-bold text-heading mb-6">Ready to play?</p>
     <%= link_to "Start Playing", root_path, class: "inline-block px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold text-lg rounded-xl shadow-lg shadow-mint/20 transition" %>
   </section>
 

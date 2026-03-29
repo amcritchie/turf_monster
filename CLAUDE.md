@@ -96,16 +96,17 @@ end
 
 **Updating:** After changes to the studio repo, run `bundle update studio` here.
 
-## Branding
+## Branding & Theme
 
-- **Primary**: `#06D6A0` Mint — used for OVER, positive values, balances, CTAs, success states
-- **Background**: `#1A1535` Deep Navy — body bg, card bg uses navy-400/navy-600
-- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, wallet connect button
-- **Text**: `#FFFFFF` White — headings, primary text
-- **Negative**: Red (Tailwind default) — UNDER, losses
+- **Theme**: Dark/light mode toggle via CSS custom properties (see top-level `CLAUDE.md` for token reference)
+- **Primary**: `#06D6A0` Mint — OVER, positive values, balances, CTAs, success states (static, works on both themes)
+- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, wallet connect button (static)
+- **Negative**: Red (Tailwind default) — UNDER, losses (static)
 - **Font**: Montserrat (all weights 400-900)
 - **Logo**: Two files exist — `/public/logo.png` (1.3MB, used in layout navbar) and `/public/logo.jpeg` (272KB, used in auth pages). Both are the green monster mascot. Should be consolidated to one file.
-- Tailwind custom colors defined in layout: `mint`, `navy`, `violet` with full shade scales
+- **Surfaces**: Use `bg-page`, `bg-surface`, `bg-surface-alt`, `bg-inset` — never hardcode `bg-navy-*`
+- **Text**: Use `text-heading`, `text-body`, `text-secondary`, `text-muted` — never hardcode `text-white` for headings or `text-gray-*` for body text
+- **Borders**: Use `border-subtle`, `border-strong` — never hardcode `border-navy-*`
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 
 ## Architecture
@@ -119,7 +120,7 @@ end
 - Every page shows JSON debug block of its primary record
 - Every model has a `slug` column — human-readable identifier set via `Sluggable` concern (from studio engine) + `name_slug` method
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
-- Cart pick slots extracted to `_cart_pick_slots` partial (shared between desktop sidebar and mobile bottom sheet)
+- Cart pick slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
 - **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries). Fresh DB via `db:drop db:create db:migrate db:seed`.
 
@@ -228,12 +229,16 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## UI
 
-- Dark mode default (html class="dark"), navy background
+- Dark/light mode toggle — dark is default, toggle in navbar. Uses semantic tokens (see Branding & Theme section)
 - Mint = OVER/positive, Red = UNDER/negative, Violet = accents/lines/wallet button
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
-- Cards: rounded-xl, shadow, hover:shadow-mint/10, border border-navy-300/20
-- JSON blocks: bg-navy-800, text-mint, font-mono
+- Cards: `.card` class (bg-surface, border-subtle), `.card-hover` for interactive cards
+- JSON blocks: `.json-debug` class (bg-inset, border-subtle), text-mint, font-mono
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
+- **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):
+  - **Game view** (default): Paired cards with "vs" divider, sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected ring effect (mint glow) when both sides of a game are picked.
+  - **Multiplier view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by multiplier. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Multiplier" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
+  - Both views share the same Alpine `selections` state — picks persist across view switches.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
 - **Wallet connect** (`_wallet_connect.html.erb`): Alpine component with states: Connect Wallet → Connecting → Sign message → Verifying → redirect. Accepts `link_mode` local for /account use.
 - **Navbar**: Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected. Admin-only red Reset button next to DEV toggle.

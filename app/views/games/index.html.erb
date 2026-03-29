@@ -1,7 +1,7 @@
 <section class="mb-6">
   <div class="flex items-center justify-between mb-6">
-    <h2 class="text-2xl font-bold text-white">Games</h2>
-    <span class="text-sm text-gray-500"><%= @games.size %> games</span>
+    <h2 class="text-2xl font-bold text-heading">Games</h2>
+    <span class="text-sm text-muted"><%= @games.size %> games</span>
   </div>
 
   <% if @games.empty? %>
@@ -18,8 +18,8 @@
               <% end %>
               <span class="text-xl"><%= game.home_team.emoji %></span>
               <div class="min-w-0">
-                <p class="text-white font-semibold truncate"><%= game.home_team.name %></p>
-                <p class="text-xs text-gray-500 font-mono"><%= game.home_team.short_name %></p>
+                <p class="text-heading font-semibold truncate"><%= game.home_team.name %></p>
+                <p class="text-xs text-muted font-mono"><%= game.home_team.short_name %></p>
               </div>
             </div>
 
@@ -30,18 +30,18 @@
                   <%= game.home_score %> - <%= game.away_score %>
                 </p>
               <% else %>
-                <p class="text-sm font-bold text-gray-500">VS</p>
+                <p class="text-sm font-bold text-muted">VS</p>
               <% end %>
               <% if game.kickoff_at.present? %>
-                <p class="text-xs text-gray-500 mt-0.5"><%= game.kickoff_at.strftime("%b %-d, %l:%M %p") %></p>
+                <p class="text-xs text-muted mt-0.5"><%= game.kickoff_at.strftime("%b %-d, %l:%M %p") %></p>
               <% end %>
             </div>
 
             <!-- Away Team -->
             <div class="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
               <div class="min-w-0">
-                <p class="text-white font-semibold truncate"><%= game.away_team.name %></p>
-                <p class="text-xs text-gray-500 font-mono"><%= game.away_team.short_name %></p>
+                <p class="text-heading font-semibold truncate"><%= game.away_team.name %></p>
+                <p class="text-xs text-muted font-mono"><%= game.away_team.short_name %></p>
               </div>
               <span class="text-xl"><%= game.away_team.emoji %></span>
               <% if game.away_team.color_primary.present? %>
@@ -51,9 +51,9 @@
           </div>
 
           <!-- Footer: venue + status -->
-          <div class="flex items-center justify-between mt-3 pt-2 border-t border-navy-300/10">
+          <div class="flex items-center justify-between mt-3 pt-2 border-t border-subtle">
             <% if game.venue.present? %>
-              <span class="text-xs text-gray-500"><%= game.venue %></span>
+              <span class="text-xs text-muted"><%= game.venue %></span>
             <% end %>
             <%
               game_scheme = case game.status

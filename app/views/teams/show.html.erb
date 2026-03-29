@@ -1,19 +1,19 @@
 <section>
   <div class="mb-6">
-    <%= link_to "&larr; All Teams".html_safe, teams_path, class: "text-gray-400 hover:text-white text-sm transition" %>
+    <%= link_to "&larr; All Teams".html_safe, teams_path, class: "text-secondary hover:text-heading text-sm transition" %>
   </div>
 
   <div class="card p-6 mb-6">
     <div class="flex items-center gap-4 mb-4">
       <span class="text-4xl"><%= @team.emoji %></span>
       <div>
-        <h2 class="text-2xl font-bold text-white"><%= @team.name %></h2>
+        <h2 class="text-2xl font-bold text-heading"><%= @team.name %></h2>
         <div class="flex items-center gap-3 mt-1">
           <% if @team.short_name.present? %>
-            <span class="text-sm text-gray-400 font-mono"><%= @team.short_name %></span>
+            <span class="text-sm text-secondary font-mono"><%= @team.short_name %></span>
           <% end %>
           <% if @team.location.present? %>
-            <span class="text-sm text-gray-500"><%= @team.location %></span>
+            <span class="text-sm text-muted"><%= @team.location %></span>
           <% end %>
         </div>
       </div>
@@ -30,7 +30,7 @@
 
   <% if @team.players.any? %>
     <div class="mb-6">
-      <h3 class="text-lg font-bold text-white mb-3">Players (<%= @team.players.count %>)</h3>
+      <h3 class="text-lg font-bold text-heading mb-3">Players (<%= @team.players.count %>)</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <% @team.players.order(:name).each do |player| %>
           <div class="card p-3 flex items-center gap-3">
@@ -38,9 +38,9 @@
               <span class="text-violet-500 font-bold font-mono text-sm w-6 text-right">#<%= player.jersey_number %></span>
             <% end %>
             <div class="flex-1 min-w-0">
-              <p class="text-white text-sm font-semibold truncate"><%= player.name %></p>
+              <p class="text-heading text-sm font-semibold truncate"><%= player.name %></p>
               <% if player.position.present? %>
-                <p class="text-gray-500 text-xs"><%= player.position %></p>
+                <p class="text-muted text-xs"><%= player.position %></p>
               <% end %>
             </div>
           </div>
@@ -52,20 +52,20 @@
   <% games = (@team.home_games + @team.away_games).sort_by(&:kickoff_at) %>
   <% if games.any? %>
     <div class="mb-6">
-      <h3 class="text-lg font-bold text-white mb-3">Games (<%= games.count %>)</h3>
+      <h3 class="text-lg font-bold text-heading mb-3">Games (<%= games.count %>)</h3>
       <div class="space-y-2">
         <% games.each do |game| %>
           <div class="card p-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-sm"><%= game.home_team&.emoji %></span>
-              <span class="text-white text-sm font-semibold"><%= game.home_team&.short_name || game.home_team_slug %></span>
-              <span class="text-gray-500 text-xs">vs</span>
-              <span class="text-white text-sm font-semibold"><%= game.away_team&.short_name || game.away_team_slug %></span>
+              <span class="text-heading text-sm font-semibold"><%= game.home_team&.short_name || game.home_team_slug %></span>
+              <span class="text-muted text-xs">vs</span>
+              <span class="text-heading text-sm font-semibold"><%= game.away_team&.short_name || game.away_team_slug %></span>
               <span class="text-sm"><%= game.away_team&.emoji %></span>
             </div>
             <div class="text-right">
-              <p class="text-xs text-gray-500"><%= game.kickoff_at&.strftime("%b %d, %Y") %></p>
-              <p class="text-xs text-gray-600"><%= game.venue %></p>
+              <p class="text-xs text-muted"><%= game.kickoff_at&.strftime("%b %d, %Y") %></p>
+              <p class="text-xs text-muted"><%= game.venue %></p>
             </div>
           </div>
         <% end %>

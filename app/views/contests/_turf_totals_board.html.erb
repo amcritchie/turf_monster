@@ -20,50 +20,63 @@
   <div class="transition-all duration-300"
        :class="{ 'blur-sm select-none opacity-60': selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed }">
 
-  <!-- Matchup Cards Grid (paired by game) -->
+  <!-- Sort toggle + Matchup Cards -->
   <%
-    # Group matchups by game, pair them, sort by lower multiplier
+    # Game pairs: group by game, sort by lower multiplier
     game_pairs = @matchups.group_by(&:game_slug).values.select { |pair| pair.size == 2 }
     game_pairs.each { |pair| pair.sort_by! { |m| m.multiplier || 999 } }
     game_pairs.sort_by! { |pair| pair.first.multiplier || 999 }
+
+    # Flat matchups sorted by multiplier (asc and desc)
+    matchups_asc = @matchups.sort_by { |m| m.multiplier || 999 }
+    matchups_desc = matchups_asc.reverse
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-48 md:pb-0': selectionCount > 0 }">
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-heading">Pick <%= @contest.picks_required %> Teams</h2>
+      <p class="text-sm text-secondary mt-1">Choose the teams you think will score the most total goals. Higher multipliers = higher risk, higher reward.</p>
+      <p class="text-xs text-muted mt-1">Example: Belgium scores 3 goals &times; 1.1x multiplier = 3.3 points</p>
+    </div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-semibold text-gray-300">Pick 5 Teams</h2>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-muted font-medium">Sort by</span>
+        <button @click="toggleSort('game')"
+                class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
+                :class="sortMode === 'game' ? 'bg-violet text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+          Game
+        </button>
+        <button @click="toggleSort('multiplier')"
+                class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-1"
+                :class="sortMode === 'multiplier' ? 'bg-violet text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+          Multiplier
+          <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
+        </button>
+      </div>
       <% if current_user&.admin? %>
         <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
           class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
       <% end %>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+
+    <!-- Game view: paired cards -->
+    <div x-show="sortMode === 'game'" class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
       <% game_pairs.each do |pair| %>
         <% left, right = pair %>
-        <% locked = left.locked? %>
-        <div class="flex rounded-xl overflow-hidden shadow <%= locked ? 'opacity-50' : '' %>">
-          <% [left, right].each_with_index do |matchup, side| %>
-            <button @click="toggleSelection('<%= matchup.id %>')"
-                    class="relative flex-1 bg-navy-400 p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl border-r' : 'rounded-r-xl border-l' %>"
-                    :class="{
-                      'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'],
-                      'border-navy-300/20 hover:bg-navy-300/10': !selections['<%= matchup.id %>']
-                    }"
-                    <% if locked %>disabled<% end %>>
-              <% if locked && side == 0 %>
-                <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
-              <% end %>
-              <span class="text-xl md:text-2xl block mb-1"><%= matchup.team.emoji %></span>
-              <p class="font-bold text-white text-sm md:text-base mb-0.5 truncate"><%= matchup.team.name %></p>
-              <% if matchup.multiplier %>
-                <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
-              <% end %>
-            </button>
-            <% if side == 0 %>
-              <div class="flex items-center self-stretch px-2 bg-navy-200">
-                <span class="text-[10px] font-bold text-slate">v</span>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
+        <%= render "contests/matchup_game_pair", left: left, right: right, locked: left.locked? %>
+      <% end %>
+    </div>
+
+    <!-- Multiplier view: flat grid, ascending -->
+    <div x-show="sortMode === 'multiplier' && sortDir === 'asc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <% matchups_asc.each do |matchup| %>
+        <%= render "contests/matchup_card", matchup: matchup %>
+      <% end %>
+    </div>
+
+    <!-- Multiplier view: flat grid, descending -->
+    <div x-show="sortMode === 'multiplier' && sortDir === 'desc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <% matchups_desc.each do |matchup| %>
+        <%= render "contests/matchup_card", matchup: matchup %>
       <% end %>
     </div>
   </section>
@@ -73,8 +86,8 @@
     <div class="card shadow p-4 md:p-6">
       <div class="flex justify-between items-start mb-4">
         <div>
-          <h2 class="text-xl md:text-2xl font-bold text-white"><%= @contest.name %></h2>
-          <p class="text-sm text-gray-400 mt-1">
+          <h2 class="text-xl md:text-2xl font-bold text-heading"><%= @contest.name %></h2>
+          <p class="text-sm text-secondary mt-1">
             <% if @contest.starts_at %>
               Starts: <%= @contest.starts_at.strftime("%b %d, %Y %I:%M %p") %>
             <% end %>
@@ -93,17 +106,17 @@
         </span>
       </div>
       <div class="grid grid-cols-3 gap-3 md:gap-4 text-center">
-        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+        <div class="bg-surface-alt rounded-lg p-2 md:p-3">
           <p class="label-upper">Entry Fee</p>
-          <p class="font-mono text-base md:text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
+          <p class="font-mono text-base md:text-lg text-heading">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
         </div>
-        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+        <div class="bg-surface-alt rounded-lg p-2 md:p-3">
           <p class="label-upper">Pool</p>
           <p class="font-mono text-base md:text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
         </div>
-        <div class="bg-navy-600 rounded-lg p-2 md:p-3">
+        <div class="bg-surface-alt rounded-lg p-2 md:p-3">
           <p class="label-upper">Entries</p>
-          <p class="font-mono text-base md:text-lg text-white"><%= @entries.count %></p>
+          <p class="font-mono text-base md:text-lg text-heading"><%= @entries.count %></p>
         </div>
       </div>
       <div class="mt-4 text-center">
@@ -119,8 +132,8 @@
       <div class="card shadow p-4 hover:shadow-lg hover:shadow-mint/10 transition-all max-w-md">
         <div class="flex justify-between items-center">
           <div>
-            <p class="font-bold text-white"><%= current_user.display_name %></p>
-            <p class="text-sm text-gray-400"><%= current_user.email %></p>
+            <p class="font-bold text-heading"><%= current_user.display_name %></p>
+            <p class="text-sm text-secondary"><%= current_user.email %></p>
           </div>
           <div class="text-right">
             <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></p>
@@ -148,23 +161,23 @@
        x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-       class="hidden md:flex fixed top-0 right-0 h-full w-80 bg-navy-400 border-l border-navy-300/20 shadow-2xl z-40 flex-col">
+       class="hidden md:flex fixed top-0 right-0 h-full w-80 bg-surface border-l border-subtle shadow-2xl z-40 flex-col">
     <div class="flex flex-col h-full">
       <!-- Cart header -->
-      <div class="flex items-center justify-between p-4 border-b border-navy-300/20">
-        <h3 class="text-lg font-bold text-white">Your Picks</h3>
+      <div class="flex items-center justify-between p-4 border-b border-subtle">
+        <h3 class="text-lg font-bold text-heading">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-                :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+                :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
             <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
           </span>
-          <button @click="cartOpen = false" class="text-gray-400 hover:text-white transition text-xl leading-none">&times;</button>
+          <button @click="cartOpen = false" class="text-secondary hover:text-heading transition text-xl leading-none">&times;</button>
         </div>
       </div>
       <!-- Pick slots -->
       <%= render "contests/turf_totals_cart_slots" %>
       <!-- Clear / Confirm buttons -->
-      <div class="p-4 border-t border-navy-300/20 space-y-2">
+      <div class="p-4 border-t border-subtle space-y-2">
         <div x-show="selectionCount === <%= @contest.picks_required %>" x-transition>
         <%= render 'shared/hold_button',
           default_text: "Hold to Confirm",
@@ -176,7 +189,7 @@
           on_success: "d.confirmEntry()" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
-                class="w-full py-2 text-sm font-semibold text-gray-400 hover:text-red-400 transition">
+                class="w-full py-2 text-sm font-semibold text-secondary hover:text-red-400 transition">
           Clear All
         </button>
       </div>
@@ -189,12 +202,12 @@
        x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
        x-transition:leave="transition ease-in duration-150"
        x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-       class="md:hidden fixed bottom-0 left-0 right-0 bg-navy-400 border-t border-navy-300/20 shadow-2xl z-40 rounded-t-xl">
+       class="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-subtle shadow-2xl z-40 rounded-t-xl">
     <!-- Header -->
     <div class="flex items-center justify-between px-4 pt-3 pb-2">
-      <h3 class="text-sm font-bold text-white">Your Picks</h3>
+      <h3 class="text-sm font-bold text-heading">Your Picks</h3>
       <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-navy-600 text-gray-400'">
+            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
         <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
       </span>
     </div>
@@ -203,25 +216,25 @@
       <template x-for="i in <%= @contest.picks_required %>" :key="i">
         <div class="flex-1 min-w-0">
           <template x-if="selectionSlots[i-1]">
-            <div class="bg-navy-600 rounded-lg px-2 py-2 border border-mint-700 text-center relative"
+            <div class="bg-surface-alt rounded-lg px-2 py-2 border border-mint-700 text-center relative"
                  :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
               <template x-if="selectionSlots[i-1].emoji">
                 <div class="text-xs mb-0.5">
                   <span x-text="selectionSlots[i-1].emoji"></span>
                 </div>
               </template>
-              <p class="text-white font-semibold text-xs truncate" x-text="selectionSlots[i-1].name"></p>
+              <p class="text-heading font-semibold text-xs truncate" x-text="selectionSlots[i-1].name"></p>
               <template x-if="selectionSlots[i-1].opName">
-                <p class="text-gray-500 text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
+                <p class="text-muted text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
               </template>
               <p class="text-violet font-mono text-[10px] mt-0.5" x-text="selectionSlots[i-1].multiplier + 'x'"></p>
               <button @click="removeSelection(selectionSlots[i-1].matchupId)"
-                      class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-navy-400 border border-navy-300/30 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
+                      class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
             </div>
           </template>
           <template x-if="!selectionSlots[i-1]">
-            <div class="border border-dashed border-navy-300/20 rounded-lg px-2 py-4 text-center">
-              <p class="text-gray-600 text-xs">Pick <span x-text="i"></span></p>
+            <div class="border border-dashed border-strong rounded-lg px-2 py-4 text-center">
+              <p class="text-muted text-xs">Pick <span x-text="i"></span></p>
             </div>
           </template>
         </div>
@@ -240,7 +253,7 @@
           on_success: "d.confirmEntry()" %>
       </div>
       <button @click="clearSelections()"
-              class="w-full py-1.5 text-xs font-semibold text-gray-400 hover:text-red-400 transition">
+              class="w-full py-1.5 text-xs font-semibold text-secondary hover:text-red-400 transition">
         Clear All
       </button>
     </div>
@@ -296,6 +309,17 @@
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
       picksRequired: <%= @contest.picks_required %>,
+      sortMode: 'game',
+      sortDir: 'asc',
+
+      toggleSort(mode) {
+        if (mode === 'multiplier' && this.sortMode === 'multiplier') {
+          this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          this.sortMode = mode;
+          this.sortDir = 'asc';
+        }
+      },
 
       get selectionCount() {
         return Object.keys(this.selections).length;

@@ -2,7 +2,7 @@
   <template x-for="i in <%= @contest.picks_required %>" :key="i">
     <div>
       <template x-if="selectionSlots[i-1]">
-        <div class="bg-navy-600 rounded-xl p-3 border border-mint-700 transition"
+        <div class="bg-surface-alt rounded-xl p-3 border border-mint-700 transition"
              :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -10,23 +10,23 @@
                 <span class="text-lg" x-text="selectionSlots[i-1].emoji"></span>
               </template>
               <div>
-                <p class="text-white font-semibold text-sm" x-text="selectionSlots[i-1].name"></p>
+                <p class="text-heading font-semibold text-sm" x-text="selectionSlots[i-1].name"></p>
                 <p class="text-xs mt-0.5">
                   <template x-if="selectionSlots[i-1].opName">
-                    <span class="text-gray-500">vs <span x-text="selectionSlots[i-1].opName"></span></span>
+                    <span class="text-muted">vs <span x-text="selectionSlots[i-1].opName"></span></span>
                   </template>
                   <span class="text-violet font-mono ml-1" x-text="selectionSlots[i-1].multiplier + 'x'"></span>
                 </p>
               </div>
             </div>
             <button @click="removeSelection(selectionSlots[i-1].matchupId)"
-                    class="text-gray-500 hover:text-red-400 transition text-lg leading-none">&times;</button>
+                    class="text-muted hover:text-red-400 transition text-lg leading-none">&times;</button>
           </div>
         </div>
       </template>
       <template x-if="!selectionSlots[i-1]">
-        <div class="border-2 border-dashed border-navy-300/20 rounded-xl p-3 text-center">
-          <p class="text-gray-600 text-sm">Pick <span x-text="i"></span></p>
+        <div class="border-2 border-dashed border-strong rounded-xl p-3 text-center">
+          <p class="text-muted text-sm">Pick <span x-text="i"></span></p>
         </div>
       </template>
     </div>

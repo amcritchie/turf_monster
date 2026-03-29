@@ -6,25 +6,25 @@
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
       <img src="/logo.png" alt="Turf Monster" class="w-20 h-20 rounded-full shadow-lg mx-auto mb-4">
-      <h1 class="text-3xl font-extrabold text-white tracking-tight">Turf <span class="text-mint">Monster</span></h1>
-      <p class="text-gray-400 mt-2">Log in to play</p>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-mint">Monster</span></h1>
+      <p class="text-secondary mt-2">Log in to play</p>
     </div>
 
-    <div class="bg-navy-400 rounded-xl shadow p-8 border border-navy-300/20">
+    <div class="card shadow p-8">
       <%= render "sessions/sso_continue" %>
 
       <%= form_tag login_path, method: :post do %>
         <div class="mb-5">
-          <label for="email" class="block text-sm text-gray-400 mb-2 font-medium">Email</label>
+          <label for="email" class="block text-sm text-secondary mb-2 font-medium">Email</label>
           <input type="email" name="email" id="email" value="<%= params[:email] %>" autofocus
-            class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none"
+            class="input-field"
             placeholder="you@example.com">
         </div>
 
         <div class="mb-6">
-          <label for="password" class="block text-sm text-gray-400 mb-2 font-medium">Password</label>
+          <label for="password" class="block text-sm text-secondary mb-2 font-medium">Password</label>
           <input type="password" name="password" id="password"
-            class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none"
+            class="input-field"
             placeholder="Your password">
         </div>
 
@@ -34,8 +34,8 @@
       <% end %>
 
       <div class="relative my-6">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-navy-300/30"></div></div>
-        <div class="relative flex justify-center text-sm"><span class="bg-navy-400 px-3 text-gray-400">or</span></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-strong"></div></div>
+        <div class="relative flex justify-center text-sm"><span class="bg-surface px-3 text-secondary">or</span></div>
       </div>
 
       <%= button_to "/auth/google_oauth2", method: :post, data: { turbo: false },
@@ -48,7 +48,7 @@
         <%= render "shared/wallet_connect" %>
       </div>
 
-      <p class="text-center text-gray-400 text-sm mt-6">
+      <p class="text-center text-secondary text-sm mt-6">
         Don't have an account?
         <%= link_to "Sign up", signup_path, class: "text-violet hover:text-violet-300 font-medium underline underline-offset-2" %>
       </p>

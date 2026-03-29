@@ -3,22 +3,22 @@
 <% end %>
 
 <div class="max-w-2xl mx-auto">
-  <h1 class="text-2xl font-extrabold text-white mb-8">Account Settings</h1>
+  <h1 class="text-2xl font-extrabold text-heading mb-8">Account Settings</h1>
 
-  <%# ── Profile ── %>
-  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20 mb-6">
-    <h2 class="text-lg font-bold text-white mb-4">Profile</h2>
+  <%# -- Profile -- %>
+  <div class="card shadow p-6 mb-6">
+    <h2 class="text-lg font-bold text-heading mb-4">Profile</h2>
     <%= form_with model: @user, url: account_path, method: :patch do |f| %>
       <div class="mb-4">
-        <label for="user_name" class="block text-sm text-gray-400 mb-2 font-medium">Display Name</label>
+        <label for="user_name" class="block text-sm text-secondary mb-2 font-medium">Display Name</label>
         <%= f.text_field :name, id: "user_name",
-          class: "w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none",
+          class: "input-field",
           placeholder: "Your display name" %>
       </div>
       <div class="mb-4">
-        <label for="user_email" class="block text-sm text-gray-400 mb-2 font-medium">Email</label>
+        <label for="user_email" class="block text-sm text-secondary mb-2 font-medium">Email</label>
         <%= f.email_field :email, id: "user_email",
-          class: "w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none",
+          class: "input-field",
           placeholder: "you@example.com" %>
       </div>
       <button type="submit" class="px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-lg transition">
@@ -27,28 +27,28 @@
     <% end %>
   </div>
 
-  <%# ── Password ── %>
-  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20 mb-6">
-    <h2 class="text-lg font-bold text-white mb-4"><%= @user.has_password? ? "Change Password" : "Set Password" %></h2>
+  <%# -- Password -- %>
+  <div class="card shadow p-6 mb-6">
+    <h2 class="text-lg font-bold text-heading mb-4"><%= @user.has_password? ? "Change Password" : "Set Password" %></h2>
     <%= form_tag change_password_account_path, method: :post do %>
       <% if @user.has_password? %>
         <div class="mb-4">
-          <label for="current_password" class="block text-sm text-gray-400 mb-2 font-medium">Current Password</label>
+          <label for="current_password" class="block text-sm text-secondary mb-2 font-medium">Current Password</label>
           <input type="password" name="current_password" id="current_password"
-            class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none"
+            class="input-field"
             placeholder="Current password">
         </div>
       <% end %>
       <div class="mb-4">
-        <label for="new_password" class="block text-sm text-gray-400 mb-2 font-medium">New Password</label>
+        <label for="new_password" class="block text-sm text-secondary mb-2 font-medium">New Password</label>
         <input type="password" name="new_password" id="new_password"
-          class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none"
+          class="input-field"
           placeholder="New password (min 6 chars)">
       </div>
       <div class="mb-4">
-        <label for="new_password_confirmation" class="block text-sm text-gray-400 mb-2 font-medium">Confirm New Password</label>
+        <label for="new_password_confirmation" class="block text-sm text-secondary mb-2 font-medium">Confirm New Password</label>
         <input type="password" name="new_password_confirmation" id="new_password_confirmation"
-          class="w-full bg-navy-600 border border-navy-300/30 rounded-lg px-4 py-3 text-white focus:border-mint focus:outline-none"
+          class="input-field"
           placeholder="Confirm new password">
       </div>
       <button type="submit" class="px-6 py-2 bg-violet hover:bg-violet-600 text-white font-bold rounded-lg transition">
@@ -57,14 +57,14 @@
     <% end %>
   </div>
 
-  <%# ── Google ── %>
-  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20 mb-6">
-    <h2 class="text-lg font-bold text-white mb-4">Google Account</h2>
+  <%# -- Google -- %>
+  <div class="card shadow p-6 mb-6">
+    <h2 class="text-lg font-bold text-heading mb-4">Google Account</h2>
     <% if @user.google_connected? %>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <svg class="w-5 h-5 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          <span class="text-gray-300">Connected via Google</span>
+          <span class="text-body">Connected via Google</span>
         </div>
         <%= button_to "Unlink", unlink_google_account_path, method: :post,
           class: "px-4 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 font-medium rounded-lg text-sm transition",
@@ -79,13 +79,13 @@
     <% end %>
   </div>
 
-  <%# ── Wallet ── %>
-  <div class="bg-navy-400 rounded-xl shadow p-6 border border-navy-300/20 mb-6">
-    <h2 class="text-lg font-bold text-white mb-4">Ethereum Wallet</h2>
+  <%# -- Wallet -- %>
+  <div class="card shadow p-6 mb-6">
+    <h2 class="text-lg font-bold text-heading mb-4">Ethereum Wallet</h2>
     <% if @user.wallet_connected? %>
       <div class="flex items-center gap-3">
         <svg class="w-5 h-5 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-        <span class="text-gray-300 font-mono text-sm"><%= @user.wallet_address %></span>
+        <span class="text-body font-mono text-sm"><%= @user.wallet_address %></span>
       </div>
     <% else %>
       <%= render "shared/wallet_connect", link_mode: true %>

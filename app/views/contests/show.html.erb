@@ -6,8 +6,8 @@
   <div class="card shadow p-6">
     <div class="flex justify-between items-start mb-4">
       <div>
-        <h2 class="text-2xl font-bold text-white"><%= @contest.name %></h2>
-        <p class="text-sm text-gray-400 mt-1">
+        <h2 class="text-2xl font-bold text-heading"><%= @contest.name %></h2>
+        <p class="text-sm text-secondary mt-1">
           <% if @contest.starts_at %>
             Starts: <%= @contest.starts_at.strftime("%b %d, %Y %I:%M %p") %>
           <% end %>
@@ -26,17 +26,17 @@
       </span>
     </div>
     <div class="grid grid-cols-3 gap-4 text-center">
-      <div class="bg-navy-600 rounded-lg p-3">
+      <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entry Fee</p>
-        <p class="font-mono text-lg text-white">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
+        <p class="font-mono text-lg text-heading">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
       </div>
-      <div class="bg-navy-600 rounded-lg p-3">
+      <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Pool</p>
         <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
       </div>
-      <div class="bg-navy-600 rounded-lg p-3">
+      <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entries</p>
-        <p class="font-mono text-lg text-white"><%= @entries.count %></p>
+        <p class="font-mono text-lg text-heading"><%= @entries.count %></p>
       </div>
     </div>
   </div>
@@ -64,11 +64,11 @@
 <!-- Leaderboard -->
 <% if @entries.any? %>
   <section class="mb-8">
-    <h2 class="text-xl font-semibold mb-4 text-gray-300">Leaderboard</h2>
+    <h2 class="text-xl font-semibold mb-4 text-body">Leaderboard</h2>
     <div class="card shadow overflow-hidden">
       <table class="w-full">
         <thead>
-          <tr class="border-b border-navy-300/20">
+          <tr class="border-b border-subtle">
             <th class="px-4 py-3 text-left label-upper">#</th>
             <th class="px-4 py-3 text-left label-upper">Player</th>
             <th class="px-4 py-3 text-left label-upper">Score</th>
@@ -84,8 +84,8 @@
               next_entry = @entries[i + 1] if @contest.settled?
               show_divider = paid && (next_entry.nil? || next_entry.payout_cents.to_i == 0)
             %>
-            <tr class="<%= paid ? 'border-l-4 border-l-mint' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-mint/30' : 'border-b-navy-300/10' %> hover:bg-navy-300/10">
-              <td class="px-4 py-3 font-mono text-gray-400">
+            <tr class="<%= paid ? 'border-l-4 border-l-mint' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-mint/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
+              <td class="px-4 py-3 font-mono text-secondary">
                 <div class="flex items-center gap-2">
                   <span><%= display_rank %></span>
                   <% if paid %>
@@ -93,8 +93,8 @@
                   <% end %>
                 </div>
               </td>
-              <td class="px-4 py-3 font-medium <%= paid ? 'text-white' : (@contest.settled? ? 'text-gray-500' : 'text-white') %>"><%= entry.user.display_name %></td>
-              <td class="px-4 py-3 font-mono <%= paid ? 'text-violet' : (@contest.settled? ? 'text-gray-500' : 'text-violet') %>"><%= entry.score %></td>
+              <td class="px-4 py-3 font-medium <%= paid ? 'text-heading' : (@contest.settled? ? 'text-muted' : 'text-heading') %>"><%= entry.user.display_name %></td>
+              <td class="px-4 py-3 font-mono <%= paid ? 'text-violet' : (@contest.settled? ? 'text-muted' : 'text-violet') %>"><%= entry.score %></td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <% entry.picks.each do |pick| %>
@@ -103,7 +103,7 @@
                                 when "win" then "bg-mint-900/30 text-mint border-mint-700"
                                 when "loss" then "bg-red-900/50 text-red-400 border-red-700"
                                 when "push" then "bg-yellow-900/50 text-yellow-400 border-yellow-700"
-                                else "bg-navy-600 text-gray-300 border-navy-300/30"
+                                else "bg-surface-alt text-body border-strong"
                                 end
                     %>
                     <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>">
@@ -123,7 +123,7 @@
 <!-- Admin Grading Section -->
 <% unless @contest.settled? %>
   <section class="mb-8">
-    <h2 class="text-xl font-semibold mb-4 text-gray-300">Grade Contest</h2>
+    <h2 class="text-xl font-semibold mb-4 text-body">Grade Contest</h2>
     <%= form_tag grade_contest_path(@contest), method: :post do %>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <% @props.each do |prop| %>
@@ -131,12 +131,12 @@
             <% if prop.team && prop.opponent_team %>
               <div class="flex items-center gap-1 mb-1 text-sm">
                 <span><%= prop.team.emoji %></span>
-                <span class="text-[10px] text-gray-500 font-bold">VS</span>
+                <span class="text-[10px] text-muted font-bold">VS</span>
                 <span><%= prop.opponent_team.emoji %></span>
               </div>
             <% end %>
-            <p class="font-bold text-white text-sm mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
-            <p class="text-xs text-gray-500 mb-2">Line: <span class="font-mono text-violet"><%= prop.line %></span></p>
+            <p class="font-bold text-heading text-sm mb-1"><%= prop.description.gsub(" Total Goals", "") %></p>
+            <p class="text-xs text-muted mb-2">Line: <span class="font-mono text-violet"><%= prop.line %></span></p>
             <input type="number" name="results[<%= prop.id %>]" step="0.1" min="0"
               value="<%= prop.result_value %>"
               placeholder="Result"
