@@ -5,10 +5,9 @@
      }">
   <% [left, right].each_with_index do |matchup, side| %>
     <button @click="toggleSelection('<%= matchup.id %>')"
-            class="relative flex-1 bg-surface p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl border-r-0' : 'rounded-r-xl border-l-0' %>"
+            class="relative flex-1 min-w-0 bg-surface p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl' : 'rounded-r-xl' %>"
             :class="{
-              'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'] && !(selections['<%= left.id %>'] && selections['<%= right.id %>']),
-              'border-transparent bg-mint/5': selections['<%= matchup.id %>'] && selections['<%= left.id %>'] && selections['<%= right.id %>'],
+              'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'],
               'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
             }"
             <% if locked %>disabled<% end %>>
@@ -16,14 +15,14 @@
         <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
       <% end %>
       <span class="text-xl md:text-2xl block mb-1"><%= matchup.team.emoji %></span>
-      <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate"><%= matchup.team.name %></p>
+      <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate team-name"><%= matchup.team.name %></p>
       <% if matchup.multiplier %>
         <p class="font-mono text-lg md:text-xl text-violet"><%= sprintf('%.1f', matchup.multiplier) %>x</p>
       <% end %>
     </button>
     <% if side == 0 %>
-      <div class="flex items-center self-stretch px-2 bg-surface-alt">
-        <span class="text-[10px] font-bold text-body">vs</span>
+      <div class="flex items-center self-stretch px-3 bg-inset">
+        <span class="text-xs font-bold text-muted uppercase">vs</span>
       </div>
     <% end %>
   <% end %>

@@ -288,6 +288,18 @@
 </div>
 
 <script>
+  // Auto-shrink long team names
+  function shrinkTeamNames() {
+    document.querySelectorAll('.team-name').forEach(el => {
+      el.style.fontSize = '';
+      if (el.scrollWidth > el.clientWidth) {
+        el.style.fontSize = '0.7rem';
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', shrinkTeamNames);
+  document.addEventListener('alpine:initialized', () => setTimeout(shrinkTeamNames, 100));
+
   function selectionBoard() {
     const matchupData = {
       <% @matchups.each_with_index do |m, i| %>
