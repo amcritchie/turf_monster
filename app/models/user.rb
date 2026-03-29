@@ -121,13 +121,43 @@ class User < ApplicationRecord
     balance_cents / 100.0
   end
 
+  def promotional_dollars
+    promotional_cents / 100.0
+  end
+
+  def total_balance_cents
+    balance_cents + promotional_cents
+  end
+
+  def total_balance_dollars
+    total_balance_cents / 100.0
+  end
+
   def add_funds!(cents)
     increment!(:balance_cents, cents)
   end
 
+  def add_promotional!(cents)
+    increment!(:promotional_cents, cents)
+  end
+
   def deduct_funds!(cents)
-    raise "Insufficient funds" if balance_cents < cents
-    decrement!(:balance_cents, cents)
+    raise "Insufficient funds" if total_balance_cents < cents
+    promo_use = [promotional_cents, cents].min
+    real_use = cents - promo_use
+    transaction do
+      decrement!(:promotional_cents, promo_use) if promo_use > 0
+      decrement!(:balance_cents, real_use) if real_use > 0
+    end
+  end
+
+  # Only real (onchain-backed) balance is withdrawable
+  def withdrawable_cents
+    balance_cents
+  end
+
+  def withdrawable_dollars
+    withdrawable_cents / 100.0
   end
 
   private

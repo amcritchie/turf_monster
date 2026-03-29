@@ -43,6 +43,11 @@ end
   user.generate_custodial_wallet! unless user.solana_connected?
 end
 
+# Give email users some promotional credits for testing
+[alex, mason, mack, turf].each do |user|
+  user.update!(promotional_cents: 20) if user.promotional_cents == 0
+end
+
 puts "  Created #{User.count} users"
 
 # ─── Teams (all 48 World Cup 2026) ──────────────────────────────

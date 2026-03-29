@@ -51,5 +51,12 @@ Rails.application.routes.draw do
   resources :teams, only: [:index, :show]
   resources :games, only: [:index]
 
+  resource :wallet, only: [:show] do
+    post :deposit
+    post :withdraw
+    post :faucet
+    get :sync
+  end
+
   post "add_funds", to: "users#add_funds"
 end

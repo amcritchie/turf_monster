@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_29_132817) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_29_133414) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -182,6 +182,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_132817) do
     t.string "solana_address"
     t.text "encrypted_solana_private_key"
     t.string "wallet_type"
+    t.integer "promotional_cents", default: 0, null: false
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["solana_address"], name: "index_users_on_solana_address", unique: true, where: "(solana_address IS NOT NULL)"

@@ -52,7 +52,7 @@
                 <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_wallet %></div>
               <% end %>
             </div>
-            <span class="font-mono text-mint">$<%= sprintf('%.2f', current_user.balance_dollars) %></span>
+            <%= link_to wallet_path, class: "font-mono text-mint hover:text-mint-600 transition" do %>$<%= sprintf('%.2f', current_user.total_balance_dollars) %><% end %>
             <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
           <% else %>
             <%= link_to "Log in", login_path, class: "text-heading hover:text-mint text-sm font-semibold transition" %>
