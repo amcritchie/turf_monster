@@ -92,7 +92,7 @@ end
 
 **Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `sessions/_sso_continue.html.erb` (branded "Easy sign in" header), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
-**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
+**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`, `/admin/theme/edit`, `/admin/theme/update`, `/admin/theme/regenerate`.
 
 **SSO Satellite Role:** This app receives one-way SSO from McRitchie Studio (the hub). Login page shows "Continue as [name]" button (from engine's `_sso_continue.html.erb` partial) when user is logged into Studio. `GET /sso_login` provides one-click SSO from the hub's nav link. Logout only clears this app's session. Wallet-only users (no email) cannot SSO. Hub logo at `public/studio-logo.svg`. Requires shared `SECRET_KEY_BASE`.
 
@@ -100,7 +100,9 @@ end
 
 ## Branding & Theme
 
-- **Theme**: Dark/light mode toggle via CSS custom properties (see top-level `CLAUDE.md` for token reference)
+- **Theme**: Dynamic — engine-generated CSS custom properties from 7 role colors (see top-level `CLAUDE.md` for full theme docs)
+- **Theme config**: `theme_primary = "#4BAF50"` (green), `theme_accent2 = "#8E82FE"` (violet) in `studio.rb`
+- **Admin editor**: `/admin/theme/edit` — color pickers, live preview, cache control
 - **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
 - **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), pick count badges, selected card borders, hold button success glow. Game-mechanic accent, distinct from primary.
 - **Accent**: `#8E82FE` Violet — O/U lines, scores, draft badges, `.btn-secondary`
@@ -114,7 +116,7 @@ end
 - **CSS var naming**: `--color-cta` / `--color-cta-hover` (not `--color-primary`) to avoid Tailwind naming conflicts
 - **Tailwind config**: `primary` and `warning` color palettes defined in `config/tailwind.config.js` with expanded safelist (DEFAULT + opacity variants)
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
-- **Button system**: `.btn` base + `.btn-primary` (green), `.btn-secondary` (violet), `.btn-outline`, `.btn-warning` (orange), `.btn-danger` (red), `.btn-google` (white). Size: `.btn-sm`, `.btn-lg`. See top-level `CLAUDE.md` for full reference.
+- **Button system**: `.btn` base + `.btn-primary` (uses `--color-cta`, green), `.btn-secondary` (hardcoded violet), `.btn-outline` (hover uses `--color-cta`), `.btn-warning` (uses `--color-warning`), `.btn-danger` (uses `--color-danger`), `.btn-google` (white). Size: `.btn-sm`, `.btn-lg`. See top-level `CLAUDE.md` for full reference.
 
 ## Architecture
 
