@@ -86,7 +86,11 @@ Studio.configure do |config|
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
   config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 
-  config.theme_logos = %w[logo.png logo.jpeg icon.svg icon.png favicon.png]
+  config.theme_logos = [
+    { file: "favicon.png",   title: "Favicon" },
+    { file: "logo.png",      title: "Navbar Logo" },
+    { file: "logo.jpeg",     title: "Auth Logo" },
+  ]
   config.theme_primary = "#4BAF50"
   config.theme_accent = "#8E82FE"
 end
@@ -108,8 +112,9 @@ end
 - **Theme config**: `theme_primary = "#4BAF50"` (green), `theme_accent = "#8E82FE"` (violet) in `studio.rb`
 - **Admin theme page**: `/admin/theme` — color editor + styleguide (from engine)
 - **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
-- **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), pick count badges, selected card borders, hold button success glow. Game-mechanic accent, distinct from primary.
-- **Accent**: `#8E82FE` Violet — O/U lines, scores, draft badges, `.btn-secondary`
+- **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), hold button success glow. Reserved for game mechanics (OVER/win), not general selection UI.
+- **Accent**: `#8E82FE` Violet — scores, draft badges, `.btn-secondary`, Phantom wallet badge. NOT for CTA-intent elements (use `primary` instead). NOT for multipliers (use `primary`).
+- **Primary for selection UI**: Pick count badges, cart slot borders, matchup selection rings/tints, multiplier values, links, sort toggle active state, and FAB buttons all use `primary` (green), not mint or violet.
 - **Warning**: `#FF7C47` Orange — warning states, `.btn-warning`
 - **Negative**: Red (Tailwind default) — UNDER, losses
 - **Font**: Montserrat (all weights 400-900)
