@@ -22,7 +22,6 @@ Rails.application.routes.draw do
       get :my
     end
     member do
-      post :toggle_pick
       post :toggle_selection
       post :enter
       post :clear_picks
@@ -37,7 +36,6 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :props, only: [:show]
   resources :teams, only: [:index, :show]
   resources :games, only: [:index]
 

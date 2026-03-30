@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_29_200000) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_30_135411) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -99,19 +99,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_200000) do
     t.index ["slug"], name: "index_games_on_slug", unique: true
   end
 
-  create_table "picks", force: :cascade do |t|
-    t.bigint "entry_id", null: false
-    t.bigint "prop_id", null: false
-    t.string "selection", null: false
-    t.string "result", default: "pending", null: false
-    t.string "slug"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["entry_id", "prop_id"], name: "index_picks_on_entry_id_and_prop_id", unique: true
-    t.index ["entry_id"], name: "index_picks_on_entry_id"
-    t.index ["prop_id"], name: "index_picks_on_prop_id"
-  end
-
   create_table "players", force: :cascade do |t|
     t.string "slug", null: false
     t.string "team_slug"
@@ -122,25 +109,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_200000) do
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_players_on_slug", unique: true
     t.index ["team_slug"], name: "index_players_on_team_slug"
-  end
-
-  create_table "props", force: :cascade do |t|
-    t.bigint "contest_id", null: false
-    t.string "description", null: false
-    t.float "line", null: false
-    t.string "stat_type"
-    t.float "result_value"
-    t.string "status", default: "pending", null: false
-    t.string "slug"
-    t.string "team_slug"
-    t.string "opponent_team_slug"
-    t.string "game_slug"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["contest_id"], name: "index_props_on_contest_id"
-    t.index ["game_slug"], name: "index_props_on_game_slug"
-    t.index ["opponent_team_slug"], name: "index_props_on_opponent_team_slug"
-    t.index ["team_slug"], name: "index_props_on_team_slug"
   end
 
   create_table "selections", force: :cascade do |t|
@@ -213,9 +181,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_29_200000) do
   add_foreign_key "contest_matchups", "contests"
   add_foreign_key "entries", "contests"
   add_foreign_key "entries", "users"
-  add_foreign_key "picks", "entries"
-  add_foreign_key "picks", "props"
-  add_foreign_key "props", "contests"
   add_foreign_key "selections", "contest_matchups"
   add_foreign_key "selections", "entries"
 end

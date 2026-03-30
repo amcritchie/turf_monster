@@ -370,72 +370,42 @@ end
 
 puts "  Created #{Player.count} players"
 
-# ─── Contest ─────────────────────────────────────────────────────
-contest = Contest.find_or_create_by!(name: "World Cup 2026 — Matchday 1") do |c|
-  c.entry_fee_cents = 20_00
-  c.status = "open"
-  c.max_entries = 15
-  c.starts_at = Time.new(2026, 6, 11, 15, 0, 0, "-04:00")
-end
-
-puts "  Created contest: #{contest.name}"
-
-# ─── Props (24 game total goals — one per Matchday 1 game) ──────
-# Lines: 2.5 for strong-vs-weak, 1.5 for competitive, 2.0 for mid-tier
-MATCHDAY_1_PROPS = [
+# ─── Matchday 1 Game Pairs ──────────────────────────────────────
+MATCHDAY_1_GAMES = [
   # June 11
-  { home: "MEX", away: "RSA", line: 2.0 },
-  { home: "KOR", away: "UPD", line: 2.0 },
+  { home: "MEX", away: "RSA" },
+  { home: "KOR", away: "UPD" },
   # June 12
-  { home: "CAN", away: "UPA", line: 2.0 },
-  { home: "USA", away: "PAR", line: 2.0 },
+  { home: "CAN", away: "UPA" },
+  { home: "USA", away: "PAR" },
   # June 13
-  { home: "AUS", away: "UPC", line: 2.0 },
-  { home: "QAT", away: "SUI", line: 2.0 },
-  { home: "BRA", away: "MAR", line: 1.5 },
-  { home: "HAI", away: "SCO", line: 2.0 },
+  { home: "AUS", away: "UPC" },
+  { home: "QAT", away: "SUI" },
+  { home: "BRA", away: "MAR" },
+  { home: "HAI", away: "SCO" },
   # June 14
-  { home: "GER", away: "CUW", line: 2.5 },
-  { home: "NED", away: "JPN", line: 1.5 },
-  { home: "CIV", away: "ECU", line: 1.5 },
-  { home: "UPB", away: "TUN", line: 1.5 },
+  { home: "GER", away: "CUW" },
+  { home: "NED", away: "JPN" },
+  { home: "CIV", away: "ECU" },
+  { home: "UPB", away: "TUN" },
   # June 15
-  { home: "ESP", away: "CPV", line: 2.5 },
-  { home: "BEL", away: "EGY", line: 2.0 },
-  { home: "KSA", away: "URU", line: 2.0 },
-  { home: "IRN", away: "NZL", line: 1.5 },
+  { home: "ESP", away: "CPV" },
+  { home: "BEL", away: "EGY" },
+  { home: "KSA", away: "URU" },
+  { home: "IRN", away: "NZL" },
   # June 16
-  { home: "FRA", away: "SEN", line: 2.0 },
-  { home: "IC2", away: "NOR", line: 1.5 },
-  { home: "ARG", away: "ALG", line: 2.0 },
-  { home: "AUT", away: "JOR", line: 2.0 },
+  { home: "FRA", away: "SEN" },
+  { home: "IC2", away: "NOR" },
+  { home: "ARG", away: "ALG" },
+  { home: "AUT", away: "JOR" },
   # June 17
-  { home: "POR", away: "IC1", line: 2.5 },
-  { home: "ENG", away: "CRO", line: 1.5 },
-  { home: "GHA", away: "PAN", line: 2.0 },
-  { home: "UZB", away: "COL", line: 2.0 },
+  { home: "POR", away: "IC1" },
+  { home: "ENG", away: "CRO" },
+  { home: "GHA", away: "PAN" },
+  { home: "UZB", away: "COL" },
 ]
 
-props = MATCHDAY_1_PROPS.map do |data|
-  home_team = teams[data[:home]]
-  away_team = teams[data[:away]]
-  game = Game.find_by(home_team_slug: home_team&.slug, away_team_slug: away_team&.slug)
-  desc = "#{home_team&.name || data[:home]} vs #{away_team&.name || data[:away]} Total Goals"
-
-  Prop.find_or_create_by!(contest: contest, description: desc) do |p|
-    p.line = data[:line]
-    p.stat_type = "goals"
-    p.team_slug = home_team&.slug
-    p.opponent_team_slug = away_team&.slug
-    p.game_slug = game&.slug
-  end
-end
-
-puts "  Created #{props.size} props"
-
-# No pre-filled entries — use admin Fill button to populate
-
-# ─── Turf Totals Contest ──────────────────────────────────────────
+# ─── Contest ──────────────────────────────────────────
 turf_totals = Contest.find_or_create_by!(name: "Turf Totals v1 — Matchday 1") do |c|
   c.entry_fee_cents = 20_00
   c.status = "open"
@@ -448,7 +418,7 @@ puts "  Created contest: #{turf_totals.name}"
 
 # Create 48 ContestMatchups — both teams from each Matchday 1 game
 matchup_count = 0
-MATCHDAY_1_PROPS.each do |data|
+MATCHDAY_1_GAMES.each do |data|
   home_team = teams[data[:home]]
   away_team = teams[data[:away]]
   game = Game.find_by(home_team_slug: home_team&.slug, away_team_slug: away_team&.slug)
@@ -478,5 +448,5 @@ end
 
 puts "  Created #{ContestMatchup.where(contest: turf_totals).count} contest matchups with rankings"
 
-puts "Done! #{User.count} users, #{Contest.count} contests, #{Prop.count} props, #{Entry.count} entries, #{Pick.count} picks"
+puts "Done! #{User.count} users, #{Contest.count} contests, #{Entry.count} entries"
 puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players, #{ContestMatchup.count} matchups"

@@ -4,19 +4,17 @@ class EntryTest < ActiveSupport::TestCase
   setup do
     @contest = contests(:one)
     @user = users(:sam)
-    @prop1 = props(:one)
-    @prop2 = props(:two)
-    @prop3 = props(:three)
-    @prop4 = props(:four)
-    @prop5 = props(:five)
+    @m1 = contest_matchups(:m1)
+    @m2 = contest_matchups(:m2)
+    @m3 = contest_matchups(:m3)
+    @m4 = contest_matchups(:m4)
+    @m5 = contest_matchups(:m5)
+    @m6 = contest_matchups(:m6)
   end
 
   test "confirm! charges fee and sets status to active" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-    entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
-    entry.picks.create!(prop: @prop4, selection: "less")
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
 
     balance_before = @user.balance_cents
     entry.confirm!
@@ -25,90 +23,48 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
-  test "confirm! rejects with less than 4 picks" do
+  test "confirm! rejects with less than 5 selections" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-    entry.picks.create!(prop: @prop2, selection: "less")
+    [@m1, @m2].each { |m| entry.selections.create!(contest_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
-    assert_equal "Exactly 4 picks required", error.message
+    assert_match(/selections required/, error.message)
     assert entry.reload.cart?
   end
 
   test "confirm! rejects for non-open contest" do
     @contest.update!(status: "locked")
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-    entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
-    entry.picks.create!(prop: @prop4, selection: "less")
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Contest is not open", error.message
   end
 
   test "confirm! rejects with insufficient funds" do
-    @user.update!(balance_cents: 0)
+    @user.update!(balance_cents: 0, promotional_cents: 0)
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-    entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
-    entry.picks.create!(prop: @prop4, selection: "less")
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Insufficient funds", error.message
   end
 
-  # --- toggle_pick! tests ---
+  # --- toggle_selection! tests ---
 
-  test "toggle_pick! creates a new pick" do
+  test "toggle_selection! creates a new selection" do
     entry = @contest.entries.create!(user: @user, status: :cart)
+    selections_hash = entry.toggle_selection!(@m1)
 
-    picks_hash = entry.toggle_pick!(@prop1, "more")
-
-    assert_equal({ @prop1.id.to_s => "more" }, picks_hash)
-    assert_equal 1, entry.picks.count
+    assert_equal({ @m1.id.to_s => true }, selections_hash)
+    assert_equal 1, entry.selections.count
   end
 
-  test "toggle_pick! removes pick when same selection" do
+  test "toggle_selection! removes selection when toggled again" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
+    entry.selections.create!(contest_matchup: @m1)
 
-    result = entry.toggle_pick!(@prop1, "more")
-
-    assert_nil result
-    assert_not Entry.exists?(entry.id)
-  end
-
-  test "toggle_pick! switches selection" do
-    entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-
-    picks_hash = entry.toggle_pick!(@prop1, "less")
-
-    assert_equal "less", picks_hash[@prop1.id.to_s]
-    assert_equal 1, entry.picks.count
-  end
-
-  test "toggle_pick! replaces newest pick when adding 5th" do
-    entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-    entry.picks.create!(prop: @prop2, selection: "less")
-    entry.picks.create!(prop: @prop3, selection: "more")
-    entry.picks.create!(prop: @prop4, selection: "less")
-
-    picks_hash = entry.toggle_pick!(@prop5, "more")
-
-    assert_equal 4, entry.picks.count
-    assert_includes picks_hash.keys, @prop5.id.to_s
-    assert_not_includes picks_hash.keys, @prop4.id.to_s
-  end
-
-  test "toggle_pick! destroys entry when last pick removed" do
-    entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.picks.create!(prop: @prop1, selection: "more")
-
-    result = entry.toggle_pick!(@prop1, "more")
+    result = entry.toggle_selection!(@m1)
 
     assert_nil result
     assert_not Entry.exists?(entry.id)

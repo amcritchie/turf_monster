@@ -1,0 +1,35 @@
+team_a:
+  name: Team A
+  short_name: TMA
+  slug: team-a
+  emoji: "🏳️"
+
+team_b:
+  name: Team B
+  short_name: TMB
+  slug: team-b
+  emoji: "🏳️"
+
+team_c:
+  name: Team C
+  short_name: TMC
+  slug: team-c
+  emoji: "🏳️"
+
+team_d:
+  name: Team D
+  short_name: TMD
+  slug: team-d
+  emoji: "🏳️"
+
+team_e:
+  name: Team E
+  short_name: TME
+  slug: team-e
+  emoji: "🏳️"
+
+team_f:
+  name: Team F
+  short_name: TMF
+  slug: team-f
+  emoji: "🏳️"

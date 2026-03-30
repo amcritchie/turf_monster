@@ -55,23 +55,11 @@
               <div class="flex items-center gap-3">
                 <span class="text-muted font-mono text-sm">#<%= i + 1 %></span>
                 <div class="flex gap-1.5">
-                  <% entry.picks.each do |pick| %>
-                    <%
-                      pill_bg = case pick.result
-                                when "win" then "bg-mint-900/30 text-mint border-mint-700"
-                                when "loss" then "bg-red-900/50 text-red-400 border-red-700"
-                                when "push" then "bg-yellow-900/50 text-yellow-400 border-yellow-700"
-                                else "bg-surface text-body border-strong"
-                                end
-                    %>
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>">
-                      <% if pick.prop.team && pick.prop.opponent_team %>
-                        <span><%= pick.prop.team.emoji %></span>
-                        <span class="text-[8px] text-muted">v</span>
-                        <span><%= pick.prop.opponent_team.emoji %></span>
-                      <% end %>
-                      <span class="<%= pick.selection == 'more' ? 'text-mint' : 'text-red-400' %>"><%= pick.selection == "more" ? "O" : "U" %></span>
-                      <span class="text-violet"><%= pick.prop.line %></span>
+                  <% entry.selections.each do |sel| %>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border bg-surface text-body border-strong">
+                      <span><%= sel.contest_matchup.team.emoji %></span>
+                      <span class="text-heading font-semibold"><%= sel.contest_matchup.team.short_name %></span>
+                      <span class="text-primary font-bold">x<%= sel.contest_matchup.multiplier.to_i %></span>
                     </span>
                   <% end %>
                 </div>
