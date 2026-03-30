@@ -10,8 +10,6 @@ Studio.configure do |config|
     { file: "favicon.png",   title: "Favicon" },
     { file: "logo.png",      title: "Navbar Logo" },
     { file: "logo.jpeg",     title: "Auth Logo" },
-    { file: "icon.svg",      title: "Icon (SVG)" },
-    { file: "icon.png",      title: "Icon (PNG)" },
   ]
 
   # Theme: green primary, violet as accent2
