@@ -8,5 +8,5 @@ Studio.configure do |config|
 
   # Theme: green primary, violet as accent2
   config.theme_primary = "#4BAF50"
-  config.theme_accent2 = "#8E82FE"
+  config.theme_accent = "#8E82FE"
 end
