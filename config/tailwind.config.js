@@ -8,11 +8,21 @@ const studioColors = require(`${studioPath}/tailwind/studio.tailwind.config.js`)
 const brandColors = ['mint', 'navy', 'violet', 'primary', 'warning']
 const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
 const utilities = ['bg', 'text', 'border']
-const safelist = brandColors.flatMap(color =>
-  shades.flatMap(shade =>
+const opacities = [10, 20, 30, 50]
+const safelist = brandColors.flatMap(color => [
+  // DEFAULT (no shade): bg-primary, text-primary, border-primary
+  ...utilities.map(util => `${util}-${color}`),
+  // DEFAULT with opacity: bg-primary/10, border-primary/30, etc.
+  ...utilities.flatMap(util => opacities.map(op => `${util}-${color}/${op}`)),
+  // Shaded: bg-primary-600, text-primary-700, etc.
+  ...shades.flatMap(shade =>
     utilities.map(util => `${util}-${color}-${shade}`)
-  )
-)
+  ),
+  // Shaded with opacity: bg-primary-900/30, border-primary-700/30, etc.
+  ...shades.flatMap(shade =>
+    utilities.flatMap(util => opacities.map(op => `${util}-${color}-${shade}/${op}`))
+  ),
+])
 
 module.exports = {
   darkMode: 'class',
