@@ -1,4 +1,5 @@
 class SolanaSessionsController < ApplicationController
+  include Solana::AuthVerifier
   skip_before_action :require_authentication
 
   def nonce
@@ -7,26 +8,12 @@ class SolanaSessionsController < ApplicationController
   end
 
   def verify
-    message = params[:message]
-    signature_b58 = params[:signature]
-    pubkey_b58 = params[:pubkey]
-
-    # Decode base58 signature and public key
-    sig_bytes = Solana::Keypair.decode_base58(signature_b58)
-    pub_bytes = Solana::Keypair.decode_base58(pubkey_b58)
-
-    # Verify Ed25519 signature
-    verify_key = Ed25519::VerifyKey.new(pub_bytes)
-    verify_key.verify(sig_bytes, message)
-
-    # Parse nonce from message
-    claimed_nonce = message.match(/Nonce: (\w+)/)&.captures&.first
-
-    unless claimed_nonce == session[:solana_nonce]
-      return render json: { error: "Invalid nonce" }, status: :unauthorized
-    end
-
-    session.delete(:solana_nonce)
+    pubkey_b58 = verify_solana_signature!(
+      message: params[:message],
+      signature_b58: params[:signature],
+      pubkey_b58: params[:pubkey],
+      session: session
+    )
 
     # Find or create user with this Solana address
     user = User.from_solana_wallet(pubkey_b58) || User.new(
@@ -42,6 +29,8 @@ class SolanaSessionsController < ApplicationController
       set_app_session(user)
       render json: { success: true, redirect: "/" }
     end
+  rescue Solana::AuthVerifier::VerificationError => e
+    render json: { error: e.message }, status: :unauthorized
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end

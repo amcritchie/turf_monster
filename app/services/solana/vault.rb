@@ -259,6 +259,36 @@ module Solana
       }
     end
 
+    # Fetch native SOL and SPL token balances for a wallet address
+    def fetch_wallet_balances(wallet_address)
+      sol_result = client.get_balance(wallet_address)
+      sol_lamports = sol_result.is_a?(Hash) ? sol_result["value"] : sol_result
+      sol_balance = sol_lamports.to_f / 1_000_000_000
+
+      tokens = {}
+      begin
+        result = client.get_token_accounts_by_owner(wallet_address)
+        if result && result["value"]
+          result["value"].each do |account|
+            parsed = account.dig("account", "data", "parsed", "info")
+            next unless parsed
+            mint = parsed["mint"]
+            amount = parsed.dig("tokenAmount", "uiAmount") || 0
+            tokens[mint] = amount
+          end
+        end
+      rescue Solana::Client::RpcError
+        # Token accounts may not exist yet — that's fine
+      end
+
+      {
+        sol: sol_balance,
+        usdc: Config::USDC_MINT.present? ? (tokens[Config::USDC_MINT] || 0) : nil,
+        usdt: Config::USDT_MINT.present? ? (tokens[Config::USDT_MINT] || 0) : nil,
+        tokens: tokens
+      }
+    end
+
     private
 
     def build_tx(signer)

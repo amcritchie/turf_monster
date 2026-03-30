@@ -31,9 +31,9 @@
     matchups_asc = @matchups.sort_by { |m| m.multiplier || 999 }
     matchups_desc = matchups_asc.reverse
   %>
-  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen, 'pb-48 md:pb-0': selectionCount > 0 }">
+  <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
     <div class="mb-4">
-      <h2 class="text-xl font-bold text-heading">Pick <%= @contest.picks_required %> Teams</h2>
+      <h3 class="text-2xl font-extrabold text-heading">Pick <%= @contest.picks_required %> Teams</h3>
       <p class="text-sm text-secondary mt-1">Choose the teams you think will score the most total goals. Higher multipliers = higher risk, higher reward.</p>
       <p class="text-xs text-muted mt-1">Example: Belgium scores 3 goals &times; 1.1x multiplier = 3.3 points</p>
     </div>
@@ -188,69 +188,6 @@
     </div>
   </div>
 
-  <!-- Cart: Mobile (compact bottom bar) -->
-  <div x-show="selectionCount > 0"
-       x-transition:enter="transition ease-out duration-200"
-       x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
-       x-transition:leave="transition ease-in duration-150"
-       x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
-       class="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-subtle shadow-2xl z-40 rounded-t-xl">
-    <!-- Header -->
-    <div class="flex items-center justify-between px-4 pt-3 pb-2">
-      <h3 class="text-sm font-bold text-heading">Your Picks</h3>
-      <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
-        <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
-      </span>
-    </div>
-    <!-- Pick cards (horizontal) -->
-    <div class="px-4 pb-2 flex gap-2">
-      <template x-for="i in <%= @contest.picks_required %>" :key="i">
-        <div class="flex-1 min-w-0">
-          <template x-if="selectionSlots[i-1]">
-            <div class="bg-surface-alt rounded-lg px-2 py-2 border border-primary-700 text-center relative"
-                 :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
-              <template x-if="selectionSlots[i-1].emoji">
-                <div class="text-xs mb-0.5">
-                  <span x-text="selectionSlots[i-1].emoji"></span>
-                </div>
-              </template>
-              <p class="text-heading font-semibold text-xs truncate" x-text="selectionSlots[i-1].name"></p>
-              <template x-if="selectionSlots[i-1].opName">
-                <p class="text-muted text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
-              </template>
-              <p class="text-primary font-mono text-[10px] mt-0.5" x-text="'x' + selectionSlots[i-1].multiplier"></p>
-              <button @click="removeSelection(selectionSlots[i-1].matchupId)"
-                      class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
-            </div>
-          </template>
-          <template x-if="!selectionSlots[i-1]">
-            <div class="border border-dashed border-strong rounded-lg px-2 py-4 text-center">
-              <p class="text-muted text-xs">Pick <span x-text="i"></span></p>
-            </div>
-          </template>
-        </div>
-      </template>
-    </div>
-    <!-- Hold button + Clear -->
-    <div class="px-4 pb-3 pt-1 space-y-1">
-      <div x-show="selectionCount === <%= @contest.picks_required %>" x-transition>
-        <%= render 'shared/hold_button',
-          default_text: "Hold to Confirm",
-          hold_text: "Almost there...",
-          success_text: "Confirmed!",
-          duration: 3000,
-          hold_id: "mobile",
-          guard: "data.selectionCount === #{@contest.picks_required}",
-          on_success: "d.confirmEntry()" %>
-      </div>
-      <button @click="clearSelections()"
-              class="w-full py-1.5 text-xs font-semibold text-secondary hover:text-red-400 transition">
-        Clear All
-      </button>
-    </div>
-  </div>
-
   <!-- Error popup -->
   <div x-show="error"
        x-transition:enter="transition ease-out duration-300"
@@ -303,6 +240,7 @@
       selections: <%= cart_selections.to_json.html_safe %>,
       selectionOrder: <%= cart_selection_order.to_json.html_safe %>,
       cartOpen: <%= cart_selections.any? ? 'true' : 'false' %>,
+      init() { window._sb = this; },
       blurDismissed: false,
       blurUsed: false,
       shakeKey: 0,
@@ -475,4 +413,53 @@
       }
     };
   }
+
 </script>
+
+<% content_for :fixed_bottom do %>
+<div x-data="window._sb || {}"
+     x-show="selectionCount > 0"
+     class="md:hidden bg-surface border-t border-subtle shadow-2xl rounded-t-xl px-4 py-3"
+     style="position:fixed;bottom:0;left:0;right:0;z-index:9999">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-sm font-bold text-heading">Your Picks</span>
+    <div class="flex items-center gap-2">
+      <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
+        <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
+      </span>
+      <button @click="clearSelections()" class="text-xs font-semibold text-secondary hover:text-red-400 transition">Clear</button>
+    </div>
+  </div>
+  <div class="grid grid-cols-3 gap-1.5">
+    <template x-for="i in <%= @contest.picks_required %>" :key="i">
+      <div>
+        <template x-if="selectionSlots[i-1]">
+          <div class="bg-surface-alt rounded-md px-1.5 py-1 border border-primary-700 text-center relative">
+            <p class="text-heading font-semibold text-xs truncate" x-text="selectionSlots[i-1].emoji + ' ' + selectionSlots[i-1].name"></p>
+            <p class="text-muted text-[10px] truncate">vs <span x-text="selectionSlots[i-1].opName"></span> <span class="text-primary font-mono" x-text="'x' + selectionSlots[i-1].multiplier"></span></p>
+            <button @click="removeSelection(selectionSlots[i-1].matchupId)"
+                    class="absolute -top-1 -right-1 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-[10px] leading-none flex items-center justify-center">&times;</button>
+          </div>
+        </template>
+        <template x-if="!selectionSlots[i-1]">
+          <div class="border border-dashed border-strong rounded-md px-1.5 py-2 text-center">
+            <p class="text-muted text-[10px]">Pick <span x-text="i"></span></p>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+  <div x-show="selectionCount === <%= @contest.picks_required %>" class="mt-2">
+    <%= render 'shared/hold_button',
+      default_text: "Hold to Confirm",
+      hold_text: "Almost there...",
+      success_text: "Confirmed!",
+      duration: 3000,
+      hold_id: "mobile",
+      guard: "data.selectionCount === #{@contest.picks_required}",
+      on_success: "d.confirmEntry()" %>
+  </div>
+</div>
+<% end %>
+

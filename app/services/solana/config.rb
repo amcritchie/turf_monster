@@ -5,8 +5,8 @@ module Solana
     NETWORK = ENV.fetch("SOLANA_NETWORK", "devnet")
 
     # Devnet test mints — set real ones for mainnet
-    USDC_MINT = ENV.fetch("SOLANA_USDC_MINT", "")
-    USDT_MINT = ENV.fetch("SOLANA_USDT_MINT", "")
+    USDC_MINT = ENV.fetch("SOLANA_USDC_MINT", "DLPD3w1M54GVJvjWZPtZb6hY9gKrmqVzhTxVyZaHKKNC")
+    USDT_MINT = ENV.fetch("SOLANA_USDT_MINT", "CV1pRnXYJZYNQGWy4fDVFPPTvMBe6oXngvkJa8a59MfT")
 
     # Admin keypair path for signing settlement transactions
     ADMIN_KEYPAIR_PATH = ENV.fetch("SOLANA_ADMIN_KEYPAIR", File.expand_path("~/.config/solana/id.json"))

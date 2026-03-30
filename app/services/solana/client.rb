@@ -75,6 +75,14 @@ module Solana
       call("getBalance", [pubkey])
     end
 
+    def get_token_accounts_by_owner(owner_pubkey)
+      call("getTokenAccountsByOwner", [
+        owner_pubkey,
+        { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { encoding: "jsonParsed" }
+      ])
+    end
+
     private
 
     def call(method, params = [])
