@@ -1,7 +1,7 @@
 <%# locals: (left:, right:, locked:) %>
 <div class="flex rounded-xl overflow-hidden shadow transition-all <%= locked ? 'opacity-50' : '' %>"
      :style="(selections['<%= left.id %>'] && selections['<%= right.id %>'])
-       ? 'outline: 2px solid rgb(var(--color-primary-rgb)); outline-offset: -1px; box-shadow: 0 0 24px 6px rgb(var(--color-primary-rgb) / 0.35); border-radius: 0.75rem'
+       ? 'outline: 3px solid rgb(var(--color-primary-rgb)); outline-offset: -1px; box-shadow: 0 0 20px 4px rgb(var(--color-primary-rgb) / 0.35); border-radius: 0.75rem'
        : ''">
   <% [left, right].each_with_index do |matchup, side| %>
     <button @click="toggleSelection('<%= matchup.id %>')"
