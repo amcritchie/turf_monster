@@ -9,8 +9,6 @@ Rails.application.routes.draw do
 
   Studio.routes(self)
 
-  get "admin/theme", to: "admin#theme", as: :admin_theme
-
   # Wallet auth (SIWE — legacy Ethereum)
   get  "auth/wallet/nonce",  to: "wallet_sessions#nonce"
   post "auth/wallet/verify", to: "wallet_sessions#verify"
