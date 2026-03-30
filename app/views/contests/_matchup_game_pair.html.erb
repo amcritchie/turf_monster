@@ -1,9 +1,9 @@
 <%# locals: (left:, right:, locked:) %>
 <div class="flex rounded-xl overflow-hidden shadow transition-all <%= locked ? 'opacity-50' : '' %>"
      :class="{
-       'matchup-selected ring-2 ring-primary': selections['<%= left.id %>'] && selections['<%= right.id %>']
+       'ring-2 ring-primary': selections['<%= left.id %>'] && selections['<%= right.id %>']
      }"
-     :style="(selections['<%= left.id %>'] && selections['<%= right.id %>']) ? 'overflow: visible' : ''">
+     :style="(selections['<%= left.id %>'] && selections['<%= right.id %>']) ? 'overflow: visible; box-shadow: 0 0 24px 6px rgb(var(--color-primary-rgb) / 0.35)' : ''">
   <% [left, right].each_with_index do |matchup, side| %>
     <button @click="toggleSelection('<%= matchup.id %>')"
             class="relative flex-1 min-w-0 bg-surface p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl' : 'rounded-r-xl' %>"
