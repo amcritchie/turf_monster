@@ -1,16 +1,16 @@
 # Turf Monster (turf_monster)
 
-Peer-to-peer sports pick'em game focused on team-based over/under props for the World Cup.
+Peer-to-peer sports pick'em game focused on team matchup selections with multipliers for the World Cup.
 
 ## Game Rules
 
-- Each contest has a set of **props** — over/under bets on total goals in a match
-- Players pick **4 props** per entry, choosing OVER or UNDER on each
-- Each pick is scored: **win = 1, loss = 0, push = 0.5** (when result exactly equals the line)
-- Entry score = sum of 4 pick results (max 4.0, min 0.0)
+- Each contest has a set of **matchups** — team/opponent pairs with multipliers based on rank
+- Players select **5 matchups** per entry
+- Each selection is scored: **team goals × multiplier**
+- Entry score = sum of all selection scores
 - Entries ranked by score DESC; ties get the same rank
-- **Payouts**: 1st = $100, 2nd-5th = $40 each. Ties split the combined prize pool for their spanned ranks evenly.
-- Multiple entries per user per contest allowed (different pick combos required)
+- **Payouts**: 1st-6th = $40 each. Rank 1 also gets $50 bonus. Ties split the combined prize pool for their spanned ranks evenly.
+- Multiple entries per user per contest allowed (different selection combos required)
 - Entry fee deducted from user balance on confirm
 
 ## Contest Lifecycle
@@ -20,27 +20,25 @@ draft → open → locked → settled
 ```
 
 - **draft**: Contest created, not yet accepting entries
-- **open**: Players can submit entries (toggle picks, hold-to-confirm)
+- **open**: Players can submit entries (toggle selections, hold-to-confirm)
 - **locked**: No new entries, waiting for game results
-- **settled**: All picks graded, entries scored/ranked, payouts distributed
+- **settled**: All games scored, entries ranked, payouts distributed
 
 ### Admin Actions (contest show page + navbar)
 
-- **Fill Contest** — generates random entries (4 random props, coin-flip over/under each). Cycles through seeded users. Deduplicates against existing entries.
+- **Fill Contest** — generates random entries (5 random matchups each). Cycles through seeded users. Deduplicates against existing entries.
 - **Lock Contest** — transitions open → locked
-- **Jump** — simulates all game results (50/50 coin flip per prop: result lands above or below the line) and settles the contest in one click. Mint button on contest show page.
-- **Grade Contest** — manually enter result values per prop, then grade. Scores entries, assigns ranks, distributes payouts.
-- **Reset** (navbar) — red button, clears all entries/picks, resets props and games to pending/scheduled, sets contest back to open. Has Turbo confirmation dialog.
+- **Jump** — simulates all game results and settles the contest in one click. Mint button on contest show page.
+- **Grade Contest** — scores entries based on game results, assigns ranks, distributes payouts.
+- **Reset** (navbar) — red button, clears all entries/selections, resets games to pending/scheduled, sets contest back to open. Has Turbo confirmation dialog.
 
 ### Key Model Methods
 
-- `Contest#fill!(users:)` — random entries, 4 random props each, coin-flip selections, no duplicate combos
-- `Contest#jump!` — simulate results (50/50 per prop) + grade in one transaction
-- `Contest#grade!` — grade props → score entries → rank → distribute payouts → settle. Persists `rank` and `payout_cents` on each entry.
-- `Contest#reset!` — destroy entries, clear prop results, reset game scores, reopen contest
-- `Entry#toggle_pick!(prop, selection)` — add/remove/switch pick, destroy entry if empty, cap at 4 picks
-- `Entry#confirm!` — validates exactly 4 picks, deducts entry fee, cart → active
-- `Pick#compute_result` — compares result_value to line: win/loss/push
+- `Contest#fill!(users:)` — random entries, 5 random matchups each, no duplicate combos
+- `Contest#jump!` — simulate game results + grade in one transaction
+- `Contest#grade!` — score entries → rank → distribute payouts → settle. Persists `rank` and `payout_cents` on each entry.
+- `Contest#reset!` — destroy entries, reset game scores, reopen contest
+- `Entry#confirm!` — validates exactly 5 selections, checks for locked games, deducts entry fee, cart → active
 
 ## Dev Server
 
@@ -57,18 +55,15 @@ draft → open → locked → settled
 - **Deploy**: `git push heroku main` (then `heroku run bin/rails db:migrate --app turf-monster` if new migrations)
 - **Env vars**: `RAILS_MASTER_KEY`, `RAILS_SERVE_STATIC_FILES`, `DATABASE_URL` (auto from addon)
 - **ACM**: Enabled (auto SSL via Let's Encrypt)
-- **eth gem native extensions**: Requires `secp256k1`, `automake`, `libtool` on build host. Heroku heroku-24 handles this.
 
 ## Tech Stack
 
 - Ruby 3.1 / Rails 7.2 / PostgreSQL 14
 - Tailwind CSS via `tailwindcss-rails` gem (compiled with `@apply` support, not CDN)
 - Alpine.js via CDN for interactivity
-- ethers.js v6 via CDN (wallet connect pages only, loaded via `content_for :head`)
 - Montserrat font (Google Fonts CDN)
 - ERB views, import maps, no JS frameworks
-- bcrypt password auth + Google OAuth (OmniAuth) + Ethereum wallet auth (SIWE) + Solana wallet auth (Phantom)
-- `eth` gem (~> 0.5) for server-side Ethereum signature verification
+- bcrypt password auth + Google OAuth (OmniAuth) + Solana wallet auth (Phantom)
 - `ed25519` gem (~> 1.3) for Solana signature verification
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
 - **Solana integration** — Devnet, JSON-RPC via `Solana::Client`, Anchor program (`turf_vault`)
@@ -98,7 +93,7 @@ end
 
 **From the engine:** `Studio::ErrorHandling` concern (in ApplicationController), `ErrorLog` model, `Sluggable` concern, auth controllers (sessions, registrations, omniauth_callbacks, error_logs), error log views, generic login/signup views (overridden by app-branded versions).
 
-**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `sessions/_sso_continue.html.erb` (branded "Easy sign in" header), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
+**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb`, `sessions/_sso_continue.html.erb` (branded "Easy sign in" header), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
 **Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`, `/admin/theme` (GET + PATCH), `/admin/theme/regenerate`.
 
@@ -112,11 +107,11 @@ end
 - **Theme config**: `theme_primary = "#4BAF50"` (green), `theme_accent = "#8E82FE"` (violet) in `studio.rb`
 - **Admin theme page**: `/admin/theme` — color editor + styleguide (from engine)
 - **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
-- **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), hold button success glow. Reserved for game mechanics (OVER/win), not general selection UI.
+- **Mint**: `#06D6A0` — win badges, contest status (open), hold button success glow. Reserved for game mechanics (win), not general selection UI.
 - **Accent**: `#8E82FE` Violet — scores, draft badges, `.btn-secondary`, Phantom wallet badge. NOT for CTA-intent elements (use `primary` instead). NOT for multipliers (use `primary`).
-- **Primary for selection UI**: Pick count badges, cart slot borders, matchup selection rings/tints, multiplier values, links, sort toggle active state, and FAB buttons all use `primary` (green), not mint or violet.
+- **Primary for selection UI**: Selection count badges, cart slot borders, matchup selection rings/tints, multiplier values, links, sort toggle active state, and FAB buttons all use `primary` (green), not mint or violet.
 - **Warning**: `#FF7C47` Orange — warning states, `.btn-warning`
-- **Negative**: Red (Tailwind default) — UNDER, losses
+- **Negative**: Red (Tailwind default) — losses
 - **Font**: Montserrat (all weights 400-900)
 - **Logo**: Two files exist — `/public/logo.png` (1.3MB, used in layout navbar) and `/public/logo.jpeg` (272KB, used in auth pages). Both are the green monster mascot. Should be consolidated to one file.
 - **Surfaces**: Use `bg-page`, `bg-surface`, `bg-surface-alt`, `bg-inset` — never hardcode `bg-navy-*`
@@ -133,26 +128,24 @@ end
 - Money stored in cents, displayed in dollars via `dollars()` helper (`ApplicationHelper#dollars` — `"$#{'%.2f' % amount}"`)
 - `contest_badge_classes(status)` helper — maps contest status to Tailwind classes (extracted from views)
 - Contest flow: draft → open → locked → settled
-- Picks use "more"/"less" internally (displayed as OVER/UNDER)
-- **4 picks per entry** — toggle_pick! caps at 4, confirm! validates exactly 4
-- Scoring: win=1, loss=0, push=0.5
-- Payouts: 1st=$100, 2nd-5th=$40. Ties split combined prize for spanned ranks.
+- **5 selections per entry** — confirm! validates exactly 5
+- Scoring: team goals × multiplier per selection, summed across all 5
+- Payouts: 1st-6th=$40 each, rank 1 gets $50 bonus. Ties split combined prize for spanned ranks.
 - Every page shows JSON debug block of its primary record
 - Every model has a `slug` column — human-readable identifier set via `Sluggable` concern (from studio engine) + `name_slug` method
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
-- Cart pick slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
+- Cart selection slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields). Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props). Fresh DB via `db:drop db:create db:migrate db:seed`.
 - **Balance system**: Users have `balance_cents` (real, onchain-backed, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first on deduction). `total_balance_cents` = sum of both. `deduct_funds!` uses promo first.
 - **Multiplier formula**: `Math.sqrt(rank) * 0.5 + 0.5` — minimum x1, scales with rank. Integers display without decimal (x1 not x1.0).
 
 ## Authentication
 
-Four auth methods, all optional — user needs at least one:
+Three auth methods, all optional — user needs at least one:
 
 - **Email + password** — traditional signup/login via studio engine controllers
 - **Google OAuth** — via OmniAuth, links to existing email users automatically
-- **Ethereum wallet (SIWE)** — Sign-In with Ethereum, no smart contract needed (legacy, being replaced by Solana)
 - **Solana wallet (Phantom)** — Ed25519 signature verification, `SolanaSessionsController`
 
 ### User Model Auth Design
@@ -160,37 +153,22 @@ Four auth methods, all optional — user needs at least one:
 ```ruby
 has_secure_password validations: false  # wallet users have no password
 validates :email, uniqueness: true, allow_nil: true
-validates :wallet_address, uniqueness: true, allow_nil: true
 validates :password, length: { minimum: 6 }, if: -> { password.present? }
 validates :password, confirmation: true, if: -> { password_confirmation.present? }
-validate :has_authentication_method  # must have email, wallet, or provider+uid
+validate :has_authentication_method  # must have email, solana_address, or provider+uid
 ```
 
 - `email` is **nullable** — wallet-only users have no email
-- `wallet_address` is nullable, downcased before save, conditional unique index
 - `password_digest` keeps `null: false, default: ""` (has_secure_password needs it)
-- Predicate helpers: `wallet_connected?`, `google_connected?`, `has_password?`, `has_email?`
-- `display_name` fallback chain: name → email prefix → truncated wallet → "anon"
-- `truncated_wallet` — `"0x1234...abcd"` format
-- `User.from_wallet(address)` — class method, finds by downcased address
-
-### Wallet Auth Flow (SIWE)
-
-1. Frontend: `walletConnect()` Alpine component checks for `window.ethereum`
-2. Frontend: connects via `ethers.BrowserProvider`, gets signer + address
-3. Frontend: fetches nonce from `GET /auth/wallet/nonce` (stored in session)
-4. Frontend: constructs SIWE message, calls `signer.signMessage(message)`
-5. Frontend: POSTs message + signature to `POST /auth/wallet/verify`
-6. Backend: recovers signer via `Eth::Signature.personal_recover`, verifies address + nonce match
-7. Backend: finds or creates user, calls `set_app_session`, returns redirect
+- Predicate helpers: `google_connected?`, `has_password?`, `has_email?`
+- `display_name` fallback chain: name → email prefix → "anon"
 
 ### Account Management (`/account`)
 
-- **AccountsController** — show, update, link_wallet, unlink_google, change_password
+- **AccountsController** — show, update, unlink_google, change_password
 - **UserMergeable concern** — merges accounts when linking reveals overlap (lower ID survives)
 - **OmniauthCallbacksController** (app override) — merge support when linking Google while logged in
 - Merge transfers entries, sums balances, fills blank auth fields, updates ErrorLog references
-- Wallet connect partial accepts `link_mode` local — POSTs to `/account/link_wallet` instead of verify
 
 ### Admin Authorization
 
@@ -207,11 +185,11 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 
 ## Models
 
-- **User** — name, email (nullable), wallet_address (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
-- **Contest** — name, entry_fee_cents, status, max_entries, starts_at, onchain_contest_id, onchain_settled, onchain_tx_signature, slug
-- **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
-- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, onchain_entry_id, onchain_tx_signature, entry_number, slug (includes id for uniqueness)
-- **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
+- **User** — name, email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
+- **Contest** — name, entry_fee_cents, status, max_entries, contest_type, starts_at, onchain_contest_id, onchain_settled, onchain_tx_signature, slug. Has many contest_matchups, entries.
+- **ContestMatchup** — belongs_to contest. team_slug, opponent_team_slug, rank, multiplier, status. Has many selections. Belongs_to team + opponent_team via slug FKs.
+- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, onchain_entry_id, onchain_tx_signature, entry_number, slug (includes id for uniqueness). Has many selections.
+- **Selection** — belongs_to entry + contest_matchup (unique pair). Joins entries to matchups.
 - **Team** — name, short_name, location, emoji, color_primary, color_secondary, slug. Has many players, home_games, away_games.
 - **Game** — belongs_to home_team + away_team (Team via slug FKs). kickoff_at, venue, status, home_score, away_score, slug.
 - **Player** — belongs_to team (via slug FK, optional). name, position, jersey_number, slug.
@@ -237,42 +215,41 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Layer 2 (required for writes)**: `rescue_and_log(target:, parent:)` wraps write actions. Logs via `create_error_log`, attaches target/parent via ActiveRecord setters. Sets `@_error_logged` flag. Pair with outer `rescue StandardError => e`.
 - **Central method**: `create_error_log(exception)` → `ErrorLog.capture!(exception)` → returns record for context attachment
 - **Auth + error log controllers**: Provided by studio engine. Do not recreate locally (except OmniauthCallbacksController, overridden for merge support).
-- ContestsController: toggle_pick, enter, clear_picks wrapped with `target: entry, parent: @contest`. Grade, fill, lock, jump, reset wrapped with `target: @contest`.
-- AccountsController: all 5 write actions (update, link_wallet, unlink_google, change_password) wrapped with `target: current_user`
+- ContestsController: toggle_selection, enter, clear_picks wrapped with `target: entry, parent: @contest`. Grade, fill, lock, jump, reset wrapped with `target: @contest`.
+- AccountsController: write actions (update, unlink_google, change_password) wrapped with `target: current_user`
 
 ## Seeds / World Cup Data
 
-- 6 seeded users: 4 email users (password: "password") + 1 Ethereum wallet-only user (vitalik.eth) + 1 Solana wallet user. Alex is seeded as admin. Email users get promotional credits.
+- 5 seeded users: 4 email users (password: "password") + 1 Solana wallet user. Alex is seeded as admin. Email users get promotional credits.
 - 48 teams seeded with real World Cup 2026 draw (42 confirmed + 6 TBD playoff placeholders)
 - 72 group stage matches with real dates, kickoff times (ET/EDT), venues across 16 host cities
 - 67 notable players across 21 teams
-- Props wired to teams/games via slug columns (team_slug, opponent_team_slug, game_slug)
+- ContestMatchups wired to teams via slug columns (team_slug, opponent_team_slug)
 - TBD playoff teams: UEFA Playoff A/B/C/D (decided March 26-31, 2026), IC Playoff 1/2
 - Seed is idempotent (`find_or_create_by!`) — safe to re-run
 
 ## UI
 
 - Dark/light mode toggle — dark is default, toggle in navbar. Uses semantic tokens (see Branding & Theme section)
-- Mint = OVER/positive, Red = UNDER/negative, Violet = accents/lines/wallet button
+- Mint = positive/win, Red = negative/losses, Violet = accents/scores
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: `.card` class (bg-surface, border-subtle), `.card-hover` for interactive cards
 - JSON blocks: `.json-debug` class (bg-inset, border-subtle), text-mint, font-mono
 - **Button system**: CSS component classes in `application.tailwind.css` — `.btn` (base), `.btn-primary` (green/white), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-warning` (orange/white), `.btn-danger` (red), `.btn-google` (white/gray). Size modifiers: `.btn-sm`, `.btn-lg`. Disabled state built into `.btn` base. Combine: `class="btn btn-primary btn-lg w-full"`. All buttons in views use these classes.
-- **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
-- **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (violet, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
+- **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (primary, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
 - **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):
   - **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `outline` + `box-shadow` glow in primary, "vs" div gets primary tint.
   - **Multiplier view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by multiplier. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Multiplier" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
-  - Both views share the same Alpine `selections` state — picks persist across view switches.
+  - Both views share the same Alpine `selections` state — selections persist across view switches.
 - **Cart slot cards** (`_turf_totals_cart_slots.html.erb`): Emoji + Team Name + "vs OPP" on first line, "Goals" + multiplier on second line.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
-- **Wallet connect** (`_wallet_connect.html.erb`): Ethereum SIWE Alpine component (legacy). `_solana_wallet_connect.html.erb`: Phantom connect with ghost logo PNG (`/phantom-white.png`). Both accept `link_mode` local for /account use.
-- **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options (email/wallet) blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
-- **Navbar**: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
+- **Solana wallet connect** (`_solana_wallet_connect.html.erb`): Phantom connect with ghost logo PNG (`/phantom-white.png`). Accepts `link_mode` local for /account use.
+- **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
+- **Navbar**: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
 - **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, single "Theme" link to `/admin/theme` and "Error Logs" link to `/error_logs`.
 - **Theme page** (`/admin/theme`): Engine-provided combined page — color editor with live preview at top, styleguide below (logos, semantic tokens, typography, buttons, components).
-- **Account page** (`/account`): Four sections — Profile (name/email), Password (set/change), Google (link/unlink), Wallet (connect/display).
+- **Account page** (`/account`): Three sections — Profile (name/email), Password (set/change), Google (link/unlink).
 - **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 - **After confirming entry**: redirects to contest show page (leaderboard)
 
@@ -287,9 +264,9 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Routes
 
-- `/` — contests#index (main dashboard, pick toggling, cart, hold-to-confirm)
-- `/contests/:id` — contest show (leaderboard + grading + admin actions)
-- `/contests/:id/toggle_pick` — POST, toggle a pick on cart entry
+- `/` — contests#index (main dashboard, selection toggling, cart, hold-to-confirm)
+- `/contests/:id` — contest show (leaderboard + admin actions)
+- `/contests/:id/toggle_selection` — POST, toggle a matchup selection on cart entry
 - `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show
 - `/contests/:id/clear_picks` — POST, abandon cart entry
 - `/contests/:id/grade` — POST, grade contest (admin only)
@@ -300,13 +277,9 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/teams` — teams index (clickable grid → show)
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
-- `/props/:id` — prop show
 - `/account` — GET account settings, PATCH update profile
-- `/account/link_wallet` — POST, link wallet via SIWE signature
 - `/account/unlink_google` — POST, unlink Google OAuth
 - `/account/change_password` — POST, set or change password
-- `/auth/wallet/nonce` — GET, generate wallet nonce (JSON)
-- `/auth/wallet/verify` — POST, verify SIWE signature (JSON)
 - `/admin/theme` — theme editor + styleguide (engine-provided: color editor, logos, tokens, typography, buttons, components)
 - `/wallet` — GET wallet/balance page
 - `/wallet/deposit` — POST deposit funds
@@ -318,7 +291,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/error_logs` — error logs index (search, loading animation)
 - `/error_logs/:slug` — error log detail
 
-**Route name gotcha**: `resource :account` with member routes generates `link_wallet_account_path` (not `account_link_wallet_path`). The action name comes first.
+**Route name gotcha**: `resource :account` with member routes generates `unlink_google_account_path` (not `account_unlink_google_path`). The action name comes first.
 
 ## Solana Integration (Devnet)
 
@@ -357,7 +330,7 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 ## Known Gotchas
 
 - **Hold button guard**: The `_hold_button.html.erb` partial renders JS inside `<script>` tags. Guard expressions must use `<%== %>` (raw output), NOT `<%= %>`, because `<script>` tags don't decode HTML entities. `>=` gets escaped to `&gt;=` which breaks the entire script block. Use `===` in guards when possible, or `<%== %>` for raw output.
-- **Pick count = 4**: Hardcoded in multiple places — `Entry#toggle_pick!` (cap), `Entry#confirm!` (validation), `Contest#fill!` (combo generation), index view JS (`pickCount === 4`), cart pick slots partial (`x-for="i in 4"`), mobile cart template. Search for "< 4", "=== 4", "in 4", "Exactly 4" when changing.
+- **Selection count = 5**: Hardcoded in multiple places — `Entry#confirm!` (validation), `Contest#fill!` (combo generation), index view JS (`selectionCount === 5`), cart selection slots partial (`x-for="i in 5"`), mobile cart template. Search for "< 5", "=== 5", "in 5", "Exactly 5" when changing.
 - **Tailwind class compilation**: `tailwindcss-rails` only compiles classes it finds in app views. Introducing a new utility (e.g. `bg-red-500`, `opacity-50`, `px-6`) on a single page won't work if no other view uses it. Fix: use classes already in use elsewhere, or use inline `style` for one-off values.
 
 ## Workflow Preferences
@@ -374,19 +347,17 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — 66 minitest tests with fixtures
-- **Test fixtures**: 5 props (one, two, three, four, five), all on contest :one
+- `bin/rails test` — minitest tests with fixtures
+- **Test fixtures**: 6 contest_matchups (m1-m6), 6 teams (team-a through team-f), all on contest :one
 - **Test password**: All fixtures use `"password"` (minimum 6 chars required)
 - **Test helper**: `log_in_as(user)` defaults to password "password"
-- **Wallet user fixture**: `wallet_user` — no email, has wallet_address
-- **Known failure**: `ContestsControllerTest#test_enter_with_JSON_returns_error_when_no_cart_entry` — pre-existing, returns 302 instead of 422
 
 ### Playwright E2E Tests
 - `npm test` — runs all Playwright tests (19 tests across 3 spec files)
 - `npm run test:headed` — runs with visible browser
 - `npm run test:ui` — opens Playwright UI mode
 - **Config**: `playwright.config.js` — Chromium only, port 3001, auto-starts test Rails server
-- **Seed**: `e2e/seed.rb` — 2 users (alex@turf.com / sam@turf.com, password: "password"), 1 contest, 4 props. Idempotent via delete_all.
+- **Seed**: `e2e/seed.rb` — 2 users (alex@turf.com / sam@turf.com, password: "password"), 1 contest, 6 contest matchups. Idempotent via delete_all.
 - **Helper**: `e2e/helpers.js` — `login(page, email, password)`
 - **Spec files**: `e2e/smoke.spec.js` (core flows), `e2e/theme.spec.js` (dark/light toggle), `e2e/navigation.spec.js` (page loads)
 - **Known failure**: "second entry after confirming" test — blur overlay + entry state interaction issue
@@ -395,9 +366,10 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 
 - [x] Set up Google OAuth credentials
 - [x] Solana integration Phases 1-6 (program, services, wallet auth, deposit/withdraw, contest onchain, reconciliation)
+- [x] Remove Ethereum wallet auth (eth gem, ethers.js CDN, wallet_sessions_controller)
+- [x] Remove Over/Under game mode (picks, props) — Turf Totals only
 - [ ] Deploy Anchor program to Devnet (need ~0.67 more SOL for deployment)
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
-- [ ] Phase out Ethereum wallet auth (remove `eth` gem, ethers.js CDN, `wallet_sessions_controller`) after Solana is stable
 - [ ] Test Phantom wallet auth end-to-end on Devnet
 
 ## Session Protocol
