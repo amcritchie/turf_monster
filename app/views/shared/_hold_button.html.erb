@@ -23,9 +23,9 @@
   .hold-btn {
     --duration: <%= duration %>ms;
     --color: #F6F8FF;
-    --bg: #8E82FE;
-    --shadow: rgba(0, 9, 61, 0.2);
-    --shadow-active: rgba(0, 9, 61, 0.32);
+    --bg: #4BAF50;
+    --shadow: rgba(0, 61, 9, 0.2);
+    --shadow-active: rgba(0, 61, 9, 0.32);
     --progress-border: #3a3359;
     --progress-active: #F6F8FF;
     --progress-success: #06D6A0;
@@ -49,8 +49,8 @@
     transition: transform .3s, box-shadow .3s, background .3s, border-color .3s;
     transform: scale(var(--scale, 1));
 
-    border: 1px solid rgba(142, 130, 254, 0.5);
-    box-shadow: 0 0 20px rgba(142, 130, 254, 0.25);
+    border: 1px solid rgba(75, 175, 80, 0.5);
+    box-shadow: 0 0 20px rgba(75, 175, 80, 0.25);
   }
   .hold-btn.nudge {
     animation: hold-nudge 0.5s ease-in-out 1;
@@ -148,9 +148,9 @@
   /* ── State: hover ── */
   .hold-btn:hover:not(.process):not(.success) {
     --shadow-color: var(--shadow-active);
-    --bg: #7b6efe;
-    border-color: rgba(142, 130, 254, 0.7);
-    box-shadow: 0 0 30px rgba(142, 130, 254, 0.4);
+    --bg: #43A047;
+    border-color: rgba(75, 175, 80, 0.7);
+    box-shadow: 0 0 30px rgba(75, 175, 80, 0.4);
   }
   .hold-btn:active:not(.success) {
     --scale: .97;
