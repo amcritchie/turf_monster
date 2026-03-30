@@ -130,7 +130,8 @@ end
 
 ## Architecture
 
-- Money stored in cents, displayed in dollars
+- Money stored in cents, displayed in dollars via `dollars()` helper (`ApplicationHelper#dollars` — `"$#{'%.2f' % amount}"`)
+- `contest_badge_classes(status)` helper — maps contest status to Tailwind classes (extracted from views)
 - Contest flow: draft → open → locked → settled
 - Picks use "more"/"less" internally (displayed as OVER/UNDER)
 - **4 picks per entry** — toggle_pick! caps at 4, confirm! validates exactly 4
