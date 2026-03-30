@@ -50,13 +50,13 @@
         <% active_count = @contest.entries.where(status: [:active, :complete]).count %>
         <% if @contest.max_entries.nil? || active_count < @contest.max_entries %>
           <%= button_to "Fill Contest", fill_contest_path(@contest), method: :post,
-            class: "px-6 py-2 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow transition" %>
+            class: "btn btn-secondary btn-lg" %>
         <% end %>
         <%= button_to "Lock Contest", lock_contest_path(@contest), method: :post,
-          class: "px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition" %>
+          class: "btn btn-lg bg-yellow-600 hover:bg-yellow-500 text-white" %>
       <% end %>
       <%= button_to "Jump", jump_contest_path(@contest), method: :post,
-        class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow transition" %>
+        class: "btn btn-primary btn-lg" %>
     </div>
   </section>
 <% end %>
@@ -144,7 +144,7 @@
           </div>
         <% end %>
       </div>
-      <button type="submit" class="w-full md:w-auto px-8 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow hover:shadow-lg hover:shadow-violet/20 transition">
+      <button type="submit" class="btn btn-secondary btn-lg w-full md:w-auto">
         Grade Contest
       </button>
     <% end %>

@@ -239,6 +239,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: `.card` class (bg-surface, border-subtle), `.card-hover` for interactive cards
 - JSON blocks: `.json-debug` class (bg-inset, border-subtle), text-mint, font-mono
+- **Button system**: CSS component classes in `application.tailwind.css` — `.btn` (base), `.btn-primary` (mint/navy), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-danger` (red), `.btn-google` (white/gray). Size modifiers: `.btn-sm`, `.btn-lg`. Disabled state built into `.btn` base. Combine: `class="btn btn-primary btn-lg w-full"`. All buttons in views use these classes.
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
 - **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (violet, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
 - **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):

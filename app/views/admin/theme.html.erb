@@ -106,35 +106,49 @@
     <h2 class="text-xl font-bold text-heading mb-4">Buttons</h2>
     <div class="card p-6 space-y-6">
       <div>
-        <p class="label-upper mb-3">Primary</p>
+        <p class="label-upper mb-3">Primary (.btn-primary)</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-3 py-1.5 bg-mint hover:bg-mint-600 text-white text-xs font-bold rounded-lg transition">Small</button>
-          <button class="px-4 py-2 bg-mint hover:bg-mint-600 text-white text-sm font-bold rounded-lg transition">Medium</button>
-          <button class="px-4 py-2.5 bg-mint hover:bg-mint-600 text-white text-lg font-bold rounded-lg transition">Large</button>
+          <button class="btn btn-primary btn-sm">Small</button>
+          <button class="btn btn-primary">Medium</button>
+          <button class="btn btn-primary btn-lg">Large</button>
         </div>
       </div>
       <div>
-        <p class="label-upper mb-3">Secondary / Outline</p>
+        <p class="label-upper mb-3">Secondary (.btn-secondary)</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-3 py-1.5 border border-strong text-secondary hover:text-heading hover:border-mint text-xs font-medium rounded-lg transition">Small</button>
-          <button class="px-4 py-2 border border-strong text-secondary hover:text-heading hover:border-mint text-sm font-medium rounded-lg transition">Medium</button>
-          <button class="px-4 py-2.5 border border-strong text-secondary hover:text-heading hover:border-mint text-lg font-medium rounded-lg transition">Large</button>
+          <button class="btn btn-secondary btn-sm">Small</button>
+          <button class="btn btn-secondary">Medium</button>
+          <button class="btn btn-secondary btn-lg">Large</button>
         </div>
       </div>
       <div>
-        <p class="label-upper mb-3">Danger</p>
+        <p class="label-upper mb-3">Outline (.btn-outline)</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition">Small</button>
-          <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg transition">Medium</button>
-          <button class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-lg font-bold rounded-lg transition">Large</button>
+          <button class="btn btn-outline btn-sm">Small</button>
+          <button class="btn btn-outline">Medium</button>
+          <button class="btn btn-outline btn-lg">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Danger (.btn-danger)</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn btn-danger btn-sm">Small</button>
+          <button class="btn btn-danger">Medium</button>
+          <button class="btn btn-danger btn-lg">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Google (.btn-google)</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn btn-google">Sign in with Google</button>
         </div>
       </div>
       <div>
         <p class="label-upper mb-3">Disabled</p>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="px-4 py-2 bg-mint text-white text-sm font-bold rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Primary</button>
-          <button class="px-4 py-2 border border-strong text-muted text-sm font-medium rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Secondary</button>
-          <button class="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg cursor-not-allowed" style="opacity: 0.5;" disabled>Danger</button>
+          <button class="btn btn-primary" disabled>Primary</button>
+          <button class="btn btn-outline" disabled>Outline</button>
+          <button class="btn btn-danger" disabled>Danger</button>
         </div>
       </div>
     </div>

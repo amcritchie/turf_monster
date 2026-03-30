@@ -11,8 +11,8 @@
   </div>
 
   <p class="text-secondary text-sm mb-6">
-    Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier 0.5x). Rank 48 = weakest (highest multiplier 3.5x).
-    Higher multiplier = more points when that team scores. Formula: &radic;rank &times; 0.5
+    Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier x1). Rank 48 = weakest (highest multiplier x4).
+    Higher multiplier = more points when that team scores. Formula: &radic;rank &times; 0.5 + 0.5
   </p>
 
   <div x-data="rankManager()" x-cloak>
@@ -35,7 +35,7 @@
       </div>
 
       <div class="mt-6 flex gap-3">
-        <button type="submit" class="flex-1 px-6 py-3 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow transition">
+        <button type="submit" class="btn btn-secondary btn-lg flex-1">
           Save Rankings
         </button>
       </div>
@@ -64,7 +64,7 @@
         items.forEach((item, i) => {
           const rank = i + 1;
           item.querySelector('.rank-number').textContent = rank;
-          item.querySelector('.multiplier-display').textContent = (Math.sqrt(rank) * 0.5).toFixed(1) + 'x';
+          item.querySelector('.multiplier-display').textContent = (Math.sqrt(rank) * 0.5 + 0.5).toFixed(1) + 'x';
         });
       },
 

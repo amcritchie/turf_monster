@@ -69,7 +69,7 @@
               class="input-field pl-7 font-mono" placeholder="0.00" value="1.00">
           </div>
         </div>
-        <button type="submit" class="w-full px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-lg transition">
+        <button type="submit" class="btn btn-primary w-full">
           Deposit
         </button>
       <% end %>
@@ -89,7 +89,7 @@
           </div>
           <p class="text-xs text-muted mt-1">Max: $<%= sprintf('%.2f', @user.withdrawable_dollars) %> (deposited balance only)</p>
         </div>
-        <button type="submit" class="w-full px-6 py-2 bg-violet hover:bg-violet-600 text-white font-bold rounded-lg transition">
+        <button type="submit" class="btn btn-secondary w-full">
           Withdraw
         </button>
       <% end %>
@@ -105,7 +105,7 @@
           <p class="text-sm text-muted">Add $10.00 test USDC to your balance for testing.</p>
         </div>
         <%= button_to "Get Test USDC", faucet_wallet_path, method: :post,
-          class: "px-6 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-bold rounded-lg border border-yellow-600/50 transition" %>
+          class: "btn bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-600/50" %>
       </div>
     </div>
   <% end %>
@@ -118,7 +118,7 @@
           <h2 class="text-lg font-bold text-heading mb-1">Onchain Sync</h2>
           <p class="text-sm text-muted">Check your onchain balance against the Solana program.</p>
         </div>
-        <%= link_to "Sync Balance", sync_wallet_path, class: "px-6 py-2 bg-surface-alt hover:bg-inset text-secondary font-bold rounded-lg border border-subtle transition" %>
+        <%= link_to "Sync Balance", sync_wallet_path, class: "btn btn-outline" %>
       </div>
     </div>
   <% end %>

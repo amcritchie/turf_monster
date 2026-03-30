@@ -21,7 +21,7 @@
     <p class="text-secondary text-lg max-w-xl mx-auto mb-8">
       Pick 5 team offensive matchups from the World Cup. Each team has a multiplier based on how good their offense is — weaker teams = higher multiplier = bigger payoff when they score.
     </p>
-    <%= link_to "Start Playing", root_path, class: "inline-block px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold text-lg rounded-xl shadow-lg shadow-mint/20 transition" %>
+    <%= link_to "Start Playing", root_path, class: "btn btn-primary btn-lg shadow-lg shadow-mint/20 text-lg" %>
   </section>
 
   <hr class="border-subtle my-10">
@@ -107,24 +107,24 @@
     <p class="text-mint font-mono text-sm mb-2">03</p>
     <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Multiplier Scoring</h2>
     <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
-      Every team is ranked 1–48 by offensive strength. The multiplier is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5</span>. Better offenses get lower multipliers, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-heading font-semibold">goals scored &times; multiplier</span>.
+      Every team is ranked 1–48 by offensive strength. The multiplier is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5 + 0.5</span>. Better offenses get lower multipliers, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-heading font-semibold">goals scored &times; multiplier</span>.
     </p>
 
     <!-- Three example cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
       <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
         <p class="text-sm text-muted mb-1">Rank #1 (best offense)</p>
-        <p class="text-3xl font-mono font-bold text-violet mb-1">0.5x</p>
+        <p class="text-3xl font-mono font-bold text-violet mb-1">x1</p>
         <p class="text-secondary text-xs">Low reward, high chance of goals</p>
       </div>
       <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
         <p class="text-sm text-muted mb-1">Rank #24 (mid-tier)</p>
-        <p class="text-3xl font-mono font-bold text-violet mb-1">2.4x</p>
+        <p class="text-3xl font-mono font-bold text-violet mb-1">x3</p>
         <p class="text-secondary text-xs">Balanced risk/reward</p>
       </div>
       <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
         <p class="text-sm text-muted mb-1">Rank #48 (weakest offense)</p>
-        <p class="text-3xl font-mono font-bold text-violet mb-1">3.5x</p>
+        <p class="text-3xl font-mono font-bold text-violet mb-1">x4</p>
         <p class="text-secondary text-xs">High reward if they score</p>
       </div>
     </div>
@@ -293,10 +293,10 @@
         <div class="text-right text-heading">Goals &times; Multiplier</div>
 
         <div class="text-secondary">Multiplier range</div>
-        <div class="font-mono text-violet text-right">0.5x – 3.5x</div>
+        <div class="font-mono text-violet text-right">x1 – x4</div>
 
         <div class="text-secondary">Multiplier formula</div>
-        <div class="font-mono text-violet text-right">&radic;Rank &times; 0.5</div>
+        <div class="font-mono text-violet text-right">&radic;Rank &times; 0.5 + 0.5</div>
 
         <div class="col-span-2 border-t border-subtle my-1"></div>
 
@@ -334,7 +334,7 @@
   <!-- ========== FOOTER CTA ========== -->
   <section class="text-center py-8">
     <p class="text-2xl md:text-3xl font-bold text-heading mb-6">Ready to play?</p>
-    <%= link_to "Start Playing", root_path, class: "inline-block px-8 py-3 bg-mint hover:bg-mint-600 text-navy font-bold text-lg rounded-xl shadow-lg shadow-mint/20 transition" %>
+    <%= link_to "Start Playing", root_path, class: "btn btn-primary btn-lg shadow-lg shadow-mint/20 text-lg" %>
   </section>
 
 </div>

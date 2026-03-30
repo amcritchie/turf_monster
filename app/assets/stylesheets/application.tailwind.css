@@ -58,6 +58,32 @@ html:not(.dark) {
   .label-upper {
     @apply text-xs text-muted uppercase tracking-wider;
   }
+  /* Button system */
+  .btn {
+    @apply inline-flex items-center justify-center font-bold rounded-lg transition px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-mint hover:bg-mint-600 text-navy;
+  }
+  .btn-secondary {
+    @apply bg-violet hover:bg-violet-600 text-white;
+  }
+  .btn-outline {
+    @apply border border-strong text-secondary hover:text-heading hover:border-mint bg-transparent;
+  }
+  .btn-danger {
+    @apply bg-red-600/20 hover:bg-red-600/40 text-red-400;
+  }
+  .btn-google {
+    @apply bg-white hover:bg-gray-100 text-gray-800 shadow hover:shadow-lg;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-lg {
+    @apply px-8 py-3 text-base rounded-xl shadow;
+  }
+
   .matchup-selected {
     border-color: #06D6A0 !important;
     background-color: rgba(6,214,160,0.05);
