@@ -58,6 +58,10 @@ html:not(.dark) {
   .label-upper {
     @apply text-xs text-muted uppercase tracking-wider;
   }
+  .matchup-selected {
+    @apply border-mint bg-mint/5;
+    box-shadow: 0 10px 25px -3px rgba(6,214,160,0.3);
+  }
 
   /* Theme transition (applied during toggle) */
   .theme-transition *,
