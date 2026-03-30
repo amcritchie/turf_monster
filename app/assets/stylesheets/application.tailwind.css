@@ -2,39 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark theme (default) */
-:root, .dark {
-  --color-page: #1A1535;
-  --color-surface: #3a3359;
-  --color-surface-alt: #16122e;
-  --color-inset: #0e0c20;
-  --color-text: #ffffff;
-  --color-text-body: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-border: rgba(88,81,126,0.2);
-  --color-border-strong: rgba(88,81,126,0.4);
-  --color-shadow: transparent;
-  --color-cta: #4BAF50;
-  --color-cta-hover: #43A047;
-  --color-success: #06D6A0;
-  --color-danger: #EF4444;
-}
-
-/* Light theme */
-html:not(.dark) {
-  --color-page: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-alt: #f1f5f9;
-  --color-inset: #e2e8f0;
-  --color-text: #0f172a;
-  --color-text-body: #334155;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-border: #e2e8f0;
-  --color-border-strong: #cbd5e1;
-  --color-shadow: rgba(0,0,0,0.05);
-}
+/* Theme CSS custom properties are now engine-generated via studio_theme_css_tag */
 
 @layer components {
   .card {
@@ -63,19 +31,35 @@ html:not(.dark) {
     @apply inline-flex items-center justify-center font-bold rounded-lg transition px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply bg-primary hover:bg-primary-600 text-white;
+    @apply text-white;
+    background-color: var(--color-cta);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-cta-hover);
   }
   .btn-secondary {
     @apply bg-violet hover:bg-violet-600 text-white;
   }
   .btn-outline {
-    @apply border border-strong text-secondary hover:text-heading hover:border-primary bg-transparent;
+    @apply border border-strong text-secondary hover:text-heading bg-transparent;
+    border-color: var(--color-border-strong);
+  }
+  .btn-outline:hover {
+    border-color: var(--color-cta);
   }
   .btn-warning {
-    @apply bg-warning hover:bg-warning-600 text-white;
+    @apply text-white;
+    background-color: var(--color-warning);
+  }
+  .btn-warning:hover {
+    filter: brightness(0.9);
   }
   .btn-danger {
-    @apply bg-red-600/20 hover:bg-red-600/40 text-red-400;
+    @apply text-red-400;
+    background-color: rgba(239, 68, 68, 0.2);
+  }
+  .btn-danger:hover {
+    background-color: rgba(239, 68, 68, 0.4);
   }
   .btn-google {
     @apply bg-white hover:bg-gray-100 text-gray-800 shadow hover:shadow-lg;
