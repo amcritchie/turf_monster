@@ -86,6 +86,7 @@ Studio.configure do |config|
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
   config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 
+  config.theme_logos = %w[logo.png logo.jpeg icon.svg icon.png favicon.png]
   config.theme_primary = "#4BAF50"
   config.theme_accent = "#8E82FE"
 end
@@ -95,7 +96,7 @@ end
 
 **Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `sessions/_sso_continue.html.erb` (branded "Easy sign in" header), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
-**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`, `/admin/theme/edit`, `/admin/theme/update`, `/admin/theme/regenerate`.
+**Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`, `/admin/theme` (GET + PATCH), `/admin/theme/regenerate`.
 
 **SSO Satellite Role:** This app receives one-way SSO from McRitchie Studio (the hub). Login page shows "Continue as [name]" button (from engine's `_sso_continue.html.erb` partial) when user is logged into Studio. `GET /sso_login` provides one-click SSO from the hub's nav link. Logout only clears this app's session. Wallet-only users (no email) cannot SSO. Hub logo at `public/studio-logo.svg`. Requires shared `SECRET_KEY_BASE`.
 
@@ -105,7 +106,7 @@ end
 
 - **Theme**: Dynamic — engine-generated CSS custom properties from 7 role colors (see top-level `CLAUDE.md` for full theme docs)
 - **Theme config**: `theme_primary = "#4BAF50"` (green), `theme_accent = "#8E82FE"` (violet) in `studio.rb`
-- **Admin editor**: `/admin/theme/edit` — color pickers, live preview, cache control
+- **Admin theme page**: `/admin/theme` — color editor + styleguide (from engine)
 - **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
 - **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), pick count badges, selected card borders, hold button success glow. Game-mechanic accent, distinct from primary.
 - **Accent**: `#8E82FE` Violet — O/U lines, scores, draft badges, `.btn-secondary`
@@ -262,8 +263,8 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options (email/wallet) blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
 - **Navbar**: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
-- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, links to `/admin/theme` and `/error_logs`.
-- **Theme styleguide** (`/admin/theme`): Visual reference page showing all logos (checkerboard backgrounds for transparency), semantic color tokens, brand colors, typography specimens, button sizes/variants, component classes, and forced dark/light side-by-side preview.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, single "Theme" link to `/admin/theme` and "Error Logs" link to `/error_logs`.
+- **Theme page** (`/admin/theme`): Engine-provided combined page — color editor with live preview at top, styleguide below (logos, semantic tokens, typography, buttons, components).
 - **Account page** (`/account`): Four sections — Profile (name/email), Password (set/change), Google (link/unlink), Wallet (connect/display).
 - **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 - **After confirming entry**: redirects to contest show page (leaderboard)
@@ -299,7 +300,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/account/change_password` — POST, set or change password
 - `/auth/wallet/nonce` — GET, generate wallet nonce (JSON)
 - `/auth/wallet/verify` — POST, verify SIWE signature (JSON)
-- `/admin/theme` — theme styleguide (logos, colors, typography, buttons, components, dark/light preview)
+- `/admin/theme` — theme editor + styleguide (engine-provided: color editor, logos, tokens, typography, buttons, components)
 - `/wallet` — GET wallet/balance page
 - `/wallet/deposit` — POST deposit funds
 - `/wallet/withdraw` — POST withdraw funds
