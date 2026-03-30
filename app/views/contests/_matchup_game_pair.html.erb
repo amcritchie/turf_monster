@@ -14,14 +14,18 @@
       <% if locked && side == 0 %>
         <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
       <% end %>
-      <p class="font-bold text-heading text-sm md:text-base mb-0.5 truncate team-name"><%= matchup.team.name %></p>
-      <p class="text-sm text-secondary mb-2">Goals&ensp;<%= matchup.team.emoji %></p>
+      <p class="text-2xl" style="margin-bottom: -2px"><%= matchup.team.emoji %></p>
+      <p class="font-bold text-heading text-lg md:text-xl mb-0.5 truncate team-name"><%= matchup.team.name %></p>
+      <p class="text-sm text-secondary mb-2">Goals<% if matchup.opponent_team %>&ensp;vs <%= matchup.opponent_team.short_name %>&ensp;<%= matchup.opponent_team.emoji %><% end %></p>
       <% if matchup.multiplier %>
-        <p class="font-mono text-lg md:text-xl text-violet">x<%= sprintf('%.1f', matchup.multiplier) %></p>
+        <p class="font-mono text-xl md:text-2xl text-violet">x<%= matchup.multiplier == matchup.multiplier.to_i ? matchup.multiplier.to_i : sprintf('%.1f', matchup.multiplier) %></p>
       <% end %>
     </button>
     <% if side == 0 %>
-      <div class="flex items-center self-stretch px-3" style="background: color-mix(in srgb, var(--color-surface) 70%, var(--color-page) 30%)">
+      <div class="flex items-center self-stretch px-3 transition-all"
+           :style="selections['<%= left.id %>'] && selections['<%= right.id %>']
+             ? 'background: color-mix(in srgb, var(--color-surface) 85%, var(--color-mint, #06D6A0) 15%)'
+             : 'background: color-mix(in srgb, var(--color-surface) 70%, var(--color-page) 30%)'">
         <span class="text-xs font-bold text-muted uppercase">vs</span>
       </div>
     <% end %>

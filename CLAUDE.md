@@ -67,9 +67,11 @@ draft → open → locked → settled
 - ethers.js v6 via CDN (wallet connect pages only, loaded via `content_for :head`)
 - Montserrat font (Google Fonts CDN)
 - ERB views, import maps, no JS frameworks
-- bcrypt password auth + Google OAuth (OmniAuth) + Ethereum wallet auth (SIWE)
-- `eth` gem (~> 0.5) for server-side signature verification
+- bcrypt password auth + Google OAuth (OmniAuth) + Ethereum wallet auth (SIWE) + Solana wallet auth (Phantom)
+- `eth` gem (~> 0.5) for server-side Ethereum signature verification
+- `ed25519` gem (~> 1.3) for Solana signature verification
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
+- **Solana integration** — Devnet, JSON-RPC via `Solana::Client`, Anchor program (`turf_vault`)
 
 ## Studio Engine
 
@@ -88,7 +90,7 @@ end
 
 **From the engine:** `Studio::ErrorHandling` concern (in ApplicationController), `ErrorLog` model, `Sluggable` concern, auth controllers (sessions, registrations, omniauth_callbacks, error_logs), error log views, generic login/signup views (overridden by app-branded versions).
 
-**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
+**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb` (branded with wallet connect), `sessions/_sso_continue.html.erb` (branded "Easy sign in" header), `omniauth_callbacks_controller.rb` (merge support when linking Google from /account).
 
 **Routes:** `Studio.routes(self)` in `config/routes.rb` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/auth/failure`, `/error_logs`.
 
@@ -122,15 +124,18 @@ end
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart pick slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries). Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields). Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Balance system**: Users have `balance_cents` (real, onchain-backed, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first on deduction). `total_balance_cents` = sum of both. `deduct_funds!` uses promo first.
+- **Multiplier formula**: `Math.sqrt(rank) * 0.5 + 0.5` — minimum x1, scales with rank. Integers display without decimal (x1 not x1.0).
 
 ## Authentication
 
-Three auth methods, all optional — user needs at least one:
+Four auth methods, all optional — user needs at least one:
 
 - **Email + password** — traditional signup/login via studio engine controllers
 - **Google OAuth** — via OmniAuth, links to existing email users automatically
-- **Ethereum wallet (SIWE)** — Sign-In with Ethereum, no smart contract needed
+- **Ethereum wallet (SIWE)** — Sign-In with Ethereum, no smart contract needed (legacy, being replaced by Solana)
+- **Solana wallet (Phantom)** — Ed25519 signature verification, `SolanaSessionsController`
 
 ### User Model Auth Design
 
@@ -184,10 +189,10 @@ validate :has_authentication_method  # must have email, wallet, or provider+uid
 
 ## Models
 
-- **User** — name, email (nullable), wallet_address (nullable), balance_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
-- **Contest** — name, entry_fee_cents, status, max_entries, starts_at, slug
+- **User** — name, email (nullable), wallet_address (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
+- **Contest** — name, entry_fee_cents, status, max_entries, starts_at, onchain_contest_id, onchain_settled, onchain_tx_signature, slug
 - **Prop** — belongs_to contest, team, opponent_team, game (all via slug FKs, optional). description, line, stat_type, result_value, status, team_slug, opponent_team_slug, game_slug, slug
-- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, slug (includes id for uniqueness)
+- **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, onchain_entry_id, onchain_tx_signature, entry_number, slug (includes id for uniqueness)
 - **Pick** — belongs_to entry + prop (unique pair), selection (more/less), result, slug
 - **Team** — name, short_name, location, emoji, color_primary, color_secondary, slug. Has many players, home_games, away_games.
 - **Game** — belongs_to home_team + away_team (Team via slug FKs). kickoff_at, venue, status, home_score, away_score, slug.
@@ -219,7 +224,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Seeds / World Cup Data
 
-- 5 seeded users: 4 email users (password: "password") + 1 wallet-only user (vitalik.eth). Alex is seeded as admin.
+- 6 seeded users: 4 email users (password: "password") + 1 Ethereum wallet-only user (vitalik.eth) + 1 Solana wallet user. Alex is seeded as admin. Email users get promotional credits.
 - 48 teams seeded with real World Cup 2026 draw (42 confirmed + 6 TBD playoff placeholders)
 - 72 group stage matches with real dates, kickoff times (ET/EDT), venues across 16 host cities
 - 67 notable players across 21 teams
@@ -235,12 +240,15 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - Cards: `.card` class (bg-surface, border-subtle), `.card-hover` for interactive cards
 - JSON blocks: `.json-debug` class (bg-inset, border-subtle), text-mint, font-mono
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
+- **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (violet, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
 - **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):
-  - **Game view** (default): Paired cards with "vs" divider, sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected ring effect (mint glow) when both sides of a game are picked.
+  - **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `ring-2 ring-mint` glow, "vs" div gets mint tint.
   - **Multiplier view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by multiplier. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Multiplier" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
   - Both views share the same Alpine `selections` state — picks persist across view switches.
+- **Cart slot cards** (`_turf_totals_cart_slots.html.erb`): Emoji + Team Name + "vs OPP" on first line, "Goals" + multiplier on second line.
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with three states — idle (violet), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark). Params: `default_text`, `hold_text`, `success_text`, `duration`, `hold_id`, `guard`, `on_success`.
-- **Wallet connect** (`_wallet_connect.html.erb`): Alpine component with states: Connect Wallet → Connecting → Sign message → Verifying → redirect. Accepts `link_mode` local for /account use.
+- **Wallet connect** (`_wallet_connect.html.erb`): Ethereum SIWE Alpine component (legacy). `_solana_wallet_connect.html.erb`: Phantom connect with ghost logo PNG (`/phantom-white.png`). Both accept `link_mode` local for /account use.
+- **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options (email/wallet) blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
 - **Navbar**: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`, shows truncated wallet address below name in gray monospace when wallet connected.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
 - **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, links to `/admin/theme` and `/error_logs`.
@@ -281,10 +289,51 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/auth/wallet/nonce` — GET, generate wallet nonce (JSON)
 - `/auth/wallet/verify` — POST, verify SIWE signature (JSON)
 - `/admin/theme` — theme styleguide (logos, colors, typography, buttons, components, dark/light preview)
+- `/wallet` — GET wallet/balance page
+- `/wallet/deposit` — POST deposit funds
+- `/wallet/withdraw` — POST withdraw funds
+- `/wallet/faucet` — POST mint test USDC (Devnet only)
+- `/wallet/sync` — GET sync onchain balance
+- `/auth/solana/nonce` — GET, generate Solana nonce (JSON)
+- `/auth/solana/verify` — POST, verify Phantom Ed25519 signature (JSON)
 - `/error_logs` — error logs index (search, loading animation)
 - `/error_logs/:slug` — error log detail
 
 **Route name gotcha**: `resource :account` with member routes generates `link_wallet_account_path` (not `account_link_wallet_path`). The action name comes first.
+
+## Solana Integration (Devnet)
+
+"DeFi mullet" — Web2 UX front, Solana settlement back. Onchain methods are non-blocking (rescue + log errors) so app works without deployed program.
+
+### Services (`app/services/solana/`)
+
+- `Solana::Config` — program ID, RPC URL, mints, network
+- `Solana::Client` — JSON-RPC HTTP wrapper (Net::HTTP), retry logic
+- `Solana::Keypair` — Ed25519 key gen, encrypt/decrypt via Rails master key, sign, base58
+- `Solana::Borsh` — minimal Borsh serialization
+- `Solana::Transaction` — transaction builder, Anchor discriminators, PDA derivation
+- `Solana::Vault` — high-level business logic (deposit, withdraw, enter, settle, sync)
+- `Solana::Reconciler` — compare DB vs onchain balances, log discrepancies
+
+### Anchor Program (`turf_vault/`)
+
+Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest.
+
+**Deployment status**: Program built, awaiting sufficient Devnet SOL for deployment. Admin keypair: `9Fy8P3DvKBh3awt1wr27g4CDh47oDqmJR2FAAQ1bc69D`.
+
+### Wallet Types
+
+- **Custodial**: Server generates + encrypts Ed25519 keypair, signs transactions on behalf of user
+- **Phantom**: User connects Phantom browser extension, signs transactions directly
+
+### Rake Tasks
+
+- `solana:init_vault` — initialize vault on Devnet
+- `solana:airdrop` — airdrop SOL to admin
+- `solana:check_balance` — read onchain balance
+- `solana:faucet` — mint test USDC
+- `solana:reconcile` — reconcile all user balances
+- `solana:reconcile_contest` — reconcile specific contest
 
 ## Known Gotchas
 
@@ -325,9 +374,12 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## TODO
 
-- [x] Set up Google OAuth credentials — `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` set in `.env` (local) and Heroku config vars (production). Redirect URIs: `http://localhost:3000/auth/google_oauth2/callback`, `http://localhost:3001/auth/google_oauth2/callback`, `https://app.mcritchie.studio/auth/google_oauth2/callback`, `https://turf.mcritchie.studio/auth/google_oauth2/callback`
+- [x] Set up Google OAuth credentials
+- [x] Solana integration Phases 1-6 (program, services, wallet auth, deposit/withdraw, contest onchain, reconciliation)
+- [ ] Deploy Anchor program to Devnet (need ~0.67 more SOL for deployment)
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
-- [ ] Test wallet auth end-to-end with MetaMask
+- [ ] Phase out Ethereum wallet auth (remove `eth` gem, ethers.js CDN, `wallet_sessions_controller`) after Solana is stable
+- [ ] Test Phantom wallet auth end-to-end on Devnet
 
 ## Session Protocol
 
