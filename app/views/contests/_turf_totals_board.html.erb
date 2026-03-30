@@ -168,7 +168,7 @@
         <h3 class="text-lg font-bold text-heading">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-                :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
+                :class="selectionCount === <%= @contest.picks_required %> ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
             <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
           </span>
           <button @click="cartOpen = false" class="text-secondary hover:text-heading transition text-xl leading-none">&times;</button>
@@ -207,7 +207,7 @@
     <div class="flex items-center justify-between px-4 pt-3 pb-2">
       <h3 class="text-sm font-bold text-heading">Your Picks</h3>
       <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
+            :class="selectionCount === <%= @contest.picks_required %> ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
         <span x-text="selectionCount"></span>/<%= @contest.picks_required %>
       </span>
     </div>
@@ -216,7 +216,7 @@
       <template x-for="i in <%= @contest.picks_required %>" :key="i">
         <div class="flex-1 min-w-0">
           <template x-if="selectionSlots[i-1]">
-            <div class="bg-surface-alt rounded-lg px-2 py-2 border border-mint-700 text-center relative"
+            <div class="bg-surface-alt rounded-lg px-2 py-2 border border-primary-700 text-center relative"
                  :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
               <template x-if="selectionSlots[i-1].emoji">
                 <div class="text-xs mb-0.5">
@@ -227,7 +227,7 @@
               <template x-if="selectionSlots[i-1].opName">
                 <p class="text-muted text-[10px]">vs <span x-text="selectionSlots[i-1].opName"></span></p>
               </template>
-              <p class="text-violet font-mono text-[10px] mt-0.5" x-text="'x' + selectionSlots[i-1].multiplier"></p>
+              <p class="text-primary font-mono text-[10px] mt-0.5" x-text="'x' + selectionSlots[i-1].multiplier"></p>
               <button @click="removeSelection(selectionSlots[i-1].matchupId)"
                       class="absolute -top-1.5 -right-1.5 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-xs leading-none flex items-center justify-center">&times;</button>
             </div>

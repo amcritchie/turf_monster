@@ -2,7 +2,7 @@
   <template x-for="i in <%= @contest.picks_required %>" :key="i">
     <div>
       <template x-if="selectionSlots[i-1]">
-        <div class="bg-surface-alt rounded-xl p-3 border border-mint-700 transition"
+        <div class="bg-surface-alt rounded-xl p-3 border border-primary-700 transition"
              :class="isShaking(selectionSlots[i-1].matchupId) ? 'shake' : ''">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -18,7 +18,7 @@
                 </p>
                 <p class="text-xs mt-0.5">
                   <span class="text-muted">Goals</span>
-                  <span class="text-violet font-mono ml-1" x-text="'x' + selectionSlots[i-1].multiplier"></span>
+                  <span class="text-primary font-mono ml-1" x-text="'x' + selectionSlots[i-1].multiplier"></span>
                 </p>
               </div>
             </div>

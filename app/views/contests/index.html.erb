@@ -165,7 +165,7 @@
         <h3 class="text-lg font-bold text-heading">Your Picks</h3>
         <div class="flex items-center gap-3">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-                :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
+                :class="pickCount === 4 ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
             <span x-text="pickCount"></span>/4
           </span>
           <button @click="cartOpen = false" class="text-secondary hover:text-heading transition text-xl leading-none">&times;</button>
@@ -204,7 +204,7 @@
     <div class="flex items-center justify-between px-4 pt-3 pb-2">
       <h3 class="text-sm font-bold text-heading">Your Picks</h3>
       <span class="px-2 py-0.5 rounded-full text-xs font-bold"
-            :class="pickCount === 4 ? 'bg-mint text-navy' : 'bg-surface-alt text-secondary'">
+            :class="pickCount === 4 ? 'bg-primary text-white' : 'bg-surface-alt text-secondary'">
         <span x-text="pickCount"></span>/4
       </span>
     </div>
