@@ -123,7 +123,8 @@ end
 - **Text**: Use `text-heading`, `text-body`, `text-secondary`, `text-muted` — never hardcode `text-white` for headings or `text-gray-*` for body text
 - **Borders**: Use `border-subtle`, `border-strong` — never hardcode `border-navy-*`
 - **CSS var naming**: `--color-cta` / `--color-cta-hover` for singular CTA color. Full `--color-primary-{50..900}` palette with RGB variants for Tailwind `primary-*` utilities.
-- **Tailwind config**: `primary` palette is dynamic from shared studio config (CSS vars). `warning` palette defined locally in `config/tailwind.config.js`.
+- **Tailwind config**: `primary` palette is dynamic from shared studio config (CSS vars). `warning` palette defined locally in `config/tailwind.config.js`. Safelist includes `bg`, `text`, `border`, `ring` utilities for brand colors.
+- **`.matchup-selected` class**: Uses `outline` (not border) for selection highlight — avoids layout shift. Dynamic primary color via `rgb(var(--color-primary-rgb))`. Includes `box-shadow` glow. Double-selected game pairs use inline `outline` + `box-shadow` on the wrapper div.
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - **Button system**: `.btn` base + `.btn-primary` (uses `--color-cta`, green), `.btn-secondary` (hardcoded violet), `.btn-outline` (hover uses `--color-cta`), `.btn-warning` (uses `--color-warning`), `.btn-danger` (uses `--color-danger`), `.btn-google` (white). Size: `.btn-sm`, `.btn-lg`. See top-level `CLAUDE.md` for full reference.
 
@@ -259,7 +260,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
 - **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (violet, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
 - **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):
-  - **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `ring-2 ring-mint` glow, "vs" div gets mint tint.
+  - **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `outline` + `box-shadow` glow in primary, "vs" div gets primary tint.
   - **Multiplier view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by multiplier. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Multiplier" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
   - Both views share the same Alpine `selections` state — picks persist across view switches.
 - **Cart slot cards** (`_turf_totals_cart_slots.html.erb`): Emoji + Team Name + "vs OPP" on first line, "Goals" + multiplier on second line.
