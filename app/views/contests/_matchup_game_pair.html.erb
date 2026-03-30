@@ -7,7 +7,8 @@
     <button @click="toggleSelection('<%= matchup.id %>')"
             class="relative flex-1 min-w-0 bg-surface p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl' : 'rounded-r-xl' %>"
             :class="{
-              'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'],
+              'border-mint shadow-lg shadow-mint/20 bg-mint/5': selections['<%= matchup.id %>'] && !(selections['<%= left.id %>'] && selections['<%= right.id %>']),
+              'border-subtle bg-mint/5': selections['<%= matchup.id %>'] && selections['<%= left.id %>'] && selections['<%= right.id %>'],
               'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
             }"
             <% if locked %>disabled<% end %>>
