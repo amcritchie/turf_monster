@@ -31,13 +31,6 @@ turf = User.find_or_create_by!(email: "turf@mcritchie.studio") do |u|
 end
 turf.update!(password: "password") if turf.password_digest.blank?
 
-# Wallet-only test user (no email) — legacy Ethereum
-wallet_user = User.find_or_create_by!(wallet_address: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045") do |u|
-  u.name = "vitalik.eth"
-  u.balance_cents = 100_000
-  u.password = SecureRandom.hex(16)
-end
-
 # Generate custodial Solana wallets for email users (if they don't have one yet)
 [alex, mason, mack, turf].each do |user|
   user.generate_custodial_wallet! unless user.solana_connected?

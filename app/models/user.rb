@@ -5,14 +5,12 @@ class User < ApplicationRecord
   has_many :entries, dependent: :destroy
 
   validates :email, uniqueness: true, allow_nil: true
-  validates :wallet_address, uniqueness: true, allow_nil: true
   validates :solana_address, uniqueness: true, allow_nil: true
   validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :password, confirmation: true, if: -> { password_confirmation.present? }
   validate :has_authentication_method
 
   before_save :set_name_parts, if: -> { name_changed? }
-  before_save :normalize_wallet_address
 
   # --- Class methods ---
 
@@ -39,10 +37,6 @@ class User < ApplicationRecord
     )
   end
 
-  def self.from_wallet(address)
-    find_by(wallet_address: address.downcase)
-  end
-
   def self.from_solana_wallet(address)
     find_by(solana_address: address)
   end
@@ -54,12 +48,7 @@ class User < ApplicationRecord
   # --- Display ---
 
   def display_name
-    name.presence || (email.present? ? email.split("@").first.capitalize : truncated_solana) || truncated_wallet || "anon"
-  end
-
-  def truncated_wallet
-    return nil unless wallet_address.present?
-    "#{wallet_address[0..5]}...#{wallet_address[-4..]}"
+    name.presence || (email.present? ? email.split("@").first.capitalize : nil) || truncated_solana || "anon"
   end
 
   def truncated_solana
@@ -68,10 +57,6 @@ class User < ApplicationRecord
   end
 
   # --- Predicates ---
-
-  def wallet_connected?
-    wallet_address.present?
-  end
 
   def solana_connected?
     solana_address.present?
@@ -163,8 +148,8 @@ class User < ApplicationRecord
   private
 
   def has_authentication_method
-    return if email.present? || wallet_address.present? || solana_address.present? || (provider.present? && uid.present?)
-    errors.add(:base, "Must have email, wallet address, Solana address, or linked social account")
+    return if email.present? || solana_address.present? || (provider.present? && uid.present?)
+    errors.add(:base, "Must have email, Solana address, or linked social account")
   end
 
   def set_name_parts
@@ -173,12 +158,8 @@ class User < ApplicationRecord
     self.last_name = parts.last if parts.size > 1
   end
 
-  def normalize_wallet_address
-    self.wallet_address = wallet_address.downcase if wallet_address.present?
-  end
-
   def name_slug
-    base = name.presence || email.presence || solana_address.presence || wallet_address.presence || "user"
+    base = name.presence || email.presence || solana_address.presence || "user"
     "#{base}-#{id}".downcase.gsub(/\s+/, "-")
   end
 end

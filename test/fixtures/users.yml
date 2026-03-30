@@ -15,9 +15,3 @@ sam:
   email: sam@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>
-
-wallet_user:
-  name: vitalik.eth
-  wallet_address: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
-  balance_cents: 100000
-  password_digest: <%= BCrypt::Password.create(SecureRandom.hex(16)) %>

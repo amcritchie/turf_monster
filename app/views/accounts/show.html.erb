@@ -81,7 +81,7 @@
   <div class="card shadow p-6 mb-6">
     <h2 class="text-lg font-bold text-heading mb-4">Solana Wallet</h2>
     <% if @user.solana_connected? %>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 mb-4">
         <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         <span class="text-body font-mono text-sm"><%= @user.solana_address %></span>
         <% if @user.custodial_wallet? %>
@@ -90,19 +90,69 @@
           <span class="text-xs text-violet px-2 py-0.5 rounded bg-violet/10">Phantom</span>
         <% end %>
       </div>
+
+      <%# -- Balances -- %>
+      <div class="bg-inset rounded-lg p-4 space-y-3">
+        <%# Turf Monster balance %>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">🟢</span>
+            <span class="text-sm font-medium text-body">Turf Monster</span>
+          </div>
+          <span class="font-mono font-bold text-primary"><%= dollars(@user.total_balance_dollars) %></span>
+        </div>
+
+        <div class="border-t border-subtle"></div>
+
+        <%# SOL balance %>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">◎</span>
+            <span class="text-sm font-medium text-body">SOL</span>
+          </div>
+          <% if @wallet_balances %>
+            <span class="font-mono font-bold text-heading"><%= sprintf('%.4f', @wallet_balances[:sol]) %></span>
+          <% else %>
+            <span class="font-mono text-muted">—</span>
+          <% end %>
+        </div>
+
+        <%# USDC balance %>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💲</span>
+            <span class="text-sm font-medium text-body">USDC</span>
+          </div>
+          <% if @wallet_balances && @wallet_balances[:usdc] %>
+            <span class="font-mono font-bold text-heading"><%= sprintf('%.2f', @wallet_balances[:usdc]) %></span>
+          <% else %>
+            <span class="font-mono text-muted">—</span>
+          <% end %>
+        </div>
+
+        <%# USDT balance %>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💵</span>
+            <span class="text-sm font-medium text-body">USDT</span>
+          </div>
+          <% if @wallet_balances && @wallet_balances[:usdt] %>
+            <span class="font-mono font-bold text-heading"><%= sprintf('%.2f', @wallet_balances[:usdt]) %></span>
+          <% else %>
+            <span class="font-mono text-muted">—</span>
+          <% end %>
+        </div>
+      </div>
+
+      <% if Solana::Config.devnet? %>
+        <a href="https://explorer.solana.com/address/<%= @user.solana_address %>?cluster=devnet"
+           target="_blank" class="inline-block mt-3 text-xs text-secondary hover:text-primary transition">
+          View on Solana Explorer &rarr;
+        </a>
+      <% end %>
     <% else %>
       <%= render "shared/solana_wallet_connect", link_mode: true %>
     <% end %>
   </div>
 
-  <%# -- Ethereum Wallet (Legacy) -- %>
-  <% if @user.wallet_connected? %>
-    <div class="card shadow p-6 mb-6 opacity-60">
-      <h2 class="text-lg font-bold text-heading mb-4">Ethereum Wallet <span class="text-xs text-muted">(Legacy)</span></h2>
-      <div class="flex items-center gap-3">
-        <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-        <span class="text-muted font-mono text-sm"><%= @user.wallet_address %></span>
-      </div>
-    </div>
-  <% end %>
 </div>

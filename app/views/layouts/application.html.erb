@@ -51,8 +51,6 @@
               <% end %>
               <% if current_user.solana_connected? %>
                 <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
-              <% elsif current_user.wallet_connected? %>
-                <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_wallet %></div>
               <% end %>
             </div>
             <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
@@ -68,5 +66,6 @@
 
       <%= yield %>
     </div>
+    <%= yield :fixed_bottom if content_for?(:fixed_bottom) %>
   </body>
 </html>

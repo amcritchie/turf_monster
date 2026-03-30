@@ -67,8 +67,5 @@ gem "dotenv-rails", groups: [:development, :test]
 gem "tailwindcss-rails", "~> 2.7"
 gem "studio", git: "https://github.com/amcritchie/studio.git"
 
-# Ethereum signature verification (SIWE auth)
-gem "eth", "~> 0.5"
-
 # Ed25519 signing for Solana wallet auth and transactions
 gem "ed25519", "~> 1.3"

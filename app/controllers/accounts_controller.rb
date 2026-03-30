@@ -1,8 +1,10 @@
 class AccountsController < ApplicationController
   include UserMergeable
+  include Solana::AuthVerifier
 
   def show
     @user = current_user
+    load_solana_balances if @user.solana_connected?
   end
 
   def update
@@ -16,59 +18,15 @@ class AccountsController < ApplicationController
     render :show, status: :unprocessable_entity
   end
 
-  def link_wallet
-    message = params[:message]
-    signature = params[:signature]
-
-    rescue_and_log(target: current_user) do
-      recovered = Eth::Signature.personal_recover(message, signature)
-      recovered_address = Eth::Util.public_key_to_address(recovered).to_s.downcase
-
-      claimed_address = message.match(/0x[a-fA-F0-9]{40}/)&.to_s&.downcase
-      claimed_nonce = message.match(/Nonce: (\w+)/)&.captures&.first
-
-      unless recovered_address == claimed_address
-        return render json: { error: "Signature verification failed" }, status: :unauthorized
-      end
-
-      unless claimed_nonce == session[:wallet_nonce]
-        return render json: { error: "Invalid nonce" }, status: :unauthorized
-      end
-
-      session.delete(:wallet_nonce)
-
-      # Check if wallet belongs to another user
-      existing = User.from_wallet(claimed_address)
-      if existing && existing.id != current_user.id
-        merge_users!(survivor: current_user, absorbed: existing)
-        return render json: { success: true, redirect: account_path, notice: "Accounts merged." }
-      end
-
-      current_user.update!(wallet_address: claimed_address)
-      render json: { success: true, redirect: account_path }
-    end
-  rescue StandardError => e
-    render json: { error: e.message }, status: :unprocessable_entity
-  end
-
   def link_solana
-    message = params[:message]
-    signature_b58 = params[:signature]
-    pubkey_b58 = params[:pubkey]
+    pubkey_b58 = verify_solana_signature!(
+      message: params[:message],
+      signature_b58: params[:signature],
+      pubkey_b58: params[:pubkey],
+      session: session
+    )
 
     rescue_and_log(target: current_user) do
-      sig_bytes = Solana::Keypair.decode_base58(signature_b58)
-      pub_bytes = Solana::Keypair.decode_base58(pubkey_b58)
-
-      verify_key = Ed25519::VerifyKey.new(pub_bytes)
-      verify_key.verify(sig_bytes, message)
-
-      claimed_nonce = message.match(/Nonce: (\w+)/)&.captures&.first
-      unless claimed_nonce == session[:solana_nonce]
-        return render json: { error: "Invalid nonce" }, status: :unauthorized
-      end
-      session.delete(:solana_nonce)
-
       # Check if Solana wallet belongs to another user
       existing = User.from_solana_wallet(pubkey_b58)
       if existing && existing.id != current_user.id
@@ -79,6 +37,8 @@ class AccountsController < ApplicationController
       current_user.update!(solana_address: pubkey_b58, wallet_type: "phantom")
       render json: { success: true, redirect: account_path }
     end
+  rescue Solana::AuthVerifier::VerificationError => e
+    render json: { error: e.message }, status: :unauthorized
   rescue StandardError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
@@ -114,5 +74,12 @@ class AccountsController < ApplicationController
 
   def account_params
     params.require(:user).permit(:name, :email)
+  end
+
+  def load_solana_balances
+    vault = Solana::Vault.new
+    @wallet_balances = vault.fetch_wallet_balances(@user.solana_address)
+  rescue StandardError
+    @wallet_balances = nil
   end
 end

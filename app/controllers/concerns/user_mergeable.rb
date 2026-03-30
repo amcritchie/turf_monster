@@ -19,7 +19,6 @@ module UserMergeable
       # Fill in blank auth fields on survivor
       survivor.email = absorbed.email if survivor.email.blank? && absorbed.email.present?
       survivor.name = absorbed.name if survivor.name.blank? && absorbed.name.present?
-      survivor.wallet_address = absorbed.wallet_address if survivor.wallet_address.blank? && absorbed.wallet_address.present?
       if survivor.provider.blank? && absorbed.provider.present?
         survivor.provider = absorbed.provider
         survivor.uid = absorbed.uid
