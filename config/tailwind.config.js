@@ -39,19 +39,7 @@ module.exports = {
       ...studioColors.theme.extend,
       colors: {
         ...studioColors.theme.extend.colors,
-        primary: {
-          DEFAULT: '#4BAF50',
-          50:  '#e8f5e9',
-          100: '#c8e6c9',
-          200: '#a5d6a7',
-          300: '#81c784',
-          400: '#66bb6a',
-          500: '#4BAF50',
-          600: '#43A047',
-          700: '#388E3C',
-          800: '#2E7D32',
-          900: '#1B5E20',
-        },
+        // primary palette is now dynamic from shared studio config (CSS vars)
         warning: {
           DEFAULT: '#FF7C47',
           50:  '#fff3ed',
