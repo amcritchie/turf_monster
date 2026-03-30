@@ -86,22 +86,6 @@
   }
 }
 
-@keyframes hold-fill {
-  from { width: 0%; }
-  to { width: 100%; }
-}
-@keyframes hold-ring {
-  from { stroke-dashoffset: 283; }
-  to { stroke-dashoffset: 0; }
-}
-@keyframes hold-shrink {
-  from { border-width: 2px; }
-  to { border-width: 24px; }
-}
-@keyframes slide-down {
-  from { transform: translateY(-100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
 @keyframes progress-countdown {
   from { width: 100%; }
   to { width: 0%; }
