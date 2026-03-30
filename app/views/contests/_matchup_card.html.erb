@@ -3,9 +3,10 @@
 <button @click="toggleSelection('<%= matchup.id %>')"
         class="relative bg-surface p-3 md:p-4 rounded-xl transition-all text-center border-2 shadow <%= locked ? 'opacity-50' : '' %>"
         :class="{
-          'border-mint shadow-lg shadow-mint/30 bg-mint/5': selections['<%= matchup.id %>'],
+          'border-mint bg-mint/5': selections['<%= matchup.id %>'],
           'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
         }"
+        :style="selections['<%= matchup.id %>'] ? 'box-shadow: 0 10px 25px -3px rgba(6,214,160,0.3)' : ''"
         <% if locked %>disabled<% end %>>
   <% if locked %>
     <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
