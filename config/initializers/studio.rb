@@ -6,6 +6,8 @@ Studio.configure do |config|
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
   config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 
+  config.theme_logos = %w[logo.png logo.jpeg icon.svg icon.png favicon.png]
+
   # Theme: green primary, violet as accent2
   config.theme_primary = "#4BAF50"
   config.theme_accent = "#8E82FE"
