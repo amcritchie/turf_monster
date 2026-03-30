@@ -42,19 +42,19 @@
         <span class="text-sm text-muted font-medium">Sort by</span>
         <button @click="toggleSort('game')"
                 class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
-                :class="sortMode === 'game' ? 'bg-violet text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+                :class="sortMode === 'game' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
           Game
         </button>
         <button @click="toggleSort('multiplier')"
                 class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-1"
-                :class="sortMode === 'multiplier' ? 'bg-violet text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+                :class="sortMode === 'multiplier' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
           Multiplier
           <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
         </button>
       </div>
       <% if current_user&.admin? %>
         <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
-          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
+          class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
       <% end %>
     </div>
 
@@ -121,7 +121,7 @@
       </div>
       <div class="mt-4 text-center">
         <%= link_to "View Contest Details", contest_path(@contest),
-          class: "text-violet hover:text-violet-300 text-sm font-medium underline underline-offset-2" %>
+          class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
       </div>
     </div>
   </section>
@@ -151,7 +151,7 @@
   <button x-show="!cartOpen && selectionCount > 0"
           x-transition
           @click="cartOpen = true"
-          class="hidden md:flex fixed bottom-6 right-6 z-30 w-14 h-14 bg-violet hover:bg-violet-600 text-white rounded-full shadow-lg shadow-violet/30 items-center justify-center text-lg font-bold transition">
+          class="hidden md:flex fixed bottom-6 right-6 z-30 w-14 h-14 bg-primary hover:bg-primary-700 text-white rounded-full shadow-lg shadow-primary/30 items-center justify-center text-lg font-bold transition">
     <span x-text="selectionCount"></span><span class="text-xs">/<%= @contest.picks_required %></span>
   </button>
 
