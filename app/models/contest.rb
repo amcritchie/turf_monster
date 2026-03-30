@@ -205,12 +205,6 @@ class Contest < ApplicationRecord
     end
   end
 
-  def generate_multipliers!
-    contest_matchups.ranked.each do |matchup|
-      matchup.compute_multiplier!
-    end
-  end
-
   def simulate_next_game!
     raise "Contest is already settled" if settled?
 

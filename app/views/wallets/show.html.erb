@@ -7,17 +7,17 @@
     <div class="grid grid-cols-3 gap-4 mb-4">
       <div class="bg-inset rounded-lg p-4 text-center">
         <div class="text-sm text-secondary mb-1">Deposited</div>
-        <div class="text-2xl font-bold text-primary font-mono">$<%= sprintf('%.2f', @user.balance_dollars) %></div>
+        <div class="text-2xl font-bold text-primary font-mono"><%= dollars(@user.balance_dollars) %></div>
         <div class="text-xs text-muted mt-1">Withdrawable</div>
       </div>
       <div class="bg-inset rounded-lg p-4 text-center">
         <div class="text-sm text-secondary mb-1">Bonus</div>
-        <div class="text-2xl font-bold text-violet font-mono">$<%= sprintf('%.2f', @user.promotional_dollars) %></div>
+        <div class="text-2xl font-bold text-violet font-mono"><%= dollars(@user.promotional_dollars) %></div>
         <div class="text-xs text-muted mt-1">Non-withdrawable</div>
       </div>
       <div class="bg-inset rounded-lg p-4 text-center">
         <div class="text-sm text-secondary mb-1">Total</div>
-        <div class="text-2xl font-bold text-heading font-mono">$<%= sprintf('%.2f', @user.total_balance_dollars) %></div>
+        <div class="text-2xl font-bold text-heading font-mono"><%= dollars(@user.total_balance_dollars) %></div>
         <div class="text-xs text-muted mt-1">Available to play</div>
       </div>
     </div>
@@ -26,8 +26,8 @@
       <div class="bg-surface-alt rounded-lg p-3 flex items-center gap-3 text-sm">
         <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         <span class="text-secondary">Onchain balance:</span>
-        <span class="text-primary font-mono font-bold">$<%= sprintf('%.2f', @onchain_balance[:balance_dollars]) %></span>
-        <span class="text-muted text-xs">(deposited: $<%= sprintf('%.2f', Solana::Config.lamports_to_dollars(@onchain_balance[:total_deposited])) %>, won: $<%= sprintf('%.2f', Solana::Config.lamports_to_dollars(@onchain_balance[:total_won])) %>)</span>
+        <span class="text-primary font-mono font-bold"><%= dollars(@onchain_balance[:balance_dollars]) %></span>
+        <span class="text-muted text-xs">(deposited: <%= dollars(Solana::Config.lamports_to_dollars(@onchain_balance[:total_deposited])) %>, won: <%= dollars(Solana::Config.lamports_to_dollars(@onchain_balance[:total_won])) %>)</span>
       </div>
     <% end %>
   </div>
@@ -87,7 +87,7 @@
               class="input-field pl-7 font-mono" placeholder="0.00"
               max="<%= sprintf('%.2f', @user.withdrawable_dollars) %>">
           </div>
-          <p class="text-xs text-muted mt-1">Max: $<%= sprintf('%.2f', @user.withdrawable_dollars) %> (deposited balance only)</p>
+          <p class="text-xs text-muted mt-1">Max: <%= dollars(@user.withdrawable_dollars) %> (deposited balance only)</p>
         </div>
         <button type="submit" class="btn btn-secondary w-full">
           Withdraw

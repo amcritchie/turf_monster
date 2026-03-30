@@ -13,26 +13,18 @@
           <% end %>
         </p>
       </div>
-      <%
-        badge_styles = {
-          "open"    => "bg-mint-900/30 text-mint border-mint-700",
-          "locked"  => "bg-yellow-900/50 text-yellow-400 border-yellow-700",
-          "settled" => "bg-gray-800 text-gray-400 border-gray-600",
-          "draft"   => "bg-violet-900/30 text-violet border-violet-700"
-        }
-      %>
-      <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= badge_styles[@contest.status] %>">
+      <span class="px-3 py-1 rounded-full text-sm font-semibold border <%= contest_badge_classes(@contest.status) %>">
         <%= @contest.status.upcase %>
       </span>
     </div>
     <div class="grid grid-cols-3 gap-4 text-center">
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entry Fee</p>
-        <p class="font-mono text-lg text-heading">$<%= sprintf('%.2f', @contest.entry_fee_dollars) %></p>
+        <p class="font-mono text-lg text-heading"><%= dollars(@contest.entry_fee_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Pool</p>
-        <p class="font-mono text-lg text-primary">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+        <p class="font-mono text-lg text-primary"><%= dollars(@contest.pool_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entries</p>
@@ -89,7 +81,7 @@
                 <div class="flex items-center gap-2">
                   <span><%= display_rank %></span>
                   <% if paid %>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary"><%= dollars(entry.payout_cents / 100.0) %></span>
                   <% end %>
                 </div>
               </td>
