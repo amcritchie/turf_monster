@@ -32,7 +32,7 @@
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Pool</p>
-        <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+        <p class="font-mono text-lg text-primary">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entries</p>
@@ -84,12 +84,12 @@
               next_entry = @entries[i + 1] if @contest.settled?
               show_divider = paid && (next_entry.nil? || next_entry.payout_cents.to_i == 0)
             %>
-            <tr class="<%= paid ? 'border-l-4 border-l-mint' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-mint/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
+            <tr class="<%= paid ? 'border-l-4 border-l-primary' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-primary/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
               <td class="px-4 py-3 font-mono text-secondary">
                 <div class="flex items-center gap-2">
                   <span><%= display_rank %></span>
                   <% if paid %>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-mint/20 text-mint">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
                   <% end %>
                 </div>
               </td>

@@ -19,7 +19,7 @@
       <div class="card shadow p-5">
         <div class="flex justify-between items-start mb-4">
           <div>
-            <%= link_to contest_path(contest), class: "text-xl font-bold text-heading hover:text-mint transition" do %>
+            <%= link_to contest_path(contest), class: "text-xl font-bold text-heading hover:text-primary transition" do %>
               <%= contest.name %>
             <% end %>
             <p class="text-sm text-secondary mt-1">
@@ -48,7 +48,7 @@
           </div>
           <div class="bg-surface-alt rounded-lg p-2">
             <p class="label-upper">My Entries</p>
-            <p class="font-mono text-mint"><%= entries.size %></p>
+            <p class="font-mono text-primary"><%= entries.size %></p>
           </div>
           <div class="bg-surface-alt rounded-lg p-2">
             <p class="label-upper">Best Score</p>

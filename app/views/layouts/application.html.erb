@@ -19,12 +19,12 @@
         <div class="flex items-center gap-6">
           <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
             <img src="/logo.png" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
-            <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-mint">Monster</span></h1>
+            <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-primary">Monster</span></h1>
           <% end %>
           <% if logged_in? %>
-            <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
+            <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <% end %>
-          <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-mint text-sm font-medium transition" %>
+          <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <%= render "components/soccer_dropdown" %>
           <%= render "components/admin_dropdown" %>
           <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
@@ -46,7 +46,7 @@
           <%= render "components/theme_toggle" %>
           <% if logged_in? %>
             <div class="relative">
-              <%= link_to account_path, class: "text-heading font-semibold hover:text-mint transition" do %>
+              <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
                 <%= current_user.display_name %>
               <% end %>
               <% if current_user.solana_connected? %>
@@ -55,10 +55,10 @@
                 <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_wallet %></div>
               <% end %>
             </div>
-            <%= link_to wallet_path, class: "font-mono text-mint hover:text-mint-600 transition" do %>$<%= sprintf('%.2f', current_user.total_balance_dollars) %><% end %>
+            <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %>$<%= sprintf('%.2f', current_user.total_balance_dollars) %><% end %>
             <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
           <% else %>
-            <%= link_to "Log in", login_path, class: "text-heading hover:text-mint text-sm font-semibold transition" %>
+            <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
             <%= link_to "Sign up", signup_path, class: "btn btn-primary btn-sm" %>
           <% end %>
         </div>

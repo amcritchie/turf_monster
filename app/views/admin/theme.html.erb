@@ -3,7 +3,7 @@
 <div class="space-y-12">
   <%# ── Header ── %>
   <div>
-    <h1 class="text-3xl font-extrabold text-heading">Turf <span class="text-mint">Monster</span></h1>
+    <h1 class="text-3xl font-extrabold text-heading">Turf <span class="text-primary">Monster</span></h1>
     <p class="text-secondary mt-1">Theme Styleguide</p>
   </div>
 
@@ -62,13 +62,15 @@
     </div>
 
     <h3 class="text-sm font-semibold text-secondary mb-3">Brand Colors</h3>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
       <%
         brand_colors = [
-          { name: "Primary (Mint)",   bg: "bg-mint",    text_class: "text-navy" },
-          { name: "Accent (Violet)",  bg: "bg-violet",  text_class: "text-white" },
-          { name: "Danger (Red)",     bg: "bg-red-600", text_class: "text-white" },
-          { name: "Navy",             bg: "bg-navy",    text_class: "text-white" },
+          { name: "Primary",          bg: "bg-primary",  text_class: "text-white" },
+          { name: "Warning",          bg: "bg-warning",  text_class: "text-white" },
+          { name: "Mint (Accent)",    bg: "bg-mint",     text_class: "text-navy" },
+          { name: "Violet (Accent)",  bg: "bg-violet",   text_class: "text-white" },
+          { name: "Danger (Red)",     bg: "bg-red-600",  text_class: "text-white" },
+          { name: "Navy",             bg: "bg-navy",     text_class: "text-white" },
         ]
       %>
       <% brand_colors.each do |c| %>
@@ -127,6 +129,14 @@
           <button class="btn btn-outline btn-sm">Small</button>
           <button class="btn btn-outline">Medium</button>
           <button class="btn btn-outline btn-lg">Large</button>
+        </div>
+      </div>
+      <div>
+        <p class="label-upper mb-3">Warning (.btn-warning)</p>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn btn-warning btn-sm">Small</button>
+          <button class="btn btn-warning">Medium</button>
+          <button class="btn btn-warning btn-lg">Large</button>
         </div>
       </div>
       <div>

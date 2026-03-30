@@ -61,7 +61,7 @@
     <% if @user.google_connected? %>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <svg class="w-5 h-5 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           <span class="text-body">Connected via Google</span>
         </div>
         <%= button_to "Unlink", unlink_google_account_path, method: :post,
@@ -82,7 +82,7 @@
     <h2 class="text-lg font-bold text-heading mb-4">Solana Wallet</h2>
     <% if @user.solana_connected? %>
       <div class="flex items-center gap-3">
-        <svg class="w-5 h-5 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         <span class="text-body font-mono text-sm"><%= @user.solana_address %></span>
         <% if @user.custodial_wallet? %>
           <span class="text-xs text-muted px-2 py-0.5 rounded bg-surface-alt">Custodial</span>

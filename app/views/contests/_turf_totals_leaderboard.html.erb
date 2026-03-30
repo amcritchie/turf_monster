@@ -29,7 +29,7 @@
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Pool</p>
-        <p class="font-mono text-lg text-mint">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
+        <p class="font-mono text-lg text-primary">$<%= sprintf('%.2f', @contest.pool_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entries</p>
@@ -38,12 +38,12 @@
     </div>
     <% if @contest.onchain? %>
       <div class="mt-3 flex items-center gap-2 text-xs text-muted">
-        <svg class="w-3 h-3 text-mint" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <svg class="w-3 h-3 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         <span>Onchain</span>
         <a href="https://explorer.solana.com/address/<%= @contest.onchain_contest_id %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-           target="_blank" class="font-mono hover:text-mint transition truncate max-w-xs"><%= @contest.onchain_contest_id %></a>
+           target="_blank" class="font-mono hover:text-primary transition truncate max-w-xs"><%= @contest.onchain_contest_id %></a>
         <% if @contest.onchain_settled? %>
-          <span class="px-2 py-0.5 rounded bg-mint/10 text-mint border border-mint-700/30">Settled</span>
+          <span class="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary-700/30">Settled</span>
         <% end %>
       </div>
     <% end %>
@@ -58,21 +58,21 @@
         <% active_count = @contest.entries.where(status: [:active, :complete]).count %>
         <% if @contest.max_entries.nil? || active_count < @contest.max_entries %>
           <%= button_to "Fill Contest", fill_contest_path(@contest), method: :post,
-            class: "px-6 py-2 bg-violet hover:bg-violet-600 text-white font-bold rounded-xl shadow transition" %>
+            class: "btn btn-secondary btn-lg" %>
         <% end %>
         <%= button_to "Lock Contest", lock_contest_path(@contest), method: :post,
-          class: "px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition" %>
+          class: "btn btn-lg bg-yellow-600 hover:bg-yellow-500 text-white" %>
       <% end %>
 
       <% next_game = @contest.contest_matchups.pending.includes(:game).select { |m| m.game.present? }.sort_by { |m| m.game.kickoff_at || Time.current }.first %>
       <% if next_game %>
         <%= button_to "Simulate: #{next_game.team.name} vs #{next_game.opponent_team&.name}",
           simulate_game_contest_path(@contest), method: :post,
-          class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow transition" %>
+          class: "btn btn-primary btn-lg" %>
       <% end %>
 
       <%= button_to "Jump (Simulate All)", jump_contest_path(@contest), method: :post,
-        class: "px-6 py-2 bg-mint hover:bg-mint-600 text-navy font-bold rounded-xl shadow transition" %>
+        class: "btn btn-primary btn-lg" %>
 
       <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
         class: "px-6 py-2 bg-surface-alt hover:bg-surface-alt/80 text-heading font-bold rounded-xl shadow transition inline-flex items-center" %>
@@ -132,12 +132,12 @@
               next_entry = @entries[i + 1] if @contest.settled?
               show_divider = paid && (next_entry.nil? || next_entry.payout_cents.to_i == 0)
             %>
-            <tr class="<%= paid ? 'border-l-4 border-l-mint' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-mint/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
+            <tr class="<%= paid ? 'border-l-4 border-l-primary' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-primary/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
               <td class="px-4 py-3 font-mono text-secondary">
                 <div class="flex items-center gap-2">
                   <span><%= display_rank %></span>
                   <% if paid %>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-mint/20 text-mint">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary">$<%= sprintf('%.2f', entry.payout_cents / 100.0) %></span>
                   <% end %>
                 </div>
               </td>
@@ -145,7 +145,7 @@
                 <%= entry.user.display_name %>
                 <% if entry.onchain_tx_signature.present? %>
                   <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-                     target="_blank" class="inline-block ml-1 text-xs text-muted hover:text-mint transition" title="Verified onchain">
+                     target="_blank" class="inline-block ml-1 text-xs text-muted hover:text-primary transition" title="Verified onchain">
                     <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                   </a>
                 <% end %>

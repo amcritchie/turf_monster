@@ -15,8 +15,8 @@
   --color-border: rgba(88,81,126,0.2);
   --color-border-strong: rgba(88,81,126,0.4);
   --color-shadow: transparent;
-  --color-primary: #06D6A0;
-  --color-primary-hover: #05b384;
+  --color-cta: #4BAF50;
+  --color-cta-hover: #43A047;
   --color-success: #06D6A0;
   --color-danger: #EF4444;
 }
@@ -41,13 +41,13 @@ html:not(.dark) {
     @apply bg-surface rounded-xl border border-subtle;
   }
   .card-hover {
-    @apply bg-surface rounded-xl border border-subtle hover:border-mint-700/50 hover:shadow-lg hover:shadow-mint-900/10 transition;
+    @apply bg-surface rounded-xl border border-subtle hover:border-primary-700/50 hover:shadow-lg hover:shadow-primary-900/10 transition;
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border;
   }
   .input-field {
-    @apply w-full bg-surface-alt border border-strong rounded-lg px-4 py-3 text-heading focus:border-mint focus:outline-none;
+    @apply w-full bg-surface-alt border border-strong rounded-lg px-4 py-3 text-heading focus:border-primary focus:outline-none;
   }
   .empty-state {
     @apply bg-surface rounded-xl border border-subtle p-8 text-center;
@@ -63,13 +63,16 @@ html:not(.dark) {
     @apply inline-flex items-center justify-center font-bold rounded-lg transition px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply bg-mint hover:bg-mint-600 text-navy;
+    @apply bg-primary hover:bg-primary-600 text-white;
   }
   .btn-secondary {
     @apply bg-violet hover:bg-violet-600 text-white;
   }
   .btn-outline {
-    @apply border border-strong text-secondary hover:text-heading hover:border-mint bg-transparent;
+    @apply border border-strong text-secondary hover:text-heading hover:border-primary bg-transparent;
+  }
+  .btn-warning {
+    @apply bg-warning hover:bg-warning-600 text-white;
   }
   .btn-danger {
     @apply bg-red-600/20 hover:bg-red-600/40 text-red-400;

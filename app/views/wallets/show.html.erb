@@ -7,7 +7,7 @@
     <div class="grid grid-cols-3 gap-4 mb-4">
       <div class="bg-inset rounded-lg p-4 text-center">
         <div class="text-sm text-secondary mb-1">Deposited</div>
-        <div class="text-2xl font-bold text-mint font-mono">$<%= sprintf('%.2f', @user.balance_dollars) %></div>
+        <div class="text-2xl font-bold text-primary font-mono">$<%= sprintf('%.2f', @user.balance_dollars) %></div>
         <div class="text-xs text-muted mt-1">Withdrawable</div>
       </div>
       <div class="bg-inset rounded-lg p-4 text-center">
@@ -24,9 +24,9 @@
 
     <% if @onchain_balance %>
       <div class="bg-surface-alt rounded-lg p-3 flex items-center gap-3 text-sm">
-        <svg class="w-4 h-4 text-mint flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
         <span class="text-secondary">Onchain balance:</span>
-        <span class="text-mint font-mono font-bold">$<%= sprintf('%.2f', @onchain_balance[:balance_dollars]) %></span>
+        <span class="text-primary font-mono font-bold">$<%= sprintf('%.2f', @onchain_balance[:balance_dollars]) %></span>
         <span class="text-muted text-xs">(deposited: $<%= sprintf('%.2f', Solana::Config.lamports_to_dollars(@onchain_balance[:total_deposited])) %>, won: $<%= sprintf('%.2f', Solana::Config.lamports_to_dollars(@onchain_balance[:total_won])) %>)</span>
       </div>
     <% end %>
@@ -46,12 +46,12 @@
       </div>
       <% if Solana::Config.devnet? %>
         <a href="https://explorer.solana.com/address/<%= @user.solana_address %>?cluster=devnet"
-           target="_blank" class="text-xs text-secondary hover:text-mint transition">
+           target="_blank" class="text-xs text-secondary hover:text-primary transition">
           View on Solana Explorer &rarr;
         </a>
       <% end %>
     <% else %>
-      <p class="text-muted text-sm">No wallet connected. <a href="<%= account_path %>" class="text-mint hover:underline">Connect one</a> in account settings.</p>
+      <p class="text-muted text-sm">No wallet connected. <a href="<%= account_path %>" class="text-primary hover:underline">Connect one</a> in account settings.</p>
     <% end %>
   </div>
 

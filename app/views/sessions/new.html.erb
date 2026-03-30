@@ -5,7 +5,7 @@
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
       <img src="/logo.png" alt="Turf Monster" class="w-20 h-20 rounded-full shadow-lg mx-auto mb-4">
-      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-mint">Monster</span></h1>
+      <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-primary">Monster</span></h1>
       <p class="text-secondary mt-2">Log in to play</p>
     </div>
 
@@ -15,10 +15,13 @@
       <% if has_sso %>
         <div x-data="{ revealed: false }">
           <div class="relative" :class="{ 'select-none': !revealed }">
-            <div x-show="!revealed" @click="revealed = true"
-                 class="absolute inset-0 z-10 rounded-xl cursor-pointer flex items-end justify-center pb-4"
-                 style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background: var(--color-surface, rgba(58,51,89,0.6)); opacity: 0.85;">
-              <span class="text-muted text-xs font-medium uppercase tracking-wider">Click to show other options</span>
+            <div x-show="!revealed" @click="revealed = true; setTimeout(() => $refs.emailField.focus(), 500)"
+                 x-transition:leave="transition ease-in duration-500"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="absolute inset-0 z-10 rounded-xl cursor-pointer flex items-center justify-center pb-20"
+                 style="backdrop-filter: blur(2px) brightness(0.7); -webkit-backdrop-filter: blur(2px) brightness(0.7); background: rgba(58,51,89,0.2);">
+              <span class="text-secondary text-xs font-medium uppercase tracking-wider">Click to show other options</span>
             </div>
             <div :class="{ 'pointer-events-none': !revealed }">
       <% end %>
@@ -27,6 +30,7 @@
         <div class="mb-5">
           <label for="email" class="block text-sm text-secondary mb-2 font-medium">Email</label>
           <input type="email" name="email" id="email" value="<%= params[:email] %>" <%= 'autofocus' unless has_sso %>
+            x-ref="emailField"
             class="input-field"
             placeholder="you@example.com">
         </div>
