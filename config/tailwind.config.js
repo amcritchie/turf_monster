@@ -7,7 +7,7 @@ const studioColors = require(`${studioPath}/tailwind/studio.tailwind.config.js`)
 // Safelist all shades of custom brand colors so they're never purged
 const brandColors = ['mint', 'navy', 'violet', 'primary', 'warning']
 const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
-const utilities = ['bg', 'text', 'border']
+const utilities = ['bg', 'text', 'border', 'ring']
 const opacities = [10, 20, 30, 50]
 const safelist = brandColors.flatMap(color => [
   // DEFAULT (no shade): bg-primary, text-primary, border-primary
