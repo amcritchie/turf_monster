@@ -101,15 +101,20 @@ end
 ## Branding & Theme
 
 - **Theme**: Dark/light mode toggle via CSS custom properties (see top-level `CLAUDE.md` for token reference)
-- **Primary**: `#06D6A0` Mint — OVER, positive values, balances, CTAs, success states (static, works on both themes)
-- **Accent**: `#8E82FE` Violet — O/U lines, scores, links, draft badges, wallet connect button (static)
-- **Negative**: Red (Tailwind default) — UNDER, losses (static)
+- **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
+- **Mint**: `#06D6A0` — OVER buttons, win badges, contest status (open), pick count badges, selected card borders, hold button success glow. Game-mechanic accent, distinct from primary.
+- **Accent**: `#8E82FE` Violet — O/U lines, scores, draft badges, `.btn-secondary`
+- **Warning**: `#FF7C47` Orange — warning states, `.btn-warning`
+- **Negative**: Red (Tailwind default) — UNDER, losses
 - **Font**: Montserrat (all weights 400-900)
 - **Logo**: Two files exist — `/public/logo.png` (1.3MB, used in layout navbar) and `/public/logo.jpeg` (272KB, used in auth pages). Both are the green monster mascot. Should be consolidated to one file.
 - **Surfaces**: Use `bg-page`, `bg-surface`, `bg-surface-alt`, `bg-inset` — never hardcode `bg-navy-*`
 - **Text**: Use `text-heading`, `text-body`, `text-secondary`, `text-muted` — never hardcode `text-white` for headings or `text-gray-*` for body text
 - **Borders**: Use `border-subtle`, `border-strong` — never hardcode `border-navy-*`
+- **CSS var naming**: `--color-cta` / `--color-cta-hover` (not `--color-primary`) to avoid Tailwind naming conflicts
+- **Tailwind config**: `primary` and `warning` color palettes defined in `config/tailwind.config.js` with expanded safelist (DEFAULT + opacity variants)
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
+- **Button system**: `.btn` base + `.btn-primary` (green), `.btn-secondary` (violet), `.btn-outline`, `.btn-warning` (orange), `.btn-danger` (red), `.btn-google` (white). Size: `.btn-sm`, `.btn-lg`. See top-level `CLAUDE.md` for full reference.
 
 ## Architecture
 
@@ -239,7 +244,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - Status badges: mint=open, yellow=locked, gray=settled, violet=draft
 - Cards: `.card` class (bg-surface, border-subtle), `.card-hover` for interactive cards
 - JSON blocks: `.json-debug` class (bg-inset, border-subtle), text-mint, font-mono
-- **Button system**: CSS component classes in `application.tailwind.css` — `.btn` (base), `.btn-primary` (mint/navy), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-danger` (red), `.btn-google` (white/gray). Size modifiers: `.btn-sm`, `.btn-lg`. Disabled state built into `.btn` base. Combine: `class="btn btn-primary btn-lg w-full"`. All buttons in views use these classes.
+- **Button system**: CSS component classes in `application.tailwind.css` — `.btn` (base), `.btn-primary` (green/white), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-warning` (orange/white), `.btn-danger` (red), `.btn-google` (white/gray). Size modifiers: `.btn-sm`, `.btn-lg`. Disabled state built into `.btn` base. Combine: `class="btn btn-primary btn-lg w-full"`. All buttons in views use these classes.
 - **Prop cards**: Show team emoji VS opponent emoji, team name, line, "Total Goals vs OPP". Opponent info shown everywhere: main grid, cart sidebar, mobile cart, leaderboard pills, grading section, prop show page.
 - **Matchup card layout**: Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP 🏳️" (secondary text) → Multiplier (violet, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
 - **Matchup grid** (`_turf_totals_board.html.erb`): Two sort modes toggled via Alpine (`sortMode`/`sortDir`):
