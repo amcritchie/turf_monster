@@ -16,7 +16,7 @@
       <% end %>
       <p class="text-2xl" style="margin-bottom: -2px"><%= matchup.team.emoji %></p>
       <p class="font-bold text-heading text-lg md:text-xl mb-0.5 truncate team-name"><%= matchup.team.name %></p>
-      <p class="text-sm text-secondary mb-2">Goals<% if matchup.opponent_team %>&ensp;vs <%= matchup.opponent_team.short_name %>&ensp;<%= matchup.opponent_team.emoji %><% end %></p>
+      <p class="text-sm text-secondary mb-2">Goals<% if matchup.opponent_team %> vs <%= matchup.opponent_team.short_name %>&ensp;<%= matchup.opponent_team.emoji %><% end %></p>
       <% if matchup.multiplier %>
         <p class="font-mono text-xl md:text-2xl text-violet">x<%= matchup.multiplier == matchup.multiplier.to_i ? matchup.multiplier.to_i : sprintf('%.1f', matchup.multiplier) %></p>
       <% end %>
