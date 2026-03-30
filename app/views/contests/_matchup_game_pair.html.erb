@@ -8,9 +8,10 @@
             class="relative flex-1 min-w-0 bg-surface p-3 md:p-4 transition-all text-center border-2 <%= side == 0 ? 'rounded-l-xl' : 'rounded-r-xl' %>"
             :class="{
               'matchup-selected': selections['<%= matchup.id %>'] && !(selections['<%= left.id %>'] && selections['<%= right.id %>']),
-              'border-subtle bg-mint/5': selections['<%= matchup.id %>'] && selections['<%= left.id %>'] && selections['<%= right.id %>'],
+              'bg-mint/5': selections['<%= matchup.id %>'] && selections['<%= left.id %>'] && selections['<%= right.id %>'],
               'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
             }"
+            :style="(selections['<%= left.id %>'] && selections['<%= right.id %>']) ? 'border-color: transparent' : ''"
             <% if locked %>disabled<% end %>>
       <% if locked && side == 0 %>
         <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
