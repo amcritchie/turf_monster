@@ -6,7 +6,13 @@ Studio.configure do |config|
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
   config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 
-  config.theme_logos = %w[logo.png logo.jpeg icon.svg icon.png favicon.png]
+  config.theme_logos = [
+    { file: "favicon.png",   title: "Favicon" },
+    { file: "logo.png",      title: "Navbar Logo" },
+    { file: "logo.jpeg",     title: "Auth Logo" },
+    { file: "icon.svg",      title: "Icon (SVG)" },
+    { file: "icon.png",      title: "Icon (PNG)" },
+  ]
 
   # Theme: green primary, violet as accent2
   config.theme_primary = "#4BAF50"
