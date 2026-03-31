@@ -336,10 +336,10 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 ## Workflow Preferences
 
 - **Debugging**: When hitting a bug, STOP — show the issue and ask before fixing. Document the root cause and decision in CLAUDE.md files for future reference.
-- **Testing**: Write tests as we go alongside features. We move fast and break things — when tests fail, it may be a dead part of the app, so assess before fixing.
+- **Testing**: Write tests as we go alongside features. We move fast and break things — when tests fail, it may be a dead part of the app, so assess before fixing. **Always run `bin/rails test` before committing** — if tests fail, fix the issues before creating the commit. A pre-commit hook enforces this automatically, but proactively run tests after completing changes rather than waiting for the hook to catch failures.
 - **Database**: Migrate and seed freely without asking.
 - **Server**: Restart Rails servers proactively whenever warranted (e.g. after adding gems, changing initializers, modifying routes). Do not ask — just restart.
-- **Git**: Small frequent commits after each logical change. Always push immediately after committing.
+- **Git**: Small frequent commits after each logical change. Always push immediately after committing. Run `bin/rails test` before every commit — fix failures before committing.
 - **UI**: Style as we build using the brand palette — make it look right the first time.
 - **Decisions**: Present 2-3 options briefly with a recommendation for architectural choices.
 - **Refactoring**: Proactively clean up code smells when spotted.
