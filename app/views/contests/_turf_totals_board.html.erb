@@ -210,11 +210,16 @@
   </div>
 
   <!-- Mobile spacer to prevent fixed cart from covering content -->
-  <div class="md:hidden" style="height:10rem"></div>
+  <div x-show="selectionCount > 0" class="md:hidden" style="height:10rem"></div>
 
-  <!-- Mobile Cart: Fixed bottom bar (always visible on mobile as prompt) -->
-  <div class="md:hidden bg-surface border-t border-subtle shadow-2xl rounded-t-xl px-4 py-3"
-       style="position:fixed;bottom:0;left:0;right:0;z-index:9999">
+  <!-- Mobile Cart: Fixed bottom bar (hidden until first selection) -->
+  <div x-show="selectionCount > 0"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+       class="md:hidden bg-surface border-t-2 border-strong rounded-t-xl px-4 py-3"
+       style="position:fixed;bottom:0;left:0;right:0;z-index:9999;box-shadow:0 -6px 30px rgba(0,0,0,0.4)">
     <div class="flex items-center justify-between mb-2">
       <span class="text-sm font-bold text-heading">Your Picks</span>
       <div class="flex items-center gap-2">
