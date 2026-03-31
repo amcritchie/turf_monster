@@ -14,54 +14,63 @@
   </head>
 
   <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }">
-    <div class="max-w-7xl mx-auto px-4 py-6">
-      <header class="mb-8 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
-            <img src="/logo.png" alt="Turf Monster" class="w-12 h-12 rounded-full shadow-lg group-hover:scale-105 transition">
-            <h1 class="text-3xl font-extrabold text-heading tracking-tight">Turf <span class="text-primary">Monster</span></h1>
-          <% end %>
-          <% if logged_in? %>
-            <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
-          <% end %>
-          <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
-          <%= render "components/soccer_dropdown" %>
-          <%= render "components/admin_dropdown" %>
-          <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
-                  class="text-xs font-mono px-2 py-1 rounded-md border transition"
-                  :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>
-          <% if Solana::Config.devnet? %>
-            <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
-          <% end %>
-          <% if current_user&.admin? %>
-            <% contest = Contest.order(created_at: :desc).first %>
-            <% if contest %>
-              <%= button_to "Reset", reset_contest_path(contest), method: :post, data: { turbo_confirm: "Reset contest? This clears all entries and results." },
-                class: "text-xs font-mono px-2 py-1 rounded-md border border-red-700/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition" %>
+    <header x-data="{ scrolled: false }" @scroll.window="scrolled = window.scrollY > 20"
+            class="sticky top-0 z-50 bg-page transition-shadow duration-300"
+            :class="scrolled && 'shadow-lg border-b border-subtle'">
+      <div class="max-w-7xl mx-auto px-4 transition-all duration-300"
+           :class="scrolled ? 'py-2' : 'py-6'">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-6">
+            <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
+              <img src="/logo.png" alt="Turf Monster" class="rounded-full shadow-lg group-hover:scale-105 transition-all duration-300"
+                   x-bind:class="scrolled ? 'w-8 h-8' : 'w-12 h-12'">
+              <h1 class="font-extrabold text-heading tracking-tight transition-all duration-300"
+                  x-bind:class="scrolled ? 'text-xl' : 'text-3xl'">Turf <span class="text-primary">Monster</span></h1>
             <% end %>
-          <% end %>
-        </div>
-
-        <div class="flex items-center gap-4">
-          <%= render "components/theme_toggle" %>
-          <% if logged_in? %>
-            <div class="relative">
-              <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
-                <%= current_user.display_name %>
+            <% if logged_in? %>
+              <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+            <% end %>
+            <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+            <%= render "components/soccer_dropdown" %>
+            <%= render "components/admin_dropdown" %>
+            <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
+                    class="text-xs font-mono px-2 py-1 rounded-md border transition"
+                    :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>
+            <% if Solana::Config.devnet? %>
+              <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
+            <% end %>
+            <% if current_user&.admin? %>
+              <% contest = Contest.order(created_at: :desc).first %>
+              <% if contest %>
+                <%= button_to "Reset", reset_contest_path(contest), method: :post, data: { turbo_confirm: "Reset contest? This clears all entries and results." },
+                  class: "text-xs font-mono px-2 py-1 rounded-md border border-red-700/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition" %>
               <% end %>
-              <% if current_user.solana_connected? %>
-                <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
-              <% end %>
-            </div>
-            <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
-            <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
-          <% else %>
-            <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
-            <%= link_to "Sign up", signup_path, class: "btn btn-primary btn-sm" %>
-          <% end %>
-        </div>
-      </header>
+            <% end %>
+          </div>
 
+          <div class="flex items-center gap-4">
+            <%= render "components/theme_toggle" %>
+            <% if logged_in? %>
+              <div class="relative">
+                <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
+                  <%= current_user.display_name %>
+                <% end %>
+                <% if current_user.solana_connected? %>
+                  <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
+                <% end %>
+              </div>
+              <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
+              <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
+            <% else %>
+              <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
+              <%= link_to "Sign up", signup_path, class: "btn btn-primary btn-sm" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
       <%= render "layouts/studio/flash" %>
 
       <%= yield %>
