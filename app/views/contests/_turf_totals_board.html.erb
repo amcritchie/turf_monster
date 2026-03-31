@@ -12,13 +12,13 @@
 <div x-data="selectionBoard()" x-cloak>
 
   <!-- Blur overlay (click to dismiss) -->
-  <div x-show="selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed"
-       @click="blurDismissed = true; blurUsed = true"
+  <div x-show="selectionCount === <%= @contest.picks_required %> && !blurDismissed"
+       @click="removeSelection(selectionOrder[selectionOrder.length - 1])"
        class="fixed inset-0 z-20 cursor-pointer"></div>
 
   <!-- Blurrable page content -->
   <div class="transition-all duration-300"
-       :class="{ 'blur-sm select-none opacity-60': selectionCount === <%= @contest.picks_required %> && !blurDismissed && !blurUsed }">
+       :class="{ 'blur-sm select-none opacity-60': selectionCount === <%= @contest.picks_required %> && !blurDismissed }">
 
   <!-- Sort toggle + Matchup Cards -->
   <%
@@ -33,9 +33,8 @@
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
     <div class="mb-4">
-      <h3 class="text-2xl font-extrabold text-heading">Pick <%= @contest.picks_required %> Teams</h3>
-      <p class="text-sm text-secondary mt-1">Choose the teams you think will score the most total goals. Higher multipliers = higher risk, higher reward.</p>
-      <p class="text-xs text-muted mt-1">Example: Belgium scores 3 goals &times; 1.1x multiplier = 3.3 points</p>
+      <h2 class="text-2xl font-extrabold text-heading">Pick <%= @contest.picks_required %> Teams</h2>
+      <p class="text-xs md:text-sm text-secondary mt-1">From the <span class="font-bold text-heading">1<sup>st</sup> Round</span> of <span class="font-bold text-heading">World Cup Group Play</span> to build a lineup to score the highest in a <span class="font-bold text-heading">peer-to-peer contest</span>, scoring: <span class="font-bold text-heading">goals &times; multiplier</span>.</p>
     </div>
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2">
@@ -52,10 +51,7 @@
           <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
         </button>
       </div>
-      <% if current_user&.admin? %>
-        <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
-          class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
-      <% end %>
+      <%= link_to "Rules", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "px-3 py-1.5 rounded-full text-sm font-semibold bg-surface-alt text-secondary hover:text-heading transition-all" %>
     </div>
 
     <!-- Game view: paired cards -->
@@ -289,7 +285,6 @@
       selectionOrder: <%= cart_selection_order.to_json.html_safe %>,
       cartOpen: <%= cart_selections.any? ? 'true' : 'false' %>,
       blurDismissed: false,
-      blurUsed: false,
       shakeKey: 0,
       submitting: false,
       error: null,
