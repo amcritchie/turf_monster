@@ -55,16 +55,32 @@
               <%= render "components/theme_toggle" %>
             </div>
             <% if logged_in? %>
-              <div class="relative">
-                <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
-                  <%= current_user.display_name %>
-                <% end %>
-                <% if current_user.solana_connected? %>
-                  <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
-                <% end %>
+              <%# Desktop: horizontal layout %>
+              <div class="hidden md:flex items-center gap-4">
+                <div class="relative">
+                  <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
+                    <%= current_user.display_name %>
+                  <% end %>
+                  <% if current_user.solana_connected? %>
+                    <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
+                  <% end %>
+                </div>
+                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
+                <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
               </div>
-              <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
-              <%= link_to "Log out", logout_path, class: "hidden md:inline text-secondary hover:text-heading text-sm font-medium transition" %>
+              <%# Mobile: stacked right-aligned, wallet overlaid above name %>
+              <div class="md:hidden flex flex-col items-end gap-0.5 text-right">
+                <div class="relative">
+                  <% if current_user.solana_connected? %>
+                    <div x-show="!scrolled" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                         class="absolute right-0 text-muted font-mono" style="bottom:18px;font-size:10px"><%= current_user.truncated_solana %></div>
+                  <% end %>
+                  <%= link_to account_path, class: "text-heading font-semibold text-sm hover:text-primary transition" do %>
+                    <%= current_user.display_name %>
+                  <% end %>
+                </div>
+                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
+              </div>
             <% else %>
               <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
               <%= link_to "Sign up", signup_path, class: "hidden md:inline-flex btn btn-primary btn-sm" %>
