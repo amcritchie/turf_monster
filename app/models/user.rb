@@ -127,10 +127,11 @@ class User < ApplicationRecord
   end
 
   def deduct_funds!(cents)
-    raise "Insufficient funds" if total_balance_cents < cents
-    promo_use = [promotional_cents, cents].min
-    real_use = cents - promo_use
-    transaction do
+    with_lock do
+      reload
+      raise "Insufficient funds" if total_balance_cents < cents
+      promo_use = [promotional_cents, cents].min
+      real_use = cents - promo_use
       decrement!(:promotional_cents, promo_use) if promo_use > 0
       decrement!(:balance_cents, real_use) if real_use > 0
     end
