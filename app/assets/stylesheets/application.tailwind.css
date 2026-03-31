@@ -127,3 +127,25 @@
     transparent 75%
   );
 }
+
+@keyframes pick-pulse-urgent {
+  0%, 100% { border-color: rgb(var(--color-primary-rgb) / 0.3); box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0); transform: scale(1); }
+  50% { border-color: rgb(var(--color-primary-rgb) / 1); box-shadow: 0 0 20px 6px rgb(var(--color-primary-rgb) / 0.45); transform: scale(1.04); }
+}
+@keyframes pick-shimmer-fast {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.pick-pulse-urgent {
+  animation: pick-pulse-urgent 1s ease-in-out infinite, pick-shimmer-fast 1.5s ease-in-out infinite;
+  border-style: solid;
+  background-size: 200% 100%;
+  background-image: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgb(var(--color-primary-rgb) / 0.15) 40%,
+    rgb(var(--color-primary-rgb) / 0.3) 50%,
+    rgb(var(--color-primary-rgb) / 0.15) 60%,
+    transparent 80%
+  );
+}

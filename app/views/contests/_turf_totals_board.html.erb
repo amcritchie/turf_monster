@@ -32,11 +32,11 @@
     matchups_desc = matchups_asc.reverse
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <div class="mb-4">
+    <div class="mb-6">
       <h2 class="text-2xl font-extrabold text-heading">Build <%= @contest.picks_required %> Team Lineup</h2>
-      <p class="text-xs md:text-sm text-secondary mt-2">From the <span class="font-semibold text-heading">1<sup>st</sup> Round</span> of <span class="font-semibold text-heading">World Cup Group Play</span> to compete for the highest score in our <span class="font-semibold text-heading">peer-to-peer contest</span> where scoring is <span class="font-bold text-heading">goals &times; multiplier</span>.</p>
+      <p class="text-xs md:text-sm text-secondary mt-3">From the <span class="font-semibold text-heading">1<sup>st</sup> Round</span> of <span class="font-semibold text-heading">World Cup Group Play</span> to compete for the highest score in our <span class="font-semibold text-heading">peer-to-peer contest</span> where scoring is <span class="font-bold text-heading">goals &times; multiplier</span>. <%= link_to "Contest Details ⚽", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "text-primary hover:text-primary-300 font-semibold underline underline-offset-2" %></p>
     </div>
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between gap-2 mb-4">
       <div class="flex items-center gap-2">
         <span class="text-sm text-muted font-medium">Sort by</span>
         <button @click="toggleSort('game')"
@@ -51,28 +51,39 @@
           <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
         </button>
       </div>
-      <%= link_to "Rules", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "px-3 py-1.5 rounded-full text-sm font-semibold bg-surface-alt text-secondary hover:text-heading transition-all" %>
+      <div class="relative">
+        <input type="text" x-model="filterText" placeholder="Filter teams..."
+               class="input-field text-sm py-1.5 pl-3 pr-8 rounded-full" style="width:140px">
+        <button x-show="filterText" @click="filterText = ''"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-heading transition text-lg leading-none">&times;</button>
+      </div>
     </div>
 
     <!-- Game view: paired cards -->
     <div x-show="sortMode === 'game'" class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
       <% game_pairs.each do |pair| %>
         <% left, right = pair %>
-        <%= render "contests/matchup_game_pair", left: left, right: right, locked: left.locked? %>
+        <div x-show="matchesFilter('<%= j(left.team.name) %>', '<%= j(right.team.name) %>')">
+          <%= render "contests/matchup_game_pair", left: left, right: right, locked: left.locked? %>
+        </div>
       <% end %>
     </div>
 
     <!-- Multiplier view: flat grid, ascending -->
     <div x-show="sortMode === 'multiplier' && sortDir === 'asc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       <% matchups_asc.each do |matchup| %>
-        <%= render "contests/matchup_card", matchup: matchup %>
+        <div x-show="matchesFilter('<%= j(matchup.team.name) %>', '<%= j(matchup.opponent_team&.name.to_s) %>')">
+          <%= render "contests/matchup_card", matchup: matchup %>
+        </div>
       <% end %>
     </div>
 
     <!-- Multiplier view: flat grid, descending -->
     <div x-show="sortMode === 'multiplier' && sortDir === 'desc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       <% matchups_desc.each do |matchup| %>
-        <%= render "contests/matchup_card", matchup: matchup %>
+        <div x-show="matchesFilter('<%= j(matchup.team.name) %>', '<%= j(matchup.opponent_team&.name.to_s) %>')">
+          <%= render "contests/matchup_card", matchup: matchup %>
+        </div>
       <% end %>
     </div>
   </section>
@@ -205,6 +216,24 @@
     </div>
   </div>
 
+  <!-- Redirect modal -->
+  <template x-if="redirectModal">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6)">
+      <div class="bg-surface rounded-xl border border-subtle shadow-2xl p-6 max-w-sm w-full text-center"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+        <div class="text-4xl mb-3" x-text="redirectModal.icon"></div>
+        <h3 class="text-lg font-bold text-heading mb-2" x-text="redirectModal.title"></h3>
+        <p class="text-sm text-secondary mb-4" x-text="redirectModal.message"></p>
+        <div class="w-full rounded-full overflow-hidden mb-2" style="height:6px;background:rgba(128,128,128,0.2)">
+          <div :style="'height:100%;border-radius:9999px;background:var(--color-cta);transition:width 1s linear;width:' + (redirectCountdown / (redirectModal.seconds || 5) * 100) + '%'"></div>
+        </div>
+        <p class="text-secondary text-xs mb-4">Redirecting in <span class="text-primary font-mono font-bold" x-text="redirectCountdown"></span>…</p>
+        <button @click="goNow()" class="btn btn-primary w-full" x-text="redirectModal.cta || 'Go now'"></button>
+      </div>
+    </div>
+  </template>
+
   <!-- Mobile spacer to prevent fixed cart from covering content -->
   <div x-show="selectionCount > 0" class="md:hidden" style="height:10rem"></div>
 
@@ -240,7 +269,7 @@
           </template>
           <template x-if="!selectionSlots[i-1]">
             <div class="border border-dashed border-strong rounded-md px-1.5 py-1 text-center flex items-center justify-center"
-                 :class="i === selectionCount + 1 ? (i === 2 ? 'pick-pulse-shimmer' : 'pick-pulse') : ''"
+                 :class="i === selectionCount + 1 ? (i === <%= @contest.picks_required %> ? (pickUrgent ? 'pick-pulse-urgent' : 'pick-pulse-shimmer') : (i === 2 ? 'pick-pulse-shimmer' : 'pick-pulse')) : ''"
                  style="min-height:2.75rem">
               <p class="text-[10px]" :class="i === selectionCount + 1 ? 'text-secondary' : 'text-muted'">Pick <span x-text="i"></span></p>
             </div>
@@ -292,9 +321,16 @@
       contestId: '<%= @contest&.slug %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
+      userBalanceCents: <%= current_user&.total_balance_cents || 0 %>,
+      entryFeeCents: <%= @contest.entry_fee_cents || 0 %>,
       picksRequired: <%= @contest.picks_required %>,
       sortMode: 'game',
       sortDir: 'asc',
+      filterText: '',
+      pickUrgent: false,
+      redirectModal: null,
+      redirectCountdown: 0,
+      redirectInterval: null,
 
       toggleSort(mode) {
         if (mode === 'multiplier' && this.sortMode === 'multiplier') {
@@ -303,6 +339,12 @@
           this.sortMode = mode;
           this.sortDir = 'asc';
         }
+      },
+
+      matchesFilter(...names) {
+        if (!this.filterText) return true;
+        const q = this.filterText.toLowerCase();
+        return names.some(n => n.toLowerCase().includes(q));
       },
 
       get selectionCount() {
@@ -326,14 +368,17 @@
         const oldOrder = [...this.selectionOrder];
 
         if (this.selections[matchupId]) {
+          const wasFull = this.selectionCount === this.picksRequired;
           let newSelections = { ...this.selections };
           delete newSelections[matchupId];
           this.selections = newSelections;
           this.selectionOrder = this.selectionOrder.filter(id => id !== matchupId);
           this.blurDismissed = false;
+          if (wasFull) this.pickUrgent = true;
         } else if (this.selectionCount < this.picksRequired) {
           this.selections = { ...this.selections, [matchupId]: true };
           this.selectionOrder = [...this.selectionOrder, matchupId];
+          if (this.selectionCount === this.picksRequired) this.pickUrgent = false;
           if (!this.cartOpen) this.cartOpen = true;
           this.triggerShake(matchupId);
         } else {
@@ -388,12 +433,55 @@
         return this._shakeMatchupId === matchupId;
       },
 
+      showRedirectModal(title, message, icon, url, seconds, cta) {
+        this.redirectModal = { title, message, icon, url, seconds, cta };
+        this.redirectCountdown = seconds;
+        if (this.redirectInterval) clearInterval(this.redirectInterval);
+        this.redirectInterval = setInterval(() => {
+          this.redirectCountdown--;
+          if (this.redirectCountdown <= 0) {
+            clearInterval(this.redirectInterval);
+            this.redirectInterval = null;
+            window.location.href = url;
+          }
+        }, 1000);
+      },
+
+      goNow() {
+        if (this.redirectInterval) clearInterval(this.redirectInterval);
+        this.redirectInterval = null;
+        if (this.redirectModal) window.location.href = this.redirectModal.url;
+      },
+
+      setHoldSuccess() {
+        document.querySelectorAll('.hold-btn').forEach(el => {
+          el.classList.remove('process');
+          el.classList.add('success');
+        });
+      },
+
+      setHoldError() {
+        document.querySelectorAll('.hold-btn').forEach(el => {
+          el.classList.remove('success', 'process');
+          el.classList.add('error');
+        });
+      },
+
       async confirmEntry() {
         if (!this.loggedIn) {
-          window.location.href = '/login';
+          this.setHoldError();
+          this.showRedirectModal('Log In Required', 'Create an account or log in to enter the contest.', '🔒', '/login', 5);
           return;
         }
 
+        if (this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
+          this.setHoldError();
+          this.showRedirectModal('Insufficient Funds', 'Add funds to your wallet to cover the entry fee.', '💰', '/wallet', 5, 'Top Up Wallet');
+          this.submitting = false;
+          return;
+        }
+
+        this.setHoldSuccess();
         this.submitting = true;
 
         try {
@@ -408,6 +496,7 @@
           const data = await response.json();
 
           if (data.success) {
+            this.userBalanceCents -= this.entryFeeCents;
             window.location.href = data.redirect || '/';
           } else {
             this.showError(data.error || 'Something went wrong');
@@ -430,6 +519,7 @@
         this.selectionOrder = [];
         this.cartOpen = false;
         this.blurDismissed = false;
+        this.pickUrgent = false;
 
         if (!this.loggedIn) return;
 
