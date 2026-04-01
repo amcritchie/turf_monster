@@ -70,33 +70,36 @@
     </form>
   </div>
 
-  <!-- Score vs Multiplier Chart -->
-  <% chart_matchups = @matchups.select { |m| m.dk_score.present? || m.expected_team_total.present? } %>
-  <% if chart_matchups.any? %>
-    <div class="mt-10">
-      <h2 class="text-lg font-bold text-heading mb-4">Score vs Multiplier</h2>
-      <div class="bg-surface border border-subtle rounded-lg p-4">
-        <canvas id="slateChart" height="280"></canvas>
-      </div>
+  <!-- Slate Chart -->
+  <div class="mt-10">
+    <h2 class="text-lg font-bold text-heading mb-4">Slate Overview</h2>
+    <div class="bg-surface border border-subtle rounded-lg p-4" style="position: relative; height: 360px;">
+      <canvas id="slateChart"></canvas>
     </div>
-  <% end %>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-<% if chart_matchups.any? %>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    var matchups = <%== @matchups.ranked.map { |m|
+    var matchups = <%== @matchups.ranked.includes(:team, :opponent_team).map { |m|
       {
-        team: m.team.short_name,
+        rank: m.rank,
+        emoji: m.team.emoji,
+        team: m.team.name,
+        short: m.team.short_name,
+        opponent: m.opponent_team&.short_name,
         multiplier: m.multiplier&.to_f,
         dk_score: m.dk_score&.to_f,
-        team_total: m.expected_team_total&.to_f
+        team_total: m.expected_team_total&.to_f,
+        over_odds: m.team_total_over_odds,
+        points_1g: m.multiplier ? (1 * m.multiplier.to_f).round(1) : null
       }
     }.to_json %>;
 
-    var labels = matchups.map(function(m) { return m.team + ' (x' + (m.multiplier || 0).toFixed(1) + ')'; });
+    var labels = matchups.map(function(m) { return m.emoji; });
+    var points1g = matchups.map(function(m) { return m.points_1g; });
     var dkScores = matchups.map(function(m) { return m.dk_score; });
     var teamTotals = matchups.map(function(m) { return m.team_total; });
 
@@ -110,28 +113,46 @@
         labels: labels,
         datasets: [
           {
+            label: 'Points on 1 Goal',
+            data: points1g,
+            borderColor: '#4BAF50',
+            backgroundColor: 'rgba(75, 175, 80, 0.08)',
+            borderWidth: 2.5,
+            pointRadius: 2,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y',
+            order: 1
+          },
+          {
             label: 'DK Score',
             data: dkScores,
             borderColor: '#8E82FE',
-            backgroundColor: 'rgba(142, 130, 254, 0.1)',
+            backgroundColor: 'rgba(142, 130, 254, 0.08)',
             borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            pointRadius: 2,
+            pointHoverRadius: 6,
             tension: 0.3,
             fill: true,
-            spanGaps: true
+            yAxisID: 'y',
+            spanGaps: true,
+            order: 2
           },
           {
             label: 'O/U Team Total',
             data: teamTotals,
-            borderColor: '#4BAF50',
-            backgroundColor: 'rgba(75, 175, 80, 0.1)',
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            borderColor: '#FF7C47',
+            backgroundColor: 'rgba(255, 124, 71, 0.08)',
+            borderWidth: 1.5,
+            borderDash: [6, 3],
+            pointRadius: 2,
+            pointHoverRadius: 6,
             tension: 0.3,
-            fill: true,
-            spanGaps: true
+            fill: false,
+            yAxisID: 'y2',
+            spanGaps: true,
+            order: 3
           }
         ]
       },
@@ -141,12 +162,35 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
-            labels: { color: textColor, font: { size: 12 } }
+            labels: { color: textColor, font: { size: 11 }, usePointStyle: true, pointStyle: 'line' }
           },
           tooltip: {
+            backgroundColor: isDark ? 'rgba(20,18,40,0.95)' : 'rgba(255,255,255,0.95)',
+            titleColor: isDark ? '#fff' : '#111',
+            bodyColor: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: true,
             callbacks: {
               title: function(items) {
-                return items[0].label;
+                var m = matchups[items[0].dataIndex];
+                return m.emoji + ' ' + m.team + ' vs ' + (m.opponent || '—');
+              },
+              afterTitle: function(items) {
+                var m = matchups[items[0].dataIndex];
+                return 'Rank #' + m.rank + '  ·  Multiplier x' + (m.multiplier || 0).toFixed(1);
+              },
+              label: function(ctx) {
+                var val = ctx.parsed.y;
+                if (val === null || val === undefined || val === 0) return null;
+                var m = matchups[ctx.dataIndex];
+                if (ctx.dataset.label === 'O/U Team Total') {
+                  var odds = m.over_odds;
+                  var oddsStr = odds ? (odds > 0 ? '+' + odds : '' + odds) : '';
+                  return '  O/U: ' + val.toFixed(1) + (oddsStr ? ' (' + oddsStr + ')' : '');
+                }
+                return '  ' + ctx.dataset.label + ': ' + val.toFixed(2);
               }
             }
           }
@@ -155,17 +199,26 @@
           x: {
             ticks: {
               color: textColor,
-              font: { size: 9 },
-              maxRotation: 90,
-              minRotation: 45,
+              font: { size: 14 },
+              maxRotation: 0,
+              minRotation: 0,
               autoSkip: true,
-              maxTicksLimit: 24
+              maxTicksLimit: 48
             },
             grid: { color: gridColor }
           },
           y: {
+            position: 'left',
+            title: { display: true, text: 'Points / Score', color: textColor, font: { size: 11 } },
             ticks: { color: textColor },
             grid: { color: gridColor },
+            beginAtZero: true
+          },
+          y2: {
+            position: 'right',
+            title: { display: true, text: 'Team Total (O/U)', color: '#FF7C47', font: { size: 11 } },
+            ticks: { color: '#FF7C47' },
+            grid: { drawOnChartArea: false },
             beginAtZero: true
           }
         }
@@ -173,7 +226,6 @@
     });
   });
 </script>
-<% end %>
 <script>
   function rankManager() {
     return {
