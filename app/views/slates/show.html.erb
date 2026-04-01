@@ -69,9 +69,111 @@
       </div>
     </form>
   </div>
+
+  <!-- Score vs Multiplier Chart -->
+  <% chart_matchups = @matchups.select { |m| m.dk_score.present? || m.expected_team_total.present? } %>
+  <% if chart_matchups.any? %>
+    <div class="mt-10">
+      <h2 class="text-lg font-bold text-heading mb-4">Score vs Multiplier</h2>
+      <div class="bg-surface border border-subtle rounded-lg p-4">
+        <canvas id="slateChart" height="280"></canvas>
+      </div>
+    </div>
+  <% end %>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<% if chart_matchups.any? %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var matchups = <%== @matchups.ranked.map { |m|
+      {
+        team: m.team.short_name,
+        multiplier: m.multiplier&.to_f,
+        dk_score: m.dk_score&.to_f,
+        team_total: m.expected_team_total&.to_f
+      }
+    }.to_json %>;
+
+    var labels = matchups.map(function(m) { return m.team + ' (x' + (m.multiplier || 0).toFixed(1) + ')'; });
+    var dkScores = matchups.map(function(m) { return m.dk_score; });
+    var teamTotals = matchups.map(function(m) { return m.team_total; });
+
+    var isDark = document.documentElement.classList.contains('dark');
+    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    var textColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+
+    new Chart(document.getElementById('slateChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'DK Score',
+            data: dkScores,
+            borderColor: '#8E82FE',
+            backgroundColor: 'rgba(142, 130, 254, 0.1)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: true,
+            spanGaps: true
+          },
+          {
+            label: 'O/U Team Total',
+            data: teamTotals,
+            borderColor: '#4BAF50',
+            backgroundColor: 'rgba(75, 175, 80, 0.1)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: true,
+            spanGaps: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: textColor, font: { size: 12 } }
+          },
+          tooltip: {
+            callbacks: {
+              title: function(items) {
+                return items[0].label;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: textColor,
+              font: { size: 9 },
+              maxRotation: 90,
+              minRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 24
+            },
+            grid: { color: gridColor }
+          },
+          y: {
+            ticks: { color: textColor },
+            grid: { color: gridColor },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  });
+</script>
+<% end %>
 <script>
   function rankManager() {
     return {
