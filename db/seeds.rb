@@ -541,7 +541,7 @@ def compute_dk_score(line, over_odds)
   else
     100.0 / (over_odds + 100)
   end
-  (line + (prob - 0.5)).round(2)
+  (line + (prob - 0.5) * 3).round(2)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
