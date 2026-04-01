@@ -82,7 +82,12 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('turbo:load', function() {
+    var canvas = document.getElementById('slateChart');
+    if (!canvas) return;
+    var existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
     var matchups = <%== @matchups.ranked.includes(:team, :opponent_team).map { |m|
       {
         rank: m.rank,
