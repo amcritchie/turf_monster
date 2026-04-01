@@ -484,6 +484,55 @@ MATCHDAY_2_GAMES = [
   { home: "COL", away: "COD" },
 ]
 
+MATCHDAY_3_GAMES = [
+  # June 24
+  { home: "SUI", away: "CAN" },
+  { home: "BIH", away: "QAT" },
+  { home: "SCO", away: "BRA" },
+  { home: "MAR", away: "HAI" },
+  { home: "CZE", away: "MEX" },
+  { home: "RSA", away: "KOR" },
+  # June 25
+  { home: "CUW", away: "CIV" },
+  { home: "ECU", away: "GER" },
+  { home: "JPN", away: "SWE" },
+  { home: "TUN", away: "NED" },
+  { home: "TUR", away: "USA" },
+  { home: "PAR", away: "AUS" },
+  # June 26
+  { home: "NOR", away: "FRA" },
+  { home: "SEN", away: "IRQ" },
+  { home: "CPV", away: "KSA" },
+  { home: "URU", away: "ESP" },
+  { home: "EGY", away: "IRN" },
+  { home: "NZL", away: "BEL" },
+  # June 27
+  { home: "PAN", away: "ENG" },
+  { home: "CRO", away: "GHA" },
+  { home: "COL", away: "POR" },
+  { home: "COD", away: "UZB" },
+  { home: "ALG", away: "AUT" },
+  { home: "JOR", away: "ARG" },
+]
+
+# ─── General DK Power Rankings (outright odds to win tournament) ──
+# Source: FOX Sports / DraftKings, April 2026
+# Lower odds = stronger team = higher rank = lower multiplier
+GENERAL_DK_ODDS = {
+  "ESP" => 450,   "FRA" => 600,   "ENG" => 600,   "BRA" => 850,
+  "ARG" => 850,   "POR" => 1100,  "GER" => 1400,  "NED" => 2000,
+  "NOR" => 2800,  "BEL" => 3500,  "COL" => 4000,  "JPN" => 5000,
+  "MAR" => 6000,  "URU" => 6500,  "USA" => 6500,  "TUR" => 6500,
+  "MEX" => 7000,  "SWE" => 8000,  "ECU" => 8000,  "CRO" => 9000,
+  "SUI" => 10000, "SEN" => 10000, "AUT" => 10000, "CZE" => 15000,
+  "CAN" => 20000, "PAR" => 20000, "SCO" => 20000, "CIV" => 25000,
+  "BIH" => 25000, "EGY" => 30000, "IRN" => 30000, "ALG" => 35000,
+  "KOR" => 35000, "GHA" => 35000, "AUS" => 45000, "TUN" => 50000,
+  "COD" => 70000, "RSA" => 80000, "KSA" => 100000, "PAN" => 100000,
+  "NZL" => 100000, "QAT" => 100000, "CPV" => 100000, "IRQ" => 100000,
+  "UZB" => 150000, "JOR" => 150000, "HAI" => 150000, "CUW" => 150000,
+}
+
 # ─── DK Score Helper ──────────────────────────────────────────
 def compute_dk_score(line, over_odds)
   return nil unless line && over_odds
@@ -496,7 +545,7 @@ def compute_dk_score(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
-def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:)
+def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false)
   slate = Slate.find_or_create_by!(name: slate_name) do |s|
     s.starts_at = starts_at
   end
@@ -531,10 +580,18 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
     end
   end
 
-  # Populate DK odds + compute dk_score
   matchups = slate.slate_matchups.includes(:team).to_a
 
-  if dk_odds.any?
+  if general_rankings
+    # Rank by general DK outright odds (lower odds = stronger team = higher rank)
+    sorted = matchups.sort_by do |m|
+      team_data = TEAMS_DATA.find { |t| t[:name].parameterize == m.team_slug }
+      short_name = team_data&.dig(:short_name)
+      odds = GENERAL_DK_ODDS[short_name] || 999999
+      [odds, m.team.name]
+    end
+  elsif dk_odds.any?
+    # Populate game-specific DK odds + compute dk_score
     matchups.each do |m|
       team_data = TEAMS_DATA.find { |t| t[:name].parameterize == m.team_slug }
       opp_data = TEAMS_DATA.find { |t| t[:name].parameterize == m.opponent_team_slug }
@@ -593,7 +650,18 @@ create_slate_with_contest(
   games: MATCHDAY_2_GAMES,
   teams: teams,
   dk_odds: dk_odds,
-  starts_at: et(2026, 6, 18, 12, 0)
+  starts_at: et(2026, 6, 18, 12, 0),
+  general_rankings: true
+)
+
+create_slate_with_contest(
+  slate_name: "World Cup 2026 Group Slate 3",
+  contest_name: "Turf Totals — World Cup 2026 Group Slate 3",
+  games: MATCHDAY_3_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 24, 15, 0),
+  general_rankings: true
 )
 
 puts "Done! #{User.count} users, #{Slate.count} slates, #{Contest.count} contests, #{Entry.count} entries"
