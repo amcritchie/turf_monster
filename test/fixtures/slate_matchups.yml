@@ -1,5 +1,5 @@
 m1:
-  contest: one
+  slate: one
   team_slug: team-a
   opponent_team_slug: team-b
   rank: 1
@@ -7,7 +7,7 @@ m1:
   status: pending
 
 m2:
-  contest: one
+  slate: one
   team_slug: team-b
   opponent_team_slug: team-a
   rank: 2
@@ -15,7 +15,7 @@ m2:
   status: pending
 
 m3:
-  contest: one
+  slate: one
   team_slug: team-c
   opponent_team_slug: team-d
   rank: 3
@@ -23,7 +23,7 @@ m3:
   status: pending
 
 m4:
-  contest: one
+  slate: one
   team_slug: team-d
   opponent_team_slug: team-c
   rank: 4
@@ -31,7 +31,7 @@ m4:
   status: pending
 
 m5:
-  contest: one
+  slate: one
   team_slug: team-e
   opponent_team_slug: team-f
   rank: 5
@@ -39,7 +39,7 @@ m5:
   status: pending
 
 m6:
-  contest: one
+  slate: one
   team_slug: team-f
   opponent_team_slug: team-e
   rank: 6

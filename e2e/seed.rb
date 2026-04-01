@@ -8,8 +8,9 @@ puts "Seeding test database for Playwright..."
 # Clear in dependency order
 Selection.delete_all
 Entry.delete_all
-ContestMatchup.delete_all
+SlateMatchup.delete_all
 Contest.delete_all
+Slate.delete_all
 Team.delete_all
 User.delete_all
 
@@ -43,6 +44,12 @@ teams = {}
   teams[attrs[:slug]] = Team.create!(attrs)
 end
 
+# Slate
+slate = Slate.create!(
+  name: "World Cup 2026",
+  starts_at: 1.week.from_now
+)
+
 # Contest
 contest = Contest.create!(
   name: "World Cup 2026",
@@ -50,15 +57,16 @@ contest = Contest.create!(
   status: "open",
   max_entries: 10,
   contest_type: "turf_totals",
-  starts_at: 1.week.from_now
+  starts_at: 1.week.from_now,
+  slate: slate
 )
 
-# Contest matchups (need at least 5 for confirm — creating 6 as 3 game pairs)
+# Slate matchups (need at least 5 for confirm — creating 6 as 3 game pairs)
 # game_slug pairs matchups for the game view layout
 game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
 %w[team-a team-b team-c team-d team-e team-f].each_with_index do |slug, i|
   opp = %w[team-b team-a team-d team-c team-f team-e][i]
-  contest.contest_matchups.create!(
+  slate.slate_matchups.create!(
     team_slug: slug,
     opponent_team_slug: opp,
     game_slug: game_slugs[i],
@@ -68,4 +76,4 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-puts "Seeded: #{User.count} users, #{Team.count} teams, #{Contest.count} contests, #{ContestMatchup.count} matchups"
+puts "Seeded: #{User.count} users, #{Team.count} teams, #{Slate.count} slates, #{Contest.count} contests, #{SlateMatchup.count} matchups"

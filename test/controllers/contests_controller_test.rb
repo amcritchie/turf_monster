@@ -4,12 +4,12 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
   setup do
     @contest = contests(:one)
     @user = users(:sam)
-    @m1 = contest_matchups(:m1)
-    @m2 = contest_matchups(:m2)
-    @m3 = contest_matchups(:m3)
-    @m4 = contest_matchups(:m4)
-    @m5 = contest_matchups(:m5)
-    @m6 = contest_matchups(:m6)
+    @m1 = slate_matchups(:m1)
+    @m2 = slate_matchups(:m2)
+    @m3 = slate_matchups(:m3)
+    @m4 = slate_matchups(:m4)
+    @m5 = slate_matchups(:m5)
+    @m6 = slate_matchups(:m6)
   end
 
   # --- toggle_selection tests ---
@@ -33,7 +33,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.selections.create!(contest_matchup: @m1)
+    entry.selections.create!(slate_matchup: @m1)
 
     assert_difference "Selection.count", -1 do
       post toggle_selection_contest_path(@contest),
@@ -64,7 +64,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
     balance_before = @user.balance_cents
 
@@ -99,7 +99,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
     post enter_contest_path(@contest)
 

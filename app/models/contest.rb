@@ -2,11 +2,15 @@ class Contest < ApplicationRecord
   include Sluggable
 
   has_many :entries, dependent: :destroy
-  has_many :contest_matchups, dependent: :destroy
+  belongs_to :slate
 
   validates :name, presence: true
 
   enum :status, { draft: "draft", open: "open", locked: "locked", settled: "settled" }
+
+  def matchups
+    slate.slate_matchups
+  end
 
   def picks_required
     5
@@ -81,7 +85,7 @@ class Contest < ApplicationRecord
 
     transaction do
       # Simulate all pending games
-      contest_matchups.pending.includes(:game).each do |matchup|
+      matchups.pending.includes(:game).each do |matchup|
         game = matchup.game
         next unless game
 
@@ -106,7 +110,7 @@ class Contest < ApplicationRecord
   def fill!(users:)
     raise "Contest is not open" unless open?
 
-    matchup_ids = contest_matchups.pluck(:id)
+    matchup_ids = matchups.pluck(:id)
     raise "Need at least #{picks_required} matchups" if matchup_ids.size < picks_required
 
     active_count = entries.where(status: [:active, :complete]).count
@@ -114,7 +118,7 @@ class Contest < ApplicationRecord
     return if slots <= 0
 
     existing_combos = entries.where(status: [:active, :complete]).includes(:selections).map do |entry|
-      entry.selections.map(&:contest_matchup_id).sort
+      entry.selections.map(&:slate_matchup_id).sort
     end.to_set
 
     user_cycle = users.cycle
@@ -126,7 +130,7 @@ class Contest < ApplicationRecord
         attempts += 1
         break if attempts > slots * 100
         # Pick 5 random non-locked matchups
-        available = contest_matchups.reject(&:locked?).map(&:id)
+        available = matchups.reject(&:locked?).map(&:id)
         next if available.size < picks_required
         combo = available.sample(picks_required).sort
         break unless existing_combos.include?(combo)
@@ -138,7 +142,7 @@ class Contest < ApplicationRecord
       user = user_cycle.next
       entry = entries.create!(user: user, contest: self)
       combo.each do |matchup_id|
-        entry.selections.create!(contest_matchup_id: matchup_id)
+        entry.selections.create!(slate_matchup_id: matchup_id)
       end
       entry.confirm!
     end
@@ -147,8 +151,8 @@ class Contest < ApplicationRecord
   def reset!
     transaction do
       entries.destroy_all
-      contest_matchups.update_all(goals: nil, status: "pending")
-      contest_matchups.includes(:game).find_each do |matchup|
+      matchups.update_all(goals: nil, status: "pending")
+      matchups.includes(:game).find_each do |matchup|
         matchup.game&.update!(home_score: nil, away_score: nil, status: "scheduled")
       end
       update!(status: :open)
@@ -159,7 +163,7 @@ class Contest < ApplicationRecord
     raise "Contest is already settled" if settled?
 
     # Find next unplayed game (by kickoff_at)
-    matchup = contest_matchups.pending.includes(:game).select { |m| m.game.present? }
+    matchup = matchups.pending.includes(:game).select { |m| m.game.present? }
       .sort_by { |m| m.game.kickoff_at || Time.current }
       .first
 
@@ -171,7 +175,7 @@ class Contest < ApplicationRecord
     game.update!(home_score: home_score, away_score: away_score, status: "completed")
 
     # Update all matchups for this game
-    game_matchups = contest_matchups.where(game_slug: game.slug)
+    game_matchups = matchups.where(game_slug: game.slug)
     game_matchups.each do |m|
       # Figure out which team's goals to record
       if m.team_slug == game.home_team_slug
@@ -187,7 +191,7 @@ class Contest < ApplicationRecord
   end
 
   def score_entries!
-    entries.where(status: [:active, :complete]).includes(selections: :contest_matchup).find_each do |entry|
+    entries.where(status: [:active, :complete]).includes(selections: :slate_matchup).find_each do |entry|
       entry.selections.each(&:compute_points!)
       total = entry.selections.reload.sum { |s| s.points || 0 }
       entry.update!(score: total)

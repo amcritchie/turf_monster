@@ -56,7 +56,7 @@
           class: "btn btn-lg bg-yellow-600 hover:bg-yellow-500 text-white" %>
       <% end %>
 
-      <% next_game = @contest.contest_matchups.pending.includes(:game).select { |m| m.game.present? }.sort_by { |m| m.game.kickoff_at || Time.current }.first %>
+      <% next_game = @contest.matchups.pending.includes(:game).select { |m| m.game.present? }.sort_by { |m| m.game.kickoff_at || Time.current }.first %>
       <% if next_game %>
         <%= button_to "Simulate: #{next_game.team.name} vs #{next_game.opponent_team&.name}",
           simulate_game_contest_path(@contest), method: :post,
@@ -66,7 +66,7 @@
       <%= button_to "Jump (Simulate All)", jump_contest_path(@contest), method: :post,
         class: "btn btn-primary btn-lg" %>
 
-      <%= link_to "Rank Matchups", rank_matchups_contest_path(@contest),
+      <%= link_to "Rank Matchups", slate_path(@contest.slate),
         class: "px-6 py-2 bg-surface-alt hover:bg-surface-alt/80 text-heading font-bold rounded-xl shadow transition inline-flex items-center" %>
     </div>
   </section>
@@ -157,8 +157,8 @@
                                   end
                     %>
                     <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>"
-                          title="<%= selection.contest_matchup.team.name %> (<%= selection.contest_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
-                      <%= selection.contest_matchup.team.emoji %><%= selection.contest_matchup.team.short_name %>
+                          title="<%= selection.slate_matchup.team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
+                      <%= selection.slate_matchup.team.emoji %><%= selection.slate_matchup.team.short_name %>
                       <% if has_points %>
                         <span class="text-violet"><%= sprintf('%.1f', selection.points) %></span>
                       <% end %>
@@ -174,4 +174,4 @@
   </section>
 <% end %>
 
-<%= render "components/json_debug", record: @contest.as_json(include: { contest_matchups: { methods: [:locked?] }, entries: { include: { user: { only: [:id, :name] }, selections: {} } } }), label: "Contest JSON", collapsible: true %>
+<%= render "components/json_debug", record: @contest.as_json.merge("slate_matchups" => @matchups.as_json(methods: [:locked?]), "entries" => @entries.as_json(include: { user: { only: [:id, :name] }, selections: {} })), label: "Contest JSON", collapsible: true %>

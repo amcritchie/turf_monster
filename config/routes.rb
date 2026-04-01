@@ -17,6 +17,12 @@ Rails.application.routes.draw do
     post :change_password
   end
 
+  resources :slates, only: [:index, :show] do
+    member do
+      patch :update_rankings
+    end
+  end
+
   resources :contests, only: [:index, :show] do
     collection do
       get :my
@@ -31,8 +37,6 @@ Rails.application.routes.draw do
       post :jump
       post :simulate_game
       post :reset
-      get :rank_matchups
-      patch :update_rankings
     end
   end
 

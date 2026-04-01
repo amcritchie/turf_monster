@@ -4,17 +4,17 @@ class EntryTest < ActiveSupport::TestCase
   setup do
     @contest = contests(:one)
     @user = users(:sam)
-    @m1 = contest_matchups(:m1)
-    @m2 = contest_matchups(:m2)
-    @m3 = contest_matchups(:m3)
-    @m4 = contest_matchups(:m4)
-    @m5 = contest_matchups(:m5)
-    @m6 = contest_matchups(:m6)
+    @m1 = slate_matchups(:m1)
+    @m2 = slate_matchups(:m2)
+    @m3 = slate_matchups(:m3)
+    @m4 = slate_matchups(:m4)
+    @m5 = slate_matchups(:m5)
+    @m6 = slate_matchups(:m6)
   end
 
   test "confirm! charges fee and sets status to active" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
     balance_before = @user.balance_cents
     entry.confirm!
@@ -25,7 +25,7 @@ class EntryTest < ActiveSupport::TestCase
 
   test "confirm! rejects with less than 5 selections" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2].each { |m| entry.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_match(/selections required/, error.message)
@@ -35,7 +35,7 @@ class EntryTest < ActiveSupport::TestCase
   test "confirm! rejects for non-open contest" do
     @contest.update!(status: "locked")
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Contest is not open", error.message
@@ -44,7 +44,7 @@ class EntryTest < ActiveSupport::TestCase
   test "confirm! rejects with insufficient funds" do
     @user.update!(balance_cents: 0, promotional_cents: 0)
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(contest_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Insufficient funds", error.message
@@ -62,7 +62,7 @@ class EntryTest < ActiveSupport::TestCase
 
   test "toggle_selection! removes selection when toggled again" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    entry.selections.create!(contest_matchup: @m1)
+    entry.selections.create!(slate_matchup: @m1)
 
     result = entry.toggle_selection!(@m1)
 

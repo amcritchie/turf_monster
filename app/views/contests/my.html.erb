@@ -57,9 +57,9 @@
                 <div class="flex gap-1.5">
                   <% entry.selections.each do |sel| %>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border bg-surface text-body border-strong">
-                      <span><%= sel.contest_matchup.team.emoji %></span>
-                      <span class="text-heading font-semibold"><%= sel.contest_matchup.team.short_name %></span>
-                      <span class="text-primary font-bold">x<%= sel.contest_matchup.multiplier.to_i %></span>
+                      <span><%= sel.slate_matchup.team.emoji %></span>
+                      <span class="text-heading font-semibold"><%= sel.slate_matchup.team.short_name %></span>
+                      <span class="text-primary font-bold">x<%= sel.slate_matchup.multiplier.to_i %></span>
                     </span>
                   <% end %>
                 </div>

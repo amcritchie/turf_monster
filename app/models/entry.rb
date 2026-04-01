@@ -9,19 +9,19 @@ class Entry < ApplicationRecord
 
   enum :status, { cart: "cart", active: "active", complete: "complete", abandoned: "abandoned" }
 
-  def toggle_selection!(contest_matchup)
-    raise "Game has already started" if contest_matchup.locked?
+  def toggle_selection!(slate_matchup)
+    raise "Game has already started" if slate_matchup.locked?
 
-    existing = selections.find_by(contest_matchup: contest_matchup)
+    existing = selections.find_by(slate_matchup: slate_matchup)
 
     if existing
       existing.destroy!
     elsif selections.count < contest.picks_required
-      selections.create!(contest_matchup: contest_matchup)
+      selections.create!(slate_matchup: slate_matchup)
     else
       # Replace oldest selection
       selections.order(created_at: :asc).first.destroy!
-      selections.create!(contest_matchup: contest_matchup)
+      selections.create!(slate_matchup: slate_matchup)
     end
 
     reload
@@ -30,7 +30,7 @@ class Entry < ApplicationRecord
       return nil
     end
 
-    selections.each_with_object({}) { |s, h| h[s.contest_matchup_id.to_s] = true }
+    selections.each_with_object({}) { |s, h| h[s.slate_matchup_id.to_s] = true }
   end
 
   def confirm!
@@ -38,14 +38,14 @@ class Entry < ApplicationRecord
     raise "Exactly #{contest.picks_required} selections required" unless selections.count == contest.picks_required
 
     # Check no locked games
-    selections.includes(contest_matchup: :game).each do |s|
-      raise "#{s.contest_matchup.team.name}'s game has already started" if s.contest_matchup.locked?
+    selections.includes(slate_matchup: :game).each do |s|
+      raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
     end
 
     # Sybil check
-    my_combo = selections.map(&:contest_matchup_id).sort
+    my_combo = selections.map(&:slate_matchup_id).sort
     contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
-      other_combo = other.selections.map(&:contest_matchup_id).sort
+      other_combo = other.selections.map(&:slate_matchup_id).sort
       raise "You already have an entry with this exact selection combination" if other_combo == my_combo
     end
 
@@ -56,8 +56,8 @@ class Entry < ApplicationRecord
   end
 
   def selection_data
-    selections.includes(contest_matchup: :team).map do |s|
-      { contest_matchup_id: s.contest_matchup_id, team_slug: s.contest_matchup.team_slug }
+    selections.includes(slate_matchup: :team).map do |s|
+      { slate_matchup_id: s.slate_matchup_id, team_slug: s.slate_matchup.team_slug }
     end
   end
 

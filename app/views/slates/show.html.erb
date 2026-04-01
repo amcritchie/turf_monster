@@ -1,14 +1,25 @@
-<% content_for :title, "Rank Matchups — #{@contest.name}" %>
+<% content_for :title, "Slate — #{@slate.name}" %>
 
 <div class="max-w-3xl mx-auto py-8 px-2">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-heading">Rank Matchups</h1>
-      <p class="text-sm text-secondary mt-1"><%= @contest.name %></p>
+      <h1 class="text-2xl font-bold text-heading">Slate Rankings</h1>
+      <p class="text-sm text-secondary mt-1"><%= @slate.name %></p>
     </div>
-    <%= link_to "Back to Contest", contest_path(@contest),
+    <%= link_to "Back to Contest", root_path,
       class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
   </div>
+
+  <!-- Slate tab selector -->
+  <% if @slates.size > 1 %>
+    <div class="flex gap-2 mb-6">
+      <% @slates.each do |slate| %>
+        <% active = slate.id == @slate.id %>
+        <%= link_to slate.name.sub("Turf Totals — World Cup 2026 Group ", ""), slate_path(slate),
+          class: "px-4 py-2 rounded-full text-sm font-semibold transition-all #{active ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'}" %>
+      <% end %>
+    </div>
+  <% end %>
 
   <p class="text-secondary text-sm mb-6">
     Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier x1). Rank 48 = weakest (highest multiplier x4).
@@ -23,12 +34,20 @@
                data-matchup-id="<%= matchup.id %>">
             <span class="font-mono text-muted text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
             <span class="text-lg"><%= matchup.team.emoji %></span>
-            <div class="flex-1">
+            <div class="flex-1 flex items-center gap-2">
               <span class="text-heading font-semibold text-sm"><%= matchup.team.name %></span>
               <% if matchup.opponent_team %>
-                <span class="text-muted text-xs ml-1">vs <%= matchup.opponent_team.short_name %></span>
+                <span class="text-muted text-xs">vs <%= matchup.opponent_team.short_name %></span>
+              <% end %>
+              <% if matchup.expected_team_total %>
+                <span class="text-muted text-xs">O/U <%= sprintf('%.1f', matchup.expected_team_total) %> (<%= matchup.team_total_over_odds && matchup.team_total_over_odds > 0 ? "+#{matchup.team_total_over_odds}" : matchup.team_total_over_odds %>)</span>
               <% end %>
             </div>
+            <% if matchup.dk_score %>
+              <span class="font-mono text-violet text-sm w-12 text-right"><%= sprintf('%.2f', matchup.dk_score) %></span>
+            <% else %>
+              <span class="font-mono text-muted text-sm w-12 text-right">—</span>
+            <% end %>
             <span class="font-mono text-primary text-sm w-12 text-right multiplier-display"><%= matchup.multiplier ? sprintf('%.1f', matchup.multiplier) : '—' %>x</span>
           </div>
         <% end %>
@@ -47,7 +66,7 @@
 <script>
   function rankManager() {
     return {
-      contestId: '<%= @contest.slug %>',
+      slateSlug: '<%= @slate.slug %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
 
       init() {
@@ -74,7 +93,7 @@
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/contests/${this.contestId}/update_rankings`;
+        form.action = `/slates/${this.slateSlug}/update_rankings`;
 
         const methodInput = document.createElement('input');
         methodInput.type = 'hidden';

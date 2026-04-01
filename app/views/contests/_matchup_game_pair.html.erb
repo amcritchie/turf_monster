@@ -22,6 +22,9 @@
       <% if matchup.multiplier %>
         <p class="font-mono text-xl md:text-2xl text-primary">x<%= matchup.multiplier == matchup.multiplier.to_i ? matchup.multiplier.to_i : sprintf('%.1f', matchup.multiplier) %></p>
       <% end %>
+      <% if matchup.expected_team_total %>
+        <p class="text-xs text-muted mt-1">O/U <%= sprintf('%.1f', matchup.expected_team_total) %></p>
+      <% end %>
     </button>
     <% if side == 0 %>
       <div class="flex items-center self-stretch px-3 transition-all"

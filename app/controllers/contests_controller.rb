@@ -1,29 +1,29 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :reset, :rank_matchups, :update_rankings]
-  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset, :rank_matchups, :update_rankings]
+  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :reset]
+  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset]
 
   def index
     @contest = Contest.order(created_at: :desc).first
     return unless @contest
 
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { contest_matchup: :team })
-    @matchups = @contest.contest_matchups.includes(:team, :opponent_team, :game).order(:rank)
+    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team })
+    @matchups = @contest.matchups.includes(:team, :opponent_team, :game).order(:rank)
     @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
   end
 
   def my
     @contests = Contest.where(status: [:open, :locked, :settled]).order(created_at: :desc)
     if logged_in?
-      @my_entries = current_user.entries.where(status: [:active, :complete]).includes(:contest, selections: { contest_matchup: [:team, :opponent_team] }).group_by(&:contest_id)
+      @my_entries = current_user.entries.where(status: [:active, :complete]).includes(:contest, selections: { slate_matchup: [:team, :opponent_team] }).group_by(&:contest_id)
     else
       @my_entries = {}
     end
   end
 
   def show
-    @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { contest_matchup: :team }).order(score: :desc)
+    @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
+    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team }).order(score: :desc)
   end
 
   def enter
@@ -73,7 +73,7 @@ class ContestsController < ApplicationController
       return render json: { error: "Contest is not open" }, status: :unprocessable_entity
     end
 
-    matchup = @contest.contest_matchups.find_by(id: params[:matchup_id])
+    matchup = @contest.matchups.find_by(id: params[:matchup_id])
     return render json: { error: "Matchup not found" }, status: :not_found unless matchup
 
     entry = @contest.entries.find_or_create_by!(user: current_user, status: :cart)
@@ -95,26 +95,6 @@ class ContestsController < ApplicationController
     rescue_and_log(target: @contest) do
       game = @contest.simulate_next_game!
       redirect_to @contest, notice: "Simulated #{game.home_team.name} vs #{game.away_team.name}: #{game.home_score}-#{game.away_score}"
-    end
-  rescue StandardError => e
-    redirect_to @contest || root_path, alert: e.message
-  end
-
-  def rank_matchups
-    @matchups = @contest.contest_matchups.ranked.includes(:team, :opponent_team, :game)
-  end
-
-  def update_rankings
-    rescue_and_log(target: @contest) do
-      if params[:matchup_ids].present?
-        params[:matchup_ids].each_with_index do |id, index|
-          matchup = @contest.contest_matchups.find_by(id: id)
-          next unless matchup
-          rank = index + 1
-          matchup.update!(rank: rank, multiplier: (Math.sqrt(rank) * 0.5 + 0.5).round(1))
-        end
-      end
-      redirect_to rank_matchups_contest_path(@contest), notice: "Rankings saved! Multipliers generated."
     end
   rescue StandardError => e
     redirect_to @contest || root_path, alert: e.message

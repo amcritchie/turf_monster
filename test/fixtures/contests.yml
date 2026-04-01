@@ -6,3 +6,4 @@ one:
   max_entries: 10
   contest_type: turf_totals
   starts_at: 2026-06-11 16:00:00
+  slate: one

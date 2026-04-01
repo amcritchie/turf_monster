@@ -33,6 +33,9 @@
               <% end %>
               <%= link_to "Turf Totals", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
               <%= render "components/soccer_dropdown" %>
+              <% if current_user&.admin? %>
+                <%= link_to "Slates", slates_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+              <% end %>
               <%= render "components/admin_dropdown" %>
               <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                       class="text-xs font-mono px-2 py-1 rounded-md border transition"
