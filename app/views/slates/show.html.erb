@@ -28,6 +28,15 @@
 
   <div x-data="rankManager()" x-cloak>
     <form @submit.prevent="saveRankings()">
+      <!-- Column headers -->
+      <div class="flex items-center gap-3 px-4 py-2 text-xs text-muted uppercase tracking-wider font-semibold">
+        <span class="w-8 text-right">Rank</span>
+        <span class="text-lg invisible">🏳️</span>
+        <span class="flex-1">Team</span>
+        <span class="w-12 text-right">Score</span>
+        <span class="w-12 text-right">Multi</span>
+      </div>
+
       <div class="space-y-1" x-ref="sortableList">
         <% @matchups.each_with_index do |matchup, i| %>
           <div class="flex items-center gap-3 bg-surface rounded-lg px-4 py-3 border border-subtle cursor-grab active:cursor-grabbing sortable-item"
