@@ -1,0 +1,80 @@
+<% content_for :title, "Default Formula Variables" %>
+
+<div class="max-w-3xl mx-auto py-8 px-2">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-heading">Default Formula Variables</h1>
+      <p class="text-sm text-secondary mt-1">These values are inherited by all slates unless overridden per-slate.</p>
+    </div>
+    <%= link_to "Back to Slates", slates_path,
+      class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
+  </div>
+
+  <% resolved = @default_slate.resolved_formula %>
+
+  <%= form_with url: update_admin_formula_slates_path, method: :patch, local: true do |f| %>
+    <div class="space-y-4">
+      <!-- DK Score -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid #15803D;">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">DK Score</span>
+          <span class="text-muted text-sm"> = A &times; line<sup>lineExp</sup> &times; prob<sup>probExp</sup></span>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">A</label>
+            <%= f.number_field :formula_a, value: resolved[:formula_a], step: 0.01, class: "input-field w-full" %>
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Line Exponent</label>
+            <%= f.number_field :formula_line_exp, value: resolved[:formula_line_exp], step: 0.01, class: "input-field w-full" %>
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Prob Exponent</label>
+            <%= f.number_field :formula_prob_exp, value: resolved[:formula_prob_exp], step: 0.01, class: "input-field w-full" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multiplier -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid #8E82FE;">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">Multiplier</span>
+          <span class="text-muted text-sm"> = base + scale &times; ln(rank) / ln(N)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">Base</label>
+            <%= f.number_field :formula_mult_base, value: resolved[:formula_mult_base], step: 0.1, class: "input-field w-full" %>
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Scale</label>
+            <%= f.number_field :formula_mult_scale, value: resolved[:formula_mult_scale], step: 0.1, class: "input-field w-full" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Goals Distribution -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid #B8B0FF;">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">Goals Distribution</span>
+          <span class="text-muted text-sm"> = base + scale &times; ln(N/rank) / ln(N)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">Base</label>
+            <%= f.number_field :formula_goal_base, value: resolved[:formula_goal_base], step: 0.1, class: "input-field w-full" %>
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Scale</label>
+            <%= f.number_field :formula_goal_scale, value: resolved[:formula_goal_scale], step: 0.1, class: "input-field w-full" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <button type="submit" class="btn btn-primary btn-lg w-full">Save Default Formula</button>
+    </div>
+  <% end %>
+</div>

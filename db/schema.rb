@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_01_050001) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_01_070000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -124,6 +124,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_01_050001) do
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "over_decimal_odds", precision: 4, scale: 2
+    t.decimal "under_decimal_odds", precision: 4, scale: 2
     t.index ["game_slug"], name: "index_slate_matchups_on_game_slug"
     t.index ["slate_id", "team_slug"], name: "index_slate_matchups_on_slate_id_and_team_slug", unique: true
     t.index ["slate_id"], name: "index_slate_matchups_on_slate_id"
@@ -136,6 +138,13 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_01_050001) do
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "formula_a"
+    t.float "formula_line_exp"
+    t.float "formula_prob_exp"
+    t.float "formula_mult_base"
+    t.float "formula_mult_scale"
+    t.float "formula_goal_base"
+    t.float "formula_goal_scale"
     t.index ["slug"], name: "index_slates_on_slug", unique: true
   end
 

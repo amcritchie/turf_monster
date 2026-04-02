@@ -1,0 +1,554 @@
+<% content_for :title, "DK Score Formula — Iterations" %>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  var _playgroundMatchups = <%== @sample_matchups.map { |m| { team: m[:team], emoji: m[:emoji], line: m[:line], odds: m[:over_odds], over_dec: m[:over_dec], prob: m[:prob].round(4) } }.to_json %>;
+
+  <%
+    formula_chart_data = {}
+    [:v1, :v2, :v3].each do |key|
+      sorted = @sample_matchups.sort_by { |m| -m[key] }
+      n = sorted.size
+      sorted.each_with_index do |m, i|
+        rank = i + 1
+        mult = SlateMatchup.multiplier_for(rank, n)
+        m[:"#{key}_mult"] = mult
+        m[:"#{key}_pts1g"] = (1 * mult).round(1)
+      end
+      formula_chart_data[key] = sorted.map { |m| { emoji: m[:emoji], team: m[:team], score: m[key], line: m[:line], pts1g: m[:"#{key}_pts1g"], mult: m[:"#{key}_mult"] } }
+    end
+  %>
+  var _formulaData = <%== formula_chart_data.to_json %>;
+
+  function _buildFormulaCharts() {
+    var isDark = document.documentElement.classList.contains('dark');
+    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    var textColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+
+    ['v1', 'v2', 'v3'].forEach(function(key) {
+      var canvas = document.getElementById('chart-' + key);
+      if (!canvas) return;
+      var existing = Chart.getChart(canvas);
+      if (existing) existing.destroy();
+
+      var rows = _formulaData[key];
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: rows.map(function(r) { return r.emoji; }),
+          datasets: [
+            {
+              label: 'Points on 1 Goal',
+              data: rows.map(function(r) { return r.pts1g; }),
+              borderColor: '#4BAF50',
+              backgroundColor: 'rgba(75, 175, 80, 0.08)',
+              borderWidth: 2.5,
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              tension: 0.3,
+              fill: true,
+              yAxisID: 'y',
+              order: 1
+            },
+            {
+              label: 'DK Score',
+              data: rows.map(function(r) { return r.score; }),
+              borderColor: '#8E82FE',
+              backgroundColor: 'rgba(142, 130, 254, 0.08)',
+              borderWidth: 2,
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              tension: 0.3,
+              fill: true,
+              yAxisID: 'y',
+              order: 2
+            },
+            {
+              label: 'O/U Team Total',
+              data: rows.map(function(r) { return r.line; }),
+              borderColor: '#FF7C47',
+              backgroundColor: 'rgba(255, 124, 71, 0.08)',
+              borderWidth: 1.5,
+              borderDash: [6, 3],
+              pointRadius: 2,
+              pointHoverRadius: 6,
+              tension: 0.3,
+              fill: false,
+              yAxisID: 'y2',
+              order: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: { color: textColor, font: { size: 11 }, usePointStyle: true, pointStyle: 'line' }
+            },
+            tooltip: {
+              backgroundColor: isDark ? 'rgba(20,18,40,0.95)' : 'rgba(255,255,255,0.95)',
+              titleColor: isDark ? '#fff' : '#111',
+              bodyColor: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
+              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                title: function(items) {
+                  var r = rows[items[0].dataIndex];
+                  return r.emoji + ' ' + r.team;
+                },
+                afterTitle: function(items) {
+                  var r = rows[items[0].dataIndex];
+                  return 'Rank #' + (items[0].dataIndex + 1) + '  ·  Multiplier x' + r.mult.toFixed(1);
+                },
+                label: function(ctx) {
+                  var val = ctx.parsed.y;
+                  if (ctx.dataset.label === 'O/U Team Total') return '  O/U: ' + val.toFixed(1);
+                  return '  ' + ctx.dataset.label + ': ' + val.toFixed(2);
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: textColor, font: { size: 16 }, maxRotation: 0 },
+              grid: { color: gridColor }
+            },
+            y: {
+              position: 'left',
+              title: { display: true, text: 'Points / Score', color: textColor, font: { size: 11 } },
+              ticks: { color: textColor },
+              grid: { color: gridColor },
+              beginAtZero: true
+            },
+            y2: {
+              position: 'right',
+              title: { display: true, text: 'Team Total (O/U)', color: '#FF7C47', font: { size: 11 } },
+              ticks: { color: '#FF7C47' },
+              grid: { drawOnChartArea: false },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    });
+  }
+
+  document.addEventListener('turbo:load', _buildFormulaCharts);
+  document.addEventListener('DOMContentLoaded', _buildFormulaCharts);
+
+  // Keep chart instance and cached data OUTSIDE Alpine to avoid proxy issues
+  var _pgChart = null;
+  var _pgCache = null;
+
+  function _pgRecompute(A, lineExp, probExp) {
+    var scored = _playgroundMatchups.map(function(m) {
+      var prob = m.over_dec ? (1 / m.over_dec) : m.prob;
+      var score = A * Math.pow(m.line, lineExp) * Math.pow(prob, probExp);
+      return { team: m.team, emoji: m.emoji, line: m.line, odds: m.odds, over_dec: m.over_dec, prob: prob, score: score };
+    }).sort(function(a, b) { return b.score - a.score; });
+    var N = scored.length;
+    var lnN = Math.log(N);
+    scored.forEach(function(r, i) {
+      var rank = i + 1;
+      r.rank = rank;
+      r.mult = Math.round((1.0 + 3.0 * Math.log(rank) / lnN) * 10) / 10;
+      r.pts1g = Math.round(r.mult * 100) / 100;
+      r.goal = 0.5 + 3.5 * Math.log(N / rank) / lnN;
+      r.goalAsc = 1.0 + 3.0 * Math.log(rank) / lnN;
+    });
+    _pgCache = scored;
+    return scored;
+  }
+
+  function _pgBuildChart() {
+    var canvas = document.getElementById('playgroundChart');
+    if (!canvas) return;
+    var existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
+    var isDark = document.documentElement.classList.contains('dark');
+    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    var textColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+    var rows = _pgCache;
+
+    _pgChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: rows.map(function(r) { return r.rank; }),
+        datasets: [
+          {
+            label: 'O/U Team Total',
+            data: rows.map(function(r) { return r.line; }),
+            borderColor: '#FF7C47',
+            backgroundColor: 'rgba(255, 124, 71, 0.08)',
+            borderWidth: 1.5,
+            borderDash: [6, 3],
+            pointRadius: 2,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'y2',
+            order: 3
+          },
+          {
+            label: 'DK Score',
+            data: rows.map(function(r) { return r.score; }),
+            borderColor: '#8E82FE',
+            backgroundColor: 'rgba(142, 130, 254, 0.08)',
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y',
+            order: 1
+          },
+          {
+            label: 'Points / Goal',
+            data: rows.map(function(r) { return r.pts1g; }),
+            borderColor: '#4BAF50',
+            backgroundColor: 'rgba(75, 175, 80, 0.08)',
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'y',
+            order: 2
+          },
+          {
+            label: 'Expected Goals',
+            data: rows.map(function(r) { return r.goal; }),
+            borderColor: '#06D6A0',
+            backgroundColor: 'rgba(6, 214, 160, 0.06)',
+            borderWidth: 2,
+            borderDash: [4, 2],
+            pointRadius: 2,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'y',
+            order: 4
+          },
+          {
+            label: 'xGoals (Ascending)',
+            data: rows.map(function(r) { return r.goalAsc; }),
+            borderColor: '#FACC15',
+            backgroundColor: 'rgba(250, 204, 21, 0.06)',
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            tension: 0.4,
+            fill: false,
+            yAxisID: 'y',
+            order: 5
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: textColor, font: { size: 11 }, usePointStyle: true, pointStyle: 'line' }
+          },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(20,18,40,0.95)' : 'rgba(255,255,255,0.95)',
+            titleColor: isDark ? '#fff' : '#111',
+            bodyColor: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              title: function(items) {
+                var r = _pgCache[items[0].dataIndex];
+                return r.emoji + ' ' + r.team + '  (#' + r.rank + ')';
+              },
+              afterTitle: function(items) {
+                var r = _pgCache[items[0].dataIndex];
+                return 'Multiplier x' + r.mult.toFixed(1) + '  ·  O/U ' + r.line + '  ·  Prob ' + Math.round(r.prob * 100) + '%';
+              },
+              label: function(ctx) {
+                var val = ctx.parsed.y;
+                if (ctx.dataset.label === 'O/U Team Total') return '  O/U Line: ' + val.toFixed(1);
+                return '  ' + ctx.dataset.label + ': ' + val.toFixed(2);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Rank', color: textColor, font: { size: 11 } },
+            ticks: { color: textColor, font: { size: 11 } },
+            grid: { color: gridColor }
+          },
+          y: {
+            position: 'left',
+            title: { display: true, text: 'DK Score / Pts per Goal', color: textColor, font: { size: 11 } },
+            ticks: { color: textColor },
+            grid: { color: gridColor },
+            beginAtZero: true
+          },
+          y2: {
+            position: 'right',
+            title: { display: true, text: 'Team Total (O/U)', color: '#FF7C47', font: { size: 11 } },
+            ticks: { color: '#FF7C47' },
+            grid: { drawOnChartArea: false },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  function _pgUpdateChart() {
+    if (!_pgChart) return;
+    var rows = _pgCache;
+    _pgChart.data.labels = rows.map(function(r) { return r.rank; });
+    _pgChart.data.datasets[0].data = rows.map(function(r) { return r.line; });
+    _pgChart.data.datasets[1].data = rows.map(function(r) { return r.score; });
+    _pgChart.data.datasets[2].data = rows.map(function(r) { return r.pts1g; });
+    _pgChart.data.datasets[3].data = rows.map(function(r) { return r.goal; });
+    _pgChart.data.datasets[4].data = rows.map(function(r) { return r.goalAsc; });
+    _pgChart.update('none');
+  }
+
+  function _registerPlayground() {
+    Alpine.data('formulaPlayground', function() {
+      return {
+        A: 1.65,
+        lineExp: 1.24,
+        probExp: 1.18,
+
+        get formulaDisplay() {
+          return 'score = ' + this.A.toFixed(2) + ' \u00d7 line^' + this.lineExp.toFixed(2) + ' \u00d7 prob^' + this.probExp.toFixed(2) + '   [prob = 1/OverDec]';
+        },
+
+        get computed() {
+          return _pgCache;
+        },
+
+        refresh() {
+          _pgRecompute(this.A, this.lineExp, this.probExp);
+          _pgUpdateChart();
+        },
+
+        init() {
+          _pgRecompute(this.A, this.lineExp, this.probExp);
+          _pgBuildChart();
+        }
+      };
+    });
+  }
+
+  if (window.Alpine) { _registerPlayground(); }
+  else { document.addEventListener('alpine:init', _registerPlayground); }
+</script>
+
+<div class="max-w-3xl mx-auto py-8 px-2">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-heading">DK Score Formula — Iterations</h1>
+    <%= link_to "← Slates", slates_path,
+      class: "text-primary hover:text-primary-300 text-sm font-medium underline underline-offset-2" %>
+  </div>
+
+  <p class="text-secondary text-sm mb-8">
+    The DK Score ranks slate matchups by expected offensive output. It combines the O/U team total line
+    with implied over probability from American odds. Three iterations refined how these inputs translate to a ranking score.
+  </p>
+
+  <% formulas = [
+    {
+      version: "V1",
+      label: "Original",
+      formula: "dk_score = line + (prob - 0.5)",
+      description: "Odds adjust the line by ±0.15, creating sharp staircases between O/U tiers. Teams within the same line tier barely separate.",
+      key: :v1
+    },
+    {
+      version: "V2",
+      label: "K=3 Amplifier",
+      formula: "dk_score = line + (prob - 0.5) * 3",
+      description: "Multiplying the probability deviation by 3 smooths tier transitions. The gap between a 2.5-line favorite and 1.5-line favorite shrinks from 0.74 to 0.20, giving odds more influence.",
+      key: :v2
+    },
+    {
+      version: "V3",
+      label: "Current — Anchored",
+      formula: "dk_score = max(0, (line - 0.5) + (prob - 0.5) * 3)",
+      description: "Anchors scores to the integer below the line (e.g. 2.5 → 2.0 base). Teams with 0.5 lines and weak odds correctly floor to 0. Produces the cleanest tier separation with smooth within-tier ordering.",
+      key: :v3
+    }
+  ] %>
+
+  <div class="space-y-10">
+    <% formulas.each do |f| %>
+      <div>
+        <div class="flex items-baseline gap-3 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary text-white"><%= f[:version] %></span>
+          <h2 class="text-lg font-bold text-heading"><%= f[:label] %></h2>
+        </div>
+
+        <div class="bg-inset border border-subtle rounded-lg px-4 py-2 mb-3 font-mono text-sm text-violet">
+          <%= f[:formula] %>
+        </div>
+
+        <p class="text-secondary text-sm mb-4"><%= f[:description] %></p>
+
+        <div class="bg-surface border border-subtle rounded-lg overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-subtle text-xs text-muted uppercase tracking-wider">
+                <th class="text-left px-4 py-2">Team</th>
+                <th class="text-right px-3 py-2">O/U</th>
+                <th class="text-right px-3 py-2">Odds</th>
+                <th class="text-right px-3 py-2">Prob</th>
+                <th class="text-right px-4 py-2">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% prev_line = nil %>
+              <% @sample_matchups.each do |m| %>
+                <% # Insert divider when line tier changes %>
+                <% if prev_line && m[:line] != prev_line %>
+                  <tr><td colspan="5" class="border-t border-strong"></td></tr>
+                <% end %>
+                <% prev_line = m[:line] %>
+                <tr class="border-b border-subtle last:border-0">
+                  <td class="px-4 py-2 text-heading font-medium">
+                    <span class="mr-1"><%= m[:emoji] %></span> <%= m[:team] %>
+                  </td>
+                  <td class="px-3 py-2 text-right text-secondary font-mono"><%= m[:line] %></td>
+                  <td class="px-3 py-2 text-right text-secondary font-mono"><%= m[:over_odds] > 0 ? "+#{m[:over_odds]}" : m[:over_odds] %></td>
+                  <td class="px-3 py-2 text-right text-secondary font-mono"><%= sprintf('%.0f%%', m[:prob] * 100) %></td>
+                  <td class="px-4 py-2 text-right text-violet font-mono font-bold"><%= sprintf('%.2f', m[f[:key]]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-surface border border-subtle rounded-lg p-4 mt-4" style="height: 240px;">
+          <canvas id="chart-<%= f[:key] %>" style="width: 100%; height: 100%;"></canvas>
+        </div>
+
+        <% if f[:key] == :v1 %>
+          <p class="text-muted text-xs mt-2 italic">
+            Note the staircase: Germany (4.5 line) scores 4.08 while France (3.5 line, -150 favorite) scores 3.60 — a full point gap despite similar offensive expectations.
+          </p>
+        <% elsif f[:key] == :v2 %>
+          <p class="text-muted text-xs mt-2 italic">
+            The 2.5 → 1.5 gap shrinks from 0.74 (V1) to 0.20 (V2). Odds now meaningfully reorder within and across tiers.
+          </p>
+        <% elsif f[:key] == :v3 %>
+          <p class="text-muted text-xs mt-2 italic">
+            Belgium 1.41, Netherlands 1.07, Germany 3.93. Clean integer anchoring + smooth probability-driven ordering within each tier.
+          </p>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Probability conversion reference -->
+  <div class="mt-10">
+    <h2 class="text-lg font-bold text-heading mb-3">Implied Probability Conversion</h2>
+    <div class="bg-surface border border-subtle rounded-lg px-4 py-3">
+      <div class="font-mono text-sm text-secondary space-y-1">
+        <p>Negative odds: <span class="text-violet">prob = |odds| / (|odds| + 100)</span></p>
+        <p>Positive odds: <span class="text-violet">prob = 100 / (odds + 100)</span></p>
+      </div>
+      <p class="text-muted text-xs mt-3">
+        Example: -140 → 140/240 = 58.3% · +160 → 100/260 = 38.5%
+      </p>
+    </div>
+  </div>
+
+  <!-- Formula Playground -->
+  <div class="mt-12" x-data="formulaPlayground">
+    <h2 class="text-2xl font-bold text-heading mb-2">Formula Playground</h2>
+    <p class="text-secondary text-sm mb-6">
+      Adjust the constants to shape how the DK Score weights line and probability. Multiplier uses the current √rank curve.
+    </p>
+
+    <!-- Controls -->
+    <div class="bg-surface border border-subtle rounded-lg p-4 mb-6 space-y-4">
+      <div class="bg-inset border border-subtle rounded-lg px-4 py-2 font-mono text-sm text-violet">
+        <span x-text="formulaDisplay"></span>
+      </div>
+
+      <!-- A slider -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-sm font-medium text-heading">A <span class="text-muted font-normal">(coefficient)</span></label>
+          <span class="font-mono text-sm text-violet" x-text="A.toFixed(2)"></span>
+        </div>
+        <input type="range" min="0.1" max="5.0" step="0.01" x-model.number="A" @input="refresh()"
+               class="w-full" style="accent-color: #8E82FE;">
+      </div>
+
+      <!-- lineExp slider -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-sm font-medium text-heading">Line exponent</label>
+          <span class="font-mono text-sm text-violet" x-text="lineExp.toFixed(2)"></span>
+        </div>
+        <input type="range" min="0.0" max="3.0" step="0.01" x-model.number="lineExp" @input="refresh()"
+               class="w-full" style="accent-color: #8E82FE;">
+      </div>
+
+      <!-- probExp slider -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-sm font-medium text-heading">Prob exponent</label>
+          <span class="font-mono text-sm text-violet" x-text="probExp.toFixed(2)"></span>
+        </div>
+        <input type="range" min="0.0" max="3.0" step="0.01" x-model.number="probExp" @input="refresh()"
+               class="w-full" style="accent-color: #8E82FE;">
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="bg-surface border border-subtle rounded-lg p-4 mb-6" style="height: 360px;">
+      <canvas id="playgroundChart" style="width: 100%; height: 100%;"></canvas>
+    </div>
+
+    <!-- Live results table -->
+    <div class="bg-surface border border-subtle rounded-lg overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-subtle text-xs text-muted uppercase tracking-wider">
+            <th class="text-right px-2 py-2">#</th>
+            <th class="text-left px-3 py-2">Team</th>
+            <th class="text-right px-3 py-2">O/U</th>
+            <th class="text-right px-3 py-2">Prob</th>
+            <th class="text-right px-3 py-2">Score</th>
+            <th class="text-right px-3 py-2">Mult</th>
+            <th class="text-right px-3 py-2">Pts/1G</th>
+            <th class="text-right px-4 py-2">xGoals</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(row, i) in computed" :key="row.team">
+            <tr class="border-b border-subtle last:border-0">
+              <td class="px-2 py-2 text-right text-muted font-mono text-xs" x-text="row.rank"></td>
+              <td class="px-3 py-2 text-heading font-medium">
+                <span x-text="row.emoji" class="mr-1"></span>
+                <span x-text="row.team"></span>
+              </td>
+              <td class="px-3 py-2 text-right text-secondary font-mono" x-text="row.line"></td>
+              <td class="px-3 py-2 text-right text-secondary font-mono" x-text="Math.round(row.prob * 100) + '%'"></td>
+              <td class="px-3 py-2 text-right font-mono font-bold text-violet" x-text="row.score.toFixed(2)"></td>
+              <td class="px-3 py-2 text-right text-primary font-mono" x-text="'x' + row.mult.toFixed(1)"></td>
+              <td class="px-3 py-2 text-right font-mono font-bold text-primary" x-text="row.pts1g.toFixed(2)"></td>
+              <td class="px-4 py-2 text-right font-mono text-mint" x-text="row.goal.toFixed(2)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

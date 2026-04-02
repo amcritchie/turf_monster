@@ -1,5 +1,236 @@
 <% content_for :title, "Slate — #{@slate.name}" %>
 
+<style>
+  :root {
+    --fc-mult: #8E82FE;
+    --fc-goals: #B8B0FF;
+    --fc-dk-score: #15803D;
+    --fc-dk-total: #4BAF50;
+    --fc-dk-odds: rgba(75, 175, 80, 0.5);
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  // Formula curve line colors — single source of truth
+  var FC = {
+    mult:    '#8E82FE',            // Multiplier (violet)
+    goals:   '#B8B0FF',            // Goals Distribution (light violet)
+    dkScore: '#15803D',            // DK Total Score (dark green)
+    dkTotal: '#4BAF50',            // DK Total (green)
+    dkOdds:  'rgba(75,175,80,0.5)' // DK Total Odds (faint green)
+  };
+
+  var _fcMatchups = <%== @matchups.ranked.includes(:team, :opponent_team).map { |m|
+    {
+      rank: m.rank,
+      emoji: m.team.emoji,
+      team: m.team.name,
+      short: m.team.short_name,
+      opponent: m.opponent_team&.short_name,
+      multiplier: m.multiplier&.to_f,
+      team_total: m.expected_team_total&.to_f,
+      over_dec: m.over_decimal_odds&.to_f
+    }
+  }.to_json %>;
+
+  var _fcChart = null;
+
+  function _fcCompute(A, lineExp, probExp, multBase, multScale, goalBase, goalScale) {
+    var N = _fcMatchups.length;
+    var lnN = Math.log(N);
+    return _fcMatchups.map(function(m, i) {
+      var rank = i + 1;
+      var prob = m.over_dec ? (1 / m.over_dec) : null;
+      var dkScore = (m.team_total && prob) ? Math.round(A * Math.pow(m.team_total, lineExp) * Math.pow(prob, probExp) * 100) / 100 : null;
+      return {
+        emoji: m.emoji, team: m.team, opponent: m.opponent, rank: rank,
+        mult: Math.round((multBase + multScale * Math.log(rank) / lnN) * 100) / 100,
+        goals: Math.round((goalBase + goalScale * Math.log(N / rank) / lnN) * 100) / 100,
+        teamTotal: m.team_total,
+        overDec: m.over_dec,
+        dkScore: dkScore
+      };
+    });
+  }
+
+  function _fcBuildChart(data) {
+    var canvas = document.getElementById('formulaCurvesChart');
+    if (!canvas) return;
+    var existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
+    var isDark = document.documentElement.classList.contains('dark');
+    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    var textColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+
+    _fcChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: data.map(function(d) { return d.emoji; }),
+        datasets: [
+          {
+            label: 'Multiplier',
+            data: data.map(function(d) { return d.mult; }),
+            borderColor: FC.mult,
+            backgroundColor: FC.mult + '14',
+            borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', order: 1
+          },
+          {
+            label: 'Goals Distribution',
+            data: data.map(function(d) { return d.goals; }),
+            borderColor: FC.goals,
+            backgroundColor: FC.goals + '14',
+            borderWidth: 2, borderDash: [6, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', order: 2
+          },
+          {
+            label: 'DK Total Score',
+            data: data.map(function(d) { return d.dkScore; }),
+            borderColor: FC.dkScore,
+            backgroundColor: FC.dkScore + '1F',
+            borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: true, yAxisID: 'y', spanGaps: true, order: 3
+          },
+          {
+            label: 'DK Total',
+            data: data.map(function(d) { return d.teamTotal; }),
+            borderColor: FC.dkTotal,
+            backgroundColor: FC.dkTotal + '14',
+            borderWidth: 1.5, borderDash: [6, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', spanGaps: true, order: 4
+          },
+          {
+            label: 'DK Total Odds',
+            data: data.map(function(d) { return d.overDec; }),
+            borderColor: FC.dkOdds,
+            backgroundColor: FC.dkTotal + '0A',
+            borderWidth: 1, borderDash: [3, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', spanGaps: true, order: 5
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: textColor, font: { size: 11 }, usePointStyle: true, pointStyle: 'line' } },
+          tooltip: {
+            backgroundColor: isDark ? 'rgba(20,18,40,0.95)' : 'rgba(255,255,255,0.95)',
+            titleColor: isDark ? '#fff' : '#111',
+            bodyColor: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+            borderWidth: 1, padding: 12, displayColors: true,
+            callbacks: {
+              title: function(items) {
+                var d = _fcLastData[items[0].dataIndex];
+                return d.emoji + ' ' + d.team + ' vs ' + (d.opponent || '—');
+              },
+              afterTitle: function(items) {
+                var d = _fcLastData[items[0].dataIndex];
+                return 'Rank #' + d.rank + '  ·  Multiplier x' + d.mult.toFixed(1);
+              },
+              label: function(ctx) {
+                var val = ctx.parsed.y;
+                if (val === null || val === undefined) return null;
+                return '  ' + ctx.dataset.label + ': ' + val.toFixed(2);
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: textColor, font: { size: 14 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 48 }, grid: { color: gridColor } },
+          y: { position: 'left', title: { display: true, text: 'Multiplier', color: textColor, font: { size: 11 } }, ticks: { color: textColor }, grid: { color: gridColor }, min: 0, max: 5 },
+          y2: { position: 'right', title: { display: true, text: 'DK Total', color: textColor, font: { size: 11 } }, ticks: { color: textColor }, grid: { drawOnChartArea: false }, min: 0, max: 5 }
+        }
+      }
+    });
+  }
+
+  var _fcLastData = [];
+
+  // Store current slider values for rankManager to use after drag
+  // Initialize from DB-resolved formula (slate → default slate → hardcoded)
+  var _fcDefaults = <%== @slate.resolved_formula.to_json %>;
+  var _fcSliders = {
+    A: _fcDefaults.formula_a,
+    lineExp: _fcDefaults.formula_line_exp,
+    probExp: _fcDefaults.formula_prob_exp,
+    multBase: _fcDefaults.formula_mult_base,
+    multScale: _fcDefaults.formula_mult_scale,
+    goalBase: _fcDefaults.formula_goal_base,
+    goalScale: _fcDefaults.formula_goal_scale
+  };
+
+  function _fcUpdate(A, lineExp, probExp, multBase, multScale, goalBase, goalScale) {
+    _fcSliders = { A: A, lineExp: lineExp, probExp: probExp, multBase: multBase, multScale: multScale, goalBase: goalBase, goalScale: goalScale };
+    var data = _fcCompute(A, lineExp, probExp, multBase, multScale, goalBase, goalScale);
+    _fcLastData = data;
+    if (!_fcChart) { _fcBuildChart(data); return; }
+    _fcChart.data.datasets[0].data = data.map(function(d) { return d.mult; });
+    _fcChart.data.datasets[1].data = data.map(function(d) { return d.goals; });
+    _fcChart.data.datasets[2].data = data.map(function(d) { return d.dkScore; });
+    _fcChart.data.datasets[3].data = data.map(function(d) { return d.teamTotal; });
+    _fcChart.data.datasets[4].data = data.map(function(d) { return d.overDec; });
+    _fcChart.update('none');
+    _fcUpdateRankList(A, lineExp, probExp, multBase, multScale);
+  }
+
+  // Reorder _fcMatchups to match current DOM order, then refresh chart
+  function _fcSyncOrder() {
+    var items = document.querySelectorAll('.sortable-item');
+    var byId = {};
+    _fcMatchups.forEach(function(m) { byId[m.emoji + m.team] = m; });
+    var reordered = [];
+    items.forEach(function(item) {
+      var emoji = item.querySelector('.text-lg').textContent.trim();
+      var name = item.querySelector('.text-heading').textContent.trim();
+      var match = byId[emoji + name];
+      if (match) reordered.push(match);
+    });
+    if (reordered.length === _fcMatchups.length) _fcMatchups = reordered;
+    // Trigger chart refresh using current slider values
+    _fcUpdate(_fcSliders.A, _fcSliders.lineExp, _fcSliders.probExp, _fcSliders.multBase, _fcSliders.multScale, _fcSliders.goalBase, _fcSliders.goalScale);
+  }
+
+  function _fcUpdateRankList(A, lineExp, probExp, multBase, multScale) {
+    var items = document.querySelectorAll('.sortable-item');
+    var N = items.length;
+    var lnN = Math.log(N);
+    items.forEach(function(item, i) {
+      var rank = i + 1;
+      var line = parseFloat(item.dataset.teamTotal);
+      var overDec = parseFloat(item.dataset.overDec);
+      var mult = (multBase + multScale * Math.log(rank) / lnN);
+      item.querySelector('.multiplier-display').textContent = mult.toFixed(1) + 'x';
+      if (line && overDec) {
+        var prob = 1 / overDec;
+        var score = A * Math.pow(line, lineExp) * Math.pow(prob, probExp);
+        item.querySelector('.score-display').textContent = score.toFixed(2);
+      }
+    });
+  }
+
+  document.addEventListener('alpine:init', function() {
+    Alpine.data('formulaCurves', function() {
+      return {
+        A: _fcSliders.A, lineExp: _fcSliders.lineExp, probExp: _fcSliders.probExp,
+        multBase: _fcSliders.multBase, multScale: _fcSliders.multScale,
+        goalBase: _fcSliders.goalBase, goalScale: _fcSliders.goalScale,
+        refresh() {
+          _fcUpdate(this.A, this.lineExp, this.probExp, this.multBase, this.multScale, this.goalBase, this.goalScale);
+        },
+        init() {
+          _fcLastData = _fcCompute(this.A, this.lineExp, this.probExp, this.multBase, this.multScale, this.goalBase, this.goalScale);
+          _fcBuildChart(_fcLastData);
+        }
+      };
+    });
+  });
+
+  document.addEventListener('turbo:load', function() {
+    _fcChart = null;
+    var el = document.querySelector('[x-data="formulaCurves()"]');
+    if (el && el.__x) el.__x.$data.refresh();
+  });
+</script>
+
 <div class="max-w-3xl mx-auto py-8 px-2">
   <div class="flex items-center justify-between mb-6">
     <div>
@@ -15,19 +246,115 @@
     <div class="flex gap-2 mb-6">
       <% @slates.each do |slate| %>
         <% active = slate.id == @slate.id %>
-        <%= link_to slate.name.sub("Turf Totals — World Cup 2026 Group ", ""), slate_path(slate),
+        <%= link_to slate.name.sub("World Cup 2026 Group ", ""), slate_path(slate),
           class: "px-4 py-2 rounded-full text-sm font-semibold transition-all #{active ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'}" %>
       <% end %>
     </div>
   <% end %>
 
+  <!-- Formula Curves Chart + Controls -->
+  <div x-data="formulaCurves()" x-cloak class="mb-10">
+    <h2 class="text-lg font-bold text-heading mb-4">Multiplier Formula</h2>
+    <div class="bg-surface border border-subtle rounded-lg p-4" style="position: relative; height: 360px;">
+      <canvas id="formulaCurvesChart"></canvas>
+    </div>
+
+    <!-- Formula Variables -->
+    <h2 class="text-lg font-bold text-heading mb-4 mt-8">Formula Variables</h2>
+    <div class="space-y-4">
+      <!-- Multiplier -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid var(--fc-mult);">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">Multiplier</span>
+          <span class="text-muted text-sm"> = </span>
+          <span class="font-mono text-sm" style="color: var(--fc-mult)" x-text="multBase.toFixed(1)"></span>
+          <span class="text-muted text-sm"> + </span>
+          <span class="font-mono text-sm" style="color: var(--fc-mult)" x-text="multScale.toFixed(1)"></span>
+          <span class="text-muted text-sm"> &times; ln(rank) / ln(N)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">Base <span class="font-mono" style="color: var(--fc-mult)" x-text="multBase.toFixed(1)"></span></label>
+            <input type="range" min="0" max="3" step="0.1" x-model.number="multBase" @input="refresh()" class="w-full" style="accent-color: var(--fc-mult);">
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Scale <span class="font-mono" style="color: var(--fc-mult)" x-text="multScale.toFixed(1)"></span></label>
+            <input type="range" min="0" max="10" step="0.5" x-model.number="multScale" @input="refresh()" class="w-full" style="accent-color: var(--fc-mult);">
+          </div>
+        </div>
+      </div>
+
+      <!-- Goals Distribution -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid var(--fc-goals);">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">Goals Distribution</span>
+          <span class="text-muted text-sm"> = </span>
+          <span class="font-mono text-sm" style="color: var(--fc-goals)" x-text="goalBase.toFixed(1)"></span>
+          <span class="text-muted text-sm"> + </span>
+          <span class="font-mono text-sm" style="color: var(--fc-goals)" x-text="goalScale.toFixed(1)"></span>
+          <span class="text-muted text-sm"> &times; ln(N/rank) / ln(N)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">Base <span class="font-mono" style="color: var(--fc-goals)" x-text="goalBase.toFixed(1)"></span></label>
+            <input type="range" min="0" max="3" step="0.1" x-model.number="goalBase" @input="refresh()" class="w-full" style="accent-color: var(--fc-goals);">
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Scale <span class="font-mono" style="color: var(--fc-goals)" x-text="goalScale.toFixed(1)"></span></label>
+            <input type="range" min="0" max="10" step="0.5" x-model.number="goalScale" @input="refresh()" class="w-full" style="accent-color: var(--fc-goals);">
+          </div>
+        </div>
+      </div>
+
+      <!-- DK Score -->
+      <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid var(--fc-dk-score);">
+        <div class="mb-3">
+          <span class="text-sm font-bold text-heading">DK Score</span>
+          <span class="text-muted text-sm"> = </span>
+          <span class="font-mono text-sm" style="color: var(--fc-dk-score)"><span x-text="A.toFixed(2)"></span></span>
+          <span class="text-muted text-sm"> &times; line</span><sup class="font-mono text-sm" style="color: var(--fc-dk-score)" x-text="lineExp.toFixed(2)"></sup>
+          <span class="text-muted text-sm"> &times; prob</span><sup class="font-mono text-sm" style="color: var(--fc-dk-score)" x-text="probExp.toFixed(2)"></sup>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="text-xs text-muted block mb-1">A <span class="font-mono" style="color: var(--fc-dk-score)" x-text="A.toFixed(2)"></span></label>
+            <input type="range" min="0" max="5" step="0.05" x-model.number="A" @input="refresh()" class="w-full" style="accent-color: var(--fc-dk-score);">
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Line Exp <span class="font-mono" style="color: var(--fc-dk-score)" x-text="lineExp.toFixed(2)"></span></label>
+            <input type="range" min="0" max="3" step="0.02" x-model.number="lineExp" @input="refresh()" class="w-full" style="accent-color: var(--fc-dk-score);">
+          </div>
+          <div>
+            <label class="text-xs text-muted block mb-1">Prob Exp <span class="font-mono" style="color: var(--fc-dk-score)" x-text="probExp.toFixed(2)"></span></label>
+            <input type="range" min="0" max="3" step="0.02" x-model.number="probExp" @input="refresh()" class="w-full" style="accent-color: var(--fc-dk-score);">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <p class="text-secondary text-sm mb-6">
     Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier x1). Rank 48 = weakest (highest multiplier x4).
-    Higher multiplier = more points when that team scores. Formula: &radic;rank &times; 0.5 + 0.5
+    Higher multiplier = more points when that team scores. Formula: 1.0 + 3.0 &times; ln(rank) / ln(N)
   </p>
 
   <div x-data="rankManager()" x-cloak>
     <form @submit.prevent="saveRankings()">
+      <div class="mb-4 flex gap-3">
+        <button type="button" @click="sortByDkScore()" class="btn btn-outline btn-lg flex-1">
+          Sort by DK Score
+        </button>
+        <button type="submit" class="btn btn-secondary btn-lg flex-1">
+          Save Rankings
+        </button>
+        <button type="button" @click="saveMultipliers()" class="btn btn-primary btn-lg flex-1">
+          Save Multipliers
+        </button>
+        <button type="button" @click="saveFormula()" class="btn btn-outline btn-lg flex-1" style="border-color: var(--fc-dk-score); color: var(--fc-dk-score);">
+          Save Formula
+        </button>
+      </div>
+
       <!-- Column headers -->
       <div class="flex items-center gap-3 px-4 py-2 text-xs text-muted uppercase tracking-wider font-semibold">
         <span class="w-8 text-right">Rank</span>
@@ -40,7 +367,9 @@
       <div class="space-y-1" x-ref="sortableList">
         <% @matchups.each_with_index do |matchup, i| %>
           <div class="flex items-center gap-3 bg-surface rounded-lg px-4 py-3 border border-subtle cursor-grab active:cursor-grabbing sortable-item"
-               data-matchup-id="<%= matchup.id %>">
+               data-matchup-id="<%= matchup.id %>"
+               data-team-total="<%= matchup.expected_team_total&.to_f %>"
+               data-over-dec="<%= matchup.over_decimal_odds&.to_f %>">
             <span class="font-mono text-muted text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
             <span class="text-lg"><%= matchup.team.emoji %></span>
             <div class="flex-1 flex items-center gap-2">
@@ -52,185 +381,31 @@
                 <span class="text-muted text-xs">O/U <%= sprintf('%.1f', matchup.expected_team_total) %> (<%= matchup.team_total_over_odds && matchup.team_total_over_odds > 0 ? "+#{matchup.team_total_over_odds}" : matchup.team_total_over_odds %>)</span>
               <% end %>
             </div>
-            <% if matchup.dk_score %>
-              <span class="font-mono text-violet text-sm w-12 text-right"><%= sprintf('%.2f', matchup.dk_score) %></span>
-            <% else %>
-              <span class="font-mono text-muted text-sm w-12 text-right">—</span>
-            <% end %>
+            <span class="font-mono text-violet text-sm w-12 text-right score-display"><%= matchup.dk_score ? sprintf('%.2f', matchup.dk_score) : '—' %></span>
             <span class="font-mono text-primary text-sm w-12 text-right multiplier-display"><%= matchup.multiplier ? sprintf('%.1f', matchup.multiplier) : '—' %>x</span>
           </div>
         <% end %>
       </div>
 
       <div class="mt-6 flex gap-3">
+        <button type="button" @click="sortByDkScore()" class="btn btn-outline btn-lg flex-1">
+          Sort by DK Score
+        </button>
         <button type="submit" class="btn btn-secondary btn-lg flex-1">
           Save Rankings
+        </button>
+        <button type="button" @click="saveMultipliers()" class="btn btn-primary btn-lg flex-1">
+          Save Multipliers
+        </button>
+        <button type="button" @click="saveFormula()" class="btn btn-outline btn-lg flex-1" style="border-color: var(--fc-dk-score); color: var(--fc-dk-score);">
+          Save Formula
         </button>
       </div>
     </form>
   </div>
-
-  <!-- Slate Chart -->
-  <div class="mt-10">
-    <h2 class="text-lg font-bold text-heading mb-4">Slate Overview</h2>
-    <div class="bg-surface border border-subtle rounded-lg p-4" style="position: relative; height: 360px;">
-      <canvas id="slateChart"></canvas>
-    </div>
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script>
-  document.addEventListener('turbo:load', function() {
-    var canvas = document.getElementById('slateChart');
-    if (!canvas) return;
-    var existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
-
-    var matchups = <%== @matchups.ranked.includes(:team, :opponent_team).map { |m|
-      {
-        rank: m.rank,
-        emoji: m.team.emoji,
-        team: m.team.name,
-        short: m.team.short_name,
-        opponent: m.opponent_team&.short_name,
-        multiplier: m.multiplier&.to_f,
-        dk_score: m.dk_score&.to_f,
-        team_total: m.expected_team_total&.to_f,
-        over_odds: m.team_total_over_odds,
-        points_1g: m.multiplier ? (1 * m.multiplier.to_f).round(1) : null
-      }
-    }.to_json %>;
-
-    var labels = matchups.map(function(m) { return m.emoji; });
-    var points1g = matchups.map(function(m) { return m.points_1g; });
-    var dkScores = matchups.map(function(m) { return m.dk_score; });
-    var teamTotals = matchups.map(function(m) { return m.team_total; });
-
-    var isDark = document.documentElement.classList.contains('dark');
-    var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    var textColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-
-    new Chart(document.getElementById('slateChart'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Points on 1 Goal',
-            data: points1g,
-            borderColor: '#4BAF50',
-            backgroundColor: 'rgba(75, 175, 80, 0.08)',
-            borderWidth: 2.5,
-            pointRadius: 2,
-            pointHoverRadius: 6,
-            tension: 0.3,
-            fill: true,
-            yAxisID: 'y',
-            order: 1
-          },
-          {
-            label: 'DK Score',
-            data: dkScores,
-            borderColor: '#8E82FE',
-            backgroundColor: 'rgba(142, 130, 254, 0.08)',
-            borderWidth: 2,
-            pointRadius: 2,
-            pointHoverRadius: 6,
-            tension: 0.3,
-            fill: true,
-            yAxisID: 'y',
-            spanGaps: true,
-            order: 2
-          },
-          {
-            label: 'O/U Team Total',
-            data: teamTotals,
-            borderColor: '#FF7C47',
-            backgroundColor: 'rgba(255, 124, 71, 0.08)',
-            borderWidth: 1.5,
-            borderDash: [6, 3],
-            pointRadius: 2,
-            pointHoverRadius: 6,
-            tension: 0.3,
-            fill: false,
-            yAxisID: 'y2',
-            spanGaps: true,
-            order: 3
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            labels: { color: textColor, font: { size: 11 }, usePointStyle: true, pointStyle: 'line' }
-          },
-          tooltip: {
-            backgroundColor: isDark ? 'rgba(20,18,40,0.95)' : 'rgba(255,255,255,0.95)',
-            titleColor: isDark ? '#fff' : '#111',
-            bodyColor: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)',
-            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-            borderWidth: 1,
-            padding: 12,
-            displayColors: true,
-            callbacks: {
-              title: function(items) {
-                var m = matchups[items[0].dataIndex];
-                return m.emoji + ' ' + m.team + ' vs ' + (m.opponent || '—');
-              },
-              afterTitle: function(items) {
-                var m = matchups[items[0].dataIndex];
-                return 'Rank #' + m.rank + '  ·  Multiplier x' + (m.multiplier || 0).toFixed(1);
-              },
-              label: function(ctx) {
-                var val = ctx.parsed.y;
-                if (val === null || val === undefined || val === 0) return null;
-                var m = matchups[ctx.dataIndex];
-                if (ctx.dataset.label === 'O/U Team Total') {
-                  var odds = m.over_odds;
-                  var oddsStr = odds ? (odds > 0 ? '+' + odds : '' + odds) : '';
-                  return '  O/U: ' + val.toFixed(1) + (oddsStr ? ' (' + oddsStr + ')' : '');
-                }
-                return '  ' + ctx.dataset.label + ': ' + val.toFixed(2);
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              color: textColor,
-              font: { size: 14 },
-              maxRotation: 0,
-              minRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 48
-            },
-            grid: { color: gridColor }
-          },
-          y: {
-            position: 'left',
-            title: { display: true, text: 'Points / Score', color: textColor, font: { size: 11 } },
-            ticks: { color: textColor },
-            grid: { color: gridColor },
-            beginAtZero: true
-          },
-          y2: {
-            position: 'right',
-            title: { display: true, text: 'Team Total (O/U)', color: '#FF7C47', font: { size: 11 } },
-            ticks: { color: '#FF7C47' },
-            grid: { drawOnChartArea: false },
-            beginAtZero: true
-          }
-        }
-      }
-    });
-  });
-</script>
 <script>
   function rankManager() {
     return {
@@ -242,17 +417,16 @@
         Sortable.create(list, {
           animation: 150,
           ghostClass: 'opacity-30',
-          onEnd: () => this.updateNumbers()
+          onEnd: () => { this.updateNumbers(); _fcSyncOrder(); }
         });
       },
 
       updateNumbers() {
         const items = this.$refs.sortableList.querySelectorAll('.sortable-item');
         items.forEach((item, i) => {
-          const rank = i + 1;
-          item.querySelector('.rank-number').textContent = rank;
-          item.querySelector('.multiplier-display').textContent = (Math.sqrt(rank) * 0.5 + 0.5).toFixed(1) + 'x';
+          item.querySelector('.rank-number').textContent = i + 1;
         });
+        _fcUpdateRankList(_fcSliders.A, _fcSliders.lineExp, _fcSliders.probExp, _fcSliders.multBase, _fcSliders.multScale);
       },
 
       async saveRankings() {
@@ -281,6 +455,93 @@
           input.name = 'matchup_ids[]';
           input.value = id;
           form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      },
+
+      sortByDkScore() {
+        const list = this.$refs.sortableList;
+        const items = Array.from(list.querySelectorAll('.sortable-item'));
+        const s = _fcSliders;
+        function dkScore(el) {
+          const line = parseFloat(el.dataset.teamTotal) || 0;
+          const overDec = parseFloat(el.dataset.overDec) || 0;
+          if (!line || !overDec) return -1;
+          const prob = 1 / overDec;
+          return s.A * Math.pow(line, s.lineExp) * Math.pow(prob, s.probExp);
+        }
+        items.sort((a, b) => dkScore(b) - dkScore(a));
+        items.forEach(item => list.appendChild(item));
+        this.updateNumbers();
+        _fcSyncOrder();
+      },
+
+      async saveFormula() {
+        const s = _fcSliders;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/slates/${this.slateSlug}/update_formula`;
+
+        const fields = {
+          '_method': 'patch',
+          'authenticity_token': this.csrfToken,
+          'formula_a': s.A,
+          'formula_line_exp': s.lineExp,
+          'formula_prob_exp': s.probExp,
+          'formula_mult_base': s.multBase,
+          'formula_mult_scale': s.multScale,
+          'formula_goal_base': s.goalBase,
+          'formula_goal_scale': s.goalScale
+        };
+
+        Object.entries(fields).forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = value;
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      },
+
+      async saveMultipliers() {
+        const items = this.$refs.sortableList.querySelectorAll('.sortable-item');
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/slates/${this.slateSlug}/update_multipliers`;
+
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'patch';
+        form.appendChild(methodInput);
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'authenticity_token';
+        csrfInput.value = this.csrfToken;
+        form.appendChild(csrfInput);
+
+        items.forEach((item, i) => {
+          const id = item.dataset.matchupId;
+          const mult = item.querySelector('.multiplier-display').textContent.replace('x', '');
+
+          const idInput = document.createElement('input');
+          idInput.type = 'hidden';
+          idInput.name = `multipliers[][id]`;
+          idInput.value = id;
+          form.appendChild(idInput);
+
+          const multInput = document.createElement('input');
+          multInput.type = 'hidden';
+          multInput.name = `multipliers[][multiplier]`;
+          multInput.value = mult;
+          form.appendChild(multInput);
         });
 
         document.body.appendChild(form);

@@ -1,26 +1,60 @@
 class SlatesController < ApplicationController
   before_action :require_admin
-  before_action :set_slate, only: [:show, :update_rankings]
+  before_action :set_slate, only: [:show, :update_rankings, :update_multipliers, :update_formula]
 
   def index
-    slate = Slate.order(created_at: :desc).first
+    real_slates = Slate.where.not(name: "Default")
+    slate = real_slates.where("starts_at >= ?", Time.current).order(starts_at: :asc).first ||
+            real_slates.order(starts_at: :desc, created_at: :desc).first
     return redirect_to root_path, alert: "No slates found" unless slate
     redirect_to slate_path(slate)
   end
 
+  def formula_report
+    # Pull real matchup data from the most recent slate
+    @slate = Slate.where("starts_at >= ?", Time.current).order(starts_at: :asc).first ||
+             Slate.order(starts_at: :desc, created_at: :desc).first
+
+    matchups = @slate&.slate_matchups&.includes(:team) || []
+
+    @sample_matchups = matchups.filter_map do |m|
+      next unless m.expected_team_total && m.team_total_over_odds
+      odds = m.team_total_over_odds
+      line = m.expected_team_total.to_f
+      prob = if odds < 0
+        odds.abs.to_f / (odds.abs + 100)
+      else
+        100.0 / (odds + 100)
+      end
+
+      {
+        team: m.team.name,
+        emoji: m.team.emoji,
+        line: line,
+        over_odds: odds,
+        over_dec: m.over_decimal_odds&.to_f,
+        prob: prob,
+        v1: (line + (prob - 0.5)).round(2),
+        v2: (line + (prob - 0.5) * 3).round(2),
+        v3: SlateMatchup.dk_score_for(line, odds)
+      }
+    end
+  end
+
   def show
-    @slates = Slate.order(:created_at)
+    @slates = Slate.where.not(name: "Default").order(:created_at)
     @matchups = @slate.slate_matchups.ranked.includes(:team, :opponent_team, :game)
   end
 
   def update_rankings
     rescue_and_log(target: @slate) do
       if params[:matchup_ids].present?
+        n = params[:matchup_ids].size
         params[:matchup_ids].each_with_index do |id, index|
           matchup = @slate.slate_matchups.find_by(id: id)
           next unless matchup
           rank = index + 1
-          matchup.update!(rank: rank, multiplier: (Math.sqrt(rank) * 0.5 + 0.5).round(1))
+          matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
         end
       end
       redirect_to slate_path(@slate), notice: "Rankings saved! Multipliers recalculated."
@@ -29,10 +63,57 @@ class SlatesController < ApplicationController
     redirect_to @slate ? slate_path(@slate) : root_path, alert: e.message
   end
 
+  def update_multipliers
+    rescue_and_log(target: @slate) do
+      if params[:multipliers].present?
+        params[:multipliers].each do |entry|
+          matchup = @slate.slate_matchups.find_by(id: entry[:id])
+          next unless matchup
+          matchup.update!(multiplier: entry[:multiplier].to_f.round(1))
+        end
+      end
+      redirect_to slate_path(@slate), notice: "Multipliers saved!"
+    end
+  rescue StandardError => e
+    redirect_to @slate ? slate_path(@slate) : root_path, alert: e.message
+  end
+
+  def update_formula
+    rescue_and_log(target: @slate) do
+      @slate.update!(formula_params)
+      redirect_to slate_path(@slate), notice: "Formula saved!"
+    end
+  rescue StandardError => e
+    redirect_to @slate ? slate_path(@slate) : root_path, alert: e.message
+  end
+
+  def admin_formula
+    @default_slate = Slate.default_record
+    unless @default_slate
+      @default_slate = Slate.create!(name: "Default")
+    end
+  end
+
+  def update_admin_formula
+    @default_slate = Slate.default_record
+    return redirect_to root_path, alert: "Default slate not found" unless @default_slate
+
+    rescue_and_log(target: @default_slate) do
+      @default_slate.update!(formula_params)
+      redirect_to admin_formula_slates_path, notice: "Default formula saved!"
+    end
+  rescue StandardError => e
+    redirect_to admin_formula_slates_path, alert: e.message
+  end
+
   private
 
   def set_slate
     @slate = Slate.find_by(slug: params[:id])
     return redirect_to root_path, alert: "Slate not found" unless @slate
+  end
+
+  def formula_params
+    params.permit(*Slate::FORMULA_COLUMNS)
   end
 end

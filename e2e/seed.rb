@@ -71,7 +71,7 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
     opponent_team_slug: opp,
     game_slug: game_slugs[i],
     rank: i + 1,
-    multiplier: (Math.sqrt(i + 1) * 0.5 + 0.5).round(1),
+    multiplier: SlateMatchup.multiplier_for(i + 1, 6),
     status: "pending"
   )
 end

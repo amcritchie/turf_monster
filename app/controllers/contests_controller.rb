@@ -4,7 +4,7 @@ class ContestsController < ApplicationController
   before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset]
 
   def index
-    @contest = Contest.order(created_at: :desc).first
+    @contest = Contest.order(created_at: :asc).first
     return unless @contest
 
     @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team })

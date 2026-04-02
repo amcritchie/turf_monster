@@ -20,6 +20,13 @@ Rails.application.routes.draw do
   resources :slates, only: [:index, :show] do
     member do
       patch :update_rankings
+      patch :update_multipliers
+      patch :update_formula
+    end
+    collection do
+      get :formula_report
+      get :admin_formula
+      patch :update_admin_formula
     end
   end
 

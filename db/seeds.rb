@@ -533,15 +533,18 @@ GENERAL_DK_ODDS = {
   "UZB" => 150000, "JOR" => 150000, "HAI" => 150000, "CUW" => 150000,
 }
 
-# ─── DK Score Helper ──────────────────────────────────────────
-def compute_dk_score(line, over_odds)
-  return nil unless line && over_odds
-  prob = if over_odds < 0
-    over_odds.abs.to_f / (over_odds.abs + 100)
+# ─── Odds Helpers ─────────────────────────────────────────────
+def american_to_decimal(american_odds)
+  return nil unless american_odds
+  if american_odds < 0
+    (100.0 / american_odds.abs + 1).round(2)
   else
-    100.0 / (over_odds + 100)
+    (american_odds / 100.0 + 1).round(2)
   end
-  (line + (prob - 0.5) * 3).round(2)
+end
+
+def compute_dk_score(line, over_odds)
+  SlateMatchup.dk_score_for(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
@@ -603,10 +606,14 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
       line = dk["line"]&.to_f
       over_odds = dk["over_odds"]&.to_i
 
+      under_odds = dk["under_odds"]&.to_i
+
       m.update!(
         expected_team_total: line,
         team_total_over_odds: over_odds,
-        team_total_under_odds: dk["under_odds"]&.to_i,
+        team_total_under_odds: under_odds,
+        over_decimal_odds: american_to_decimal(over_odds),
+        under_decimal_odds: american_to_decimal(under_odds),
         dk_score: compute_dk_score(line, over_odds)
       )
     end
@@ -623,9 +630,10 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
     sorted = matchups.sort_by { |m| m.team.name }
   end
 
+  n = sorted.size
   sorted.each_with_index do |matchup, i|
     rank = i + 1
-    matchup.update!(rank: rank, multiplier: (Math.sqrt(rank) * 0.5 + 0.5).round(1))
+    matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
   end
 
   matchup_count = slate.slate_matchups.count
@@ -636,8 +644,8 @@ end
 
 # ─── Create Slates + Contests ────────────────────────────────
 create_slate_with_contest(
-  slate_name: "World Cup 2026 Group Slate 1",
-  contest_name: "Turf Totals — World Cup 2026 Group Slate 1",
+  slate_name: "World Cup 2026 Group 1",
+  contest_name: "Turf Totals — World Cup 2026 Group 1",
   games: MATCHDAY_1_GAMES,
   teams: teams,
   dk_odds: dk_odds,
@@ -645,8 +653,8 @@ create_slate_with_contest(
 )
 
 create_slate_with_contest(
-  slate_name: "World Cup 2026 Group Slate 2",
-  contest_name: "Turf Totals — World Cup 2026 Group Slate 2",
+  slate_name: "World Cup 2026 Group 2",
+  contest_name: "Turf Totals — World Cup 2026 Group 2",
   games: MATCHDAY_2_GAMES,
   teams: teams,
   dk_odds: dk_odds,
@@ -655,14 +663,18 @@ create_slate_with_contest(
 )
 
 create_slate_with_contest(
-  slate_name: "World Cup 2026 Group Slate 3",
-  contest_name: "Turf Totals — World Cup 2026 Group Slate 3",
+  slate_name: "World Cup 2026 Group 3",
+  contest_name: "Turf Totals — World Cup 2026 Group 3",
   games: MATCHDAY_3_GAMES,
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 24, 15, 0),
   general_rankings: true
 )
+
+# ─── Default Slate (formula defaults record) ──────────────────
+Slate.find_or_create_by!(name: "Default")
+puts "  Created Default slate for formula defaults"
 
 puts "Done! #{User.count} users, #{Slate.count} slates, #{Contest.count} contests, #{Entry.count} entries"
 puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players, #{SlateMatchup.count} matchups"
