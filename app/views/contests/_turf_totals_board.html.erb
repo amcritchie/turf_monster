@@ -34,19 +34,21 @@
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
     <div class="mb-6">
       <h2 class="text-2xl font-extrabold text-heading">Build <%= @contest.picks_required %> Team Lineup</h2>
-      <p class="text-xs md:text-sm text-secondary mt-3">From the <span class="font-semibold text-heading">1<sup>st</sup> Round</span> of <span class="font-semibold text-heading">World Cup Group Play</span> to compete for the highest score in our <span class="font-semibold text-heading">peer-to-peer contest</span> where scoring is <span class="font-bold text-heading">goals &times; multiplier</span>. <%= link_to "Contest Details ⚽", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "text-primary hover:text-primary-300 font-semibold underline underline-offset-2" %></p>
+      <p class="text-xs md:text-sm text-secondary mt-3"><span class="font-semibold text-heading"><%= @contest.tagline || @contest.name %></span> — compete for the highest score in our <span class="font-semibold text-heading">peer-to-peer contest</span> where scoring is <span class="font-bold text-heading">goals &times; multiplier</span>. <%= link_to "Contest Details ⚽", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "text-primary hover:text-primary-300 font-semibold underline underline-offset-2" %></p>
     </div>
     <div class="flex items-center justify-between gap-2 mb-4">
       <div class="flex items-center gap-2">
         <span class="text-sm text-muted font-medium">Sort by</span>
         <button @click="toggleSort('game')"
                 class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
-                :class="sortMode === 'game' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+                :class="sortMode === 'game' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'"
+                :aria-pressed="sortMode === 'game'">
           Game
         </button>
         <button @click="toggleSort('multiplier')"
                 class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-1"
-                :class="sortMode === 'multiplier' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+                :class="sortMode === 'multiplier' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'"
+                :aria-pressed="sortMode === 'multiplier'">
           Multiplier
           <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
         </button>
@@ -136,8 +138,6 @@
           </div>
           <div class="text-right">
             <p class="font-mono text-lg text-primary"><%= dollars(current_user.balance_dollars) %></p>
-            <%= button_to "+$100", add_funds_path, method: :post,
-              class: "mt-1 px-3 py-1 bg-primary-700 hover:bg-primary-600 text-white text-xs font-semibold rounded-lg transition" %>
           </div>
         </div>
       </div>
