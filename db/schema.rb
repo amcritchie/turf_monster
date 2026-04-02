@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_01_070000) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_02_055456) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -28,6 +28,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_01_070000) do
     t.boolean "onchain_settled", default: false, null: false
     t.string "onchain_tx_signature"
     t.bigint "slate_id"
+    t.string "tagline"
     t.index ["slate_id"], name: "index_contests_on_slate_id"
   end
 

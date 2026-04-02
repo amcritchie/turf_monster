@@ -548,7 +548,7 @@ def compute_dk_score(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
-def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false)
+def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil)
   slate = Slate.find_or_create_by!(name: slate_name) do |s|
     s.starts_at = starts_at
   end
@@ -560,8 +560,10 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
     c.max_entries = 15
     c.contest_type = "turf_totals"
     c.starts_at = starts_at
+    c.tagline = tagline
   end
   contest.update!(slate: slate) if contest.slate_id.nil?
+  contest.update!(tagline: tagline) if tagline && contest.tagline.blank?
 
   puts "  Created slate: #{slate.name}, contest: #{contest.name}"
 
@@ -649,7 +651,8 @@ create_slate_with_contest(
   games: MATCHDAY_1_GAMES,
   teams: teams,
   dk_odds: dk_odds,
-  starts_at: et(2026, 6, 11, 15, 0)
+  starts_at: et(2026, 6, 11, 15, 0),
+  tagline: "Matchday 1 — World Cup 2026 Group Stage"
 )
 
 create_slate_with_contest(
@@ -659,7 +662,8 @@ create_slate_with_contest(
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 18, 12, 0),
-  general_rankings: true
+  general_rankings: true,
+  tagline: "Matchday 2 — World Cup 2026 Group Stage"
 )
 
 create_slate_with_contest(
@@ -669,7 +673,8 @@ create_slate_with_contest(
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 24, 15, 0),
-  general_rankings: true
+  general_rankings: true,
+  tagline: "Matchday 3 — World Cup 2026 Group Stage"
 )
 
 # ─── Default Slate (formula defaults record) ──────────────────
