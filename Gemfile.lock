@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: d01e7f094e3d8528ebb2be6a9c254684988dc441
+  revision: 3c60a95d263c4565b77404092729a9e68be26000
   specs:
     studio (0.2.4)
       rails (>= 7.0)
@@ -231,7 +231,7 @@ GEM
     puma (7.2.0)
       nio4r (~> 2.0)
     racc (1.8.1)
-    rack (3.2.5)
+    rack (3.2.6)
     rack-protection (4.2.1)
       base64 (>= 0.1.0)
       logger (>= 1.6.0)
