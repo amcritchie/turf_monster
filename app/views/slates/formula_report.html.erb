@@ -347,6 +347,12 @@
 
   if (window.Alpine) { _registerPlayground(); }
   else { document.addEventListener('alpine:init', _registerPlayground); }
+
+  // Rebuild charts on theme toggle so colors update
+  new MutationObserver(function() {
+    _buildFormulaCharts();
+    if (_pgCache && _pgCache.length) { _pgBuildChart(); }
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 </script>
 
 <div class="max-w-3xl mx-auto py-8 px-2">

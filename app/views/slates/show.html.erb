@@ -224,6 +224,11 @@
     });
   });
 
+  // Rebuild chart on theme toggle so colors update
+  new MutationObserver(function() {
+    if (_fcLastData && _fcLastData.length) { _fcBuildChart(_fcLastData); }
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
   document.addEventListener('turbo:load', function() {
     _fcChart = null;
     var el = document.querySelector('[x-data="formulaCurves()"]');
