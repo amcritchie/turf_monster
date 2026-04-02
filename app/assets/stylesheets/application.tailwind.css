@@ -39,11 +39,7 @@
     background-color: var(--color-cta-hover);
   }
   .btn-secondary {
-    @apply text-white;
-    background-color: var(--color-success);
-  }
-  .btn-secondary:hover {
-    filter: brightness(0.9);
+    @apply bg-violet hover:bg-violet-600 text-white;
   }
   .btn-outline {
     @apply bg-transparent border text-heading;
