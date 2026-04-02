@@ -1,0 +1,74 @@
+<div class="max-w-2xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <%= link_to "&larr; Transactions".html_safe, admin_transactions_path, class: "text-sm text-secondary hover:text-primary transition" %>
+  </div>
+
+  <h1 class="text-2xl font-extrabold text-heading mb-6">Transaction Detail</h1>
+
+  <div class="card p-6 mb-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <span class="text-xs font-mono text-muted"><%= @transaction_log.slug %></span>
+        <div class="text-3xl font-bold font-mono mt-1 <%= @transaction_log.credit? ? 'text-primary' : 'text-red-400' %>">
+          <%= @transaction_log.credit? ? '+' : '-' %><%= dollars(@transaction_log.amount_dollars) %>
+        </div>
+      </div>
+      <div>
+        <% status_classes = case @transaction_log.status
+          when "completed" then "bg-primary/10 text-primary border-primary/30"
+          when "pending" then "bg-yellow-500/10 text-yellow-400 border-yellow-600/30"
+          when "failed" then "bg-red-500/10 text-red-400 border-red-500/30"
+          when "approved" then "bg-violet/10 text-violet border-violet/30"
+          end %>
+        <span class="badge text-sm px-3 py-1 <%= status_classes %>"><%= @transaction_log.status %></span>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">Type</span>
+        <span class="text-sm text-heading font-mono"><%= @transaction_log.transaction_type %></span>
+      </div>
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">Direction</span>
+        <span class="text-sm text-heading"><%= @transaction_log.direction.capitalize %></span>
+      </div>
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">User</span>
+        <span class="text-sm text-heading"><%= @transaction_log.user.display_name %> (<%= @transaction_log.user.email %>)</span>
+      </div>
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">Balance After</span>
+        <span class="text-sm text-heading font-mono"><%= @transaction_log.balance_after_cents ? dollars(@transaction_log.balance_after_dollars) : '—' %></span>
+      </div>
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">Description</span>
+        <span class="text-sm text-heading"><%= @transaction_log.description || '—' %></span>
+      </div>
+      <% if @transaction_log.source.present? %>
+        <div class="flex justify-between border-b border-subtle pb-3">
+          <span class="text-sm text-secondary">Source</span>
+          <span class="text-sm text-heading"><%= @transaction_log.source_type %> — <%= @transaction_log.source_name %></span>
+        </div>
+      <% end %>
+      <% if @transaction_log.onchain_tx.present? %>
+        <div class="flex justify-between border-b border-subtle pb-3">
+          <span class="text-sm text-secondary">Onchain TX</span>
+          <a href="https://explorer.solana.com/tx/<%= @transaction_log.onchain_tx %>?cluster=devnet" target="_blank" class="text-sm text-primary hover:underline font-mono">
+            <%= @transaction_log.onchain_tx.truncate(20) %> &rarr;
+          </a>
+        </div>
+      <% end %>
+      <div class="flex justify-between border-b border-subtle pb-3">
+        <span class="text-sm text-secondary">Created</span>
+        <span class="text-sm text-muted"><%= @transaction_log.created_at.strftime("%b %d, %Y %H:%M:%S") %></span>
+      </div>
+      <% if @transaction_log.metadata.present? && @transaction_log.metadata != {} %>
+        <div>
+          <span class="text-sm text-secondary block mb-2">Metadata</span>
+          <div class="json-debug text-xs text-body font-mono"><%= JSON.pretty_generate(@transaction_log.metadata) %></div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

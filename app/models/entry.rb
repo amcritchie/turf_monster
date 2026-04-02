@@ -50,7 +50,10 @@ class Entry < ApplicationRecord
     end
 
     transaction do
-      user.deduct_funds!(contest.entry_fee_cents) if contest.entry_fee_cents > 0
+      if contest.entry_fee_cents > 0
+        user.deduct_funds!(contest.entry_fee_cents)
+        TransactionLog.record!(user: user, type: "entry_fee", amount_cents: contest.entry_fee_cents, direction: "debit", source: contest, description: "Entry fee for #{contest.name}")
+      end
       update!(status: :active)
     end
   end

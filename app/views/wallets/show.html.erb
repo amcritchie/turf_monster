@@ -96,6 +96,24 @@
     </div>
   </div>
 
+  <%# -- Pending Withdrawals -- %>
+  <% if @pending_withdrawals&.any? %>
+    <div class="card shadow p-6 mb-6 border border-yellow-600/30">
+      <h2 class="text-lg font-bold text-heading mb-4">Pending Withdrawals</h2>
+      <div class="space-y-3">
+        <% @pending_withdrawals.each do |txn| %>
+          <div class="flex items-center justify-between bg-yellow-500/5 rounded-lg p-3">
+            <div>
+              <span class="text-sm font-bold text-heading font-mono"><%= dollars(txn.amount_dollars) %></span>
+              <span class="text-xs text-muted ml-2"><%= txn.created_at.strftime("%b %d, %H:%M") %></span>
+            </div>
+            <span class="badge bg-yellow-500/10 text-yellow-400 border-yellow-600/30">Pending review</span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
   <%# -- Devnet Faucet -- %>
   <% if Solana::Config.devnet? %>
     <div class="card shadow p-6 mb-6 border border-yellow-600/30">
@@ -119,6 +137,29 @@
           <p class="text-sm text-muted">Check your onchain balance against the Solana program.</p>
         </div>
         <%= link_to "Sync Balance", sync_wallet_path, class: "btn btn-outline" %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# -- Recent Transactions -- %>
+  <% if @recent_transactions&.any? %>
+    <div class="card shadow p-6 mb-6">
+      <h2 class="text-lg font-bold text-heading mb-4">Recent Transactions</h2>
+      <div class="space-y-2">
+        <% @recent_transactions.each do |txn| %>
+          <div class="flex items-center justify-between py-2 border-b border-subtle last:border-0">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-surface-alt text-secondary"><%= txn.transaction_type %></span>
+              <span class="text-sm text-muted"><%= txn.description.to_s.truncate(30) %></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-mono font-bold <%= txn.credit? ? 'text-primary' : 'text-red-400' %>">
+                <%= txn.credit? ? '+' : '-' %><%= dollars(txn.amount_dollars) %>
+              </span>
+              <span class="text-xs text-muted"><%= txn.created_at.strftime("%b %d") %></span>
+            </div>
+          </div>
+        <% end %>
       </div>
     </div>
   <% end %>

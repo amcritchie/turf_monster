@@ -1,8 +1,11 @@
 class WalletsController < ApplicationController
   before_action :require_login
+  before_action :require_geo_allowed, only: [:deposit, :withdraw]
 
   def show
     @user = current_user
+    @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: "pending").order(created_at: :desc)
+    @recent_transactions = TransactionLog.where(user: current_user).order(created_at: :desc).limit(10)
   end
 
   def deposit
@@ -13,13 +16,10 @@ class WalletsController < ApplicationController
 
     rescue_and_log(target: current_user) do
       if current_user.custodial_wallet?
-        # Custodial: server signs deposit tx onchain
-        # For Devnet: just credit the DB balance (no real tokens yet)
         current_user.add_funds!(amount_cents)
+        TransactionLog.record!(user: current_user, type: "deposit", amount_cents: amount_cents, direction: "credit", description: "Deposit $#{'%.2f' % amount_dollars}")
         redirect_to wallet_path, notice: "Deposited $#{'%.2f' % amount_dollars}."
       elsif current_user.phantom_wallet?
-        # Phantom: return unsigned tx for frontend signing
-        # For now, redirect — Phase 5 will wire up Phantom tx signing
         redirect_to wallet_path, alert: "Phantom deposits coming soon. Use the faucet for testing."
       else
         redirect_to wallet_path, alert: "Connect a wallet first."
@@ -38,16 +38,17 @@ class WalletsController < ApplicationController
     rescue_and_log(target: current_user) do
       raise "Insufficient withdrawable balance" if current_user.withdrawable_cents < amount_cents
 
-      if current_user.custodial_wallet?
-        # Custodial: server signs withdraw tx onchain
-        # For Devnet: just debit the DB balance
-        current_user.decrement!(:balance_cents, amount_cents)
-        redirect_to wallet_path, notice: "Withdrew $#{'%.2f' % amount_dollars}."
-      elsif current_user.phantom_wallet?
-        redirect_to wallet_path, alert: "Phantom withdrawals coming soon."
-      else
-        redirect_to wallet_path, alert: "Connect a wallet first."
-      end
+      # Deduct immediately (prevents double-spend), create pending request
+      current_user.decrement!(:balance_cents, amount_cents)
+      TransactionLog.record!(
+        user: current_user,
+        type: "withdrawal",
+        amount_cents: amount_cents,
+        direction: "debit",
+        description: "Withdrawal request $#{'%.2f' % amount_dollars}",
+        status: "pending"
+      )
+      redirect_to wallet_path, notice: "Withdrawal of $#{'%.2f' % amount_dollars} submitted for review."
     end
   rescue StandardError => e
     redirect_to wallet_path, alert: "Withdrawal failed: #{e.message}"
@@ -56,7 +57,8 @@ class WalletsController < ApplicationController
   def faucet
     rescue_and_log(target: current_user) do
       raise "Faucet only available on Devnet" unless Solana::Config.devnet?
-      current_user.add_funds!(10_00) # $10 test funds
+      current_user.add_funds!(10_00)
+      TransactionLog.record!(user: current_user, type: "faucet", amount_cents: 10_00, direction: "credit", description: "Devnet faucet $10.00")
       redirect_to wallet_path, notice: "Added $10.00 test USDC to your balance."
     end
   rescue StandardError => e
@@ -80,6 +82,8 @@ class WalletsController < ApplicationController
       end
 
       @user = current_user
+      @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: "pending").order(created_at: :desc)
+      @recent_transactions = TransactionLog.where(user: current_user).order(created_at: :desc).limit(10)
       render :show
     end
   rescue StandardError => e

@@ -3,6 +3,7 @@ class User < ApplicationRecord
 
   has_secure_password validations: false
   has_many :entries, dependent: :destroy
+  has_many :transaction_logs, dependent: :destroy
 
   validates :email, uniqueness: true, allow_nil: true
   validates :solana_address, uniqueness: true, allow_nil: true

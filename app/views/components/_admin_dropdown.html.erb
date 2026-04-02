@@ -13,9 +13,14 @@
     <%= link_to "Slates", slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Formula", formula_report_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Formula Defaults", admin_formula_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
+    <%= link_to "Transactions", admin_transactions_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <a href="/admin/theme" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Theme</a>
     <a href="/admin/schema" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Schema</a>
+    <%= link_to "Geo Settings", admin_geo_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <a href="/error_logs" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Error Logs</a>
+    <div class="border-t border-subtle my-1"></div>
+    <%= button_to geo_override_active? ? "Clear GEO Override" : "Simulate WA", admin_geo_toggle_path, method: :post,
+      class: "block w-full text-left px-4 py-2 text-sm #{geo_override_active? ? 'text-red-400 hover:text-red-300' : 'text-body hover:text-heading'} hover:bg-surface-alt transition" %>
     <% contest = Contest.order(created_at: :desc).first %>
     <% if contest %>
       <div class="border-t border-subtle my-1"></div>

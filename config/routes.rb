@@ -58,4 +58,15 @@ Rails.application.routes.draw do
   end
 
   post "add_funds", to: "users#add_funds"
+
+  # Admin: Transaction Logs
+  get "admin/transactions", to: "transaction_logs#index", as: :admin_transactions
+  get "admin/transactions/:slug", to: "transaction_logs#show", as: :admin_transaction
+  post "admin/transactions/:slug/approve", to: "transaction_logs#approve", as: :admin_transaction_approve
+  post "admin/transactions/:slug/deny", to: "transaction_logs#deny", as: :admin_transaction_deny
+
+  # Admin: Geo Settings
+  get "admin/geo", to: "geo_settings#edit", as: :admin_geo
+  patch "admin/geo", to: "geo_settings#update", as: :admin_geo_update
+  post "admin/geo/toggle", to: "geo_settings#toggle_override", as: :admin_geo_toggle
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_02_055456) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_02_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -82,6 +82,17 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_02_055456) do
     t.index ["away_team_slug"], name: "index_games_on_away_team_slug"
     t.index ["home_team_slug"], name: "index_games_on_home_team_slug"
     t.index ["slug"], name: "index_games_on_slug", unique: true
+  end
+
+  create_table "geo_settings", force: :cascade do |t|
+    t.string "app_name", null: false
+    t.boolean "enabled", default: false, null: false
+    t.jsonb "banned_states", default: []
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["app_name"], name: "index_geo_settings_on_app_name", unique: true
+    t.index ["slug"], name: "index_geo_settings_on_slug", unique: true
   end
 
   create_table "players", force: :cascade do |t|
@@ -177,6 +188,29 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_02_055456) do
     t.index ["app_name"], name: "index_theme_settings_on_app_name", unique: true
   end
 
+  create_table "transaction_logs", force: :cascade do |t|
+    t.string "transaction_type", null: false
+    t.integer "amount_cents", null: false
+    t.string "direction", null: false
+    t.integer "balance_after_cents"
+    t.bigint "user_id", null: false
+    t.string "source_type"
+    t.bigint "source_id"
+    t.string "source_name"
+    t.string "description"
+    t.string "status", default: "completed", null: false
+    t.string "onchain_tx"
+    t.jsonb "metadata", default: {}
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_transaction_logs_on_slug", unique: true
+    t.index ["source_type", "source_id"], name: "index_transaction_logs_on_source_type_and_source_id"
+    t.index ["status"], name: "index_transaction_logs_on_status"
+    t.index ["transaction_type"], name: "index_transaction_logs_on_transaction_type"
+    t.index ["user_id"], name: "index_transaction_logs_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "name"
     t.string "email"
@@ -209,4 +243,5 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_02_055456) do
   add_foreign_key "selections", "entries"
   add_foreign_key "selections", "slate_matchups"
   add_foreign_key "slate_matchups", "slates"
+  add_foreign_key "transaction_logs", "users"
 end

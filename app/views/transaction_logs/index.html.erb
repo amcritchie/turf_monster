@@ -1,0 +1,99 @@
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-2xl font-extrabold text-heading mb-6">Transaction Log</h1>
+
+  <%# -- Summary Cards -- %>
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div class="card p-4 text-center">
+      <div class="text-xs text-muted uppercase tracking-wider mb-1">Deposits</div>
+      <div class="text-lg font-bold text-primary font-mono"><%= dollars(@summary[:total_deposits] / 100.0) %></div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-xs text-muted uppercase tracking-wider mb-1">Withdrawals</div>
+      <div class="text-lg font-bold text-red-400 font-mono"><%= dollars(@summary[:total_withdrawals] / 100.0) %></div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-xs text-muted uppercase tracking-wider mb-1">Entry Fees</div>
+      <div class="text-lg font-bold text-secondary font-mono"><%= dollars(@summary[:total_entry_fees] / 100.0) %></div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-xs text-muted uppercase tracking-wider mb-1">Payouts</div>
+      <div class="text-lg font-bold text-violet font-mono"><%= dollars(@summary[:total_payouts] / 100.0) %></div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-xs text-muted uppercase tracking-wider mb-1">Pending</div>
+      <div class="text-lg font-bold text-yellow-400 font-mono"><%= @summary[:pending_count] %></div>
+    </div>
+  </div>
+
+  <%# -- Filters -- %>
+  <div class="card p-4 mb-6">
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="text-sm text-secondary font-medium">Filter:</span>
+      <%= link_to "All", admin_transactions_path, class: "text-xs px-2 py-1 rounded #{params[:type].blank? && params[:status].blank? ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'} transition" %>
+      <% TransactionLog::TYPES.each do |type| %>
+        <%= link_to type.titleize, admin_transactions_path(type: type), class: "text-xs px-2 py-1 rounded #{params[:type] == type ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'} transition" %>
+      <% end %>
+      <div class="border-l border-subtle h-4"></div>
+      <%= link_to "Pending", admin_transactions_path(status: "pending"), class: "text-xs px-2 py-1 rounded #{params[:status] == 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-600/30' : 'bg-surface-alt text-secondary hover:text-heading'} transition" %>
+    </div>
+  </div>
+
+  <%# -- Transaction Table -- %>
+  <div class="card overflow-hidden">
+    <table class="w-full">
+      <thead>
+        <tr class="border-b border-subtle">
+          <th class="text-left px-4 py-3 text-xs text-muted uppercase tracking-wider">Date</th>
+          <th class="text-left px-4 py-3 text-xs text-muted uppercase tracking-wider">User</th>
+          <th class="text-left px-4 py-3 text-xs text-muted uppercase tracking-wider">Type</th>
+          <th class="text-right px-4 py-3 text-xs text-muted uppercase tracking-wider">Amount</th>
+          <th class="text-right px-4 py-3 text-xs text-muted uppercase tracking-wider">Balance After</th>
+          <th class="text-left px-4 py-3 text-xs text-muted uppercase tracking-wider">Status</th>
+          <th class="text-left px-4 py-3 text-xs text-muted uppercase tracking-wider">Description</th>
+          <th class="text-right px-4 py-3 text-xs text-muted uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @transaction_logs.each do |txn| %>
+          <tr class="border-b border-subtle hover:bg-surface-alt transition">
+            <td class="px-4 py-3 text-sm text-muted whitespace-nowrap"><%= txn.created_at.strftime("%b %d %H:%M") %></td>
+            <td class="px-4 py-3 text-sm text-body"><%= txn.user.display_name %></td>
+            <td class="px-4 py-3">
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-surface-alt text-secondary"><%= txn.transaction_type %></span>
+            </td>
+            <td class="px-4 py-3 text-sm font-mono text-right font-bold <%= txn.credit? ? 'text-primary' : 'text-red-400' %>">
+              <%= txn.credit? ? '+' : '-' %><%= dollars(txn.amount_dollars) %>
+            </td>
+            <td class="px-4 py-3 text-sm font-mono text-right text-muted">
+              <%= txn.balance_after_cents ? dollars(txn.balance_after_dollars) : '—' %>
+            </td>
+            <td class="px-4 py-3">
+              <% status_classes = case txn.status
+                when "completed" then "bg-primary/10 text-primary border-primary/30"
+                when "pending" then "bg-yellow-500/10 text-yellow-400 border-yellow-600/30"
+                when "failed" then "bg-red-500/10 text-red-400 border-red-500/30"
+                when "approved" then "bg-violet/10 text-violet border-violet/30"
+                end %>
+              <span class="badge <%= status_classes %>"><%= txn.status %></span>
+            </td>
+            <td class="px-4 py-3 text-sm text-muted">
+              <%= link_to txn.description.to_s.truncate(40), admin_transaction_path(slug: txn.slug), class: "hover:text-primary transition" %>
+            </td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+              <% if txn.status == "pending" && txn.transaction_type == "withdrawal" %>
+                <%= button_to "Approve", admin_transaction_approve_path(slug: txn.slug), method: :post, class: "btn btn-primary btn-sm mr-1" %>
+                <%= button_to "Deny", admin_transaction_deny_path(slug: txn.slug), method: :post, class: "btn btn-danger btn-sm",
+                  data: { turbo_confirm: "Deny withdrawal and return funds to #{txn.user.display_name}?" } %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+        <% if @transaction_logs.empty? %>
+          <tr>
+            <td colspan="8" class="px-4 py-8 text-center text-muted">No transactions found.</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -67,7 +67,10 @@ class Contest < ApplicationRecord
           # Add bonus for rank 1
           total_prize += BONUS if rank == 1
           share = total_prize / tied_count
-          entry.user.add_funds!(share) if share > 0
+          if share > 0
+            entry.user.add_funds!(share)
+            TransactionLog.record!(user: entry.user, type: "payout", amount_cents: share, direction: "credit", source: self, description: "Payout rank ##{rank} for #{name}")
+          end
         end
 
         entry.update!(rank: rank, payout_cents: share)
