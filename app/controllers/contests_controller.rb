@@ -24,6 +24,11 @@ class ContestsController < ApplicationController
   def show
     @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
     @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team }).order(score: :desc)
+
+    if logged_in?
+      group_slates = Slate.where.not(name: "Default").where.not(starts_at: nil).order(:starts_at)
+      @slate_progress = current_user.slate_progress(group_slates)
+    end
   end
 
   def enter

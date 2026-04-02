@@ -1,1 +1,4 @@
+<% if logged_in? && @slate_progress %>
+  <%= render "contests/slate_progress", progress: @slate_progress %>
+<% end %>
 <%= render "contests/turf_totals_leaderboard" %>

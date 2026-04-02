@@ -56,6 +56,26 @@ class User < ApplicationRecord
     "#{solana_address[0..3]}...#{solana_address[-4..]}"
   end
 
+  # --- Slate Progress ---
+
+  def completed_slate_ids
+    Entry.where(user: self, status: [:active, :complete])
+         .joins(:contest)
+         .where.not(contests: { slate_id: nil })
+         .distinct
+         .pluck("contests.slate_id")
+  end
+
+  def slate_progress(group_slates)
+    completed = completed_slate_ids
+    {
+      completed_count: group_slates.count { |s| completed.include?(s.id) },
+      total_count: group_slates.size,
+      completed_slate_ids: completed,
+      all_complete: group_slates.all? { |s| completed.include?(s.id) }
+    }
+  end
+
   # --- Predicates ---
 
   def solana_connected?
