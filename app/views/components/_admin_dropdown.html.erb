@@ -14,6 +14,7 @@
     <%= link_to "Formula", formula_report_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Formula Defaults", admin_formula_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <a href="/admin/theme" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Theme</a>
+    <a href="/admin/schema" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Schema</a>
     <a href="/error_logs" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Error Logs</a>
     <% contest = Contest.order(created_at: :desc).first %>
     <% if contest %>

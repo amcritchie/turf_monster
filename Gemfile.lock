@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: 3c60a95d263c4565b77404092729a9e68be26000
+  revision: 4e5d4d9aa9c15b3fc300dab3419e5158c8361182
   specs:
     studio (0.2.4)
       rails (>= 7.0)
