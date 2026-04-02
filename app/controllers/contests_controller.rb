@@ -2,6 +2,7 @@ class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show, :my]
   before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :reset]
   before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset]
+  before_action :require_geo_allowed, only: [:toggle_selection, :enter]
 
   def index
     @contest = Contest.order(created_at: :asc).first

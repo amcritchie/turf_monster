@@ -43,6 +43,19 @@
               <% if Solana::Config.devnet? %>
                 <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
               <% end %>
+              <% if logged_in? %>
+                <% state = geo_state %>
+                <span class="text-xs font-mono px-1.5 py-0.5 rounded-full
+                  <%= if geo_override_active?
+                        'bg-red-500/10 text-red-400 border border-red-500/30'
+                      elsif geo_blocked?
+                        'bg-red-500/10 text-red-400 border border-red-500/30'
+                      elsif state.present?
+                        'bg-surface-alt text-secondary border border-subtle'
+                      else
+                        'bg-surface-alt text-muted border border-subtle'
+                      end %>"><%= state || "??" %></span>
+              <% end %>
               <%= render "components/admin_dropdown" %>
               <%= render "components/theme_toggle" %>
             </div>

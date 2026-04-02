@@ -681,5 +681,12 @@ create_slate_with_contest(
 Slate.find_or_create_by!(name: "Default")
 puts "  Created Default slate for formula defaults"
 
+# ─── Geo Settings ──────────────────────────────────────────
+GeoSetting.find_or_create_by!(app_name: "Turf Monster") do |gs|
+  gs.enabled = false
+  gs.banned_states = GeoSetting::DEFAULT_BANNED_STATES
+end
+puts "  Created GeoSetting (enabled: #{GeoSetting.current.enabled?})"
+
 puts "Done! #{User.count} users, #{Slate.count} slates, #{Contest.count} contests, #{Entry.count} entries"
 puts "  #{Team.count} teams, #{Game.count} games, #{Player.count} players, #{SlateMatchup.count} matchups"

@@ -69,3 +69,6 @@ gem "studio", git: "https://github.com/amcritchie/studio.git"
 
 # Ed25519 signing for Solana wallet auth and transactions
 gem "ed25519", "~> 1.3"
+
+# IP geolocation for state-level geo-blocking
+gem "geocoder"
