@@ -6,15 +6,17 @@
           'matchup-selected': selections['<%= matchup.id %>'],
           'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
         }"
+        role="checkbox" :aria-checked="!!selections['<%= matchup.id %>']"
+        aria-label="<%= matchup.team.name %><%= matchup.opponent_team ? " vs #{matchup.opponent_team.name}" : '' %>"
         <% if locked %>disabled<% end %>>
   <% if locked %>
     <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
   <% end %>
   <p class="text-2xl" style="margin-bottom: -2px"><%= matchup.team.emoji %></p>
-  <p class="font-bold text-heading text-lg md:text-xl mb-0.5 truncate team-name"><%= matchup.team.name %></p>
+  <p class="font-bold text-heading text-lg md:text-xl mb-0.5 truncate team-name" title="<%= matchup.team.name %>"><%= matchup.team.name %></p>
   <p class="text-sm text-secondary mb-2"><span class="font-bold text-body">Goals</span><% if matchup.opponent_team %> vs <%= matchup.opponent_team.short_name %>&ensp;<%= matchup.opponent_team.emoji %><% end %></p>
   <% if matchup.multiplier %>
-    <p class="font-mono text-xl md:text-2xl text-primary">x<%= matchup.multiplier == matchup.multiplier.to_i ? matchup.multiplier.to_i : sprintf('%.1f', matchup.multiplier) %></p>
+    <p class="font-mono text-xl md:text-2xl text-primary"><%= format_multiplier(matchup.multiplier) %></p>
   <% end %>
   <% if matchup.expected_team_total %>
     <p class="text-xs text-muted mt-1">O/U <%= sprintf('%.1f', matchup.expected_team_total) %></p>

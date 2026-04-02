@@ -13,4 +13,10 @@ module ApplicationHelper
   def dollars(amount)
     "$#{sprintf('%.2f', amount)}"
   end
+
+  def format_multiplier(value)
+    return "—" unless value
+    formatted = value == value.to_i ? value.to_i.to_s : sprintf('%.1f', value)
+    "x#{formatted}"
+  end
 end
