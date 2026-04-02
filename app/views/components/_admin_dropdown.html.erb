@@ -12,5 +12,11 @@
     <%= link_to "Formula Defaults", admin_formula_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <a href="/admin/theme" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Theme</a>
     <a href="/error_logs" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Error Logs</a>
+    <% contest = Contest.order(created_at: :desc).first %>
+    <% if contest %>
+      <div class="border-t border-subtle my-1"></div>
+      <%= button_to "Reset Contest", reset_contest_path(contest), method: :post, data: { turbo_confirm: "Reset contest? This clears all entries and results." },
+        class: "block w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-surface-alt transition" %>
+    <% end %>
   </div>
 </div>
