@@ -6,6 +6,8 @@
 puts "Seeding test database for Playwright..."
 
 # Clear in dependency order
+TransactionLog.delete_all
+GeoSetting.delete_all
 Selection.delete_all
 Entry.delete_all
 SlateMatchup.delete_all
@@ -20,7 +22,8 @@ alex = User.create!(
   email: "alex@turf.com",
   password: "password",
   password_confirmation: "password",
-  balance_cents: 100_000
+  balance_cents: 100_000,
+  admin: true
 )
 
 sam = User.create!(
@@ -76,4 +79,15 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-puts "Seeded: #{User.count} users, #{Team.count} teams, #{Slate.count} slates, #{Contest.count} contests, #{SlateMatchup.count} matchups"
+# Generate custodial wallets for test users (needed for deposit/withdraw/faucet)
+alex.generate_custodial_wallet!
+sam.generate_custodial_wallet!
+
+# GeoSetting (disabled by default for most tests)
+GeoSetting.create!(
+  app_name: Studio.app_name,
+  enabled: false,
+  banned_states: GeoSetting::DEFAULT_BANNED_STATES
+)
+
+puts "Seeded: #{User.count} users, #{Team.count} teams, #{Slate.count} slates, #{Contest.count} contests, #{SlateMatchup.count} matchups, #{GeoSetting.count} geo_settings"

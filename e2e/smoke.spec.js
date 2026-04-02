@@ -42,7 +42,7 @@ test("login with invalid credentials shows error", async ({ page }) => {
   await page.goto("/login");
   await page.fill('input[name="email"]', "alex@turf.com");
   await page.fill('input[name="password"]', "wrong");
-  await page.click('input[type="submit"], button[type="submit"]');
+  await page.locator('form button.btn-primary[type="submit"]').click();
   // Should stay on login page with error
   await expect(page.locator("body")).toContainText(/invalid|incorrect/i);
 });
