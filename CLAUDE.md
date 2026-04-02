@@ -138,7 +138,7 @@ end
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
 - **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props). Fresh DB via `db:drop db:create db:migrate db:seed`.
 - **Balance system**: Users have `balance_cents` (real, onchain-backed, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first on deduction). `total_balance_cents` = sum of both. `deduct_funds!` uses promo first.
-- **Multiplier formula**: `Math.sqrt(rank) * 0.5 + 0.5` — minimum x1, scales with rank. Integers display without decimal (x1 not x1.0).
+- **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — logarithmic curve, x1.0 at rank 1 to x4.0 at rank N. Integers display without decimal (x1 not x1.0). Centralized on `SlateMatchup.multiplier_for(rank, n)` — see "Centralized Formulas" section below.
 
 ## Authentication
 
@@ -183,6 +183,22 @@ validate :has_authentication_method  # must have email, solana_address, or provi
 - Minimum 6 characters (enforced in model validation)
 - Seed/fixture password: `"password"` (not "pass" — too short for min 6 validation)
 
+## Centralized Formulas (SlateMatchup Model)
+
+All scoring/ranking formulas live as class methods on `SlateMatchup` — single source of truth. JS mirrors in `slates/show.html.erb` and `slates/formula_report.html.erb` with comments noting the model as authoritative.
+
+- **Multiplier**: `SlateMatchup.multiplier_for(rank, n)` — `1.0 + 3.0 * Math.log(rank) / Math.log(n)`. Logarithmic curve, x1.0 at rank 1 to x4.0 at rank N.
+- **DK Score**: `SlateMatchup.dk_score_for(line, over_odds)` — `max(0, (line - 0.5) + (prob - 0.5) * 3)` where prob is derived from American odds.
+- **Goals Distribution**: `SlateMatchup.goals_distribution_for(rank, n)` — `0.2 + 4.3 * Math.log(n / rank) / Math.log(n)`.
+- **Interactive DK Score** (show page sliders): `A * line^lineExp * prob^probExp` with defaults A=1.65, lineExp=1.24, probExp=1.18, where prob = 1/OverDecimalOdds.
+
+### Formula Color System
+
+Chart/formula visualization colors are defined once at the top of `slates/show.html.erb`:
+- **CSS custom properties** (`--fc-mult`, `--fc-goals`, `--fc-dk-score`, `--fc-dk-total`, `--fc-dk-odds`) for inline styles
+- **JS `FC` object** (`FC.mult`, `FC.goals`, `FC.dkScore`, `FC.dkTotal`, `FC.dkOdds`) for Chart.js datasets
+- Colors: Multiplier = violet `#8E82FE`, Goals Distribution = light violet `#B8B0FF`, DK Score = dark green `#15803D`, DK Total = green `#4BAF50`, DK Odds = faint green `rgba`
+
 ## Models
 
 - **User** — name, email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
@@ -193,6 +209,8 @@ validate :has_authentication_method  # must have email, solana_address, or provi
 - **Team** — name, short_name, location, emoji, color_primary, color_secondary, slug. Has many players, home_games, away_games.
 - **Game** — belongs_to home_team + away_team (Team via slug FKs). kickoff_at, venue, status, home_score, away_score, slug.
 - **Player** — belongs_to team (via slug FK, optional). name, position, jersey_number, slug.
+- **Slate** — name, starts_at, status, slug, formula_a/line_exp/prob_exp/mult_base/mult_scale/goal_base/goal_scale (all nullable floats). Has many slate_matchups, contests. `FORMULA_DEFAULTS` constant, `default_record` class method, `resolved_formula` instance method (3-tier resolution). "Default" slate is a config record for global formula defaults.
+- **SlateMatchup** — belongs_to slate, team (slug FK), opponent_team (slug FK), game (slug FK). rank, multiplier, status, expected_team_total, team_total_over_odds, over_decimal_odds. Has many selections. Class methods: `multiplier_for`, `dk_score_for`, `goals_distribution_for`.
 - **ErrorLog** — polymorphic target + parent, message, inspect, backtrace (JSON), target_name, parent_name, slug
 
 ## New Controller Checklist
@@ -248,13 +266,71 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
 - **Navbar**: Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms. Content: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
-- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Engine-provided gear icon partial, single "Theme" link to `/admin/theme` and "Error Logs" link to `/error_logs`.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon partial with links to Theme (`/admin/theme`), Slates (`/slates`), Formula (`/slates/formula_report`), Error Logs (`/error_logs`).
 - **Theme page** (`/admin/theme`): Engine-provided combined page — color editor with live preview at top, styleguide below (logos, semantic tokens, typography, buttons, components).
 - **Account page** (`/account`): Three sections — Profile (name/email), Password (set/change), Google (link/unlink).
 - **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 - **Redirect modal**: When hold-to-confirm hits a blocker (not logged in, insufficient funds), a centered modal appears with icon, title, message, progress bar countdown (5s), and CTA button. Hold button flips to red `.error` state ("Entry Blocked"). Not logged in → "Log In Required" → `/login`. Insufficient funds → "Insufficient Funds" / "Top Up Wallet" → `/wallet`. `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component.
 - **Pick slot animations**: `pick-pulse` (gentle glow, picks 3-4), `pick-pulse-shimmer` (glow + sweep, picks 2 and 5), `pick-pulse-urgent` (fast intense glow + scale + sweep, pick 5 after a selection is removed). `pickUrgent` flag set when going from 5→4 selections, cleared when reaching 5 again or clearing all.
 - **After confirming entry**: redirects to contest show page (leaderboard)
+
+## Slate Show Page (`/slates/:id`)
+
+Admin-only interactive page for tuning multiplier formulas. Key sections:
+
+1. **Slate tabs** — navigate between slates (shown when multiple exist)
+2. **Multiplier Formula chart** — Chart.js line chart with 5 datasets (Multiplier, Goals Distribution, DK Total Score, DK Total, DK Total Odds). Updates live as sliders change.
+3. **Formula variable sliders** — 7 interactive Alpine.js sliders (A, lineExp, probExp, multBase, multScale, goalBase, goalScale) grouped into formula variable cards with colored left accent bars and math notation.
+4. **Ranking list** — sortable table of all slate matchups. Score/Multiplier columns update dynamically when sliders change. Drag-to-reorder via SortableJS library.
+5. **Save buttons** — "Save Rankings" (persists rank order + computed multipliers), "Save Multipliers" (persists arbitrary slider-computed values), and "Save Formula" (persists current slider values to this slate's DB columns). All appear at top and bottom of the rank list.
+
+### Chart.js + Alpine.js Proxy Avoidance Pattern (Critical)
+
+Chart.js instances **must not** be stored as Alpine reactive properties. Alpine wraps objects in ES6 Proxies, which triggers infinite re-render loops when Chart.js reads/writes its internal state. Solution: store Chart.js instances and shared state as plain globals outside Alpine:
+
+```javascript
+var _fcChart = null;       // Chart.js instance
+var _fcLastData = null;    // last dataset snapshot
+var _fcSliders = {};       // current slider values
+```
+
+Alpine components read/write these globals directly. Never use `this.chart` or `$data.chart` for Chart.js objects.
+
+### Cross-Component Communication Pattern
+
+Two Alpine components on the slate show page (`formulaCurves` for the chart/sliders, `rankManager` for the ranking list) communicate via global functions:
+
+- `_fcUpdateRankList(sliders)` — called by `formulaCurves` when sliders change, updates rank list scores
+- `_fcSliders` — global object holding current slider values, readable by `rankManager` for save
+
+This avoids Alpine `$dispatch`/`$store` complexity for components that need to share computed state.
+
+### Persisted Formula Variables
+
+7 nullable float columns on `slates`: `formula_a`, `formula_line_exp`, `formula_prob_exp`, `formula_mult_base`, `formula_mult_scale`, `formula_goal_base`, `formula_goal_scale`. Resolution chain (3-tier, like ThemeSetting):
+
+1. **Slate column** — per-slate override (nullable)
+2. **Default slate record** — `Slate.find_by(name: "Default")` — global defaults
+3. **Hardcoded constant** — `Slate::FORMULA_DEFAULTS`
+
+`Slate#resolved_formula` returns a hash with resolved values. Sliders on the show page initialize from this. "Save Formula" button persists current slider values to the slate. "Default" slate is a config record (filtered out of index/tabs via `where.not(name: "Default")`).
+
+**Admin Formula Defaults page** (`/slates/admin_formula`) — number inputs for editing the Default slate's formula variables. Linked from admin dropdown.
+
+### Slate Routes
+
+- `/slates` — redirects to next upcoming slate (or most recent)
+- `/slates/:id` — show (chart + sliders + rank list)
+- `/slates/:id/update_rankings` — PATCH, save drag-reordered ranks + recalculated multipliers
+- `/slates/:id/update_multipliers` — PATCH, save slider-computed multiplier values
+- `/slates/:id/update_formula` — PATCH, save formula slider values to this slate
+- `/slates/formula_report` — DK Score formula iterations page with comparison charts + playground
+- `/slates/admin_formula` — GET, admin page for editing Default slate formula variables
+- `/slates/update_admin_formula` — PATCH, save Default slate formula variables
+
+### Admin Dropdown
+
+The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links to: Theme (`/admin/theme`), Slates (`/slates`), Formula (`/slates/formula_report`), Formula Defaults (`/slates/admin_formula`), Error Logs (`/error_logs`).
 
 ## Dev Mode
 
@@ -267,7 +343,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Routes
 
-- `/` — contests#index (main dashboard, selection toggling, cart, hold-to-confirm)
+- `/` — contests#index (main dashboard, selection toggling, cart, hold-to-confirm). Shows first contest (ordered by `created_at: :asc`).
 - `/contests/:id` — contest show (leaderboard + admin actions)
 - `/contests/:id/toggle_selection` — POST, toggle a matchup selection on cart entry
 - `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show
@@ -277,6 +353,14 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/contests/:id/lock` — POST, lock contest (admin only)
 - `/contests/:id/jump` — POST, simulate results + settle (admin only)
 - `/contests/:id/reset` — POST, reset contest to open (admin only)
+- `/slates` — slates#index (redirects to next upcoming or most recent slate)
+- `/slates/:id` — slate show (formula chart, sliders, drag-to-reorder ranking list)
+- `/slates/:id/update_rankings` — PATCH, save rank order + recalculated multipliers (admin only)
+- `/slates/:id/update_multipliers` — PATCH, save slider-computed multipliers (admin only)
+- `/slates/:id/update_formula` — PATCH, save formula slider values to this slate (admin only)
+- `/slates/formula_report` — DK Score formula iterations + playground (admin only)
+- `/slates/admin_formula` — GET, edit Default slate formula variables (admin only)
+- `/slates/update_admin_formula` — PATCH, save Default slate formula variables (admin only)
 - `/teams` — teams index (clickable grid → show)
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
@@ -335,6 +419,8 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 - **Hold button guard**: The `_hold_button.html.erb` partial renders JS inside `<script>` tags. Guard expressions must use `<%== %>` (raw output), NOT `<%= %>`, because `<script>` tags don't decode HTML entities. `>=` gets escaped to `&gt;=` which breaks the entire script block. Use `===` in guards when possible, or `<%== %>` for raw output.
 - **Selection count = 5**: Hardcoded in multiple places — `Entry#confirm!` (validation), `Contest#fill!` (combo generation), index view JS (`selectionCount === 5`), cart selection slots partial (`x-for="i in 5"`), mobile cart template. Search for "< 5", "=== 5", "in 5", "Exactly 5" when changing.
 - **Tailwind class compilation**: `tailwindcss-rails` only compiles classes it finds in app views. Introducing a new utility (e.g. `bg-red-500`, `opacity-50`, `px-6`) on a single page won't work if no other view uses it. Fix: use classes already in use elsewhere, or use inline `style` for one-off values.
+- **Chart.js + Alpine.js proxy conflict**: Never store Chart.js instances as Alpine reactive properties. Alpine wraps objects in ES6 Proxies which causes infinite re-render loops with Chart.js internals. Store Chart.js instances as plain `var` globals (e.g. `var _fcChart = null`) outside Alpine components. See Slate Show Page section for full pattern.
+- **Cross-component Alpine communication**: When two Alpine components need shared state, use global functions/variables instead of `$dispatch`/`$store`. Example: `_fcUpdateRankList(sliders)` lets the formula chart component push updates to the rank manager component.
 
 ## Workflow Preferences
 
