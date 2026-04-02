@@ -12,10 +12,14 @@ class ApplicationController < ActionController::Base
   def detect_geo_state
     return if session[:geo_override].present?
 
-    if session[:geo_detected_at].blank? || session[:geo_detected_at] < 24.hours.ago.to_s
+    ip_changed = session[:geo_ip] != request.remote_ip
+    stale = session[:geo_detected_at].blank? || session[:geo_detected_at] < 24.hours.ago.to_s
+
+    if ip_changed || stale
       result = Geocoder.search(request.remote_ip).first
       raw = result&.try(:state_code).presence || result&.try(:region_code) || result&.try(:region)
       session[:geo_state] = normalize_state_code(raw)
+      session[:geo_ip] = request.remote_ip
       session[:geo_detected_at] = Time.current.to_s
     end
   rescue => e
