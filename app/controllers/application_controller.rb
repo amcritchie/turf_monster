@@ -24,7 +24,7 @@ class ApplicationController < ActionController::Base
   end
 
   def geo_state
-    session[:geo_override] || session[:geo_state]
+    normalize_state_code(session[:geo_override] || session[:geo_state])
   end
 
   def geo_blocked?
