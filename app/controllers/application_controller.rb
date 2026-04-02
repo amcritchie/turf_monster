@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::Base
   include Studio::ErrorHandling
+  include GeoHelper
 
   allow_browser versions: :modern
 
@@ -13,7 +14,8 @@ class ApplicationController < ActionController::Base
 
     if session[:geo_detected_at].blank? || session[:geo_detected_at] < 24.hours.ago.to_s
       result = Geocoder.search(request.remote_ip).first
-      session[:geo_state] = result&.try(:state_code).presence || result&.try(:region_code) || result&.try(:region)
+      raw = result&.try(:state_code).presence || result&.try(:region_code) || result&.try(:region)
+      session[:geo_state] = normalize_state_code(raw)
       session[:geo_detected_at] = Time.current.to_s
     end
   rescue => e
