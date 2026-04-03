@@ -63,12 +63,23 @@
         </div>
 
         <%# Claim button %>
-        <%= form_tag faucet_path, method: :post, class: "mt-2" do %>
-          <input type="hidden" name="amount" x-bind:value="amount">
-          <button type="submit" class="btn btn-primary btn-lg w-full">
-            Claim <span x-text="'$' + amount"></span> Test USDC
-          </button>
-        <% end %>
+        <button @click="
+          $store.solanaModal.show('Minting USDC', 'Sending $' + amount + ' test USDC to your wallet...');
+          fetch('<%= faucet_path %>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' },
+            body: JSON.stringify({ amount: amount })
+          }).then(r => r.json()).then(data => {
+            if (data.success) {
+              $store.solanaModal.success(data.tx, 'Minted $' + amount + ' USDC');
+              refreshBalanceDelayed();
+            } else {
+              $store.solanaModal.error(data.error || 'Faucet claim failed');
+            }
+          }).catch(e => { $store.solanaModal.error(e.message); });
+        " class="btn btn-primary btn-lg w-full mt-2">
+          Claim <span x-text="'$' + amount"></span> Test USDC
+        </button>
 
         <p class="text-xs text-muted text-center">Mints SPL USDC tokens directly to your Phantom wallet on Solana devnet.</p>
       </div>

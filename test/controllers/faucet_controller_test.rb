@@ -19,7 +19,7 @@ class FaucetControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
     get faucet_path
     assert_response :success
-    assert_select "button[type=submit]", /Claim/
+    assert_select "button", /Claim/
   end
 
   test "show displays connect wallet CTA when logged in without wallet" do
@@ -38,8 +38,10 @@ class FaucetControllerTest < ActionDispatch::IntegrationTest
   # --- claim ---
 
   test "claim requires login" do
-    post faucet_path, params: { amount: 50 }
-    assert_redirected_to login_path
+    post faucet_path, params: { amount: 50 }, as: :json
+    assert_response :unauthorized
+    json = JSON.parse(response.body)
+    assert_equal false, json["success"]
   end
 
   test "claim mints USDC and creates transaction log" do
@@ -51,12 +53,14 @@ class FaucetControllerTest < ActionDispatch::IntegrationTest
 
     Solana::Vault.stub :new, mock_vault do
       assert_difference "TransactionLog.count", 1 do
-        post faucet_path, params: { amount: 50 }
+        post faucet_path, params: { amount: 50 }, as: :json
       end
     end
 
-    assert_redirected_to faucet_path
-    assert_match /Minted \$50\.00 USDC/, flash[:notice]
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal true, json["success"]
+    assert_equal "fake_tx_sig", json["tx"]
 
     txn = TransactionLog.last
     assert_equal "faucet", txn.transaction_type
@@ -69,32 +73,35 @@ class FaucetControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     assert_no_difference "TransactionLog.count" do
-      post faucet_path, params: { amount: 0 }
+      post faucet_path, params: { amount: 0 }, as: :json
     end
 
-    assert_redirected_to faucet_path
-    assert_match /between \$1 and \$500/, flash[:alert]
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match /between \$1 and \$500/, json["error"]
   end
 
   test "claim rejects amount over 500" do
     log_in_as(@user)
 
     assert_no_difference "TransactionLog.count" do
-      post faucet_path, params: { amount: 501 }
+      post faucet_path, params: { amount: 501 }, as: :json
     end
 
-    assert_redirected_to faucet_path
-    assert_match /between \$1 and \$500/, flash[:alert]
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match /between \$1 and \$500/, json["error"]
   end
 
   test "claim rejects negative amount" do
     log_in_as(@user)
 
     assert_no_difference "TransactionLog.count" do
-      post faucet_path, params: { amount: -10 }
+      post faucet_path, params: { amount: -10 }, as: :json
     end
 
-    assert_redirected_to faucet_path
-    assert_match /between \$1 and \$500/, flash[:alert]
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match /between \$1 and \$500/, json["error"]
   end
 end

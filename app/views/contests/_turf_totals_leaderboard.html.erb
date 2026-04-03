@@ -44,7 +44,7 @@
           }).then(r => r.json()).then(data => {
             if (data.success) {
               Alpine.store('solanaModal').success(data.tx, 'Contest created onchain');
-              refreshBalance();
+              refreshBalanceDelayed();
             } else {
               Alpine.store('solanaModal').error(data.error);
             }
@@ -216,7 +216,7 @@
                               method: 'POST',
                               headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
                             }).then(r => r.json()).then(data => {
-                              if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalance(); }
+                              if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalanceDelayed(); }
                               else { $store.solanaModal.error(data.error); }
                             }).catch(e => { $store.solanaModal.error(e.message); });"
                             class="btn btn-primary btn-sm"><%= dollars(entry.payout_cents / 100.0) %></button>

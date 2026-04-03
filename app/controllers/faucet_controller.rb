@@ -11,14 +11,14 @@ class FaucetController < ApplicationController
 
   def claim
     unless logged_in?
-      return redirect_to login_path, alert: "Please log in to claim test USDC."
+      return render json: { success: false, error: "Please log in to claim test USDC." }, status: :unauthorized
     end
 
     amount_dollars = params[:amount].to_f
     amount_cents = (amount_dollars * 100).to_i
 
     unless amount_cents > 0 && amount_cents <= 500_00
-      return redirect_to faucet_path, alert: "Amount must be between $1 and $500."
+      return render json: { success: false, error: "Amount must be between $1 and $500." }, status: :unprocessable_entity
     end
 
     rescue_and_log(target: current_user) do
@@ -41,9 +41,9 @@ class FaucetController < ApplicationController
         description: "Devnet faucet $#{'%.2f' % amount_dollars}",
         onchain_tx: result[:signature]
       )
-      redirect_to faucet_path, notice: "Minted $#{'%.2f' % amount_dollars} USDC! TX: #{result[:signature]}"
+      render json: { success: true, tx: result[:signature], amount: amount_dollars }
     end
   rescue StandardError => e
-    redirect_to faucet_path, alert: "Faucet failed: #{e.message}"
+    render json: { success: false, error: e.message }, status: :unprocessable_entity
   end
 end

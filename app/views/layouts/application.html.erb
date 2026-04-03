@@ -17,6 +17,15 @@
             })
             .catch(() => {});
         }
+        function refreshBalanceDelayed(ms) {
+          var delay = ms || 10000;
+          var btns = document.querySelectorAll('[data-balance-refresh]');
+          btns.forEach(function(btn) { btn.querySelector('svg').style.animation = 'spin 1.5s linear infinite'; });
+          setTimeout(function() {
+            refreshBalance();
+            btns.forEach(function(btn) { btn.querySelector('svg').style.animation = ''; });
+          }, delay);
+        }
         <% if logged_in? && Solana::Config.devnet? %>
           document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
         <% end %>
@@ -90,7 +99,13 @@
                     <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
                   <% end %>
                 </div>
-                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
+                <span class="flex items-center gap-1">
+                  <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
+                  <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
+                          class="text-secondary hover:text-primary transition p-1" title="Refresh balance">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  </button>
+                </span>
                 <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
               </div>
               <%# Mobile: stacked right-aligned, wallet overlaid above name %>
@@ -104,7 +119,13 @@
                     <%= current_user.display_name %>
                   <% end %>
                 </div>
-                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
+                <span class="flex items-center gap-1">
+                  <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
+                  <button onclick="this.querySelector('svg').classList.add('animate-spin'); refreshBalance(); setTimeout(() => this.querySelector('svg').classList.remove('animate-spin'), 1000)"
+                          class="text-muted hover:text-primary transition p-0.5" title="Refresh balance">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  </button>
+                </span>
               </div>
             <% else %>
               <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
