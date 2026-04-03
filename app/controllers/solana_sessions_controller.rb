@@ -4,6 +4,7 @@ class SolanaSessionsController < ApplicationController
 
   def nonce
     session[:solana_nonce] = SecureRandom.hex(16)
+    session[:solana_nonce_at] = Time.current.to_i
     render json: { nonce: session[:solana_nonce] }
   end
 

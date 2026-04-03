@@ -36,6 +36,9 @@ class User < ApplicationRecord
       password: SecureRandom.hex(16),
       balance_cents: 0
     )
+  rescue ActiveRecord::RecordNotUnique
+    # Race condition: another request created the user between our find_by and create
+    find_by(email: auth.info.email) || find_by(provider: auth.provider, uid: auth.uid)
   end
 
   def self.from_solana_wallet(address)
