@@ -39,9 +39,14 @@ end
 turf.update!(password: "password") if turf.password_digest.blank?
 turf.update!(username: "turf") if turf.username.blank?
 
-# Generate custodial Solana wallets for email users (if they don't have one yet)
-[alex, mason, mack, turf].each do |user|
-  user.generate_custodial_wallet! unless user.solana_connected?
+# Set Phantom wallet addresses (real wallets, not custodial)
+{
+  alex  => "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr",
+  mason => "CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR",
+  mack  => "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds",
+  turf  => "BLSBw8fXHzZc5pbaYCKMpMSsrtXBTbWXpUPVzMrXx9oo"
+}.each do |user, address|
+  user.update!(solana_address: address, wallet_type: "phantom") unless user.solana_address == address
 end
 
 # Give email users some promotional credits for testing

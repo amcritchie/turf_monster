@@ -81,9 +81,9 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-# Generate custodial wallets for test users (needed for deposit/withdraw/faucet)
-alex.generate_custodial_wallet!
-sam.generate_custodial_wallet!
+# Set Phantom wallet addresses (real wallets, not custodial)
+alex.update!(solana_address: "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr", wallet_type: "phantom")
+sam.update!(solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds", wallet_type: "phantom")
 
 # GeoSetting (disabled by default for most tests)
 GeoSetting.create!(
