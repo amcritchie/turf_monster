@@ -77,7 +77,7 @@ Studio.configure do |config|
   config.app_name = "Turf Monster"
   config.session_key = :turf_user_id
   config.welcome_message = ->(user) { "Welcome to Turf Monster, #{user.display_name}!" }
-  config.registration_params = [:email, :password, :password_confirmation]
+  config.registration_params = [:email, :password, :password_confirmation, :username]
   config.configure_new_user = ->(user) { user.balance_cents = 0 }
   config.configure_sso_user = ->(user) { user.balance_cents = 0 }
 
@@ -136,7 +136,7 @@ end
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart selection slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props). Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props) + 1 role migration (replace admin boolean with role string) + 1 username migration. Fresh DB via `db:drop db:create db:migrate db:seed`.
 - **Balance system**: Users have `balance_cents` (real, onchain-backed, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first on deduction). `total_balance_cents` = sum of both. `deduct_funds!` uses promo first.
 - **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — logarithmic curve, x1.0 at rank 1 to x4.0 at rank N. Integers display without decimal (x1 not x1.0). Centralized on `SlateMatchup.multiplier_for(rank, n)` — see "Centralized Formulas" section below.
 
@@ -152,31 +152,43 @@ Three auth methods, all optional — user needs at least one:
 
 ```ruby
 has_secure_password validations: false  # wallet users have no password
+has_one_attached :avatar
 validates :email, uniqueness: true, allow_nil: true
+validates :username, uniqueness: { case_sensitive: false }, allow_nil: true
+validates :username, length: { in: 3..30 }, format: { with: /\A[a-zA-Z0-9_]+\z/ }, allow_nil: true
 validates :password, length: { minimum: 6 }, if: -> { password.present? }
 validates :password, confirmation: true, if: -> { password_confirmation.present? }
 validate :has_authentication_method  # must have email, solana_address, or provider+uid
 ```
 
 - `email` is **nullable** — wallet-only users have no email
+- `username` — 3-30 chars, alphanumeric + underscore, case-insensitive uniqueness, nullable
 - `password_digest` keeps `null: false, default: ""` (has_secure_password needs it)
-- Predicate helpers: `google_connected?`, `has_password?`, `has_email?`
-- `display_name` fallback chain: name → email prefix → "anon"
+- Predicate helpers: `google_connected?`, `has_password?`, `has_email?`, `profile_complete?` (username present)
+- `display_name` fallback chain: username → name → email prefix → truncated_solana → "anon"
+- `has_one_attached :avatar` — user profile avatar via Active Storage
+- `profile_complete?` — returns `username.present?`, used by `require_profile_completion` before_action
+- `require_profile_completion` in ApplicationController — redirects incomplete profiles to `/account/complete_profile` (skips auth routes, API, account completion itself)
 
 ### Account Management (`/account`)
 
-- **AccountsController** — show, update, unlink_google, change_password
+- **AccountsController** — show, update, unlink_google, change_password, complete_profile, save_profile
+- **Complete Profile page** (`/account/complete_profile`) — shown when `profile_complete?` is false. Collects username (+ optional avatar). `save_profile` action saves and redirects back to original destination.
 - **UserMergeable concern** — merges accounts when linking reveals overlap (lower ID survives)
-- **OmniauthCallbacksController** (app override) — merge support when linking Google while logged in
+- **OmniauthCallbacksController** (app override) — merge support when linking Google while logged in. Uses `rescue ActiveRecord::RecordNotUnique` in `from_omniauth` to handle race conditions on concurrent OAuth callbacks.
 - Merge transfers entries, sums balances, fills blank auth fields, updates ErrorLog references
 
 ### Admin Authorization
 
-- `admin` boolean column on User (default `false`, null: false)
-- `admin?` predicate method on User model
+- `role` string column on User (default `"viewer"`)
+- `admin?` predicate: `role == "admin"`
 - `require_admin` before_action in ApplicationController — redirects non-admins to root with alert
 - Admin-gated actions on ContestsController: `grade`, `fill`, `lock`, `jump`, `reset`
-- Seed admin: `alex@mcritchie.studio`
+- Seed admin: `alex@mcritchie.studio` (role: "admin")
+
+### Solana Auth Security
+
+- **Nonce replay prevention**: Solana nonces include timestamp, enforced 5-minute expiry window. Nonce is deleted from session before verification (delete-before-verify pattern) to prevent replay attacks.
 
 ### Passwords
 
@@ -201,7 +213,7 @@ Chart/formula visualization colors are defined once at the top of `slates/show.h
 
 ## Models
 
-- **User** — name, email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, admin (boolean, default false), first_name, last_name, birth_date, birth_year, slug
+- **User** — name, username (nullable, unique case-insensitive), email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, role (string, default "viewer"), first_name, last_name, birth_date, birth_year, slug. `has_one_attached :avatar`.
 - **Contest** — name, entry_fee_cents, status, max_entries, contest_type, starts_at, onchain_contest_id, onchain_settled, onchain_tx_signature, slug. Has many contest_matchups, entries.
 - **ContestMatchup** — belongs_to contest. team_slug, opponent_team_slug, rank, multiplier, status. Has many selections. Belongs_to team + opponent_team via slug FKs.
 - **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, onchain_entry_id, onchain_tx_signature, entry_number, slug (includes id for uniqueness). Has many selections.
@@ -264,6 +276,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Long-press button** (`_hold_button.html.erb`): reusable partial with four states — idle (green), holding (`.process`, mint glow builds), success (`.success`, mint gradient + checkmark), error (`.error`, red background). After hold completes, stays in `.process` for 500ms while resolving before transitioning to success or error. Params: `default_text`, `hold_text`, `success_text`, `error_text`, `duration`, `hold_id`, `guard`, `on_success`, `validate`, `validate_at`. The `on_success` callback is responsible for setting the final state via `setHoldSuccess()` or `setHoldError()`.
 - **Hold validation** (`validate`/`validate_at` params): Optional mid-hold validation. `validate` is a JS expression returning `Promise<boolean>`, called at `validate_at` ms (default 1000) during the hold. If the promise resolves `false`, the hold aborts (clears completion timer, snaps progress circle back). The validate function is responsible for setting error state (via `setHoldError()`) and showing a modal. Both desktop and mobile hold buttons use `validate: "d.runHoldValidations()"` which checks geo-blocking (fresh `GET /geo/check`) then login status. Network errors on geo check are swallowed (don't block the user).
 - **Solana wallet connect** (`_solana_wallet_connect.html.erb`): Phantom connect with ghost logo PNG (`/phantom-white.png`). Accepts `link_mode` local for /account use.
+- **Solana modal** (`shared/_solana_modal.html.erb`): Alpine.js store component (`Alpine.store('solanaModal')`) for onchain operation feedback. Three states: processing (spinner), success (checkmark + TX signature link to Solana Explorer), error (red icon + message). Triggered by `showProcessing()`, `showSuccess(txSignature)`, `showError(message)` methods.
 - **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
 - **Navbar**: Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms. Content: Logo + brand, My Contests (auth), Rules, Faucet (devnet only, yellow text), DEV toggle, admin gear dropdown, theme toggle. Right side: user info/auth. Username links to `/account`. Balance links to `/wallet` — shows user's Phantom wallet USDC on devnet, DB balance otherwise.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
@@ -367,6 +380,8 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 - `/teams/:slug` — team show (players, games, JSON debug)
 - `/games` — games index
 - `/account` — GET account settings, PATCH update profile
+- `/account/complete_profile` — GET, complete profile page (username + avatar, shown when `profile_complete?` is false)
+- `/account/save_profile` — POST, save profile completion form
 - `/account/unlink_google` — POST, unlink Google OAuth
 - `/account/change_password` — POST, set or change password
 - `/admin/theme` — theme editor + styleguide (engine-provided: color editor, logos, tokens, typography, buttons, components)
@@ -452,8 +467,8 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — minitest tests with fixtures
-- **Test fixtures**: 6 contest_matchups (m1-m6), 6 teams (team-a through team-f), all on contest :one
+- `bin/rails test` — minitest tests with fixtures, **67 tests** total
+- **Test fixtures**: 6 contest_matchups (m1-m6), 6 teams (team-a through team-f), 2 games (past_game, future_game), all on contest :one
 - **Test password**: All fixtures use `"password"` (minimum 6 chars required)
 - **Test helper**: `log_in_as(user)` defaults to password "password"
 
