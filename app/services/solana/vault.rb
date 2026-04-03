@@ -246,6 +246,9 @@ module Solana
 
       # Atomic SPL transfer: move USDC from admin ATA to vault token account
       if bonus > 0
+        # Ensure admin ATA exists (separate tx if needed)
+        ensure_ata(admin.to_base58, mint: Config::USDC_MINT)
+
         admin_ata, _ = admin_usdc_ata
         vault_usdc, _ = vault_usdc_pda
         transfer_ix = Solana::SplToken.transfer_instruction(
