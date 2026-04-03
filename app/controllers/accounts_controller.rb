@@ -2,9 +2,26 @@ class AccountsController < ApplicationController
   include UserMergeable
   include Solana::AuthVerifier
 
+  skip_before_action :require_profile_completion, only: [:show, :complete_profile, :save_profile]
+
   def show
     @user = current_user
     load_solana_balances if @user.solana_connected?
+  end
+
+  def complete_profile
+    @user = current_user
+  end
+
+  def save_profile
+    @user = current_user
+    rescue_and_log(target: @user) do
+      @user.update!(profile_params)
+      redirect_to session.delete(:return_to) || root_path, notice: "Profile updated!"
+    end
+  rescue StandardError => e
+    flash.now[:alert] = e.message
+    render :complete_profile, status: :unprocessable_entity
   end
 
   def update
@@ -73,7 +90,11 @@ class AccountsController < ApplicationController
   private
 
   def account_params
-    params.require(:user).permit(:name, :email)
+    params.require(:user).permit(:name, :email, :avatar)
+  end
+
+  def profile_params
+    params.require(:user).permit(:username, :avatar)
   end
 
   def load_solana_balances

@@ -1,9 +1,9 @@
 require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
-  test "display_name returns name when present" do
+  test "display_name returns username when present" do
     user = users(:alex)
-    assert_equal "Alex", user.display_name
+    assert_equal "alex_test", user.display_name
   end
 
   test "display_name returns capitalized email prefix when name is blank" do

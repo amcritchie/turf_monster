@@ -16,6 +16,8 @@ Rails.application.routes.draw do
 
   # Account management
   resource :account, only: [:show, :update] do
+    get :complete_profile
+    post :save_profile
     post :link_solana
     post :unlink_google
     post :change_password

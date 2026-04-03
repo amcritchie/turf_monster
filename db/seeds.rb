@@ -3,33 +3,41 @@ puts "Seeding Turf Picks..."
 # Users
 alex = User.find_or_create_by!(email: "alex@mcritchie.studio") do |u|
   u.name = "Alex McRitchie"
+  u.username = "alex"
   u.balance_cents = 100_000
   u.password = "password"
   u.role = "admin"
 end
 alex.update!(password: "password") if alex.password_digest.blank?
 alex.update!(role: "admin") unless alex.admin?
+alex.update!(username: "alex") if alex.username.blank?
 
 mason = User.find_or_create_by!(email: "mason@mcritchie.studio") do |u|
   u.name = "Mason McRitchie"
+  u.username = "mason"
   u.balance_cents = 100_000
   u.password = "password"
 end
 mason.update!(password: "password") if mason.password_digest.blank?
+mason.update!(username: "mason") if mason.username.blank?
 
 mack = User.find_or_create_by!(email: "mack@mcritchie.studio") do |u|
   u.name = "Mack McRitchie"
+  u.username = "mack"
   u.balance_cents = 100_000
   u.password = "password"
 end
 mack.update!(password: "password") if mack.password_digest.blank?
+mack.update!(username: "mack") if mack.username.blank?
 
 turf = User.find_or_create_by!(email: "turf@mcritchie.studio") do |u|
   u.name = "Turf Monster"
+  u.username = "turf"
   u.balance_cents = 100_000
   u.password = "password"
 end
 turf.update!(password: "password") if turf.password_digest.blank?
+turf.update!(username: "turf") if turf.username.blank?
 
 # Generate custodial Solana wallets for email users (if they don't have one yet)
 [alex, mason, mack, turf].each do |user|

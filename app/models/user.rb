@@ -2,11 +2,13 @@ class User < ApplicationRecord
   include Sluggable
 
   has_secure_password validations: false
+  has_one_attached :avatar
   has_many :entries, dependent: :destroy
   has_many :transaction_logs, dependent: :destroy
 
   validates :email, uniqueness: true, allow_nil: true
   validates :solana_address, uniqueness: true, allow_nil: true
+  validates :username, length: { in: 3..30 }, format: { with: /\A[a-zA-Z0-9_]+\z/, message: "only letters, numbers, and underscores" }, uniqueness: { case_sensitive: false }, allow_nil: true
   validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :password, confirmation: true, if: -> { password_confirmation.present? }
   validate :has_authentication_method
@@ -52,7 +54,22 @@ class User < ApplicationRecord
   # --- Display ---
 
   def display_name
-    name.presence || (email.present? ? email.split("@").first.capitalize : nil) || truncated_solana || "anon"
+    username.presence || name.presence || (email.present? ? email.split("@").first.capitalize : nil) || truncated_solana || "anon"
+  end
+
+  def avatar_initials
+    (username.presence || name.presence || "?").first.upcase
+  end
+
+  AVATAR_COLORS = %w[#EF4444 #F97316 #EAB308 #22C55E #06B6D4 #3B82F6 #8B5CF6 #EC4899].freeze
+
+  def avatar_color
+    key = username.presence || name.presence || email.presence || id.to_s
+    AVATAR_COLORS[Digest::MD5.hexdigest(key).hex % AVATAR_COLORS.size]
+  end
+
+  def profile_complete?
+    username.present?
   end
 
   def truncated_solana
@@ -184,7 +201,7 @@ class User < ApplicationRecord
   end
 
   def name_slug
-    base = name.presence || email.presence || solana_address.presence || "user"
+    base = username.presence || name.presence || email.presence || solana_address.presence || "user"
     "#{base}-#{id}".downcase.gsub(/\s+/, "-")
   end
 end

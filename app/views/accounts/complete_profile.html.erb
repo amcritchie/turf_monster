@@ -1,0 +1,25 @@
+<section class="max-w-md mx-auto mt-12">
+  <div class="card p-8">
+    <div class="text-center mb-8">
+      <h2 class="text-2xl font-bold text-heading">Complete Your Profile</h2>
+      <p class="text-secondary mt-2">Choose a username to get started</p>
+    </div>
+
+    <%= form_with model: @user, url: save_profile_account_path, method: :post, class: "space-y-6" do |f| %>
+      <div>
+        <label class="label-upper mb-2 block">Username</label>
+        <%= f.text_field :username, class: "input-field", placeholder: "Choose a username", autofocus: true, required: true %>
+        <p class="text-xs text-muted mt-1">3-30 characters. Letters, numbers, and underscores only.</p>
+      </div>
+
+      <div>
+        <label class="label-upper mb-2 block">Profile Picture <span class="text-muted">(optional)</span></label>
+        <%= f.file_field :avatar, accept: "image/*", class: "block w-full text-sm text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" %>
+      </div>
+
+      <div>
+        <%= f.submit "Save Profile", class: "btn btn-primary btn-lg w-full" %>
+      </div>
+    <% end %>
+  </div>
+</section>

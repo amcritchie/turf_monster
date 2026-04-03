@@ -1,5 +1,6 @@
 alex:
   name: Alex
+  username: alex_test
   email: alex@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>
@@ -7,12 +8,14 @@ alex:
 
 jordan:
   name: Jordan
+  username: jordan_test
   email: jordan@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>
 
 sam:
   name: Sam
+  username: sam_test
   email: sam@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>

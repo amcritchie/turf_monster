@@ -5,6 +5,7 @@ class ApplicationController < ActionController::Base
   allow_browser versions: :modern
 
   before_action :detect_geo_state
+  before_action :require_profile_completion
   helper_method :geo_state, :geo_blocked?, :geo_override_active?, :display_balance
 
   private
@@ -65,6 +66,16 @@ class ApplicationController < ActionController::Base
 
   def invalidate_usdc_cache(user = current_user)
     Rails.cache.delete(usdc_cache_key(user))
+  end
+
+  def require_profile_completion
+    return unless logged_in?
+    return if current_user.profile_complete?
+    return if self.class.name.in?(%w[SessionsController RegistrationsController SolanaSessionsController FaucetController])
+    return if controller_name == "accounts"
+
+    session[:return_to] = request.fullpath
+    redirect_to complete_profile_account_path
   end
 
   def require_geo_allowed
