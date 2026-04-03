@@ -1,4 +1,11 @@
 GIT
+  remote: https://github.com/amcritchie/solana_studio.git
+  revision: c812a06c17daae7f9794b93d765efc05da4cea85
+  specs:
+    solana_studio (0.1.0)
+      ed25519 (~> 1.3)
+
+GIT
   remote: https://github.com/amcritchie/studio.git
   revision: 4e5d4d9aa9c15b3fc300dab3419e5158c8361182
   specs:
@@ -386,7 +393,6 @@ DEPENDENCIES
   capybara
   debug
   dotenv-rails
-  ed25519 (~> 1.3)
   error_highlight (>= 0.4.0)
   geocoder
   importmap-rails
@@ -399,6 +405,7 @@ DEPENDENCIES
   rails (~> 7.2.2, >= 7.2.2.1)
   rubocop-rails-omakase
   selenium-webdriver
+  solana_studio!
   sprockets-rails
   stimulus-rails
   studio!
