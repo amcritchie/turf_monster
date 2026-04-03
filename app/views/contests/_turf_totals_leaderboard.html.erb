@@ -34,32 +34,11 @@
         <span class="px-2 py-0.5 rounded bg-surface-alt text-secondary font-mono text-xs"><%= rank.ordinalize %> — <%= dollars(cents / 100.0) %></span>
       <% end %>
     </div>
-    <% unless @contest.onchain? %>
-      <script>
-        function submitOnchain() {
-          Alpine.store('solanaModal').show('Creating Contest', 'Submitting contest to Solana...');
-          fetch('<%== create_onchain_contest_path(@contest) %>', {
-            method: 'POST',
-            headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
-          }).then(r => r.json()).then(data => {
-            if (data.success) {
-              Alpine.store('solanaModal').success(data.tx, 'Contest created onchain');
-              refreshBalanceDelayed();
-            } else {
-              Alpine.store('solanaModal').error(data.error);
-            }
-          }).catch(e => { Alpine.store('solanaModal').error(e.message); });
-        }
-      </script>
+    <% if @contest.onchain? %>
+      <div class="mt-3">
+        <%= render "contests/onchain_contest" %>
+      </div>
     <% end %>
-    <div x-data="{ onchain: <%= @contest.onchain? %> }"
-         x-init="<% unless @contest.onchain? %><% if current_user&.admin? %>submitOnchain()<% end %><% end %>">
-      <template x-if="onchain">
-        <div class="mt-3">
-          <%= render "contests/onchain_contest" if @contest.onchain? %>
-        </div>
-      </template>
-    </div>
   </div>
 </section>
 

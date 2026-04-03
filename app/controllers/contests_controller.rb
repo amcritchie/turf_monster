@@ -40,10 +40,17 @@ class ContestsController < ApplicationController
 
     rescue_and_log(target: @contest) do
       @contest.save!
-      redirect_to @contest, notice: "Contest created! Submit onchain transaction from the contest page."
+
+      respond_to do |format|
+        format.html { redirect_to @contest, notice: "Contest created!" }
+        format.json { render json: { success: true, slug: @contest.slug } }
+      end
     end
   rescue StandardError => e
-    render :new, status: :unprocessable_entity
+    respond_to do |format|
+      format.html { render :new, status: :unprocessable_entity }
+      format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
+    end
   end
 
   def create_onchain
