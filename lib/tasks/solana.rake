@@ -131,6 +131,59 @@ namespace :solana do
     end
   end
 
+  desc "Mint test USDC to admin wallet (Devnet only)"
+  task mint_usdc: :environment do
+    amount_dollars = (ENV["AMOUNT"] || "100").to_f
+    amount_lamports = Solana::Config.dollars_to_lamports(amount_dollars)
+
+    vault = Solana::Vault.new
+    admin = Solana::Keypair.admin
+
+    puts "Minting #{amount_dollars} USDC to admin (#{admin.to_base58})..."
+
+    # Ensure admin ATA exists
+    ata_result = vault.ensure_ata(admin.to_base58, mint: Solana::Config::USDC_MINT)
+    if ata_result[:created]
+      puts "  Created admin USDC ATA: #{ata_result[:ata]} (tx: #{ata_result[:signature]})"
+    else
+      puts "  Admin USDC ATA exists: #{ata_result[:ata]}"
+    end
+
+    # Mint tokens
+    result = vault.mint_spl(amount_lamports, mint: Solana::Config::USDC_MINT)
+    puts "  Minted #{amount_dollars} USDC"
+    puts "  Signature: #{result[:signature]}"
+    puts "  Destination: #{result[:destination]}"
+  end
+
+  desc "Show admin SOL + SPL token balances"
+  task check_admin_balance: :environment do
+    vault = Solana::Vault.new
+    admin = Solana::Keypair.admin
+
+    puts "Admin wallet: #{admin.to_base58}"
+    puts ""
+
+    balances = vault.fetch_wallet_balances(admin.to_base58)
+
+    puts "SOL:  #{balances[:sol]}"
+    puts "USDC: #{balances[:usdc]}" if balances[:usdc]
+    puts "USDT: #{balances[:usdt]}" if balances[:usdt]
+
+    if balances[:tokens].any?
+      puts ""
+      puts "All token accounts:"
+      balances[:tokens].each do |mint, amount|
+        label = case mint
+                when Solana::Config::USDC_MINT then " (USDC)"
+                when Solana::Config::USDT_MINT then " (USDT)"
+                else ""
+                end
+        puts "  #{mint}#{label}: #{amount}"
+      end
+    end
+  end
+
   desc "Test key encryption roundtrip"
   task test_encryption: :environment do
     keypair = Solana::Keypair.generate

@@ -40,6 +40,62 @@ module Solana
       Transaction.find_pda([b("entry"), contest_id, wallet_bytes, entry_num_bytes], @program_id)
     end
 
+    # --- ATA helpers ---
+
+    def admin_usdc_ata
+      admin = Keypair.admin
+      Solana::SplToken.find_associated_token_address(admin.public_key_bytes, Config::USDC_MINT)
+    end
+
+    # Ensure an ATA exists for wallet + mint. Creates it if missing.
+    # Returns { ata: base58, created: bool, signature: string|nil }
+    def ensure_ata(wallet_address, mint:)
+      ata_bytes, _ = Solana::SplToken.find_associated_token_address(wallet_address, mint)
+      ata_base58 = Keypair.encode_base58(ata_bytes)
+
+      info = client.get_account_info(ata_base58)
+      if info&.dig("value")
+        return { ata: ata_base58, created: false, signature: nil }
+      end
+
+      admin = Keypair.admin
+      create_ix = Solana::SplToken.create_associated_token_account_instruction(
+        payer: admin.public_key_bytes,
+        wallet: wallet_address,
+        mint: mint
+      )
+
+      tx = build_tx(admin)
+      tx.add_instruction(**create_ix)
+      signature = client.send_and_confirm(tx.serialize_base64)
+
+      { ata: ata_base58, created: true, signature: signature }
+    end
+
+    # Mint SPL tokens (admin must be mint authority). Defaults to admin's ATA.
+    def mint_spl(amount_lamports, mint:, to: nil)
+      admin = Keypair.admin
+
+      if to
+        dest_bytes, _ = Solana::SplToken.find_associated_token_address(to, mint)
+      else
+        dest_bytes, _ = admin_usdc_ata
+      end
+
+      mint_ix = Solana::SplToken.mint_to_instruction(
+        mint: mint,
+        destination: dest_bytes,
+        authority: admin.public_key_bytes,
+        amount: amount_lamports
+      )
+
+      tx = build_tx(admin)
+      tx.add_instruction(**mint_ix)
+      signature = client.send_and_confirm(tx.serialize_base64)
+
+      { signature: signature, amount: amount_lamports, destination: Keypair.encode_base58(dest_bytes) }
+    end
+
     # --- High-level operations ---
 
     # Initialize the vault (run once after program deploy)
@@ -188,6 +244,17 @@ module Solana
         data: data
       )
 
+      # Atomic SPL transfer: move USDC from admin ATA to vault token account
+      if bonus > 0
+        admin_ata, _ = admin_usdc_ata
+        vault_usdc, _ = vault_usdc_pda
+        transfer_ix = Solana::SplToken.transfer_instruction(
+          from: admin_ata, to: vault_usdc,
+          authority: admin.public_key_bytes, amount: bonus
+        )
+        tx.add_instruction(**transfer_ix)
+      end
+
       signature = client.send_and_confirm(tx.serialize_base64)
       { signature: signature, pda: Keypair.encode_base58(contest_pda_addr) }
     end
@@ -263,6 +330,47 @@ module Solana
 
       signature = client.send_and_confirm(tx.serialize_base64)
       { signature: signature }
+    end
+
+    # Read onchain Contest account
+    def read_contest(contest_slug)
+      pda, _ = contest_pda(contest_slug)
+      pda_base58 = Keypair.encode_base58(pda)
+
+      info = client.get_account_info(pda_base58)
+      return nil unless info&.dig("value")
+
+      data = Base64.decode64(info["value"]["data"][0])
+      offset = 8 # skip Anchor discriminator
+
+      _contest_id, offset = Borsh.decode_pubkey(data, offset) # [u8; 32] same size as pubkey
+      entry_fee, offset = Borsh.decode_u64(data, offset)
+      max_entries, offset = Borsh.decode_u32(data, offset)
+      current_entries, offset = Borsh.decode_u32(data, offset)
+      prize_pool, offset = Borsh.decode_u64(data, offset)
+      bonus, offset = Borsh.decode_u64(data, offset)
+      status_byte, offset = Borsh.decode_u8(data, offset)
+      # Vec<u16> payout_bps
+      vec_len, offset = Borsh.decode_u32(data, offset)
+      payout_bps = vec_len.times.map { |_| v, offset = Borsh.decode_u16(data, offset); v }
+      admin_bytes, offset = Borsh.decode_pubkey(data, offset)
+
+      status_name = %w[Open Locked Settled][status_byte] || "Unknown"
+
+      {
+        pda: pda_base58,
+        entry_fee: entry_fee,
+        entry_fee_dollars: Config.lamports_to_dollars(entry_fee),
+        max_entries: max_entries,
+        current_entries: current_entries,
+        prize_pool: prize_pool,
+        prize_pool_dollars: Config.lamports_to_dollars(prize_pool),
+        bonus: bonus,
+        bonus_dollars: Config.lamports_to_dollars(bonus),
+        status: status_name,
+        payout_bps: payout_bps,
+        admin: Keypair.encode_base58(admin_bytes)
+      }
     end
 
     # Read onchain UserAccount balance
