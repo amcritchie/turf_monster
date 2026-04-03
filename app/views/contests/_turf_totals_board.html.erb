@@ -327,6 +327,9 @@
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
       userBalanceCents: <%= current_user&.total_balance_cents || 0 %>,
       entryFeeCents: <%= @contest.entry_fee_cents || 0 %>,
+      phantomWallet: <%= current_user&.phantom_wallet? ? 'true' : 'false' %>,
+      contestOnchain: <%= @contest.onchain? ? 'true' : 'false' %>,
+      contestName: '<%== j(@contest.name) %>',
       picksRequired: <%= @contest.picks_required %>,
       sortMode: 'game',
       sortDir: 'asc',
@@ -523,12 +526,36 @@
         this.submitting = true;
 
         try {
+          // For Phantom wallet users, require signature before entry
+          let bodyData = {};
+          if (this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana) {
+            const provider = window.phantom.solana;
+            Alpine.store('solanaModal').show('Sign Entry', 'Approve in your Phantom wallet...');
+
+            const resp = await provider.connect();
+            const pubkeyB58 = resp.publicKey.toBase58();
+
+            const nonceResp = await fetch('/auth/solana/nonce');
+            const { nonce } = await nonceResp.json();
+
+            const domain = window.location.host;
+            const message = `${domain} wants you to sign in with your Solana account:\n${pubkeyB58}\n\nEnter contest: ${this.contestName}\n\nNonce: ${nonce}`;
+            const encoded = new TextEncoder().encode(message);
+            const signed = await provider.signMessage(encoded, 'utf8');
+            const signatureB58 = encodeBase58(signed.signature);
+
+            bodyData = { message, signature: signatureB58, pubkey: pubkeyB58 };
+            Alpine.store('solanaModal').show('Submitting Entry', 'Recording entry onchain...');
+          }
+
+          const hasBody = Object.keys(bodyData).length > 0;
           const response = await fetch(`/contests/${this.contestId}/enter`, {
             method: 'POST',
-            headers: {
-              'X-CSRF-Token': this.csrfToken,
-              'Accept': 'application/json'
-            }
+            headers: Object.assign(
+              { 'X-CSRF-Token': this.csrfToken, 'Accept': 'application/json' },
+              hasBody ? { 'Content-Type': 'application/json' } : {}
+            ),
+            body: hasBody ? JSON.stringify(bodyData) : undefined
           });
 
           const data = await response.json();
@@ -536,18 +563,27 @@
           if (data.success) {
             this.userBalanceCents -= this.entryFeeCents;
             if (data.tx_signature) {
-              Alpine.store('solanaModal').show('Entry Confirmed', 'Your entry has been recorded onchain.');
-              Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted successfully');
+              Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted onchain');
+              refreshBalanceDelayed();
               Alpine.store('solanaModal').onClose = () => { window.location.href = data.redirect || '/'; };
             } else {
+              if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
               window.location.href = data.redirect || '/';
             }
           } else {
-            this.showError(data.error || 'Something went wrong');
+            if (Alpine.store('solanaModal').visible) {
+              Alpine.store('solanaModal').error(data.error || 'Something went wrong');
+            } else {
+              this.showError(data.error || 'Something went wrong');
+            }
             this.submitting = false;
           }
         } catch (err) {
-          this.showError('Network error. Please try again.');
+          if (Alpine.store('solanaModal').visible) {
+            Alpine.store('solanaModal').error(err.message || 'Failed to sign entry');
+          } else {
+            this.showError('Network error. Please try again.');
+          }
           this.submitting = false;
         }
       },

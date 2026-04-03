@@ -81,7 +81,17 @@
             if (onchain.success) {
               Alpine.store('solanaModal').success(onchain.tx, 'Contest created onchain');
               refreshBalanceDelayed();
-              setTimeout(function() { window.location.href = '/contests/' + data.slug; }, 3000);
+              var countdown = 3;
+              Alpine.store('solanaModal').message = 'Redirecting in ' + countdown + 's...';
+              var timer = setInterval(function() {
+                countdown--;
+                if (countdown <= 0) {
+                  clearInterval(timer);
+                  window.location.href = '/contests/' + data.slug;
+                } else {
+                  Alpine.store('solanaModal').message = 'Redirecting in ' + countdown + 's...';
+                }
+              }, 1000);
             } else {
               Alpine.store('solanaModal').error(onchain.error || 'Onchain submission failed');
               Alpine.store('solanaModal').onClose = function() {

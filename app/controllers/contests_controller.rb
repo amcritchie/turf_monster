@@ -1,4 +1,6 @@
 class ContestsController < ApplicationController
+  include Solana::AuthVerifier
+
   skip_before_action :require_authentication, only: [:index, :show, :my]
   before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry]
   before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry]
@@ -112,6 +114,20 @@ class ContestsController < ApplicationController
   def enter
     entry = @contest.entries.cart.find_by(user: current_user)
     return redirect_to root_path, alert: "No cart entry found" unless entry
+
+    # Verify Phantom wallet signature for Web3 users entering onchain contests
+    if @contest.onchain? && current_user.phantom_wallet?
+      if params[:signature].present?
+        verify_solana_signature!(
+          message: params[:message],
+          signature_b58: params[:signature],
+          pubkey_b58: params[:pubkey],
+          session: session
+        )
+      else
+        raise "Wallet signature required to enter contest"
+      end
+    end
 
     rescue_and_log(target: entry, parent: @contest) do
       active_count = @contest.entries.where(status: [:active, :complete]).count
