@@ -5,10 +5,10 @@ alex = User.find_or_create_by!(email: "alex@mcritchie.studio") do |u|
   u.name = "Alex McRitchie"
   u.balance_cents = 100_000
   u.password = "password"
-  u.admin = true
+  u.role = "admin"
 end
 alex.update!(password: "password") if alex.password_digest.blank?
-alex.update!(admin: true) unless alex.admin?
+alex.update!(role: "admin") unless alex.admin?
 
 mason = User.find_or_create_by!(email: "mason@mcritchie.studio") do |u|
   u.name = "Mason McRitchie"

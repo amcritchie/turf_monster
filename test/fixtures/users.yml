@@ -3,6 +3,7 @@ alex:
   email: alex@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>
+  role: admin
 
 jordan:
   name: Jordan

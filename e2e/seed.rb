@@ -23,7 +23,7 @@ alex = User.create!(
   password: "password",
   password_confirmation: "password",
   balance_cents: 100_000,
-  admin: true
+  role: "admin"
 )
 
 sam = User.create!(
