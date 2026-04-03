@@ -418,12 +418,14 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 
 ### Anchor Program (`turf_vault/`)
 
-Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest.
+Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
 
-**Deployment status**: Deployed to devnet. Vault initialized with test SPL mints.
+**Deployment status**: v0.2.0 deployed to devnet. Vault initialized with dual admin + test SPL mints.
 - Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
 - Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
-- Admin keypair: `9Fy8P3DvKBh3awt1wr27g4CDh47oDqmJR2FAAQ1bc69D`
+- Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
+- Admin (backup): Alex Human — `7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr`
+- IDL Account: `DCP2XRu8ZwzsCpXBgu5xa4vTYdYQhKUZRU49iJuFv8Lf`
 - USDC Mint: `222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9`
 - USDT Mint: `9mxkN8KaVA8FFgDE2LEsn2UbYLPG8Xg9bf4V9MYYi8Ne`
 
