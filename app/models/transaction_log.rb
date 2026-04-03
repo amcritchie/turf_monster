@@ -1,6 +1,4 @@
 class TransactionLog < ApplicationRecord
-  include Sluggable
-
   after_create :update_slug_with_id
 
   belongs_to :user
@@ -61,6 +59,10 @@ class TransactionLog < ApplicationRecord
   end
 
   public
+
+  def to_param
+    slug
+  end
 
   def name_slug
     "txn-#{id}"

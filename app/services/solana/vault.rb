@@ -208,39 +208,6 @@ module Solana
       client.send_and_confirm(tx.serialize_base64)
     end
 
-    # Returns unsigned transaction bytes for Phantom user to sign
-    def deposit_unsigned(wallet_address, amount_lamports, user_token_account:, mint: :usdc)
-      user_pda, _ = user_account_pda(wallet_address)
-      vault_pda, _ = vault_state_pda
-      vault_token_pda, _ = mint == :usdc ? vault_usdc_pda : vault_usdt_pda
-      mint_pubkey = mint == :usdc ? Config::USDC_MINT : Config::USDT_MINT
-      wallet_bytes = Keypair.decode_base58(wallet_address)
-
-      data = Transaction.anchor_discriminator("deposit") +
-             Borsh.encode_u64(amount_lamports)
-
-      blockhash = client.get_latest_blockhash
-      tx = Transaction.new
-      tx.set_recent_blockhash(blockhash)
-      # Phantom user is fee payer — we add a placeholder signer
-      tx.add_instruction(
-        program_id: @program_id,
-        accounts: [
-          { pubkey: wallet_bytes, is_signer: true, is_writable: true },
-          { pubkey: user_pda, is_signer: false, is_writable: true },
-          { pubkey: vault_pda, is_signer: false, is_writable: false },
-          { pubkey: Keypair.decode_base58(mint_pubkey), is_signer: false, is_writable: false },
-          { pubkey: Keypair.decode_base58(user_token_account), is_signer: false, is_writable: true },
-          { pubkey: vault_token_pda, is_signer: false, is_writable: true },
-          { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false }
-        ],
-        data: data
-      )
-
-      # Return serialized message (not signed) for frontend
-      { blockhash: blockhash, message: tx }
-    end
-
     # Create contest onchain (admin signs)
     def create_contest(contest_slug, entry_fee:, max_entries:, payout_amounts:, bonus:)
       admin = Keypair.admin

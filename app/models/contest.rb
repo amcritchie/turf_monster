@@ -277,7 +277,7 @@ class Contest < ApplicationRecord
     result = vault.settle_contest(slug, winners)
     update!(onchain_settled: true)
   rescue => e
-    Rails.logger.error "Onchain settlement failed: #{e.message}"
+    ErrorLog.capture!(e)
     # Don't block DB settlement — onchain can be retried
   end
 

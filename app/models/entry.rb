@@ -1,6 +1,4 @@
 class Entry < ApplicationRecord
-  include Sluggable
-
   after_create :update_slug_with_id
 
   belongs_to :user
@@ -91,12 +89,16 @@ class Entry < ApplicationRecord
       onchain_tx_signature: result[:signature]
     )
   rescue => e
-    Rails.logger.error "Onchain entry failed: #{e.message}"
+    ErrorLog.capture!(e)
     # Don't block DB entry — onchain can be retried
   end
 
   def onchain?
     onchain_entry_id.present?
+  end
+
+  def to_param
+    slug
   end
 
   def name_slug
