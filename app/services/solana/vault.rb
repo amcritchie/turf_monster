@@ -177,6 +177,15 @@ module Solana
       { signature: signature }
     end
 
+    # Ensure user's onchain account exists, create if needed
+    def ensure_user_account(wallet_address)
+      user_pda, _ = user_account_pda(wallet_address)
+      info = client.get_account_info(Keypair.encode_base58(user_pda))
+      return if info && info.dig("value")
+
+      create_user_account(wallet_address)
+    end
+
     # Create a UserAccount PDA for a wallet (admin pays rent)
     def create_user_account(wallet_address)
       admin = Keypair.admin

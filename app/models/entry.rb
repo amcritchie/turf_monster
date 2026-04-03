@@ -83,6 +83,10 @@ class Entry < ApplicationRecord
     save! if entry_number_changed?
 
     vault = Solana::Vault.new
+
+    # Ensure user's onchain account exists before entering
+    vault.ensure_user_account(user.solana_address)
+
     result = vault.enter_contest(user.solana_address, contest.slug, entry_number)
     update!(
       onchain_entry_id: result[:entry_pda],

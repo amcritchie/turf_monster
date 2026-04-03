@@ -81,9 +81,7 @@
             if (onchain.success) {
               Alpine.store('solanaModal').success(onchain.tx, 'Contest created onchain');
               refreshBalanceDelayed();
-              Alpine.store('solanaModal').onClose = function() {
-                window.location.href = '/contests/' + data.slug;
-              };
+              setTimeout(function() { window.location.href = '/contests/' + data.slug; }, 3000);
             } else {
               Alpine.store('solanaModal').error(onchain.error || 'Onchain submission failed');
               Alpine.store('solanaModal').onClose = function() {

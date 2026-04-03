@@ -18,7 +18,7 @@
             .catch(() => {});
         }
         function refreshBalanceDelayed(ms) {
-          var delay = ms || 5000;
+          var delay = ms || 8000;
           var btns = document.querySelectorAll('[data-balance-refresh]');
           btns.forEach(function(btn) { btn.querySelector('svg').style.animation = 'spin 1.5s linear infinite'; });
           setTimeout(function() {
