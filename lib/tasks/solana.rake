@@ -22,13 +22,18 @@ namespace :solana do
     usdt_pda, usdt_bump = vault.vault_usdt_pda
     puts "  vault_usdt:  #{Solana::Keypair.encode_base58(usdt_pda)} (bump: #{usdt_bump})"
 
-    puts "\nTo initialize the vault, deploy the program and run this task again with INIT=true"
+    puts "\nMints:"
+    puts "  USDC: #{Solana::Config::USDC_MINT}"
+    puts "  USDT: #{Solana::Config::USDT_MINT}"
 
     if ENV["INIT"] == "true"
       puts "\nInitializing vault..."
-      # This would require the vault to not already be initialized
-      # Actual initialization needs the mint addresses configured
-      puts "Set SOLANA_USDC_MINT and SOLANA_USDT_MINT first!"
+      result = vault.initialize_vault
+      puts "Vault initialized!"
+      puts "  Signature: #{result[:signature]}"
+      puts "  Vault PDA: #{result[:vault_pda]}"
+    else
+      puts "\nTo initialize, run: bin/rails solana:init_vault INIT=true"
     end
   end
 

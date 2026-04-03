@@ -42,6 +42,38 @@ module Solana
 
     # --- High-level operations ---
 
+    # Initialize the vault (run once after program deploy)
+    def initialize_vault
+      admin = Keypair.admin
+      vault_pda, _ = vault_state_pda
+      usdc_mint = Keypair.decode_base58(Config::USDC_MINT)
+      usdt_mint = Keypair.decode_base58(Config::USDT_MINT)
+      vault_usdc, _ = vault_usdc_pda
+      vault_usdt, _ = vault_usdt_pda
+
+      data = Transaction.anchor_discriminator("initialize")
+
+      tx = build_tx(admin)
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: vault_pda, is_signer: false, is_writable: true },
+          { pubkey: usdc_mint, is_signer: false, is_writable: false },
+          { pubkey: usdt_mint, is_signer: false, is_writable: false },
+          { pubkey: vault_usdc, is_signer: false, is_writable: true },
+          { pubkey: vault_usdt, is_signer: false, is_writable: true },
+          { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false },
+          { pubkey: Transaction::SYSTEM_PROGRAM_ID, is_signer: false, is_writable: false },
+          { pubkey: Transaction::SYSVAR_RENT_PUBKEY, is_signer: false, is_writable: false }
+        ],
+        data: data
+      )
+
+      signature = client.send_and_confirm(tx.serialize_base64)
+      { signature: signature, vault_pda: Keypair.encode_base58(vault_pda) }
+    end
+
     # Create a UserAccount PDA for a wallet (admin pays rent)
     def create_user_account(wallet_address)
       admin = Keypair.admin

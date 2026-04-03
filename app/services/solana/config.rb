@@ -4,9 +4,9 @@ module Solana
     RPC_URL = ENV.fetch("SOLANA_RPC_URL", "https://api.devnet.solana.com")
     NETWORK = ENV.fetch("SOLANA_NETWORK", "devnet")
 
-    # Devnet test mints — set real ones for mainnet
-    USDC_MINT = ENV.fetch("SOLANA_USDC_MINT", "DLPD3w1M54GVJvjWZPtZb6hY9gKrmqVzhTxVyZaHKKNC")
-    USDT_MINT = ENV.fetch("SOLANA_USDT_MINT", "CV1pRnXYJZYNQGWy4fDVFPPTvMBe6oXngvkJa8a59MfT")
+    # Devnet test mints (created via spl-token create-token --decimals 6)
+    USDC_MINT = ENV.fetch("SOLANA_USDC_MINT", "222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9")
+    USDT_MINT = ENV.fetch("SOLANA_USDT_MINT", "9mxkN8KaVA8FFgDE2LEsn2UbYLPG8Xg9bf4V9MYYi8Ne")
 
     # Admin keypair path for signing settlement transactions
     ADMIN_KEYPAIR_PATH = ENV.fetch("SOLANA_ADMIN_KEYPAIR", File.expand_path("~/.config/solana/id.json"))
