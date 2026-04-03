@@ -1,0 +1,15 @@
+past_game:
+  slug: past-game
+  home_team_slug: team-a
+  away_team_slug: team-b
+  kickoff_at: 2020-01-01 12:00:00
+  status: completed
+  venue: Test Stadium
+
+future_game:
+  slug: future-game
+  home_team_slug: team-c
+  away_team_slug: team-d
+  kickoff_at: 2030-06-15 18:00:00
+  status: scheduled
+  venue: Test Stadium

@@ -162,7 +162,10 @@
                 </div>
               </td>
               <td class="px-4 py-3 font-medium <%= paid ? 'text-heading' : (@contest.settled? ? 'text-muted' : 'text-heading') %>">
-                <%= entry.user.display_name %>
+                <div class="flex items-center gap-2">
+                  <%= render "shared/avatar", user: entry.user, size: "sm" %>
+                  <span><%= entry.user.display_name %></span>
+                </div>
                 <% if entry.onchain_tx_signature.present? %>
                   <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
                      target="_blank" class="inline-block ml-1 text-xs text-muted hover:text-primary transition" title="Verified onchain">
