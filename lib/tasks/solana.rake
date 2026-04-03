@@ -27,13 +27,27 @@ namespace :solana do
     puts "  USDT: #{Solana::Config::USDT_MINT}"
 
     if ENV["INIT"] == "true"
+      admin_backup = ENV["ADMIN_BACKUP"]
+      unless admin_backup
+        puts "\nERROR: ADMIN_BACKUP env var required (base58 backup admin address)"
+        puts "Usage: bin/rails solana:init_vault INIT=true ADMIN_BACKUP=<base58_address>"
+        exit 1
+      end
+
       puts "\nInitializing vault..."
-      result = vault.initialize_vault
+      puts "  Admin backup: #{admin_backup}"
+      result = vault.initialize_vault(admin_backup_address: admin_backup)
       puts "Vault initialized!"
       puts "  Signature: #{result[:signature]}"
       puts "  Vault PDA: #{result[:vault_pda]}"
+    elsif ENV["FORCE_CLOSE"] == "true"
+      puts "\nForce-closing vault (migration)..."
+      result = vault.force_close_vault
+      puts "Vault force-closed!"
+      puts "  Signature: #{result[:signature]}"
     else
-      puts "\nTo initialize, run: bin/rails solana:init_vault INIT=true"
+      puts "\nTo initialize, run: bin/rails solana:init_vault INIT=true ADMIN_BACKUP=<base58_address>"
+      puts "To force-close (migration), run: bin/rails solana:init_vault FORCE_CLOSE=true"
     end
   end
 

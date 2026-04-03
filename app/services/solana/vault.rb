@@ -122,15 +122,18 @@ module Solana
     # --- High-level operations ---
 
     # Initialize the vault (run once after program deploy)
-    def initialize_vault
+    # admin_backup_address: base58 string of the backup admin pubkey
+    def initialize_vault(admin_backup_address:)
       admin = Keypair.admin
       vault_pda, _ = vault_state_pda
       usdc_mint = Keypair.decode_base58(Config::USDC_MINT)
       usdt_mint = Keypair.decode_base58(Config::USDT_MINT)
       vault_usdc, _ = vault_usdc_pda
       vault_usdt, _ = vault_usdt_pda
+      admin_backup_bytes = Keypair.decode_base58(admin_backup_address)
 
-      data = Transaction.anchor_discriminator("initialize")
+      data = Transaction.anchor_discriminator("initialize") +
+             Borsh.encode_pubkey(admin_backup_bytes)
 
       tx = build_tx(admin)
       tx.add_instruction(
@@ -151,6 +154,27 @@ module Solana
 
       signature = client.send_and_confirm(tx.serialize_base64)
       { signature: signature, vault_pda: Keypair.encode_base58(vault_pda) }
+    end
+
+    # Force-close the vault account (migration only — closes old-schema vault)
+    def force_close_vault
+      admin = Keypair.admin
+      vault_pda, _ = vault_state_pda
+
+      data = Transaction.anchor_discriminator("force_close_vault")
+
+      tx = build_tx(admin)
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: vault_pda, is_signer: false, is_writable: true }
+        ],
+        data: data
+      )
+
+      signature = client.send_and_confirm(tx.serialize_base64)
+      { signature: signature }
     end
 
     # Create a UserAccount PDA for a wallet (admin pays rent)
