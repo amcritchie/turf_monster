@@ -30,7 +30,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :contests, only: [:index, :show] do
+  resources :contests, only: [:index, :show, :new, :create] do
     collection do
       get :my
     end
@@ -43,6 +43,8 @@ Rails.application.routes.draw do
       post :lock
       post :jump
       post :simulate_game
+      post :simulate_batch
+      post :create_onchain
       post :reset
     end
   end

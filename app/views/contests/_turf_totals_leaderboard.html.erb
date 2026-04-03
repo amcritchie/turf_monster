@@ -38,6 +38,13 @@
           <span class="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary-700/30">Settled</span>
         <% end %>
       </div>
+      <% if @contest.onchain_tx_signature.present? %>
+        <div class="mt-1 flex items-center gap-2 text-xs text-muted">
+          <span>TX:</span>
+          <a href="https://explorer.solana.com/tx/<%= @contest.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
+             target="_blank" class="font-mono hover:text-primary transition truncate max-w-xs"><%= @contest.onchain_tx_signature %></a>
+        </div>
+      <% end %>
     <% end %>
   </div>
 </section>
@@ -61,10 +68,19 @@
         <%= button_to "Simulate: #{next_game.team.name} vs #{next_game.opponent_team&.name}",
           simulate_game_contest_path(@contest), method: :post,
           class: "btn btn-primary btn-lg" %>
+        <%= button_to "Simulate 5", simulate_batch_contest_path(@contest, count: 5), method: :post,
+          class: "btn btn-outline btn-lg" %>
+        <%= button_to "Simulate 20", simulate_batch_contest_path(@contest, count: 20), method: :post,
+          class: "btn btn-outline btn-lg" %>
       <% end %>
 
       <%= button_to "Jump (Simulate All)", jump_contest_path(@contest), method: :post,
         class: "btn btn-primary btn-lg" %>
+
+      <% unless @contest.onchain? %>
+        <%= button_to "Create Onchain", create_onchain_contest_path(@contest), method: :post,
+          class: "btn btn-outline btn-lg" %>
+      <% end %>
 
       <%= link_to "Rank Matchups", slate_path(@contest.slate),
         class: "px-6 py-2 bg-surface-alt hover:bg-surface-alt/80 text-heading font-bold rounded-xl shadow transition inline-flex items-center" %>

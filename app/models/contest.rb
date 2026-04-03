@@ -162,6 +162,16 @@ class Contest < ApplicationRecord
     end
   end
 
+  def simulate_games!(count)
+    simulated = 0
+    count.times do
+      break if matchups.pending.includes(:game).none? { |m| m.game.present? }
+      simulate_next_game!
+      simulated += 1
+    end
+    simulated
+  end
+
   def simulate_next_game!
     raise "Contest is already settled" if settled?
 

@@ -1,0 +1,48 @@
+<div class="max-w-lg mx-auto py-8">
+  <h1 class="text-2xl font-bold text-heading mb-6">New Contest</h1>
+
+  <div class="card shadow p-8">
+    <% if @contest.errors.any? %>
+      <div class="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">
+        <% @contest.errors.full_messages.each do |msg| %>
+          <p><%= msg %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%= form_with model: @contest, url: contests_path, method: :post do |f| %>
+      <div class="mb-5">
+        <label for="contest_name" class="block text-sm text-secondary mb-2 font-medium">Name</label>
+        <%= f.text_field :name, id: "contest_name", autofocus: true,
+          class: "input-field", placeholder: "World Cup Group A" %>
+      </div>
+
+      <div class="mb-5">
+        <label for="contest_slate_id" class="block text-sm text-secondary mb-2 font-medium">Slate</label>
+        <%= f.collection_select :slate_id, Slate.where.not(name: "Default").where.not(starts_at: nil).order(:starts_at), :id, :name,
+          { prompt: "Select a slate..." },
+          { id: "contest_slate_id", class: "input-field" } %>
+      </div>
+
+      <div class="mb-5">
+        <label for="contest_entry_fee" class="block text-sm text-secondary mb-2 font-medium">Entry Fee ($)</label>
+        <%= f.number_field :entry_fee_dollars_input, id: "contest_entry_fee",
+          class: "input-field", placeholder: "10.00", step: "0.01", min: "0",
+          value: @contest.entry_fee_cents.to_i > 0 ? @contest.entry_fee_cents / 100.0 : nil %>
+      </div>
+
+      <div class="mb-6">
+        <label for="contest_max_entries" class="block text-sm text-secondary mb-2 font-medium">Max Entries</label>
+        <%= f.number_field :max_entries, id: "contest_max_entries",
+          class: "input-field", placeholder: "15", min: "2",
+          value: @contest.max_entries || 15 %>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg w-full">Create Contest</button>
+    <% end %>
+  </div>
+
+  <p class="text-center text-secondary text-sm mt-4">
+    <%= link_to "Back to contests", root_path, class: "text-primary hover:text-primary-300 font-medium underline underline-offset-2" %>
+  </p>
+</div>

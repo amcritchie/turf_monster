@@ -1,7 +1,7 @@
 class ContestsController < ApplicationController
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :reset]
-  before_action :require_admin, only: [:grade, :fill, :lock, :jump, :simulate_game, :reset]
+  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain]
+  before_action :require_admin, only: [:new, :create, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter]
 
   def index
@@ -20,6 +20,23 @@ class ContestsController < ApplicationController
     else
       @my_entries = {}
     end
+  end
+
+  def new
+    @contest = Contest.new(max_entries: 15)
+  end
+
+  def create
+    @contest = Contest.new(contest_params)
+    @contest.entry_fee_cents = (params.dig(:contest, :entry_fee_dollars_input).to_f * 100).to_i
+    @contest.status = :open
+
+    rescue_and_log(target: @contest) do
+      @contest.save!
+      redirect_to @contest, notice: "Contest created!"
+    end
+  rescue StandardError => e
+    render :new, status: :unprocessable_entity
   end
 
   def show
@@ -154,6 +171,27 @@ class ContestsController < ApplicationController
     redirect_to root_path, alert: e.message
   end
 
+  def create_onchain
+    rescue_and_log(target: @contest) do
+      @contest.create_onchain!
+      redirect_to @contest, notice: "Contest created onchain! TX: #{@contest.onchain_tx_signature}"
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: "Onchain creation failed: #{e.message}"
+  end
+
+  def simulate_batch
+    count = params[:count].to_i
+    count = 5 if count <= 0
+
+    rescue_and_log(target: @contest) do
+      simulated = @contest.simulate_games!(count)
+      redirect_to @contest, notice: "Simulated #{simulated} game(s)."
+    end
+  rescue StandardError => e
+    redirect_to @contest || root_path, alert: e.message
+  end
+
   private
 
   def set_contest
@@ -164,5 +202,9 @@ class ContestsController < ApplicationController
       format.html { redirect_to root_path, alert: "Contest not found" }
       format.json { render json: { error: "Contest not found" }, status: :not_found }
     end
+  end
+
+  def contest_params
+    params.require(:contest).permit(:name, :slate_id, :max_entries)
   end
 end
