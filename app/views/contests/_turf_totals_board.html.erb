@@ -535,7 +535,13 @@
 
           if (data.success) {
             this.userBalanceCents -= this.entryFeeCents;
-            window.location.href = data.redirect || '/';
+            if (data.tx_signature) {
+              Alpine.store('solanaModal').show('Entry Confirmed', 'Your entry has been recorded onchain.');
+              Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted successfully');
+              Alpine.store('solanaModal').onClose = () => { window.location.href = data.redirect || '/'; };
+            } else {
+              window.location.href = data.redirect || '/';
+            }
           } else {
             this.showError(data.error || 'Something went wrong');
             this.submitting = false;

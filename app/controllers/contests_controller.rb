@@ -114,7 +114,13 @@ class ContestsController < ApplicationController
 
       respond_to do |format|
         format.html { redirect_to @contest, notice: "#{current_user.display_name} entered the contest!" }
-        format.json { render json: { success: true, redirect: contest_path(@contest) } }
+        format.json {
+          render json: {
+            success: true,
+            redirect: contest_path(@contest),
+            tx_signature: entry.onchain_tx_signature
+          }
+        }
       end
     end
   rescue StandardError => e
@@ -179,10 +185,23 @@ class ContestsController < ApplicationController
   def grade
     rescue_and_log(target: @contest) do
       @contest.grade!
-      redirect_to @contest, notice: "Contest graded and settled!"
+
+      respond_to do |format|
+        format.html { redirect_to @contest, notice: "Contest graded and settled!" }
+        format.json {
+          render json: {
+            success: true,
+            redirect: contest_path(@contest),
+            tx_signature: @contest.onchain_tx_signature
+          }
+        }
+      end
     end
   rescue StandardError => e
-    redirect_to @contest || root_path, alert: e.message
+    respond_to do |format|
+      format.html { redirect_to @contest || root_path, alert: e.message }
+      format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
+    end
   end
 
   def fill
