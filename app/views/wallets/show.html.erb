@@ -117,14 +117,22 @@
   <%# -- Devnet Faucet -- %>
   <% if Solana::Config.devnet? %>
     <div class="card shadow p-6 mb-6 border border-yellow-600/30">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-bold text-heading mb-1">Devnet Faucet</h2>
-          <p class="text-sm text-muted">Add $10.00 test USDC to your balance for testing.</p>
+      <h2 class="text-lg font-bold text-heading mb-3">Devnet Faucet</h2>
+      <% if @sol_balance %>
+        <div class="mb-3 flex items-center gap-2 text-sm">
+          <span class="text-secondary">SOL Balance:</span>
+          <span class="font-mono font-bold text-heading"><%= sprintf('%.4f', @sol_balance) %> SOL</span>
         </div>
-        <%= button_to "Get Test USDC", faucet_wallet_path, method: :post,
+      <% end %>
+      <div class="flex flex-wrap gap-3">
+        <%= button_to "Get Test USDC ($10)", faucet_wallet_path, method: :post,
           class: "btn bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-600/50" %>
+        <% if @user.solana_connected? %>
+          <%= button_to "Airdrop 1 SOL", airdrop_wallet_path, method: :post,
+            class: "btn bg-violet/20 hover:bg-violet/30 text-violet border border-violet/50" %>
+        <% end %>
       </div>
+      <p class="text-xs text-muted mt-2">Test USDC is added to your app balance only. SOL airdrop sends real devnet SOL for transaction fees.</p>
     </div>
   <% end %>
 

@@ -56,6 +56,9 @@ class Entry < ApplicationRecord
       end
       update!(status: :active)
     end
+
+    # Attempt onchain entry (non-blocking)
+    enter_onchain!
   end
 
   def selection_data

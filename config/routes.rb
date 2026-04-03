@@ -56,6 +56,7 @@ Rails.application.routes.draw do
     post :deposit
     post :withdraw
     post :faucet
+    post :airdrop
     get :sync
   end
 

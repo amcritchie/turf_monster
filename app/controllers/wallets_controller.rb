@@ -6,6 +6,18 @@ class WalletsController < ApplicationController
     @user = current_user
     @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: "pending").order(created_at: :desc)
     @recent_transactions = TransactionLog.where(user: current_user).order(created_at: :desc).limit(10)
+
+    # Fetch SOL balance if wallet connected and devnet
+    if current_user.solana_connected? && Solana::Config.devnet?
+      begin
+        client = Solana::Client.new
+        result = client.get_balance(current_user.solana_address)
+        sol_lamports = result.is_a?(Hash) ? result["value"] : result
+        @sol_balance = sol_lamports.to_f / 1_000_000_000
+      rescue => e
+        Rails.logger.warn "Failed to fetch SOL balance: #{e.message}"
+      end
+    end
   end
 
   def deposit
@@ -63,6 +75,19 @@ class WalletsController < ApplicationController
     end
   rescue StandardError => e
     redirect_to wallet_path, alert: "Faucet failed: #{e.message}"
+  end
+
+  def airdrop
+    rescue_and_log(target: current_user) do
+      raise "Airdrop only available on Devnet" unless Solana::Config.devnet?
+      raise "No Solana wallet connected" unless current_user.solana_connected?
+
+      client = Solana::Client.new
+      signature = client.request_airdrop(current_user.solana_address, 1_000_000_000) # 1 SOL
+      redirect_to wallet_path, notice: "Airdropped 1 SOL! TX: #{signature}"
+    end
+  rescue StandardError => e
+    redirect_to wallet_path, alert: "Airdrop failed: #{e.message}"
   end
 
   def sync
