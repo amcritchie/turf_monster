@@ -185,6 +185,8 @@
           duration: 3000,
           hold_id: "desktop",
           guard: "data.selectionCount === #{@contest.picks_required}",
+          validate: "d.runHoldValidations()",
+          validate_at: 1000,
           on_success: "d.confirmEntry()" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
@@ -253,6 +255,8 @@
         duration: 3000,
         hold_id: "mobile",
         guard: "data.selectionCount === #{@contest.picks_required}",
+        validate: "d.runHoldValidations()",
+        validate_at: 1000,
         on_success: "d.confirmEntry()" %>
     </div>
     <p x-show="selectionCount < <%= @contest.picks_required %>" class="text-heading font-bold text-sm text-center mb-3">Your Picks</p>
@@ -465,6 +469,40 @@
           el.classList.remove('success', 'process');
           el.classList.add('error');
         });
+      },
+
+      async runHoldValidations() {
+        // 1. Fresh geo check (server-side re-detection)
+        try {
+          const res = await fetch('/geo/check', {
+            headers: { 'Accept': 'application/json' }
+          });
+          const geo = await res.json();
+          if (geo.blocked) {
+            this.setHoldError();
+            this.showRedirectModal(
+              'Location Restricted',
+              'Contest entries are not available in ' + (geo.state || 'your state') + '.',
+              '📍', '/', 5, 'OK'
+            );
+            return false;
+          }
+        } catch(e) {
+          // Geo check failed — allow through (don't block on network error)
+        }
+
+        // 2. Login check
+        if (!this.loggedIn) {
+          this.setHoldError();
+          this.showRedirectModal(
+            'Log In Required',
+            'Create an account or log in to enter the contest.',
+            '🔒', '/login', 5
+          );
+          return false;
+        }
+
+        return true;
       },
 
       async confirmEntry() {

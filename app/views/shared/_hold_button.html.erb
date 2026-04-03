@@ -9,6 +9,8 @@
     hold_id      - Unique ID for this button instance (default: "hold")
     guard        - JS expression that must be truthy to allow hold (default: "true")
     on_success   - JS to execute on successful hold (default: none)
+    validate     - JS expression returning Promise<boolean>, called at validate_at ms (default: none)
+    validate_at  - ms delay before running validation (default: 1000)
 %>
 <% default_text ||= "Hold to Confirm" %>
 <% hold_text    ||= "Almost there..." %>
@@ -18,6 +20,8 @@
 <% hold_id      ||= "hold" %>
 <% guard        ||= "true" %>
 <% on_success   ||= nil %>
+<% validate     ||= nil %>
+<% validate_at  ||= 1000 %>
 
 <style>
   /* ── Hold Button Base ── */
@@ -457,6 +461,32 @@
           el.classList.add('success');
         <% end %>
       }, duration);
+
+      <% if validate %>
+      // Mid-hold validation check
+      timers[id + '_val'] = setTimeout(function() {
+        var s = el.closest('[x-data]');
+        if (s) {
+          var d = Alpine.$data(s);
+          if (d) {
+            Promise.resolve(<%== validate %>).then(function(ok) {
+              if (!ok) {
+                // Abort the hold
+                clearTimeout(timers[id]);
+                delete timers[id];
+                var circle = el.querySelector('svg.progress circle');
+                if (circle) {
+                  circle.style.transition = 'none';
+                  void circle.offsetWidth;
+                  circle.style.transition = '';
+                }
+                // Error state is set by the validate function itself (via setHoldError)
+              }
+            });
+          }
+        }
+      }, <%= validate_at %>);
+      <% end %>
     };
 
     window.holdBtnEnd = function(el) {
@@ -477,6 +507,10 @@
       if (timers[id]) {
         clearTimeout(timers[id]);
         delete timers[id];
+      }
+      if (timers[id + '_val']) {
+        clearTimeout(timers[id + '_val']);
+        delete timers[id + '_val'];
       }
 
       // Restart with soft-only nudges (big nudge already seen)

@@ -1,5 +1,16 @@
 class GeoSettingsController < ApplicationController
-  before_action :require_admin
+  skip_before_action :require_authentication, only: [:check]
+  before_action :require_admin, except: [:check]
+
+  def check
+    # Force fresh detection regardless of cache (skip if override active)
+    unless session[:geo_override].present?
+      session.delete(:geo_detected_at)
+      session.delete(:geo_ip)
+      detect_geo_state
+    end
+    render json: { state: geo_state, blocked: geo_blocked? }
+  end
 
   def edit
     @geo_setting = GeoSetting.current

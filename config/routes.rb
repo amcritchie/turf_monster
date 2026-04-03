@@ -65,6 +65,9 @@ Rails.application.routes.draw do
   post "admin/transactions/:slug/approve", to: "transaction_logs#approve", as: :admin_transaction_approve
   post "admin/transactions/:slug/deny", to: "transaction_logs#deny", as: :admin_transaction_deny
 
+  # Geo check (public — used by hold-to-confirm validation)
+  get "geo/check", to: "geo_settings#check", as: :geo_check
+
   # Admin: Geo Settings
   get "admin/geo", to: "geo_settings#edit", as: :admin_geo
   patch "admin/geo", to: "geo_settings#update", as: :admin_geo_update
