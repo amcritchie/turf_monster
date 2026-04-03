@@ -102,6 +102,6 @@ class Entry < ApplicationRecord
   end
 
   def name_slug
-    "#{user.name.parameterize}-#{contest.name_slug}-#{id}"
+    "#{user.display_name.parameterize}-#{contest.name_slug}-#{id}"
   end
 end
