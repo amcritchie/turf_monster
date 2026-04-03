@@ -8,6 +8,18 @@
         document.addEventListener('alpine:init', () => {
           Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
         });
+        function refreshBalance() {
+          fetch('/admin/usdc_balance', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+              var formatted = '$' + parseFloat(data.balance).toFixed(2);
+              document.querySelectorAll('[data-balance-display]').forEach(el => { el.textContent = formatted; });
+            })
+            .catch(() => {});
+        }
+        <% if logged_in? && Solana::Config.devnet? %>
+          document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
+        <% end %>
       </script>
     <% end %>
     <%= render "layouts/studio/head" %>
@@ -32,6 +44,9 @@
                 <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
               <% end %>
               <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+              <% if Solana::Config.devnet? %>
+                <%= link_to "Faucet", faucet_path, class: "text-yellow-400 hover:text-yellow-300 text-sm font-medium transition" %>
+              <% end %>
               <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                       class="text-xs font-mono px-2 py-1 rounded-md border transition"
                       :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>
@@ -75,7 +90,7 @@
                     <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
                   <% end %>
                 </div>
-                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
+                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
                 <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
               </div>
               <%# Mobile: stacked right-aligned, wallet overlaid above name %>
@@ -89,7 +104,7 @@
                     <%= current_user.display_name %>
                   <% end %>
                 </div>
-                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition" do %><%= dollars(current_user.total_balance_dollars) %><% end %>
+                <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
               </div>
             <% else %>
               <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>

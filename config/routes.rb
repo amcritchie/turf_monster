@@ -4,6 +4,10 @@ Rails.application.routes.draw do
 
   get "turf-totals-v1", to: "pages#turf_totals_v1", as: :turf_totals_v1
 
+  # Public faucet page
+  get  "faucet", to: "faucet#show", as: :faucet
+  post "faucet", to: "faucet#claim"
+
   Studio.routes(self)
 
   # Solana wallet auth
@@ -44,8 +48,9 @@ Rails.application.routes.draw do
       post :jump
       post :simulate_game
       post :simulate_batch
-      post :create_onchain
       post :reset
+      post :create_onchain
+      post :payout_entry
     end
   end
 
@@ -61,6 +66,13 @@ Rails.application.routes.draw do
   end
 
   post "add_funds", to: "users#add_funds"
+
+  # Admin: Mint USDC (devnet) + balance check
+  post "admin/mint_usdc", to: "admin#mint_usdc", as: :admin_mint_usdc
+  get "admin/usdc_balance", to: "admin#usdc_balance", as: :admin_usdc_balance
+
+  # Admin: Contests
+  get "admin/contests", to: "contests#admin_index", as: :admin_contests
 
   # Admin: Transaction Logs
   get "admin/transactions", to: "transaction_logs#index", as: :admin_transactions

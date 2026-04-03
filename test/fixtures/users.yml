@@ -15,3 +15,5 @@ sam:
   email: sam@turf.com
   balance_cents: 100000
   password_digest: <%= BCrypt::Password.create("password") %>
+  solana_address: foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds
+  wallet_type: phantom

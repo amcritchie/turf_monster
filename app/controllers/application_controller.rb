@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   allow_browser versions: :modern
 
   before_action :detect_geo_state
-  helper_method :geo_state, :geo_blocked?, :geo_override_active?
+  helper_method :geo_state, :geo_blocked?, :geo_override_active?, :display_balance
 
   private
 
@@ -37,6 +37,34 @@ class ApplicationController < ActionController::Base
 
   def geo_override_active?
     session[:geo_override].present?
+  end
+
+  # Navbar balance — cached onchain USDC for user's wallet on devnet, DB balance otherwise
+  def display_balance
+    return current_user.total_balance_dollars unless Solana::Config.devnet?
+    return current_user.total_balance_dollars unless current_user.solana_connected?
+
+    Rails.cache.fetch(usdc_cache_key, expires_in: 60.seconds) do
+      fetch_user_usdc
+    end
+  rescue => e
+    Rails.logger.warn "Failed to fetch onchain balance: #{e.message}"
+    current_user.total_balance_dollars
+  end
+
+  # Fresh onchain USDC balance from logged-in user's wallet
+  def fetch_user_usdc
+    vault = Solana::Vault.new
+    balances = vault.fetch_wallet_balances(current_user.solana_address)
+    balances[:usdc] || 0
+  end
+
+  def usdc_cache_key(user = current_user)
+    "usdc_balance:#{user.id}"
+  end
+
+  def invalidate_usdc_cache(user = current_user)
+    Rails.cache.delete(usdc_cache_key(user))
   end
 
   def require_geo_allowed

@@ -1,0 +1,126 @@
+<% content_for :title, "Devnet Faucet — Turf Monster" %>
+
+<div class="max-w-2xl mx-auto py-8 space-y-8">
+
+  <%# ── Hero ── %>
+  <div class="text-center space-y-4">
+    <img src="/logo.png" alt="Turf Monster" class="w-20 h-20 rounded-full shadow-lg mx-auto">
+    <h1 class="text-3xl font-extrabold text-heading">Devnet Faucet</h1>
+    <p class="text-secondary text-lg">Get free test USDC to play pick'em contests on Solana devnet.</p>
+    <span class="inline-block text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet Only</span>
+  </div>
+
+  <%# ── How It Works ── %>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="card p-5 text-center space-y-2">
+      <div class="text-3xl">💰</div>
+      <h3 class="font-bold text-heading">Get USDC</h3>
+      <p class="text-sm text-secondary">Claim free test USDC from the faucet. No real money involved.</p>
+    </div>
+    <div class="card p-5 text-center space-y-2">
+      <div class="text-3xl">⚽</div>
+      <h3 class="font-bold text-heading">Pick Teams</h3>
+      <p class="text-sm text-secondary">Select 5 team matchups with multipliers in a World Cup contest.</p>
+    </div>
+    <div class="card p-5 text-center space-y-2">
+      <div class="text-3xl">🏆</div>
+      <h3 class="font-bold text-heading">Win Prizes</h3>
+      <p class="text-sm text-secondary">Top entries win payouts. Higher multipliers = bigger risk & reward.</p>
+    </div>
+  </div>
+
+  <%# ── Claim Section ── %>
+  <div class="card p-6 space-y-5">
+    <h2 class="text-xl font-bold text-heading text-center">Claim Test USDC</h2>
+
+    <% if logged_in? && current_user.solana_connected? %>
+      <div x-data="{ amount: 50, custom: false }" class="space-y-4">
+        <%# Preset buttons %>
+        <div class="grid grid-cols-4 gap-3">
+          <% [10, 50, 100, 500].each do |val| %>
+            <button @click="amount = <%= val %>; custom = false"
+                    class="py-3 rounded-lg font-bold text-sm border transition"
+                    :class="!custom && amount === <%= val %>
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-surface-alt text-secondary border-subtle hover:border-strong hover:text-heading'">
+              $<%= val %>
+            </button>
+          <% end %>
+        </div>
+
+        <%# Custom input %>
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-secondary font-medium whitespace-nowrap">Custom:</label>
+          <div class="relative flex-1">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-bold">$</span>
+            <input type="number" min="1" max="500" step="1"
+                   x-model.number="amount"
+                   @focus="custom = true"
+                   @input="custom = true"
+                   class="input-field w-full pl-7"
+                   placeholder="1–500">
+          </div>
+        </div>
+
+        <%# Claim button %>
+        <%= form_tag faucet_path, method: :post, class: "mt-2" do %>
+          <input type="hidden" name="amount" x-bind:value="amount">
+          <button type="submit" class="btn btn-primary btn-lg w-full">
+            Claim <span x-text="'$' + amount"></span> Test USDC
+          </button>
+        <% end %>
+
+        <p class="text-xs text-muted text-center">Mints SPL USDC tokens directly to your Phantom wallet on Solana devnet.</p>
+      </div>
+    <% elsif logged_in? %>
+      <p class="text-secondary text-center">Connect a Phantom wallet to claim test USDC.</p>
+      <div class="flex justify-center">
+        <%= link_to "Connect Wallet", account_path, class: "btn btn-primary" %>
+      </div>
+    <% else %>
+      <p class="text-secondary text-center">Log in and connect a Phantom wallet to claim free test USDC.</p>
+      <div class="flex gap-3 justify-center">
+        <%= link_to "Log in", login_path, class: "btn btn-outline" %>
+        <%= link_to "Sign up", signup_path, class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+
+  <%# ── Recent Claims ── %>
+  <% if @recent_claims.any? %>
+    <div class="space-y-3">
+      <h2 class="text-lg font-bold text-heading">Recent Claims</h2>
+      <div class="card divide-y divide-subtle">
+        <% @recent_claims.each do |txn| %>
+          <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                <%= txn.user.display_name[0].upcase %>
+              </div>
+              <div>
+                <span class="text-heading font-medium text-sm"><%= txn.user.display_name %></span>
+                <span class="text-muted text-xs ml-2"><%= time_ago_in_words(txn.created_at) %> ago</span>
+              </div>
+            </div>
+            <span class="font-mono font-bold text-primary text-sm">+<%= dollars(txn.amount_cents / 100.0) %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# ── Bottom CTA ── %>
+  <div class="text-center space-y-3 pb-8">
+    <% if @contest %>
+      <p class="text-secondary">Ready to play?</p>
+      <%= link_to "Enter a Contest", contest_path(@contest), class: "btn btn-primary btn-lg" %>
+    <% elsif logged_in? %>
+      <p class="text-secondary">No open contests right now. Check back soon!</p>
+      <%= link_to "Browse Contests", root_path, class: "btn btn-outline" %>
+    <% else %>
+      <p class="text-secondary">Create an account to start playing.</p>
+      <%= link_to "Sign Up to Play", signup_path, class: "btn btn-primary btn-lg" %>
+    <% end %>
+  </div>
+
+</div>

@@ -265,11 +265,12 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Hold validation** (`validate`/`validate_at` params): Optional mid-hold validation. `validate` is a JS expression returning `Promise<boolean>`, called at `validate_at` ms (default 1000) during the hold. If the promise resolves `false`, the hold aborts (clears completion timer, snaps progress circle back). The validate function is responsible for setting error state (via `setHoldError()`) and showing a modal. Both desktop and mobile hold buttons use `validate: "d.runHoldValidations()"` which checks geo-blocking (fresh `GET /geo/check`) then login status. Network errors on geo check are swallowed (don't block the user).
 - **Solana wallet connect** (`_solana_wallet_connect.html.erb`): Phantom connect with ghost logo PNG (`/phantom-white.png`). Accepts `link_mode` local for /account use.
 - **Login page SSO**: When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
-- **Navbar**: Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms. Content: Logo + brand, My Contests (auth), Turf Totals, soccer ball dropdown (Teams/Games), admin gear dropdown (Theme/Error Logs), DEV toggle, admin Reset button. Right side: theme toggle, user info/auth. Username links to `/account`.
+- **Navbar**: Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms. Content: Logo + brand, My Contests (auth), Rules, Faucet (devnet only, yellow text), DEV toggle, admin gear dropdown, theme toggle. Right side: user info/auth. Username links to `/account`. Balance links to `/wallet` — shows user's Phantom wallet USDC on devnet, DB balance otherwise.
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): App-local partial with soccer ball emoji trigger, links to Teams and Games pages. Alpine.js `x-data` with outside-click dismiss.
 - **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon partial with links to Theme (`/admin/theme`), Slates (`/slates`), Formula (`/slates/formula_report`), Error Logs (`/error_logs`).
 - **Theme page** (`/admin/theme`): Engine-provided combined page — color editor with live preview at top, styleguide below (logos, semantic tokens, typography, buttons, components).
-- **Account page** (`/account`): Three sections — Profile (name/email), Password (set/change), Google (link/unlink).
+- **Account page** (`/account`): Three sections — Profile (name/email), Password (set/change), Google (link/unlink). Solana Wallet section shows connected Phantom address + onchain SOL/USDC/USDT balances.
+- **Faucet page** (`/faucet`): Public marketing page with hero, "How It Works" cards, and USDC claim form. Mints SPL USDC tokens directly to user's Phantom wallet via `Vault#mint_spl(to: wallet)`. Three view states: wallet connected (amount picker + claim), logged in no wallet (connect CTA), logged out (login/signup CTAs). Preset amounts $10/$50/$100/$500, custom input $1-$500. Recent claims feed as social proof. Alpine.js `x-data="{ amount: 50 }"` manages selection.
 - **Leaderboard** (contest show): After settling — paid rows get mint left border + payout badge ($100.00 etc), divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 - **Redirect modal**: When hold-to-confirm hits a blocker (geo-blocked, not logged in, insufficient funds), a centered modal appears with icon, title, message, progress bar countdown (5s), and CTA button. Hold button flips to red `.error` state ("Entry Blocked"). Geo-blocked → "Location Restricted" → `/`. Not logged in → "Log In Required" → `/login`. Insufficient funds → "Insufficient Funds" / "Top Up Wallet" → `/wallet`. `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component.
 - **Pick slot animations**: `pick-pulse` (gentle glow, picks 3-4), `pick-pulse-shimmer` (glow + sweep, picks 2 and 5), `pick-pulse-urgent` (fast intense glow + scale + sweep, pick 5 after a selection is removed). `pickUrgent` flag set when going from 5→4 selections, cleared when reaching 5 again or clearing all.
@@ -369,10 +370,11 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 - `/account/unlink_google` — POST, unlink Google OAuth
 - `/account/change_password` — POST, set or change password
 - `/admin/theme` — theme editor + styleguide (engine-provided: color editor, logos, tokens, typography, buttons, components)
+- `/faucet` — GET, public faucet page (marketing + claim UI). POST, mint SPL USDC to user's Phantom wallet (requires login + connected wallet)
 - `/wallet` — GET wallet/balance page
 - `/wallet/deposit` — POST deposit funds
 - `/wallet/withdraw` — POST withdraw funds
-- `/wallet/faucet` — POST mint test USDC (Devnet only)
+- `/wallet/faucet` — POST mint test USDC to DB balance (Devnet only, legacy — prefer `/faucet`)
 - `/wallet/sync` — GET sync onchain balance
 - `/auth/solana/nonce` — GET, generate Solana nonce (JSON)
 - `/auth/solana/verify` — POST, verify Phantom Ed25519 signature (JSON)
@@ -403,7 +405,16 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 
 Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest.
 
-**Deployment status**: Program built, awaiting sufficient Devnet SOL for deployment. Admin keypair: `9Fy8P3DvKBh3awt1wr27g4CDh47oDqmJR2FAAQ1bc69D`.
+**Deployment status**: Deployed to devnet. Vault initialized with test SPL mints.
+- Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
+- Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
+- Admin keypair: `9Fy8P3DvKBh3awt1wr27g4CDh47oDqmJR2FAAQ1bc69D`
+- USDC Mint: `222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9`
+- USDT Mint: `9mxkN8KaVA8FFgDE2LEsn2UbYLPG8Xg9bf4V9MYYi8Ne`
+
+### Navbar Balance
+
+`display_balance` helper shows the logged-in user's Phantom wallet USDC balance on devnet (cached 60s), falling back to DB `total_balance_dollars` for non-wallet users or non-devnet. The `/admin/usdc_balance` JSON endpoint (used by `refreshBalance()` JS) follows the same logic. Both use `fetch_user_usdc` → `Vault#fetch_wallet_balances(current_user.solana_address)`.
 
 ### Wallet Types
 
@@ -463,7 +474,7 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 - [x] Solana integration Phases 1-6 (program, services, wallet auth, deposit/withdraw, contest onchain, reconciliation)
 - [x] Remove Ethereum wallet auth (eth gem, ethers.js CDN, wallet_sessions_controller)
 - [x] Remove Over/Under game mode (picks, props) — Turf Totals only
-- [ ] Deploy Anchor program to Devnet (need ~0.67 more SOL for deployment)
+- [x] Deploy Anchor program to Devnet + initialize vault
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
 - [ ] Test Phantom wallet auth end-to-end on Devnet
 
