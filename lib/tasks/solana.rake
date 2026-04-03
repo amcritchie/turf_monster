@@ -184,6 +184,88 @@ namespace :solana do
     end
   end
 
+  desc "Fund all user wallets with SOL (airdrop + admin transfer fallback)"
+  task fund_wallets: :environment do
+    vault = Solana::Vault.new
+    admin = Solana::Keypair.admin
+    min_sol = (ENV["MIN_SOL"] || "0.1").to_f
+    airdrop_sol = (ENV["SOL"] || "1").to_f
+
+    # Collect wallets: admin + all users with solana addresses
+    wallets = [{ name: "Admin", address: admin.to_base58 }]
+    User.where.not(solana_address: nil).find_each do |u|
+      wallets << { name: u.name, address: u.solana_address }
+    end
+
+    puts "Checking #{wallets.size} wallets (min: #{min_sol} SOL, airdrop: #{airdrop_sol} SOL)\n\n"
+
+    needs_funding = []
+    wallets.each do |w|
+      begin
+        result = vault.client.get_balance(w[:address])
+        sol = result.dig("value").to_f / 1_000_000_000
+        status = sol >= min_sol ? "OK" : "LOW"
+        puts "  %-20s %s  %.4f SOL  %s" % [w[:name], w[:address], sol, status]
+        needs_funding << w if sol < min_sol
+      rescue => e
+        puts "  %-20s %s  ERROR: %s" % [w[:name], w[:address], e.message]
+        needs_funding << w
+      end
+    end
+
+    if needs_funding.empty?
+      puts "\nAll wallets funded."
+      next
+    end
+
+    puts "\n#{needs_funding.size} wallet(s) need funding...\n\n"
+
+    needs_funding.each do |w|
+      # Try airdrop first
+      begin
+        puts "  Airdropping #{airdrop_sol} SOL to #{w[:name]} (#{w[:address]})..."
+        sig = vault.client.request_airdrop(w[:address], (airdrop_sol * 1_000_000_000).to_i)
+        puts "    Success: #{sig}"
+        sleep 1
+      rescue => e
+        if e.message.include?("airdrop") || e.message.include?("rate")
+          puts "    Airdrop rate-limited, transferring from admin..."
+          begin
+            transfer_lamports = (airdrop_sol * 1_000_000_000).to_i
+            tx = Solana::Transaction.new
+            tx.set_recent_blockhash(vault.client.get_latest_blockhash)
+            tx.add_signer(admin)
+            tx.add_instruction(
+              program_id: Solana::Transaction::SYSTEM_PROGRAM_ID,
+              accounts: [
+                { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+                { pubkey: Solana::Keypair.decode_base58(w[:address]), is_signer: false, is_writable: true }
+              ],
+              data: [2, 0, 0, 0].pack("C4") + [transfer_lamports].pack("Q<")
+            )
+            sig = vault.client.send_and_confirm(tx.serialize_base64)
+            puts "    Transferred from admin: #{sig}"
+          rescue => te
+            puts "    Transfer failed: #{te.message}"
+          end
+        else
+          puts "    Failed: #{e.message}"
+        end
+      end
+    end
+
+    puts "\nFinal balances:"
+    wallets.each do |w|
+      begin
+        result = vault.client.get_balance(w[:address])
+        sol = result.dig("value").to_f / 1_000_000_000
+        puts "  %-20s %.4f SOL" % [w[:name], sol]
+      rescue => e
+        puts "  %-20s ERROR" % [w[:name]]
+      end
+    end
+  end
+
   desc "Test key encryption roundtrip"
   task test_encryption: :environment do
     keypair = Solana::Keypair.generate

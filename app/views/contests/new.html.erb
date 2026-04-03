@@ -24,21 +24,35 @@
           { id: "contest_slate_id", class: "input-field" } %>
       </div>
 
-      <div class="mb-5">
-        <label for="contest_entry_fee" class="block text-sm text-secondary mb-2 font-medium">Entry Fee ($)</label>
-        <%= f.number_field :entry_fee_dollars_input, id: "contest_entry_fee",
-          class: "input-field", placeholder: "10.00", step: "0.01", min: "0",
-          value: @contest.entry_fee_cents.to_i > 0 ? @contest.entry_fee_cents / 100.0 : nil %>
-      </div>
+      <div class="mb-6" x-data="{ format: '<%= @contest.contest_type || 'small' %>' }">
+        <label class="block text-sm text-secondary mb-3 font-medium">Format</label>
+        <%= f.hidden_field :contest_type, "x-model": "format" %>
 
-      <div class="mb-6">
-        <label for="contest_max_entries" class="block text-sm text-secondary mb-2 font-medium">Max Entries</label>
-        <%= f.number_field :max_entries, id: "contest_max_entries",
-          class: "input-field", placeholder: "15", min: "2",
-          value: @contest.max_entries || 15 %>
+        <div class="grid grid-cols-2 gap-3">
+          <% Contest::FORMATS.each do |key, config| %>
+            <div @click="format = '<%= key %>'"
+                 :class="format === '<%= key %>' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-subtle hover:border-strong'"
+                 class="cursor-pointer rounded-lg border p-4 transition">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-heading text-lg capitalize"><%= key %></span>
+                <span class="text-xs font-mono text-secondary"><%= dollars(config[:entry_fee_cents] / 100.0) %> entry</span>
+              </div>
+              <div class="text-sm text-secondary space-y-1">
+                <p>Max <span class="font-semibold text-heading"><%= config[:max_entries] %></span> entries</p>
+                <p>Guarantee: <span class="font-semibold text-primary"><%= dollars(config[:payouts].values.sum / 100.0) %></span></p>
+                <div class="mt-2 text-xs text-muted">
+                  <% config[:payouts].each do |rank, cents| %>
+                    <span class="inline-block mr-2"><%= rank.ordinalize %>: <%= dollars(cents / 100.0) %></span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-primary btn-lg w-full">Create Contest</button>
+      <p class="text-xs text-muted text-center mt-2">Onchain transaction submits automatically after creation</p>
     <% end %>
   </div>
 

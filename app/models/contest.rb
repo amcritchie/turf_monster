@@ -20,6 +20,14 @@ class Contest < ApplicationRecord
     entry_fee_cents / 100.0
   end
 
+  def guaranteed_prize_cents
+    payouts.values.sum
+  end
+
+  def guaranteed_prize_dollars
+    guaranteed_prize_cents / 100.0
+  end
+
   def pool_cents
     entries.where(status: [:active, :complete]).count * entry_fee_cents
   end
@@ -28,8 +36,18 @@ class Contest < ApplicationRecord
     pool_cents / 100.0
   end
 
-  PAYOUTS = { 1 => 40_00, 2 => 40_00, 3 => 40_00, 4 => 40_00, 5 => 40_00, 6 => 40_00 }
-  BONUS = 50_00
+  FORMATS = {
+    "small" => { entry_fee_cents: 9_00, max_entries: 5, payouts: { 1 => 40_00 } },
+    "large" => { entry_fee_cents: 9_00, max_entries: 25, payouts: { 1 => 100_00, 2 => 25_00, 3 => 25_00, 4 => 25_00, 5 => 25_00 } }
+  }
+
+  def format_config
+    FORMATS[contest_type] || FORMATS["small"]
+  end
+
+  def payouts
+    format_config[:payouts]
+  end
 
   def grade!
     transaction do
@@ -54,18 +72,17 @@ class Contest < ApplicationRecord
         ranks << rank
       end
 
-      # Pay out: top 6 get $40 each, rank 1 gets $50 bonus
+      # Pay out based on format payouts
+      max_paid_rank = payouts.keys.max || 0
       ranked.each_with_index do |entry, i|
         rank = ranks[i]
         share = 0
 
-        if rank <= 6
+        if rank <= max_paid_rank
           tied_indices = ranks.each_index.select { |j| ranks[j] == rank }
           tied_count = tied_indices.size
           spanned_ranks = (rank..(rank + tied_count - 1)).to_a
-          total_prize = spanned_ranks.sum { |r| PAYOUTS[r] || 0 }
-          # Add bonus for rank 1
-          total_prize += BONUS if rank == 1
+          total_prize = spanned_ranks.sum { |r| payouts[r] || 0 }
           share = total_prize / tied_count
           if share > 0
             entry.user.add_funds!(share)
@@ -117,7 +134,7 @@ class Contest < ApplicationRecord
     raise "Need at least #{picks_required} matchups" if matchup_ids.size < picks_required
 
     active_count = entries.where(status: [:active, :complete]).count
-    slots = (max_entries || 15) - active_count
+    slots = (max_entries || format_config[:max_entries]) - active_count
     return if slots <= 0
 
     existing_combos = entries.where(status: [:active, :complete]).includes(:selections).map do |entry|
@@ -217,19 +234,24 @@ class Contest < ApplicationRecord
     onchain_contest_id.present?
   end
 
-  def create_onchain!
+  def onchain_params
+    fee_cents = entry_fee_cents.to_i
+    guaranteed = guaranteed_prize_cents
+    # Payout amounts in USDC lamports (6 decimals) — human-readable onchain
+    payout_amounts = payouts.values.map { |c| Solana::Config.dollars_to_lamports(c / 100.0) }
+
+    {
+      entry_fee: Solana::Config.dollars_to_lamports(fee_cents / 100.0),
+      max_entries: max_entries || format_config[:max_entries],
+      payout_amounts: payout_amounts,
+      bonus: Solana::Config.dollars_to_lamports(guaranteed / 100.0)
+    }
+  end
+
+  def create_onchain!(contest_slug = slug)
     return if onchain?
     vault = Solana::Vault.new
-    payout_bps = PAYOUTS.values.map { |c| (c * 100 / entry_fee_cents).to_i }
-    bonus = Solana::Config.dollars_to_lamports(BONUS / 100.0)
-
-    result = vault.create_contest(
-      slug,
-      entry_fee: Solana::Config.dollars_to_lamports(entry_fee_dollars),
-      max_entries: max_entries || 100,
-      payout_bps: payout_bps,
-      bonus: bonus
-    )
+    result = vault.create_contest(contest_slug, **onchain_params)
 
     update!(
       onchain_contest_id: result[:pda],

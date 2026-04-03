@@ -96,6 +96,29 @@ module Solana
       { signature: signature, amount: amount_lamports, destination: Keypair.encode_base58(dest_bytes) }
     end
 
+    # Transfer SPL tokens from admin's ATA to a recipient wallet's ATA.
+    # Ensures recipient ATA exists first.
+    def transfer_spl(to_wallet, amount_lamports, mint:)
+      admin = Keypair.admin
+
+      # Ensure recipient ATA exists
+      ensure_ata(to_wallet, mint: mint)
+
+      from_bytes, _ = Solana::SplToken.find_associated_token_address(admin.public_key_bytes, mint)
+      to_bytes, _ = Solana::SplToken.find_associated_token_address(to_wallet, mint)
+
+      transfer_ix = Solana::SplToken.transfer_instruction(
+        from: from_bytes, to: to_bytes,
+        authority: admin.public_key_bytes, amount: amount_lamports
+      )
+
+      tx = build_tx(admin)
+      tx.add_instruction(**transfer_ix)
+      signature = client.send_and_confirm(tx.serialize_base64)
+
+      { signature: signature, amount: amount_lamports, destination: Keypair.encode_base58(to_bytes) }
+    end
+
     # --- High-level operations ---
 
     # Initialize the vault (run once after program deploy)
@@ -219,7 +242,7 @@ module Solana
     end
 
     # Create contest onchain (admin signs)
-    def create_contest(contest_slug, entry_fee:, max_entries:, payout_bps:, bonus:)
+    def create_contest(contest_slug, entry_fee:, max_entries:, payout_amounts:, bonus:)
       admin = Keypair.admin
       contest_id = Digest::SHA256.digest(contest_slug)
       contest_pda_addr, _ = contest_pda(contest_slug)
@@ -229,7 +252,7 @@ module Solana
              Borsh.encode_bytes32(contest_id) +
              Borsh.encode_u64(entry_fee) +
              Borsh.encode_u32(max_entries) +
-             Borsh.encode_vec(payout_bps) { |bps| Borsh.encode_u16(bps) } +
+             Borsh.encode_vec(payout_amounts) { |amt| Borsh.encode_u64(amt) } +
              Borsh.encode_u64(bonus)
 
       tx = build_tx(admin)
@@ -353,9 +376,9 @@ module Solana
       prize_pool, offset = Borsh.decode_u64(data, offset)
       bonus, offset = Borsh.decode_u64(data, offset)
       status_byte, offset = Borsh.decode_u8(data, offset)
-      # Vec<u16> payout_bps
+      # Vec<u64> payout_amounts
       vec_len, offset = Borsh.decode_u32(data, offset)
-      payout_bps = vec_len.times.map { |_| v, offset = Borsh.decode_u16(data, offset); v }
+      payout_amounts = vec_len.times.map { |_| v, offset = Borsh.decode_u64(data, offset); v }
       admin_bytes, offset = Borsh.decode_pubkey(data, offset)
 
       status_name = %w[Open Locked Settled][status_byte] || "Unknown"
@@ -371,7 +394,7 @@ module Solana
         bonus: bonus,
         bonus_dollars: Config.lamports_to_dollars(bonus),
         status: status_name,
-        payout_bps: payout_bps,
+        payout_amounts: payout_amounts.map { |a| Config.lamports_to_dollars(a) },
         admin: Keypair.encode_base58(admin_bytes)
       }
     end

@@ -1,4 +1,23 @@
+<%= render "contests/contest_selector", contests: @contests, current_contest: @contest %>
 <% if logged_in? && @slate_progress %>
   <%= render "contests/slate_progress", progress: @slate_progress %>
+<% end %>
+<% if @contest.open? %>
+  <% has_entry = logged_in? && @contest.entries.where(user: current_user, status: [:active, :complete]).exists? %>
+  <% if has_entry %>
+    <% show_board = params[:add_entry].present? %>
+    <% unless show_board %>
+      <div class="mb-6">
+        <%= link_to contest_path(@contest, add_entry: true), class: "btn btn-outline" do %>
+          + Add Another Entry
+        <% end %>
+      </div>
+    <% end %>
+    <% if show_board %>
+      <%= render "contests/turf_totals_board" %>
+    <% end %>
+  <% else %>
+    <%= render "contests/turf_totals_board" %>
+  <% end %>
 <% end %>
 <%= render "contests/turf_totals_leaderboard" %>

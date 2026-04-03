@@ -1,5 +1,6 @@
 <% if @contest.nil? %>
   <p class="text-secondary">No contests yet.</p>
 <% else %>
+  <%= render "contests/contest_selector", contests: @contests, current_contest: @contest %>
   <%= render "contests/turf_totals_board" %>
 <% end %>

@@ -20,32 +20,62 @@
         <p class="font-mono text-lg text-heading"><%= dollars(@contest.entry_fee_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
-        <p class="label-upper">Pool</p>
-        <p class="font-mono text-lg text-primary"><%= dollars(@contest.pool_dollars) %></p>
+        <p class="label-upper">Guaranteed Prize</p>
+        <p class="font-mono text-lg text-primary"><%= dollars(@contest.guaranteed_prize_dollars) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-3">
         <p class="label-upper">Entries</p>
-        <p class="font-mono text-lg text-heading"><%= @entries.count %></p>
+        <p class="font-mono text-lg text-heading"><%= @entries.count %><%= " / #{@contest.max_entries}" if @contest.max_entries %></p>
       </div>
     </div>
-    <% if @contest.onchain? %>
-      <div class="mt-3 flex items-center gap-2 text-xs text-muted">
-        <svg class="w-3 h-3 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-        <span>Onchain</span>
-        <a href="https://explorer.solana.com/address/<%= @contest.onchain_contest_id %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-           target="_blank" class="font-mono hover:text-primary transition truncate max-w-xs"><%= @contest.onchain_contest_id %></a>
-        <% if @contest.onchain_settled? %>
-          <span class="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary-700/30">Settled</span>
-        <% end %>
-      </div>
-      <% if @contest.onchain_tx_signature.present? %>
-        <div class="mt-1 flex items-center gap-2 text-xs text-muted">
-          <span>TX:</span>
-          <a href="https://explorer.solana.com/tx/<%= @contest.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-             target="_blank" class="font-mono hover:text-primary transition truncate max-w-xs"><%= @contest.onchain_tx_signature %></a>
-        </div>
+    <div class="mt-3 flex items-center justify-center gap-3 text-sm">
+      <span class="text-muted font-medium">Prize Structure:</span>
+      <% @contest.payouts.each do |rank, cents| %>
+        <span class="px-2 py-0.5 rounded bg-surface-alt text-secondary font-mono text-xs"><%= rank.ordinalize %> — <%= dollars(cents / 100.0) %></span>
       <% end %>
+    </div>
+    <% unless @contest.onchain? %>
+      <script>
+        function submitOnchain(component) {
+          component.submitting = true; component.error = null;
+          fetch('<%== create_onchain_contest_path(@contest) %>', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+          }).then(r => r.json()).then(data => {
+            component.submitting = false;
+            if (data.success) { component.onchain = true; component.tx = data.tx; component.pda = data.pda; refreshBalance(); }
+            else { component.error = data.error; }
+          }).catch(e => { component.submitting = false; component.error = e.message; });
+        }
+      </script>
     <% end %>
+    <div x-data="{ onchain: <%= @contest.onchain? %>, tx: '<%= @contest.onchain_tx_signature %>', pda: '<%= @contest.onchain_contest_id %>', submitting: false, error: null }"
+         x-init="<% unless @contest.onchain? %><% if current_user&.admin? %>submitOnchain($data)<% end %><% end %>">
+      <template x-if="submitting">
+        <div class="mt-3 flex items-center gap-2 text-sm text-yellow-400">
+          <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+          Submitting onchain transaction...
+        </div>
+      </template>
+      <template x-if="error">
+        <div class="mt-3 text-sm text-red-400">
+          Onchain failed: <span x-text="error"></span>
+          <% if current_user&.admin? %>
+            <button @click="submitOnchain($data)" class="ml-2 text-primary hover:text-primary-300 underline">Retry</button>
+          <% end %>
+        </div>
+      </template>
+      <template x-if="onchain">
+        <div class="mt-3">
+          <%= render "contests/onchain_contest" if @contest.onchain? %>
+          <template x-if="!<%= @contest.onchain? %>">
+            <p class="text-sm text-primary">
+              Onchain TX: <a :href="'https://explorer.solana.com/tx/' + tx + '<%= '?cluster=devnet' if Solana::Config.devnet? %>'" target="_blank" class="font-mono underline hover:text-primary-300" x-text="tx.slice(0,16) + '...'"></a>
+            </p>
+          </template>
+        </div>
+      </template>
+    </div>
   </div>
 </section>
 
@@ -76,11 +106,6 @@
 
       <%= button_to "Jump (Simulate All)", jump_contest_path(@contest), method: :post,
         class: "btn btn-primary btn-lg" %>
-
-      <% unless @contest.onchain? %>
-        <%= button_to "Create Onchain", create_onchain_contest_path(@contest), method: :post,
-          class: "btn btn-outline btn-lg" %>
-      <% end %>
 
       <%= link_to "Rank Matchups", slate_path(@contest.slate),
         class: "px-6 py-2 bg-surface-alt hover:bg-surface-alt/80 text-heading font-bold rounded-xl shadow transition inline-flex items-center" %>
@@ -130,6 +155,9 @@
             <th class="px-4 py-3 text-left label-upper">Player</th>
             <th class="px-4 py-3 text-left label-upper">Score</th>
             <th class="px-4 py-3 text-left label-upper">Selections</th>
+            <% if @contest.settled? && current_user&.admin? %>
+              <th class="px-4 py-3 text-left label-upper">Payout</th>
+            <% end %>
           </tr>
         </thead>
         <tbody>
@@ -182,6 +210,46 @@
                   <% end %>
                 </div>
               </td>
+              <% if @contest.settled? && current_user&.admin? %>
+                <td class="px-4 py-3">
+                  <% if paid %>
+                    <div x-data="{ paying: false, paid_tx: '<%= entry.payout_tx_signature %>', error: null }" class="flex items-center gap-1">
+                      <template x-if="paid_tx">
+                        <a :href="'https://explorer.solana.com/tx/' + paid_tx + '<%= '?cluster=devnet' if Solana::Config.devnet? %>'"
+                           target="_blank" class="text-primary hover:text-primary-300 text-xs font-mono flex items-center gap-1" title="View on Solana Explorer">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                          Paid
+                        </a>
+                      </template>
+                      <template x-if="!paid_tx && !paying && !error">
+                        <% if entry.user.solana_connected? %>
+                          <button @click="paying = true;
+                            fetch('<%= payout_entry_contest_path(@contest, entry_id: entry.id) %>', {
+                              method: 'POST',
+                              headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+                            }).then(r => r.json()).then(data => {
+                              paying = false;
+                              if (data.success) { paid_tx = data.tx; refreshBalance(); }
+                              else { error = data.error; }
+                            }).catch(e => { paying = false; error = e.message; });"
+                            class="btn btn-primary btn-sm"><%= dollars(entry.payout_cents / 100.0) %></button>
+                        <% else %>
+                          <span class="text-xs text-muted" title="User has no Solana wallet">No wallet</span>
+                        <% end %>
+                      </template>
+                      <template x-if="paying">
+                        <span class="flex items-center gap-1 text-xs text-yellow-400">
+                          <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                          Sending...
+                        </span>
+                      </template>
+                      <template x-if="error">
+                        <span class="text-xs text-red-400" x-text="error"></span>
+                      </template>
+                    </div>
+                  <% end %>
+                </td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>

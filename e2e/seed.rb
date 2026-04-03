@@ -56,10 +56,10 @@ slate = Slate.create!(
 # Contest
 contest = Contest.create!(
   name: "World Cup 2026",
-  entry_fee_cents: 1_000,
+  entry_fee_cents: 900,
   status: "open",
-  max_entries: 10,
-  contest_type: "turf_totals",
+  max_entries: 5,
+  contest_type: "small",
   starts_at: 1.week.from_now,
   slate: slate
 )

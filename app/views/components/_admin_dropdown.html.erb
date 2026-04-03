@@ -7,7 +7,7 @@
   </button>
 
   <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute right-0 mt-2 w-44 bg-surface border border-subtle rounded-lg shadow-lg z-50 py-1" style="display: none;">
-    <%= link_to "New Contest", new_contest_path, class: "block px-4 py-2 text-sm text-primary hover:text-primary-300 hover:bg-surface-alt transition font-medium" %>
+    <%= link_to "Contests", admin_contests_path, class: "block px-4 py-2 text-sm text-primary hover:text-primary-300 hover:bg-surface-alt transition font-medium" %>
     <%= link_to "Teams", teams_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Games", games_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <div class="border-t border-subtle my-1"></div>
@@ -22,6 +22,11 @@
     <div class="border-t border-subtle my-1"></div>
     <%= button_to geo_override_active? ? "Clear GEO Override" : "Simulate WA", admin_geo_toggle_path, method: :post,
       class: "block w-full text-left px-4 py-2 text-sm #{geo_override_active? ? 'text-red-400 hover:text-red-300' : 'text-body hover:text-heading'} hover:bg-surface-alt transition" %>
+    <% if Solana::Config.devnet? %>
+      <div class="border-t border-subtle my-1"></div>
+      <%= button_to "Mint $500 USDC", admin_mint_usdc_path, method: :post,
+        class: "block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition" %>
+    <% end %>
     <% contest = Contest.order(created_at: :desc).first %>
     <% if contest %>
       <div class="border-t border-subtle my-1"></div>
