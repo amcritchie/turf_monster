@@ -527,6 +527,17 @@
 
         try {
           // For Phantom wallet users, require signature before entry
+          // Base58 encoder for Phantom signature
+          const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+          function b58encode(bytes) {
+            let num = BigInt(0);
+            for (const b of bytes) num = num * 256n + BigInt(b);
+            let r = '';
+            while (num > 0n) { r = B58[Number(num % 58n)] + r; num = num / 58n; }
+            for (const b of bytes) { if (b !== 0) break; r = '1' + r; }
+            return r || '1';
+          }
+
           let bodyData = {};
           if (this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana) {
             const provider = window.phantom.solana;
@@ -542,7 +553,7 @@
             const message = `${domain} wants you to sign in with your Solana account:\n${pubkeyB58}\n\nEnter contest: ${this.contestName}\n\nNonce: ${nonce}`;
             const encoded = new TextEncoder().encode(message);
             const signed = await provider.signMessage(encoded, 'utf8');
-            const signatureB58 = encodeBase58(signed.signature);
+            const signatureB58 = b58encode(signed.signature);
 
             bodyData = { message, signature: signatureB58, pubkey: pubkeyB58 };
             Alpine.store('solanaModal').show('Submitting Entry', 'Recording entry onchain...');
