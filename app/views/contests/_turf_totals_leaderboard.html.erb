@@ -143,42 +143,40 @@
           dimmed = @contest.settled? && !paid
         %>
         <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>">
-          <div class="flex items-center gap-4 px-4 py-3">
+          <div class="flex items-center gap-3 px-4 py-3">
             <%# Rank %>
             <div class="w-8 text-center font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-secondary' %>">
               <%= display_rank %>
             </div>
             <%# Player %>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <%= render "shared/avatar", user: entry.user, size: "sm" %>
-                <span class="font-semibold truncate <%= dimmed ? 'text-muted' : 'text-heading' %>"><%= entry.user.display_name %></span>
-                <% if entry.onchain_tx_signature.present? %>
-                  <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-                     target="_blank" class="text-muted hover:text-primary transition" title="Verified onchain">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  </a>
-                <% end %>
-              </div>
-              <%# Selections %>
-              <div class="flex flex-wrap gap-1.5 mt-1">
-                <% entry.selections.each do |selection| %>
-                  <%
-                    team = selection.slate_matchup.team
-                    c1 = team.color_primary || "#666"
-                    c2 = team.color_secondary || c1
-                    has_points = selection.points.present?
-                  %>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-white border border-white/10"
-                        style="background: linear-gradient(135deg, <%= c1 %>cc, <%= c2 %>99)"
-                        title="<%= team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
-                    <%= team.emoji %><%= team.short_name %>
-                    <% if has_points %>
-                      <span style="opacity:0.85"><%= sprintf('%.1f', selection.points) %></span>
-                    <% end %>
-                  </span>
-                <% end %>
-              </div>
+            <div class="flex items-center gap-2 min-w-0" style="width:7rem">
+              <%= render "shared/avatar", user: entry.user, size: "sm" %>
+              <span class="font-semibold truncate text-sm <%= dimmed ? 'text-muted' : 'text-heading' %>"><%= entry.user.display_name %></span>
+              <% if entry.onchain_tx_signature.present? %>
+                <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
+                   target="_blank" class="text-muted hover:text-primary transition flex-shrink-0" title="Verified onchain">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </a>
+              <% end %>
+            </div>
+            <%# Selections %>
+            <div class="flex-1 flex flex-wrap gap-2">
+              <% entry.selections.each do |selection| %>
+                <%
+                  team = selection.slate_matchup.team
+                  c1 = team.color_primary || "#666"
+                  c2 = team.color_secondary || c1
+                  has_points = selection.points.present?
+                %>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-mono font-semibold text-white border border-white/15"
+                      style="background: linear-gradient(135deg, <%= c1 %>cc, <%= c2 %>99)"
+                      title="<%= team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
+                  <%= team.emoji %> <%= team.short_name %>
+                  <% if has_points %>
+                    <span style="opacity:0.85"><%= sprintf('%.1f', selection.points) %></span>
+                  <% end %>
+                </span>
+              <% end %>
             </div>
             <%# Score %>
             <div class="text-right">
