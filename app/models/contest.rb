@@ -50,6 +50,8 @@ class Contest < ApplicationRecord
   end
 
   def grade!
+    raise "Contest is already settled" if settled?
+
     transaction do
       score_entries!
 
@@ -83,7 +85,10 @@ class Contest < ApplicationRecord
           tied_count = tied_indices.size
           spanned_ranks = (rank..(rank + tied_count - 1)).to_a
           total_prize = spanned_ranks.sum { |r| payouts[r] || 0 }
-          share = total_prize / tied_count
+          base_share = total_prize / tied_count
+          remainder = total_prize % tied_count
+          position_in_tie = tied_indices.index(i)
+          share = position_in_tie < remainder ? base_share + 1 : base_share
           if share > 0
             entry.user.add_funds!(share)
             TransactionLog.record!(user: entry.user, type: "payout", amount_cents: share, direction: "credit", source: self, description: "Payout rank ##{rank} for #{name}")
