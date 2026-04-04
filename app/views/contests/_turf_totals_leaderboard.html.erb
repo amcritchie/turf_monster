@@ -142,11 +142,13 @@
           display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
           dimmed = @contest.settled? && !paid
           team_colors = entry.selections.map { |s| s.slate_matchup.team.color_primary }.compact
-          gradient_stops = team_colors.each_with_index.map { |c, idx|
-            pct = team_colors.size > 1 ? (idx * 100.0 / (team_colors.size - 1)).round : 0
-            "#{c}18 #{pct}%"
+          n = team_colors.size
+          stripe_stops = team_colors.each_with_index.flat_map { |c, idx|
+            from = (idx * 100.0 / n).round
+            to = ((idx + 1) * 100.0 / n).round
+            ["#{c}15 #{from}%", "#{c}15 #{to}%"]
           }.join(", ")
-          gradient = team_colors.any? ? "background: linear-gradient(90deg, #{gradient_stops})" : ""
+          gradient = team_colors.any? ? "background: linear-gradient(90deg, #{stripe_stops})" : ""
         %>
         <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>"
              style="<%= gradient %>">
