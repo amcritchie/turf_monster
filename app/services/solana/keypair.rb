@@ -3,14 +3,12 @@
 
 module Solana
   class Keypair
-    # Load admin keypair — tries SOLANA_ADMIN_KEY env var (base58) first, falls back to JSON file
+    # Load admin keypair from SOLANA_ADMIN_KEY env var (base58)
     def self.admin
       @admin ||= if ENV["SOLANA_ADMIN_KEY"].present?
         from_base58(ENV["SOLANA_ADMIN_KEY"])
-      elsif File.exist?(Config::ADMIN_KEYPAIR_PATH)
-        from_json_file(Config::ADMIN_KEYPAIR_PATH)
       else
-        raise "SOLANA_ADMIN_KEY env var or keypair file at #{Config::ADMIN_KEYPAIR_PATH} required"
+        raise "SOLANA_ADMIN_KEY env var required"
       end
     end
 
