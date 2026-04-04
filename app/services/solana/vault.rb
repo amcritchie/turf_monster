@@ -322,6 +322,7 @@ module Solana
     def build_enter_contest_direct(wallet_address, contest_slug, entry_num)
       admin = Keypair.admin
       wallet_bytes = Keypair.decode_base58(wallet_address)
+      user_pda, _ = user_account_pda(wallet_address)
       vault_pda, _ = vault_state_pda
       c_pda, _ = contest_pda(contest_slug)
       e_pda, _ = entry_pda(contest_slug, wallet_address, entry_num)
@@ -339,6 +340,7 @@ module Solana
         accounts: [
           { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },   # payer
           { pubkey: wallet_bytes, is_signer: true, is_writable: true },              # user (signs token transfer)
+          { pubkey: user_pda, is_signer: false, is_writable: true },                 # user_account (seeds awarded)
           { pubkey: vault_pda, is_signer: false, is_writable: false },               # vault_state
           { pubkey: c_pda, is_signer: false, is_writable: true },                    # contest
           { pubkey: e_pda, is_signer: false, is_writable: true },                    # contest_entry (init)
@@ -459,13 +461,15 @@ module Solana
       balance, offset = Borsh.decode_u64(account_data, offset)
       total_deposited, offset = Borsh.decode_u64(account_data, offset)
       total_withdrawn, offset = Borsh.decode_u64(account_data, offset)
-      total_won, _ = Borsh.decode_u64(account_data, offset)
+      total_won, offset = Borsh.decode_u64(account_data, offset)
+      seeds, _ = Borsh.decode_u64(account_data, offset)
 
       {
         balance: balance,
         total_deposited: total_deposited,
         total_withdrawn: total_withdrawn,
         total_won: total_won,
+        seeds: seeds,
         balance_dollars: Config.lamports_to_dollars(balance)
       }
     end

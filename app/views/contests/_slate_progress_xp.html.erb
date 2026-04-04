@@ -1,0 +1,61 @@
+<%# locals: (seeds_data:) %>
+<% return unless seeds_data %>
+<% seeds = seeds_data[:seeds] %>
+<% lvl = seeds_data[:level] %>
+<% toward_next = seeds_data[:toward_next] %>
+<% pct = seeds_data[:progress] %>
+<% seeds_left = seeds_data[:seeds_to_next] %>
+
+<style>
+  @keyframes seedsBarGlow {
+    0%, 100% { box-shadow: 0 0 6px rgba(var(--color-primary-500-rgb), 0.3); }
+    50% { box-shadow: 0 0 14px rgba(var(--color-primary-500-rgb), 0.6); }
+  }
+</style>
+
+<div class="card shadow p-5 mb-6"
+     x-data="{ seeds: 0, barWidth: 0 }"
+     x-init="
+       setTimeout(() => {
+         barWidth = <%= pct %>;
+         let target = <%= toward_next %>;
+         if (target > 0) {
+           let step = Math.max(1, Math.ceil(target / 50));
+           let iv = setInterval(() => { $data.seeds = Math.min($data.seeds + step, target); if ($data.seeds >= target) clearInterval(iv); }, 20);
+         }
+       }, 150);
+     ">
+
+  <%# Header %>
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style="background: rgba(var(--color-primary-500-rgb), 0.15); color: var(--color-cta); border: 1px solid rgba(var(--color-primary-500-rgb), 0.3);">
+        Level <%= lvl %>
+      </span>
+      <h3 class="text-heading font-semibold text-sm"><%= seeds %> seeds</h3>
+    </div>
+    <p class="text-xs text-muted">
+      <span class="font-semibold" style="color: var(--color-cta)"><%= seeds_left %></span> to next level
+    </p>
+  </div>
+
+  <%# Progress bar %>
+  <div class="bg-inset border border-subtle rounded-lg px-3 py-2.5">
+    <div class="relative">
+      <div class="w-full rounded-full overflow-hidden" style="height: 8px; background: var(--color-bg-surface);">
+        <div class="h-full rounded-full"
+             style="width: 0%; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+                    background: var(--color-cta);
+                    <% if toward_next > 0 %>animation: seedsBarGlow 2s ease-in-out infinite;<% end %>"
+             :style="{ width: barWidth + '%' }">
+        </div>
+      </div>
+    </div>
+
+    <%# Seeds counter %>
+    <div class="mt-2">
+      <span class="text-xs font-mono font-bold" style="color: var(--color-cta)" x-text="seeds + ' / <%= User::SEEDS_PER_LEVEL %> seeds'">0 / <%= User::SEEDS_PER_LEVEL %> seeds</span>
+    </div>
+  </div>
+</div>

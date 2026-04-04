@@ -7,13 +7,7 @@ class ContestsController < ApplicationController
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
   def index
-    @contests = Contest.where(status: [:open, :locked, :settled]).order(created_at: :asc)
-    @contest = @contests.first
-    return unless @contest
-
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team })
-    @matchups = @contest.matchups.includes(:team, :opponent_team, :game).order(:rank)
-    @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
+    @contests = Contest.where(status: [:open, :locked, :settled]).includes(:slate, :entries).order(created_at: :asc)
   end
 
   def admin_index
@@ -122,14 +116,25 @@ class ContestsController < ApplicationController
   end
 
   def show
-    @contests = Contest.where(status: [:open, :locked, :settled]).order(created_at: :asc)
     @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
     @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team }).order(score: :desc)
     @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
 
-    if logged_in?
-      group_slates = Slate.where.not(name: "Default").where.not(starts_at: nil).order(:starts_at)
-      @slate_progress = current_user.slate_progress(group_slates)
+    if logged_in? && current_user.solana_connected?
+      begin
+        onchain = Solana::Vault.new.sync_balance(current_user.solana_address)
+        seeds = onchain&.dig(:seeds) || 0
+      rescue => e
+        Rails.logger.warn "Failed to read on-chain seeds: #{e.message}"
+        seeds = 0
+      end
+      @seeds_data = {
+        seeds: seeds,
+        level: User.level_for(seeds),
+        toward_next: User.seeds_toward_next_level(seeds),
+        progress: User.seeds_progress_percent(seeds),
+        seeds_to_next: User::SEEDS_PER_LEVEL - User.seeds_toward_next_level(seeds)
+      }
     end
 
     if @contest.onchain?

@@ -109,4 +109,5 @@ class EntryTest < ActiveSupport::TestCase
     assert_match(/already started/, error.message)
     assert entry.reload.cart?
   end
+
 end

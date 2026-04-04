@@ -99,7 +99,8 @@ class User < ApplicationRecord
       completed_count: group_slates.count { |s| completed.include?(s.id) },
       total_count: group_slates.size,
       completed_slate_ids: completed,
-      all_complete: group_slates.all? { |s| completed.include?(s.id) }
+      all_complete: group_slates.all? { |s| completed.include?(s.id) },
+      slates: group_slates.map { |s| { id: s.id, name: s.name, starts_at: s.starts_at, completed: completed.include?(s.id) } }
     }
   end
 
@@ -145,6 +146,25 @@ class User < ApplicationRecord
       wallet_type: "managed"
     )
     keypair
+  end
+
+  # --- Seeds (on-chain) ---
+  # Seeds live on the UserAccount PDA (on-chain). 25 seeds per contest entry.
+  # Level = (seeds / 100) + 1. UI-derived, no DB column.
+
+  SEEDS_PER_ENTRY = 25
+  SEEDS_PER_LEVEL = 100
+
+  def self.level_for(seeds)
+    (seeds / SEEDS_PER_LEVEL) + 1
+  end
+
+  def self.seeds_toward_next_level(seeds)
+    seeds % SEEDS_PER_LEVEL
+  end
+
+  def self.seeds_progress_percent(seeds)
+    (seeds_toward_next_level(seeds).to_f / SEEDS_PER_LEVEL * 100).round
   end
 
   # --- Money ---

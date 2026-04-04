@@ -1,5 +1,3 @@
-<%= render "contests/contest_selector", contests: @contests, current_contest: @contest %>
-
 <div class="mb-6">
   <% if @contest.slate %>
     <p class="text-sm text-secondary font-medium"><%= @contest.slate.name %></p>
@@ -7,8 +5,8 @@
   <h1 class="text-3xl font-extrabold text-heading"><%= @contest.name %></h1>
 </div>
 
-<% if logged_in? && @slate_progress %>
-  <%= render "contests/slate_progress", progress: @slate_progress %>
+<% if logged_in? && @seeds_data %>
+  <%= render "contests/slate_progress_xp", seeds_data: @seeds_data %>
 <% end %>
 <% if @contest.open? %>
   <% has_entry = logged_in? && @contest.entries.where(user: current_user, status: [:active, :complete]).exists? %>

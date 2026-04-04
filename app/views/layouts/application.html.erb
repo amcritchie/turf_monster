@@ -77,6 +77,7 @@
                   x-bind:class="scrolled ? 'text-xl' : 'text-3xl'">Turf <span class="text-primary">Monster</span></h1>
             <% end %>
             <nav class="hidden md:flex items-center gap-4">
+              <%= link_to "Join Contest", root_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
               <% if logged_in? %>
                 <%= link_to "My Contests", my_contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
               <% end %>

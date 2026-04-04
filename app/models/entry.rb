@@ -60,6 +60,7 @@ class Entry < ApplicationRecord
     end
 
     # Attempt onchain entry (non-blocking)
+    # Seeds (25 per entry) are awarded on-chain by the turf_vault Anchor program
     enter_onchain!
   end
 
@@ -102,6 +103,8 @@ class Entry < ApplicationRecord
       onchain_tx_signature: tx_signature,
       onchain_entry_id: entry_pda
     )
+
+    # Seeds (25 per entry) are awarded on-chain by the turf_vault Anchor program
   end
 
   def enter_onchain!

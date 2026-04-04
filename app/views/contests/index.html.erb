@@ -1,6 +1,34 @@
-<% if @contest.nil? %>
-  <p class="text-secondary">No contests yet.</p>
+<div class="mb-6">
+  <h1 class="text-3xl font-extrabold text-heading">Contests</h1>
+</div>
+
+<% if @contests.any? %>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <% @contests.each do |contest| %>
+      <%= link_to contest_path(contest), class: "card-hover block p-5" do %>
+        <% if contest.slate %>
+          <p class="text-xs text-secondary font-medium mb-1"><%= contest.slate.name %></p>
+        <% end %>
+
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-heading"><%= contest.name %></h2>
+          <span class="badge text-[10px] <%= contest_badge_classes(contest.status) %>"><%= contest.status.capitalize %></span>
+        </div>
+
+        <div class="flex items-center gap-4 text-sm text-secondary mb-2">
+          <span><%= dollars(contest.entry_fee_dollars) %> entry</span>
+          <span class="text-muted">|</span>
+          <span><%= dollars(contest.guaranteed_prize_dollars) %> prizes</span>
+          <span class="text-muted">|</span>
+          <span><%= contest.entries.where(status: [:active, :complete]).size %> entries</span>
+        </div>
+
+        <% if contest.starts_at %>
+          <p class="text-xs text-muted"><%= contest.starts_at.strftime("%b %-d, %Y") %></p>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
 <% else %>
-  <%= render "contests/contest_selector", contests: @contests, current_contest: @contest %>
-  <%= render "contests/turf_totals_board" %>
+  <p class="text-secondary">No contests yet.</p>
 <% end %>

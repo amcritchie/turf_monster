@@ -90,4 +90,28 @@ class UserTest < ActiveSupport::TestCase
     user.save!
     assert user.slug.present?
   end
+
+  # --- Seeds (class methods, no DB) ---
+
+  test "level_for returns 1 for 0 seeds" do
+    assert_equal 1, User.level_for(0)
+  end
+
+  test "level_for returns correct level" do
+    assert_equal 1, User.level_for(50)
+    assert_equal 2, User.level_for(100)
+    assert_equal 4, User.level_for(350)
+  end
+
+  test "seeds_toward_next_level returns modulo" do
+    assert_equal 0, User.seeds_toward_next_level(0)
+    assert_equal 50, User.seeds_toward_next_level(50)
+    assert_equal 75, User.seeds_toward_next_level(175)
+  end
+
+  test "seeds_progress_percent returns percentage" do
+    assert_equal 0, User.seeds_progress_percent(0)
+    assert_equal 50, User.seeds_progress_percent(50)
+    assert_equal 25, User.seeds_progress_percent(25)
+  end
 end
