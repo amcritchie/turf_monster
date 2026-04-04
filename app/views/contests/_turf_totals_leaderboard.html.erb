@@ -141,12 +141,18 @@
           paid = @contest.settled? && entry.payout_cents.to_i > 0
           display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
           dimmed = @contest.settled? && !paid
+          first_place = display_rank == 1
         %>
-        <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>">
+        <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %> <%= first_place ? 'border-primary/40' : '' %>"
+             style="<%= first_place ? 'background: linear-gradient(90deg, rgba(75,175,80,0.08) 0%, transparent 40%)' : '' %>">
           <div class="flex items-center gap-3 px-4 py-3">
             <%# Rank %>
-            <div class="w-8 text-center font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-secondary' %>">
-              <%= display_rank %>
+            <div class="w-8 text-center font-mono font-bold text-lg <%= first_place ? 'text-primary' : (dimmed ? 'text-muted' : 'text-secondary') %>">
+              <% if first_place %>
+                <span title="In the money">👑</span>
+              <% else %>
+                <%= display_rank %>
+              <% end %>
             </div>
             <%# Player %>
             <div class="flex items-center gap-2 min-w-0" style="width:7rem">
