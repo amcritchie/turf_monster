@@ -46,7 +46,22 @@ window.parseSolanaError = function(msg) {
   if (/0x177b/.test(msg)) return 'Account is already migrated.';
   if (/0x177c/.test(msg)) return 'Invalid account data.';
 
-  // Pass through unrecognized messages
+  // Rails / database errors
+  if (/duplicate key|UniqueViolation|already exists/i.test(msg)) {
+    return 'A record with this name already exists. Try a different name.';
+  }
+  if (/RecordInvalid/i.test(msg)) {
+    // Strip "Validation failed: " prefix if present
+    var clean = msg.replace(/.*RecordInvalid:\s*/i, '').replace(/Validation failed:\s*/i, '');
+    return clean || 'Validation failed. Please check your input.';
+  }
+
+  // Catch raw internal errors (PG::, ActiveRecord::, etc.) — show generic message
+  if (/PG::|ActiveRecord::|StandardError|RuntimeError|NoMethodError|TypeError/.test(msg)) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  // Pass through unrecognized messages (likely our own friendly raise messages)
   return msg;
 };
 </script>
