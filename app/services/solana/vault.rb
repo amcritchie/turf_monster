@@ -177,13 +177,51 @@ module Solana
       { signature: signature }
     end
 
-    # Ensure user's onchain account exists, create if needed
-    def ensure_user_account(wallet_address)
+    # Check status of a UserAccount PDA: :ok, :needs_migration, or :not_found
+    def check_user_account_status(wallet_address)
       user_pda, _ = user_account_pda(wallet_address)
       info = client.get_account_info(Keypair.encode_base58(user_pda))
-      return if info && info.dig("value")
+      return :not_found unless info&.dig("value")
 
-      create_user_account(wallet_address)
+      data = Base64.decode64(info["value"]["data"][0])
+      expected_len = 81 # 8 discriminator + 73 UserAccount fields (v0.5.0+)
+      data.length == expected_len ? :ok : :needs_migration
+    end
+
+    # Ensure user's onchain account exists and is current, create or migrate as needed
+    def ensure_user_account(wallet_address)
+      status = check_user_account_status(wallet_address)
+      case status
+      when :ok then nil
+      when :needs_migration then migrate_user_account(wallet_address)
+      when :not_found then create_user_account(wallet_address)
+      end
+    end
+
+    # Migrate a UserAccount PDA to the current struct size (admin-only, idempotent)
+    def migrate_user_account(wallet_address)
+      admin = Keypair.admin
+      vault_pda, _ = vault_state_pda
+      user_pda, _ = user_account_pda(wallet_address)
+      wallet_bytes = Keypair.decode_base58(wallet_address)
+
+      data = Transaction.anchor_discriminator("migrate_user_account")
+
+      tx = build_tx(admin)
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: vault_pda, is_signer: false, is_writable: false },
+          { pubkey: user_pda, is_signer: false, is_writable: true },
+          { pubkey: wallet_bytes, is_signer: false, is_writable: false },
+          { pubkey: Transaction::SYSTEM_PROGRAM_ID, is_signer: false, is_writable: false }
+        ],
+        data: data
+      )
+
+      signature = client.send_and_confirm(tx.serialize_base64)
+      { signature: signature, pda: Keypair.encode_base58(user_pda) }
     end
 
     # Create a UserAccount PDA for a wallet (admin pays rent)
@@ -446,7 +484,7 @@ module Solana
       }
     end
 
-    # Read onchain UserAccount balance
+    # Read onchain UserAccount balance. Handles both old (73-byte) and new (81-byte) layouts.
     def sync_balance(wallet_address)
       user_pda, _ = user_account_pda(wallet_address)
       pda_base58 = Keypair.encode_base58(user_pda)
@@ -462,7 +500,14 @@ module Solana
       total_deposited, offset = Borsh.decode_u64(account_data, offset)
       total_withdrawn, offset = Borsh.decode_u64(account_data, offset)
       total_won, offset = Borsh.decode_u64(account_data, offset)
-      seeds, _ = Borsh.decode_u64(account_data, offset)
+
+      # Seeds field added in v0.5.0 — old accounts (73 bytes) don't have it
+      seeds = if account_data.length >= 81
+        val, _ = Borsh.decode_u64(account_data, offset)
+        val
+      else
+        0
+      end
 
       {
         balance: balance,

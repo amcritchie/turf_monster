@@ -151,19 +151,7 @@
             }
           }, 1000);
         } catch(err) {
-          var msg = err.message || 'Unknown error';
-          // Map cryptic Solana/Phantom errors to human-readable messages
-          if (msg.match(/user rejected/i) || msg.match(/user declined/i)) {
-            msg = 'Transaction cancelled — you declined the request in Phantom.';
-          } else if (msg.match(/invalid account data/i)) {
-            msg = 'Transaction failed — your wallet may not have a USDC token account. Try claiming USDC from the Faucet first.';
-          } else if (msg.match(/insufficient funds/i) || msg.match(/0x1/)) {
-            msg = 'Insufficient USDC balance. Top up your wallet via the Faucet.';
-          } else if (msg.match(/blockhash not found/i) || msg.match(/block height exceeded/i)) {
-            msg = 'Transaction expired. Please try again.';
-          } else if (msg === 'Unexpected error' || msg.match(/unexpected/i)) {
-            msg = 'Phantom could not process the transaction. Make sure the correct wallet is connected and has USDC.';
-          }
+          var msg = parseSolanaError(err.message || 'Unknown error');
           Alpine.store('solanaModal').error(msg);
           btn.disabled = false;
         }

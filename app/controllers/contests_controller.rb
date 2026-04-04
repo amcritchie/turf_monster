@@ -220,6 +220,10 @@ class ContestsController < ApplicationController
       entry.save! if entry.entry_number_changed?
 
       vault = Solana::Vault.new
+
+      # Ensure user's onchain account exists and is current (auto-migrate if needed)
+      vault.ensure_user_account(current_user.solana_address)
+
       result = vault.build_enter_contest_direct(
         current_user.solana_address,
         @contest.slug,
