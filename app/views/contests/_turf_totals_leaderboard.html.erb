@@ -141,17 +141,8 @@
           paid = @contest.settled? && entry.payout_cents.to_i > 0
           display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
           dimmed = @contest.settled? && !paid
-          team_colors = entry.selections.map { |s| s.slate_matchup.team.color_primary }.compact
-          n = team_colors.size
-          stripe_stops = team_colors.each_with_index.flat_map { |c, idx|
-            from = (idx * 100.0 / n).round
-            to = ((idx + 1) * 100.0 / n).round
-            ["#{c}15 #{from}%", "#{c}15 #{to}%"]
-          }.join(", ")
-          gradient = team_colors.any? ? "background: linear-gradient(90deg, #{stripe_stops})" : ""
         %>
-        <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>"
-             style="<%= gradient %>">
+        <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>">
           <div class="flex items-center gap-4 px-4 py-3">
             <%# Rank %>
             <div class="w-8 text-center font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-secondary' %>">
@@ -170,23 +161,20 @@
                 <% end %>
               </div>
               <%# Selections %>
-              <div class="flex flex-wrap gap-1 mt-1">
+              <div class="flex flex-wrap gap-1.5 mt-1">
                 <% entry.selections.each do |selection| %>
                   <%
+                    team = selection.slate_matchup.team
+                    c1 = team.color_primary || "#666"
+                    c2 = team.color_secondary || c1
                     has_points = selection.points.present?
-                    pill_bg = if has_points && selection.points > 0
-                                  "bg-mint-900/30 text-mint border-mint-700"
-                                elsif has_points
-                                  "bg-surface-alt text-secondary border-strong"
-                                else
-                                  "bg-surface-alt/70 text-body border-strong"
-                                end
                   %>
-                  <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>"
-                        title="<%= selection.slate_matchup.team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
-                    <%= selection.slate_matchup.team.emoji %><%= selection.slate_matchup.team.short_name %>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-white border border-white/10"
+                        style="background: linear-gradient(135deg, <%= c1 %>cc, <%= c2 %>99)"
+                        title="<%= team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
+                    <%= team.emoji %><%= team.short_name %>
                     <% if has_points %>
-                      <span class="text-violet"><%= sprintf('%.1f', selection.points) %></span>
+                      <span style="opacity:0.85"><%= sprintf('%.1f', selection.points) %></span>
                     <% end %>
                   </span>
                 <% end %>
