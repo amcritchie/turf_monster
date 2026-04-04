@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/amcritchie/solana_studio.git
-  revision: acc4ee6049d1d8b90364991ab39a7deb56ace2bf
+  revision: a979600dc1633705a503a6f93217527fa5e08b6e
   specs:
     solana_studio (0.2.0)
       ed25519 (~> 1.3)

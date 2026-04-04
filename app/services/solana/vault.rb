@@ -241,12 +241,19 @@ module Solana
       client.send_and_confirm(tx.serialize_base64)
     end
 
-    # Create contest onchain (admin signs)
-    def create_contest(contest_slug, entry_fee:, max_entries:, payout_amounts:, bonus:)
+    # Build a partially-signed create_contest transaction.
+    # Admin signs (pays PDA rent), creator must sign client-side (authorizes bonus USDC transfer).
+    # Returns base64-encoded transaction for the creator to co-sign and submit.
+    def build_create_contest(wallet_address, contest_slug, entry_fee:, max_entries:, payout_amounts:, bonus:)
       admin = Keypair.admin
+      wallet_bytes = Keypair.decode_base58(wallet_address)
       contest_id = Digest::SHA256.digest(contest_slug)
       contest_pda_addr, _ = contest_pda(contest_slug)
       vault_pda, _ = vault_state_pda
+
+      usdc_mint = Keypair.decode_base58(Config::USDC_MINT)
+      creator_ata, _ = Solana::SplToken.find_associated_token_address(wallet_address, Config::USDC_MINT)
+      vault_usdc, _ = vault_usdc_pda
 
       data = Transaction.anchor_discriminator("create_contest") +
              Borsh.encode_bytes32(contest_id) +
@@ -259,30 +266,24 @@ module Solana
       tx.add_instruction(
         program_id: @program_id,
         accounts: [
-          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
-          { pubkey: vault_pda, is_signer: false, is_writable: false },
-          { pubkey: contest_pda_addr, is_signer: false, is_writable: true },
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },   # payer
+          { pubkey: wallet_bytes, is_signer: true, is_writable: true },              # creator (signs USDC transfer)
+          { pubkey: vault_pda, is_signer: false, is_writable: false },               # vault_state
+          { pubkey: contest_pda_addr, is_signer: false, is_writable: true },         # contest (init)
+          { pubkey: usdc_mint, is_signer: false, is_writable: false },               # mint
+          { pubkey: creator_ata, is_signer: false, is_writable: true },              # creator_token_account
+          { pubkey: vault_usdc, is_signer: false, is_writable: true },               # vault_token_account
+          { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false },
           { pubkey: Transaction::SYSTEM_PROGRAM_ID, is_signer: false, is_writable: false }
         ],
         data: data
       )
 
-      # Atomic SPL transfer: move USDC from admin ATA to vault token account
-      if bonus > 0
-        # Ensure admin ATA exists (separate tx if needed)
-        ensure_ata(admin.to_base58, mint: Config::USDC_MINT)
+      # Partial sign: admin signs, creator's signature slot left as zeros
+      serialized = tx.serialize_partial_base64(additional_signers: [wallet_bytes])
+      contest_pda_b58 = Keypair.encode_base58(contest_pda_addr)
 
-        admin_ata, _ = admin_usdc_ata
-        vault_usdc, _ = vault_usdc_pda
-        transfer_ix = Solana::SplToken.transfer_instruction(
-          from: admin_ata, to: vault_usdc,
-          authority: admin.public_key_bytes, amount: bonus
-        )
-        tx.add_instruction(**transfer_ix)
-      end
-
-      signature = client.send_and_confirm(tx.serialize_base64)
-      { signature: signature, pda: Keypair.encode_base58(contest_pda_addr) }
+      { serialized_tx: serialized, contest_pda: contest_pda_b58 }
     end
 
     # Enter contest (admin signs, deducts from user balance onchain)
@@ -422,6 +423,7 @@ module Solana
       vec_len, offset = Borsh.decode_u32(data, offset)
       payout_amounts = vec_len.times.map { |_| v, offset = Borsh.decode_u64(data, offset); v }
       admin_bytes, offset = Borsh.decode_pubkey(data, offset)
+      creator_bytes, offset = Borsh.decode_pubkey(data, offset)
 
       status_name = %w[Open Locked Settled][status_byte] || "Unknown"
 
@@ -437,7 +439,8 @@ module Solana
         bonus_dollars: Config.lamports_to_dollars(bonus),
         status: status_name,
         payout_amounts: payout_amounts.map { |a| Config.lamports_to_dollars(a) },
-        admin: Keypair.encode_base58(admin_bytes)
+        admin: Keypair.encode_base58(admin_bytes),
+        creator: Keypair.encode_base58(creator_bytes)
       }
     end
 

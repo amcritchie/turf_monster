@@ -53,7 +53,8 @@ Rails.application.routes.draw do
       post :simulate_game
       post :simulate_batch
       post :reset
-      post :create_onchain
+      post :prepare_onchain_contest
+      post :confirm_onchain_contest
       post :payout_entry
     end
   end

@@ -364,6 +364,8 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 - `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show (standard path: managed/non-onchain)
 - `/contests/:id/prepare_entry` — POST, build partial-signed `enter_contest_direct` tx for Phantom users (returns serialized_tx + entry_id)
 - `/contests/:id/confirm_onchain_entry` — POST, confirm entry after user co-signs + submits tx (no DB balance deduction)
+- `/contests/:id/prepare_onchain_contest` — POST, build partial-signed `create_contest` tx for Phantom users (admin only, returns serialized_tx + contest_pda)
+- `/contests/:id/confirm_onchain_contest` — POST, confirm contest after creator co-signs + submits tx (saves onchain_contest_id + tx_signature)
 - `/contests/:id/clear_picks` — POST, abandon cart entry
 - `/contests/:id/grade` — POST, grade contest (admin only)
 - `/contests/:id/fill` — POST, fill contest with random entries (admin only)
@@ -422,7 +424,7 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 
 Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
 
-**Deployment status**: v0.2.0 deployed to devnet. Vault initialized with dual admin + test SPL mints.
+**Deployment status**: v0.4.0 deployed to devnet. Vault re-initialized with dual admin + test SPL mints. Hard escrow contest creation live.
 - Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
 - Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
 - Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
@@ -435,12 +437,24 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 
 `display_balance` helper shows the logged-in user's Phantom wallet USDC balance on devnet (cached 60s), falling back to DB `total_balance_dollars` for non-wallet users or non-devnet. The `/admin/usdc_balance` JSON endpoint (used by `refreshBalance()` JS) follows the same logic. Both use `fetch_user_usdc` → `Vault#fetch_wallet_balances(current_user.solana_address)`.
 
-**Balance refresh system**: `refreshBalance()` fetches `/admin/usdc_balance` and updates all `[data-balance-display]` elements. `refreshBalanceDelayed(ms)` waits (default 10s) then calls `refreshBalance()` — spins the navbar refresh icon (`[data-balance-refresh]`) during the wait as a visual cue. Called automatically after Solana operations (faucet, create_onchain, payout). Manual refresh button (circular arrows icon) next to the balance in navbar (desktop + mobile).
+**Balance refresh system**: `refreshBalance()` fetches `/admin/usdc_balance` and updates all `[data-balance-display]` elements. `refreshBalanceDelayed(ms)` waits (default 10s) then calls `refreshBalance()` — spins the navbar refresh icon (`[data-balance-refresh]`) during the wait as a visual cue. Called automatically after Solana operations (faucet, contest creation, payout). Manual refresh button (circular arrows icon) next to the balance in navbar (desktop + mobile).
 
 ### Wallet Types
 
 - **Managed**: Server generates + encrypts Ed25519 keypair, signs transactions on behalf of user (formerly "custodial")
 - **Phantom**: User connects Phantom browser extension, signs transactions directly
+
+### Hard Escrow Contest Creation (v0.4.0)
+
+Contest creation transfers bonus USDC from creator's Phantom wallet to vault — real hard escrow, not just a number on the PDA. Dual-signer: admin bot pays SOL rent, creator's Phantom signs the USDC transfer.
+
+1. Admin fills form + submits → `POST /contests` (creates DB record)
+2. `POST /contests/:id/prepare_onchain_contest` → server builds + admin partial-signs tx
+3. `phantom.signTransaction(tx)` → creator co-signs the bonus USDC transfer
+4. `connection.sendRawTransaction()` → submit to Solana
+5. `POST /contests/:id/confirm_onchain_contest` → saves onchain_contest_id + tx_signature
+
+Replaced the old server-only `create_onchain` flow. Contest model's `create_onchain!` method removed. Vault service uses `build_create_contest` (partial-sign) instead of `create_contest` (full-sign).
 
 ### Dual-Path Onchain Entry Flow
 

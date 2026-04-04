@@ -248,17 +248,6 @@ class Contest < ApplicationRecord
     }
   end
 
-  def create_onchain!(contest_slug = slug)
-    return if onchain?
-    vault = Solana::Vault.new
-    result = vault.create_contest(contest_slug, **onchain_params)
-
-    update!(
-      onchain_contest_id: result[:pda],
-      onchain_tx_signature: result[:signature]
-    )
-  end
-
   def settle_onchain!
     return unless onchain? && !onchain_settled?
 

@@ -2,8 +2,8 @@ class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry, :prepare_entry, :confirm_onchain_entry]
-  before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry]
+  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest]
+  before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
   def index
@@ -55,14 +55,44 @@ class ContestsController < ApplicationController
     end
   end
 
-  def create_onchain
+  # Build a partially-signed create_contest transaction for Phantom co-signing.
+  # Admin signs (pays rent), returns base64 tx for creator to co-sign client-side.
+  def prepare_onchain_contest
     rescue_and_log(target: @contest) do
       raise "Already onchain" if @contest.onchain?
-      @contest.create_onchain!
+      raise "Phantom wallet required" unless current_user.phantom_wallet?
+
+      vault = Solana::Vault.new
+      result = vault.build_create_contest(
+        current_user.solana_address,
+        @contest.slug,
+        **@contest.onchain_params
+      )
+
+      render json: {
+        success: true,
+        serialized_tx: result[:serialized_tx],
+        contest_slug: @contest.slug,
+        contest_pda: result[:contest_pda]
+      }
+    end
+  rescue StandardError => e
+    render json: { success: false, error: e.message }, status: :unprocessable_entity
+  end
+
+  # Confirm an onchain contest after the creator has co-signed and submitted the tx.
+  def confirm_onchain_contest
+    rescue_and_log(target: @contest) do
+      raise "Already onchain" if @contest.onchain?
+
+      @contest.update!(
+        onchain_contest_id: params[:contest_pda],
+        onchain_tx_signature: params[:tx_signature]
+      )
 
       invalidate_usdc_cache if logged_in?
 
-      render json: { success: true, tx: @contest.onchain_tx_signature, pda: @contest.onchain_contest_id }
+      render json: { success: true, tx: params[:tx_signature], pda: params[:contest_pda] }
     end
   rescue StandardError => e
     render json: { success: false, error: e.message }, status: :unprocessable_entity

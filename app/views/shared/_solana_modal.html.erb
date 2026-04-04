@@ -11,6 +11,8 @@
       txSignature: null,
       errorMessage: null,
       onClose: null,
+      countdown: 0,
+      _countdownTimer: null,
 
       show(title, message) {
         this.visible = true;
@@ -20,12 +22,32 @@
         this.txSignature = null;
         this.errorMessage = null;
         this.onClose = null;
+        this.countdown = 0;
+        this._clearCountdown();
       },
 
-      success(tx, message) {
+      success(tx, message, autoCloseSeconds) {
         this.state = 'success';
         this.txSignature = tx;
         if (message) this.message = message;
+        var seconds = autoCloseSeconds || 5;
+        this.countdown = seconds;
+        this._clearCountdown();
+        var self = this;
+        this._countdownTimer = setInterval(function() {
+          self.countdown--;
+          if (self.countdown <= 0) {
+            self._clearCountdown();
+            self.close();
+          }
+        }, 1000);
+      },
+
+      _clearCountdown() {
+        if (this._countdownTimer) {
+          clearInterval(this._countdownTimer);
+          this._countdownTimer = null;
+        }
       },
 
       error(msg) {
@@ -34,6 +56,7 @@
       },
 
       close() {
+        this._clearCountdown();
         var cb = this.onClose;
         this.visible = false;
         this.state = 'processing';
@@ -41,6 +64,7 @@
         this.message = '';
         this.txSignature = null;
         this.errorMessage = null;
+        this.countdown = 0;
         if (cb) cb();
         this.onClose = null;
       },
@@ -99,7 +123,9 @@
           </a>
         </template>
         <div>
-          <button @click="$store.solanaModal.close()" class="btn btn-primary btn-sm">Done</button>
+          <button @click="$store.solanaModal.close()" class="btn btn-primary btn-sm">
+            <span x-text="$store.solanaModal.countdown > 0 ? 'Done (' + $store.solanaModal.countdown + ')' : 'Done'"></span>
+          </button>
         </div>
       </div>
     </template>
