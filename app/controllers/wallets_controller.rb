@@ -48,10 +48,11 @@ class WalletsController < ApplicationController
     amount_cents = (amount_dollars * 100).to_i
 
     rescue_and_log(target: current_user) do
-      raise "Insufficient withdrawable balance" if current_user.withdrawable_cents < amount_cents
-
-      # Deduct immediately (prevents double-spend), create pending request
-      current_user.decrement!(:balance_cents, amount_cents)
+      current_user.with_lock do
+        current_user.reload
+        raise "Insufficient withdrawable balance" if current_user.withdrawable_cents < amount_cents
+        current_user.decrement!(:balance_cents, amount_cents)
+      end
       TransactionLog.record!(
         user: current_user,
         type: "withdrawal",
