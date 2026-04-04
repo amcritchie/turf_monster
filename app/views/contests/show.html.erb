@@ -1,4 +1,12 @@
 <%= render "contests/contest_selector", contests: @contests, current_contest: @contest %>
+
+<div class="mb-6">
+  <% if @contest.slate %>
+    <p class="text-sm text-secondary font-medium"><%= @contest.slate.name %></p>
+  <% end %>
+  <h1 class="text-3xl font-extrabold text-heading"><%= @contest.name %></h1>
+</div>
+
 <% if logged_in? && @slate_progress %>
   <%= render "contests/slate_progress", progress: @slate_progress %>
 <% end %>
