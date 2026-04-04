@@ -3,7 +3,7 @@
   explorer_base = Solana::Config.devnet? ? "?cluster=devnet" : ""
   oc = @onchain_contest
   entry_fee     = oc ? dollars(oc[:entry_fee_dollars]) : dollars(@contest.entry_fee_dollars)
-  prize_pool    = oc ? dollars(oc[:bonus_dollars].to_f + oc[:prize_pool_dollars].to_f) : dollars(@contest.guaranteed_prize_dollars)
+  prize_pool    = oc ? dollars(oc[:bonus_dollars]) : dollars(@contest.guaranteed_prize_dollars)
   entries_text  = oc ? "#{oc[:current_entries]} / #{oc[:max_entries]}" : "#{@entries.count}#{" / #{@contest.max_entries}" if @contest.max_entries}"
   payouts_data  = oc ? oc[:payout_amounts].map.with_index { |d, i| [(i+1), d] } : @contest.payouts.map { |rank, cents| [rank, cents / 100.0] }
 %>
