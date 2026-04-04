@@ -2,9 +2,9 @@ class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
   skip_before_action :require_authentication, only: [:index, :show, :my]
-  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry]
+  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry, :prepare_entry, :confirm_onchain_entry]
   before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :create_onchain, :payout_entry]
-  before_action :require_geo_allowed, only: [:toggle_selection, :enter]
+  before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
   def index
     @contests = Contest.where(status: [:open, :locked, :settled]).order(created_at: :asc)
@@ -151,6 +151,76 @@ class ContestsController < ApplicationController
       format.html { redirect_to root_path, alert: e.message }
       format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
     end
+  end
+
+  # Build a partially-signed enter_contest_direct transaction for Phantom users.
+  # Admin signs (pays rent), returns base64 tx for user to co-sign client-side.
+  def prepare_entry
+    entry = @contest.entries.cart.find_by(user: current_user)
+    return render json: { error: "No cart entry found" }, status: :unprocessable_entity unless entry
+
+    # Verify Phantom wallet signature
+    verify_solana_signature!(
+      message: params[:message],
+      signature_b58: params[:signature],
+      pubkey_b58: params[:pubkey],
+      session: session
+    )
+
+    rescue_and_log(target: entry, parent: @contest) do
+      raise "Contest is not onchain" unless @contest.onchain?
+      raise "Phantom wallet required" unless current_user.phantom_wallet?
+
+      active_count = @contest.entries.where(status: [:active, :complete]).count
+      raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
+
+      # Validate selections
+      raise "Exactly #{@contest.picks_required} selections required" unless entry.selections.count == @contest.picks_required
+      entry.selections.includes(slate_matchup: :game).each do |s|
+        raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
+      end
+
+      # Assign entry number
+      entry.entry_number ||= @contest.entries.where(user: current_user).where.not(entry_number: nil).count
+      entry.save! if entry.entry_number_changed?
+
+      vault = Solana::Vault.new
+      result = vault.build_enter_contest_direct(
+        current_user.solana_address,
+        @contest.slug,
+        entry.entry_number
+      )
+
+      render json: {
+        success: true,
+        serialized_tx: result[:serialized_tx],
+        entry_id: entry.id,
+        entry_pda: result[:entry_pda]
+      }
+    end
+  rescue StandardError => e
+    render json: { success: false, error: e.message }, status: :unprocessable_entity
+  end
+
+  # Confirm an onchain direct entry after the user has co-signed and submitted the tx.
+  def confirm_onchain_entry
+    entry = @contest.entries.find_by(id: params[:entry_id], user: current_user, status: :cart)
+    return render json: { error: "Entry not found" }, status: :not_found unless entry
+
+    rescue_and_log(target: entry, parent: @contest) do
+      entry.confirm_onchain!(
+        tx_signature: params[:tx_signature],
+        entry_pda: params[:entry_pda]
+      )
+
+      render json: {
+        success: true,
+        redirect: contest_path(@contest),
+        tx_signature: params[:tx_signature]
+      }
+    end
+  rescue StandardError => e
+    render json: { success: false, error: e.message }, status: :unprocessable_entity
   end
 
   def clear_picks

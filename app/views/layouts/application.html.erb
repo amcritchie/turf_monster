@@ -3,6 +3,7 @@
   <head>
     <title><%= content_for(:title) || "Turf Monster" %></title>
     <link rel="apple-touch-icon" href="/favicon.png">
+    <script src="https://unpkg.com/@solana/web3.js@1/lib/index.iife.min.js"></script>
     <% content_for :head do %>
       <script>
         document.addEventListener('alpine:init', () => {

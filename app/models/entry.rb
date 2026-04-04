@@ -75,6 +75,31 @@ class Entry < ApplicationRecord
 
   # --- Onchain ---
 
+  # Confirm entry via direct onchain payment (Phantom wallet users).
+  # No DB balance deduction — USDC was transferred onchain directly.
+  def confirm_onchain!(tx_signature:, entry_pda:)
+    raise "Contest is not open" unless contest.open?
+    raise "Exactly #{contest.picks_required} selections required" unless selections.count == contest.picks_required
+
+    # Check no locked games
+    selections.includes(slate_matchup: :game).each do |s|
+      raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
+    end
+
+    # Sybil check
+    my_combo = selections.map(&:slate_matchup_id).sort
+    contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
+      other_combo = other.selections.map(&:slate_matchup_id).sort
+      raise "You already have an entry with this exact selection combination" if other_combo == my_combo
+    end
+
+    update!(
+      status: :active,
+      onchain_tx_signature: tx_signature,
+      onchain_entry_id: entry_pda
+    )
+  end
+
   def enter_onchain!
     return unless contest.onchain? && user.solana_connected?
 

@@ -210,7 +210,7 @@ module Solana
       { signature: signature, pda: Keypair.encode_base58(user_pda) }
     end
 
-    # Deposit for custodial users (server signs with their keypair)
+    # Deposit for managed wallet users (server signs with their keypair)
     def deposit(user_keypair, amount_lamports, mint: :usdc)
       admin = Keypair.admin
       wallet_address = user_keypair.to_base58
@@ -222,7 +222,7 @@ module Solana
       data = Transaction.anchor_discriminator("deposit") +
              Borsh.encode_u64(amount_lamports)
 
-      # For custodial: user_keypair signs, admin pays fees
+      # For managed: user_keypair signs, admin pays fees
       tx = build_tx(user_keypair)
       tx.add_instruction(
         program_id: @program_id,
@@ -313,6 +313,48 @@ module Solana
 
       signature = client.send_and_confirm(tx.serialize_base64)
       { signature: signature, entry_pda: Keypair.encode_base58(e_pda) }
+    end
+
+    # Build a partially-signed enter_contest_direct transaction.
+    # Admin signs (pays rent), user must sign client-side (authorizes USDC transfer).
+    # Returns base64-encoded transaction for the client to co-sign and submit.
+    def build_enter_contest_direct(wallet_address, contest_slug, entry_num)
+      admin = Keypair.admin
+      wallet_bytes = Keypair.decode_base58(wallet_address)
+      vault_pda, _ = vault_state_pda
+      c_pda, _ = contest_pda(contest_slug)
+      e_pda, _ = entry_pda(contest_slug, wallet_address, entry_num)
+
+      usdc_mint = Keypair.decode_base58(Config::USDC_MINT)
+      user_ata, _ = Solana::SplToken.find_associated_token_address(wallet_address, Config::USDC_MINT)
+      vault_usdc, _ = vault_usdc_pda
+
+      data = Transaction.anchor_discriminator("enter_contest_direct") +
+             Borsh.encode_u32(entry_num)
+
+      tx = build_tx(admin)  # admin is fee payer and first signer
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },   # payer
+          { pubkey: wallet_bytes, is_signer: true, is_writable: true },              # user (signs token transfer)
+          { pubkey: vault_pda, is_signer: false, is_writable: false },               # vault_state
+          { pubkey: c_pda, is_signer: false, is_writable: true },                    # contest
+          { pubkey: e_pda, is_signer: false, is_writable: true },                    # contest_entry (init)
+          { pubkey: usdc_mint, is_signer: false, is_writable: false },               # mint
+          { pubkey: user_ata, is_signer: false, is_writable: true },                 # user_token_account
+          { pubkey: vault_usdc, is_signer: false, is_writable: true },               # vault_token_account
+          { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false },
+          { pubkey: Transaction::SYSTEM_PROGRAM_ID, is_signer: false, is_writable: false }
+        ],
+        data: data
+      )
+
+      # Partial sign: admin signs, user's signature slot left as zeros
+      serialized = tx.serialize_partial_base64(additional_signers: [wallet_bytes])
+      entry_pda_b58 = Keypair.encode_base58(e_pda)
+
+      { serialized_tx: serialized, entry_pda: entry_pda_b58 }
     end
 
     # Settle contest — admin distributes payouts

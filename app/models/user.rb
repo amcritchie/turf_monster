@@ -103,8 +103,8 @@ class User < ApplicationRecord
     solana_address.present?
   end
 
-  def custodial_wallet?
-    wallet_type == "custodial"
+  def managed_wallet?
+    wallet_type == "managed"
   end
 
   def phantom_wallet?
@@ -130,13 +130,13 @@ class User < ApplicationRecord
     Solana::Keypair.from_encrypted(encrypted_solana_private_key)
   end
 
-  def generate_custodial_wallet!
+  def generate_managed_wallet!
     return if solana_address.present?
     keypair = Solana::Keypair.generate
     update!(
       solana_address: keypair.to_base58,
       encrypted_solana_private_key: keypair.encrypt,
-      wallet_type: "custodial"
+      wallet_type: "managed"
     )
     keypair
   end

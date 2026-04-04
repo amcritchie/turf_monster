@@ -515,7 +515,10 @@
           return;
         }
 
-        if (this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
+        // Phantom + onchain: skip DB balance check (USDC comes from wallet)
+        const directOnchain = this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana;
+
+        if (!directOnchain && this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
           this.setHoldError();
           this.showRedirectModal('Insufficient Funds', 'Add funds to your wallet to cover the entry fee.', '💰', '/wallet', 5, 'Top Up Wallet');
           this.submitting = false;
@@ -525,27 +528,27 @@
         this.setHoldSuccess();
         this.submitting = true;
 
-        try {
-          // For Phantom wallet users, require signature before entry
-          // Base58 encoder for Phantom signature
-          const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-          function b58encode(bytes) {
-            let num = BigInt(0);
-            for (const b of bytes) num = num * 256n + BigInt(b);
-            let r = '';
-            while (num > 0n) { r = B58[Number(num % 58n)] + r; num = num / 58n; }
-            for (const b of bytes) { if (b !== 0) break; r = '1' + r; }
-            return r || '1';
-          }
+        // Base58 encoder for Phantom signature
+        const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        function b58encode(bytes) {
+          let num = BigInt(0);
+          for (const b of bytes) num = num * 256n + BigInt(b);
+          let r = '';
+          while (num > 0n) { r = B58[Number(num % 58n)] + r; num = num / 58n; }
+          for (const b of bytes) { if (b !== 0) break; r = '1' + r; }
+          return r || '1';
+        }
 
-          let bodyData = {};
-          if (this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana) {
+        try {
+          if (directOnchain) {
+            // === Direct onchain path: Phantom signs USDC transfer ===
             const provider = window.phantom.solana;
             Alpine.store('solanaModal').show('Sign Entry', 'Approve in your Phantom wallet...');
 
             const resp = await provider.connect();
             const pubkeyB58 = resp.publicKey.toBase58();
 
+            // 1. Get nonce + sign identity message
             const nonceResp = await fetch('/auth/solana/nonce');
             const { nonce } = await nonceResp.json();
 
@@ -555,39 +558,90 @@
             const signed = await provider.signMessage(encoded, 'utf8');
             const signatureB58 = b58encode(signed.signature);
 
-            bodyData = { message, signature: signatureB58, pubkey: pubkeyB58 };
-            Alpine.store('solanaModal').show('Submitting Entry', 'Recording entry onchain...');
-          }
+            // 2. POST /prepare_entry — server builds & partial-signs tx
+            Alpine.store('solanaModal').show('Preparing Transaction', 'Building onchain transaction...');
+            const prepareResp = await fetch(`/contests/${this.contestId}/prepare_entry`, {
+              method: 'POST',
+              headers: { 'X-CSRF-Token': this.csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ message, signature: signatureB58, pubkey: pubkeyB58 })
+            });
+            const prepareData = await prepareResp.json();
+            if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare entry');
 
-          const hasBody = Object.keys(bodyData).length > 0;
-          const response = await fetch(`/contests/${this.contestId}/enter`, {
-            method: 'POST',
-            headers: Object.assign(
-              { 'X-CSRF-Token': this.csrfToken, 'Accept': 'application/json' },
-              hasBody ? { 'Content-Type': 'application/json' } : {}
-            ),
-            body: hasBody ? JSON.stringify(bodyData) : undefined
-          });
+            // 3. Deserialize, have Phantom sign, and submit
+            Alpine.store('solanaModal').show('Sign Transaction', 'Approve the USDC transfer in Phantom...');
+            const txBytes = Uint8Array.from(atob(prepareData.serialized_tx), c => c.charCodeAt(0));
+            const tx = solanaWeb3.Transaction.from(txBytes);
+            const signedTx = await provider.signTransaction(tx);
 
-          const data = await response.json();
+            Alpine.store('solanaModal').show('Confirming Onchain', 'Submitting transaction to Solana...');
+            const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'), 'confirmed');
+            const txSig = await connection.sendRawTransaction(signedTx.serialize());
 
-          if (data.success) {
-            this.userBalanceCents -= this.entryFeeCents;
-            if (data.tx_signature) {
-              Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted onchain');
-              refreshBalanceDelayed();
-              Alpine.store('solanaModal').onClose = () => { window.location.href = data.redirect || '/'; };
-            } else {
-              if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
-              window.location.href = data.redirect || '/';
-            }
+            // 4. POST /confirm_onchain_entry — confirm in DB
+            Alpine.store('solanaModal').show('Confirming Entry', 'Saving entry...');
+            const confirmResp = await fetch(`/contests/${this.contestId}/confirm_onchain_entry`, {
+              method: 'POST',
+              headers: { 'X-CSRF-Token': this.csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ tx_signature: txSig, entry_id: prepareData.entry_id, entry_pda: prepareData.entry_pda })
+            });
+            const confirmData = await confirmResp.json();
+            if (!confirmData.success) throw new Error(confirmData.error || 'Failed to confirm entry');
+
+            Alpine.store('solanaModal').success(txSig, 'Entry submitted onchain');
+            refreshBalanceDelayed();
+            Alpine.store('solanaModal').onClose = () => { window.location.href = confirmData.redirect || '/'; };
+
           } else {
-            if (Alpine.store('solanaModal').visible) {
-              Alpine.store('solanaModal').error(data.error || 'Something went wrong');
-            } else {
-              this.showError(data.error || 'Something went wrong');
+            // === Standard path: managed wallet or non-onchain contest ===
+            let bodyData = {};
+            if (this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana) {
+              // Phantom + onchain but directOnchain was false (shouldn't happen, but fallback)
+              const provider = window.phantom.solana;
+              Alpine.store('solanaModal').show('Sign Entry', 'Approve in your Phantom wallet...');
+              const resp = await provider.connect();
+              const pubkeyB58 = resp.publicKey.toBase58();
+              const nonceResp = await fetch('/auth/solana/nonce');
+              const { nonce } = await nonceResp.json();
+              const domain = window.location.host;
+              const message = `${domain} wants you to sign in with your Solana account:\n${pubkeyB58}\n\nEnter contest: ${this.contestName}\n\nNonce: ${nonce}`;
+              const encoded = new TextEncoder().encode(message);
+              const signed = await provider.signMessage(encoded, 'utf8');
+              const signatureB58 = b58encode(signed.signature);
+              bodyData = { message, signature: signatureB58, pubkey: pubkeyB58 };
+              Alpine.store('solanaModal').show('Submitting Entry', 'Recording entry onchain...');
             }
-            this.submitting = false;
+
+            const hasBody = Object.keys(bodyData).length > 0;
+            const response = await fetch(`/contests/${this.contestId}/enter`, {
+              method: 'POST',
+              headers: Object.assign(
+                { 'X-CSRF-Token': this.csrfToken, 'Accept': 'application/json' },
+                hasBody ? { 'Content-Type': 'application/json' } : {}
+              ),
+              body: hasBody ? JSON.stringify(bodyData) : undefined
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              this.userBalanceCents -= this.entryFeeCents;
+              if (data.tx_signature) {
+                Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted onchain');
+                refreshBalanceDelayed();
+                Alpine.store('solanaModal').onClose = () => { window.location.href = data.redirect || '/'; };
+              } else {
+                if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
+                window.location.href = data.redirect || '/';
+              }
+            } else {
+              if (Alpine.store('solanaModal').visible) {
+                Alpine.store('solanaModal').error(data.error || 'Something went wrong');
+              } else {
+                this.showError(data.error || 'Something went wrong');
+              }
+              this.submitting = false;
+            }
           }
         } catch (err) {
           if (Alpine.store('solanaModal').visible) {

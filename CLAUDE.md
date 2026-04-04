@@ -213,7 +213,7 @@ Chart/formula visualization colors are defined once at the top of `slates/show.h
 
 ## Models
 
-- **User** — name, username (nullable, unique case-insensitive), email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (custodial/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, role (string, default "viewer"), first_name, last_name, birth_date, birth_year, slug. `has_one_attached :avatar`.
+- **User** — name, username (nullable, unique case-insensitive), email (nullable), solana_address (nullable), encrypted_solana_private_key, wallet_type (managed/phantom/nil), balance_cents, promotional_cents, provider, uid, password_digest, role (string, default "viewer"), first_name, last_name, birth_date, birth_year, slug. `has_one_attached :avatar`.
 - **Contest** — name, entry_fee_cents, status, max_entries, contest_type, starts_at, onchain_contest_id, onchain_settled, onchain_tx_signature, slug. Has many contest_matchups, entries.
 - **ContestMatchup** — belongs_to contest. team_slug, opponent_team_slug, rank, multiplier, status. Has many selections. Belongs_to team + opponent_team via slug FKs.
 - **Entry** — belongs_to user + contest (multiple entries allowed), score, status (cart/active/complete/abandoned), rank, payout_cents, onchain_entry_id, onchain_tx_signature, entry_number, slug (includes id for uniqueness). Has many selections.
@@ -361,7 +361,9 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 - `/` — contests#index (main dashboard, selection toggling, cart, hold-to-confirm). Shows first contest (ordered by `created_at: :asc`).
 - `/contests/:id` — contest show (leaderboard + admin actions)
 - `/contests/:id/toggle_selection` — POST, toggle a matchup selection on cart entry
-- `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show
+- `/contests/:id/enter` — POST, confirm cart entry → redirects to contest show (standard path: managed/non-onchain)
+- `/contests/:id/prepare_entry` — POST, build partial-signed `enter_contest_direct` tx for Phantom users (returns serialized_tx + entry_id)
+- `/contests/:id/confirm_onchain_entry` — POST, confirm entry after user co-signs + submits tx (no DB balance deduction)
 - `/contests/:id/clear_picks` — POST, abandon cart entry
 - `/contests/:id/grade` — POST, grade contest (admin only)
 - `/contests/:id/fill` — POST, fill contest with random entries (admin only)
@@ -437,8 +439,22 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 
 ### Wallet Types
 
-- **Custodial**: Server generates + encrypts Ed25519 keypair, signs transactions on behalf of user
+- **Managed**: Server generates + encrypts Ed25519 keypair, signs transactions on behalf of user (formerly "custodial")
 - **Phantom**: User connects Phantom browser extension, signs transactions directly
+
+### Dual-Path Onchain Entry Flow
+
+Two paths for entering onchain contests, determined by wallet type:
+
+**Phantom (direct path)**: User's USDC transfers directly from their wallet ATA to vault via `enter_contest_direct` Anchor instruction. Admin pays PDA rent, user signs token transfer. Flow:
+1. Hold completes → sign identity message → `POST /prepare_entry` (server builds + partial-signs tx)
+2. `phantom.signTransaction(tx)` → user co-signs the USDC transfer
+3. `connection.sendRawTransaction()` → submit to Solana
+4. `POST /confirm_onchain_entry` → confirm in DB (no DB balance deduction)
+
+**Managed / non-onchain (standard path)**: Server deducts DB balance, admin-signs `enter_contest` (existing PDA balance deduction). Unchanged from before.
+
+Key difference: Phantom users' navbar shows wallet USDC (fetched live), which decreases naturally after the onchain transfer — no DB balance tracking needed.
 
 ### Rake Tasks
 

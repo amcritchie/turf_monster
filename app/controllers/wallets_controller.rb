@@ -27,7 +27,7 @@ class WalletsController < ApplicationController
     amount_cents = (amount_dollars * 100).to_i
 
     rescue_and_log(target: current_user) do
-      if current_user.custodial_wallet?
+      if current_user.managed_wallet?
         current_user.add_funds!(amount_cents)
         TransactionLog.record!(user: current_user, type: "deposit", amount_cents: amount_cents, direction: "credit", description: "Deposit $#{'%.2f' % amount_dollars}")
         redirect_to wallet_path, notice: "Deposited $#{'%.2f' % amount_dollars}."

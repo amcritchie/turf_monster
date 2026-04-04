@@ -43,6 +43,8 @@ Rails.application.routes.draw do
     member do
       post :toggle_selection
       post :enter
+      post :prepare_entry
+      post :confirm_onchain_entry
       post :clear_picks
       post :grade
       post :fill

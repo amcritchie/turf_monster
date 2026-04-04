@@ -81,7 +81,7 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-# Set Phantom wallet addresses (real wallets, not custodial)
+# Set Phantom wallet addresses (real wallets, not managed)
 alex.update!(solana_address: "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr", wallet_type: "phantom")
 sam.update!(solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds", wallet_type: "phantom")
 

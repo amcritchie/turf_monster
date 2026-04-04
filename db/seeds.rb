@@ -39,7 +39,7 @@ end
 turf.update!(password: "password") if turf.password_digest.blank?
 turf.update!(username: "turf") if turf.username.blank?
 
-# Set Phantom wallet addresses (real wallets, not custodial)
+# Set Phantom wallet addresses (real wallets, not managed)
 {
   alex  => "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr",
   mason => "CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR",

@@ -38,8 +38,8 @@
     <% if @user.solana_connected? %>
       <div class="flex items-center gap-3 mb-3">
         <span class="text-body font-mono text-sm break-all"><%= @user.solana_address %></span>
-        <% if @user.custodial_wallet? %>
-          <span class="text-xs text-muted px-2 py-0.5 rounded bg-surface-alt">Custodial</span>
+        <% if @user.managed_wallet? %>
+          <span class="text-xs text-muted px-2 py-0.5 rounded bg-surface-alt">Managed</span>
         <% else %>
           <span class="text-xs text-violet px-2 py-0.5 rounded bg-violet/10">Phantom</span>
         <% end %>
