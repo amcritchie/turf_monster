@@ -26,7 +26,7 @@
   <% copy_js = "navigator.clipboard.writeText('#{invite_url}'); copied = true; setTimeout(() => copied = false, 1500)" %>
   <div class="flex items-center gap-2">
     <div @click="<%= copy_js %>" class="flex-1 min-w-0 bg-inset border border-subtle rounded-lg px-3 py-2 text-xs font-mono text-muted truncate cursor-pointer hover:border-primary/40 transition"><%= invite_url %></div>
-    <button @click="<%= copy_js %>" class="btn btn-primary btn-sm whitespace-nowrap" style="min-width:5.5rem">
+    <button @click="<%= copy_js %>" class="btn btn-sm whitespace-nowrap transition-colors" :class="copied ? 'btn-secondary' : 'btn-primary'" style="min-width:5.5rem">
       <span x-show="!copied" x-cloak.remove>Copy Link</span>
       <span x-show="copied" x-cloak>Copied!</span>
     </button>
