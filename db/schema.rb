@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_04_051037) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_04_060001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -265,8 +265,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_04_051037) do
     t.integer "promotional_cents", default: 0, null: false
     t.string "role", default: "viewer"
     t.string "username"
+    t.bigint "invited_by_id"
     t.index "lower((username)::text)", name: "index_users_on_lower_username", unique: true, where: "(username IS NOT NULL)"
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
+    t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["solana_address"], name: "index_users_on_solana_address", unique: true, where: "(solana_address IS NOT NULL)"
     t.index ["wallet_address"], name: "index_users_on_wallet_address", unique: true, where: "(wallet_address IS NOT NULL)"
@@ -281,4 +283,5 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_04_051037) do
   add_foreign_key "selections", "slate_matchups"
   add_foreign_key "slate_matchups", "slates"
   add_foreign_key "transaction_logs", "users"
+  add_foreign_key "users", "users", column: "invited_by_id"
 end

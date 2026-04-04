@@ -20,4 +20,7 @@
     <%= render "contests/turf_totals_board" %>
   <% end %>
 <% end %>
+<% if logged_in? %>
+  <%= render "contests/share_invite" %>
+<% end %>
 <%= render "contests/turf_totals_leaderboard" %>

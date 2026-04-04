@@ -5,6 +5,8 @@ class User < ApplicationRecord
   has_one_attached :avatar
   has_many :entries, dependent: :destroy
   has_many :transaction_logs, dependent: :destroy
+  belongs_to :inviter, class_name: "User", optional: true, foreign_key: :invited_by_id
+  has_many :invitees, class_name: "User", foreign_key: :invited_by_id
 
   validates :email, uniqueness: true, allow_nil: true
   validates :solana_address, uniqueness: true, allow_nil: true
@@ -49,6 +51,10 @@ class User < ApplicationRecord
 
   def admin?
     role == "admin"
+  end
+
+  def inviter_slug=(slug)
+    self.inviter = User.find_by(slug: slug) if slug.present?
   end
 
   # --- Display ---

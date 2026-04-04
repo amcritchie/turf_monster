@@ -1,0 +1,93 @@
+<%
+  invite_url = "#{request.base_url}/contests/#{@contest.slug}?ref=#{current_user.slug}"
+  share_text = "Join me on Turf Monster! Pick your teams and compete."
+  encoded_url = ERB::Util.url_encode(invite_url)
+  encoded_text = ERB::Util.url_encode(share_text)
+  twitter_url = "https://twitter.com/intent/tweet?text=#{encoded_text}&url=#{encoded_url}"
+  facebook_url = "https://www.facebook.com/sharer/sharer.php?u=#{encoded_url}"
+  whatsapp_url = "https://wa.me/?text=#{ERB::Util.url_encode("#{share_text} #{invite_url}")}"
+%>
+
+<div x-data="{ variant: 'A', copied: false }" class="mb-6">
+  <%# Variant toggle — always visible for review %>
+  <div class="flex items-center gap-2 mb-3">
+    <span class="text-xs text-muted font-mono">Share UI:</span>
+    <template x-for="v in ['A', 'B', 'C']">
+      <button @click="variant = v" class="text-xs font-mono px-2 py-0.5 rounded border transition"
+              :class="variant === v ? 'bg-primary/20 text-primary border-primary/40' : 'bg-surface-alt text-muted border-subtle hover:text-secondary'" x-text="v"></button>
+    </template>
+  </div>
+
+  <%# === Option A: Inline Share Bar === %>
+  <div x-show="variant === 'A'" x-cloak class="card">
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="text-sm font-semibold text-heading">Invite Friends</span>
+      <button @click="navigator.clipboard.writeText('<%= invite_url %>'); copied = true; setTimeout(() => copied = false, 1500)"
+              class="btn btn-primary btn-sm">
+        <span x-show="!copied">Copy Link</span>
+        <span x-show="copied" x-cloak>Copied!</span>
+      </button>
+      <div class="flex items-center gap-2">
+        <a href="<%= twitter_url %>" target="_blank" rel="noopener" class="text-secondary hover:text-heading transition" title="Share on X">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a href="<%= facebook_url %>" target="_blank" rel="noopener" class="text-secondary hover:text-heading transition" title="Share on Facebook">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        </a>
+        <a href="<%= whatsapp_url %>" target="_blank" rel="noopener" class="text-secondary hover:text-heading transition" title="Share on WhatsApp">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <%# === Option B: Share Dropdown === %>
+  <div x-show="variant === 'B'" x-cloak>
+    <div x-data="{ open: false }" class="relative inline-block">
+      <button @click="open = !open" class="btn btn-outline btn-sm inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0-12.814a2.25 2.25 0 1 0 3.935-2.186 2.25 2.25 0 0 0-3.935 2.186Zm0 12.814a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Z"/></svg>
+        Share
+      </button>
+      <div x-show="open" @click.outside="open = false"
+           x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+           x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+           class="absolute left-0 mt-2 w-48 bg-surface border border-subtle rounded-lg shadow-lg z-50 py-1" style="display: none;">
+        <button @click="navigator.clipboard.writeText('<%= invite_url %>'); copied = true; setTimeout(() => copied = false, 1500); open = false"
+                class="block w-full text-left px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">
+          <span x-show="!copied">Copy Link</span>
+          <span x-show="copied" x-cloak class="text-primary">Copied!</span>
+        </button>
+        <a href="<%= twitter_url %>" target="_blank" rel="noopener" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Post to X</a>
+        <a href="<%= facebook_url %>" target="_blank" rel="noopener" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Share on Facebook</a>
+        <a href="<%= whatsapp_url %>" target="_blank" rel="noopener" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Send via WhatsApp</a>
+      </div>
+    </div>
+  </div>
+
+  <%# === Option C: Share Card with URL Preview === %>
+  <div x-show="variant === 'C'" x-cloak class="card">
+    <h3 class="text-heading font-semibold text-sm mb-3">Invite your friends!</h3>
+    <div class="flex items-center gap-2 mb-3">
+      <div class="flex-1 bg-inset border border-subtle rounded-lg px-3 py-2 text-xs font-mono text-muted truncate"><%= invite_url %></div>
+      <button @click="navigator.clipboard.writeText('<%= invite_url %>'); copied = true; setTimeout(() => copied = false, 1500)"
+              class="btn btn-primary btn-sm whitespace-nowrap">
+        <span x-show="!copied">Copy</span>
+        <span x-show="copied" x-cloak>Copied!</span>
+      </button>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="<%= twitter_url %>" target="_blank" rel="noopener" class="btn btn-outline btn-sm inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a href="<%= facebook_url %>" target="_blank" rel="noopener" class="btn btn-outline btn-sm inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Facebook
+      </a>
+      <a href="<%= whatsapp_url %>" target="_blank" rel="noopener" class="btn btn-outline btn-sm inline-flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+    </div>
+  </div>
+</div>

@@ -21,6 +21,7 @@ Rails.application.routes.draw do
     post :link_solana
     post :unlink_google
     post :change_password
+    patch :set_inviter
   end
 
   resources :slates, only: [:index, :show] do

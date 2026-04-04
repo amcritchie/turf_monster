@@ -69,6 +69,21 @@ class AccountsController < ApplicationController
     redirect_to account_path, alert: "Failed to unlink Google."
   end
 
+  def set_inviter
+    return render json: { ok: true } if current_user.invited_by_id.present?
+
+    inviter = User.find_by(slug: params[:inviter_slug])
+    return render json: { error: "not found" }, status: :not_found unless inviter
+    return render json: { error: "self" }, status: :unprocessable_entity if inviter.id == current_user.id
+
+    rescue_and_log(target: current_user) do
+      current_user.update!(invited_by_id: inviter.id)
+      render json: { ok: true }
+    end
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def change_password
     rescue_and_log(target: current_user) do
       # If user already has a password, verify current one

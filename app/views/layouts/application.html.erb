@@ -30,12 +30,39 @@
         <% if logged_in? && Solana::Config.devnet? %>
           document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
         <% end %>
+
+        // Invite link: capture ?ref= param into localStorage
+        (function() {
+          var params = new URLSearchParams(window.location.search);
+          var ref = params.get('ref');
+          if (ref) {
+            localStorage.setItem('inviter_slug', ref);
+            params.delete('ref');
+            var clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            history.replaceState(null, '', clean);
+          }
+        })();
+
+        // Invite link: save inviter on login
+        document.addEventListener('DOMContentLoaded', function() {
+          var loggedIn = document.body.getAttribute('data-logged-in') === 'true';
+          var inviterSlug = localStorage.getItem('inviter_slug');
+          if (loggedIn && inviterSlug) {
+            fetch('/account/set_inviter', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+              body: JSON.stringify({ inviter_slug: inviterSlug })
+            }).then(function(r) {
+              if (r.ok) localStorage.removeItem('inviter_slug');
+            }).catch(function() {});
+          }
+        });
       </script>
     <% end %>
     <%= render "layouts/studio/head" %>
   </head>
 
-  <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }">
+  <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }" data-logged-in="<%= logged_in? %>">
     <header x-data="{ scrolled: false }" @scroll.window="scrolled = window.scrollY > 20"
             class="sticky top-0 z-50 bg-page transition-shadow duration-300"
             :class="scrolled && 'shadow-lg border-b border-subtle'">
