@@ -40,19 +40,23 @@ class Entry < ApplicationRecord
       raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
     end
 
-    # Sybil check
-    my_combo = selections.map(&:slate_matchup_id).sort
-    contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
-      other_combo = other.selections.map(&:slate_matchup_id).sort
-      raise "You already have an entry with this exact selection combination" if other_combo == my_combo
-    end
-
-    transaction do
-      if contest.entry_fee_cents > 0
-        user.deduct_funds!(contest.entry_fee_cents)
-        TransactionLog.record!(user: user, type: "entry_fee", amount_cents: contest.entry_fee_cents, direction: "debit", source: contest, description: "Entry fee for #{contest.name}")
+    user.with_lock do
+      # Sybil check (inside lock to prevent concurrent duplicate entries)
+      my_combo = selections.map(&:slate_matchup_id).sort
+      contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
+        other_combo = other.selections.map(&:slate_matchup_id).sort
+        raise "You already have an entry with this exact selection combination" if other_combo == my_combo
       end
-      update!(status: :active)
+
+      transaction do
+        if contest.entry_fee_cents > 0
+          user.reload
+          raise "Insufficient funds" if user.total_balance_cents < contest.entry_fee_cents
+          user.deduct_funds!(contest.entry_fee_cents)
+          TransactionLog.record!(user: user, type: "entry_fee", amount_cents: contest.entry_fee_cents, direction: "debit", source: contest, description: "Entry fee for #{contest.name}")
+        end
+        update!(status: :active)
+      end
     end
 
     # Attempt onchain entry (non-blocking)
