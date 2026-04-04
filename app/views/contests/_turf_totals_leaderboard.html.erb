@@ -135,107 +135,99 @@
 <% if @entries.any? %>
   <section class="mb-8">
     <h2 class="text-xl font-semibold mb-4 text-body">Leaderboard</h2>
-    <div class="card shadow overflow-hidden">
-      <table class="w-full">
-        <thead>
-          <tr class="border-b border-subtle">
-            <th class="px-4 py-3 text-left label-upper">#</th>
-            <th class="px-4 py-3 text-left label-upper">Player</th>
-            <th class="px-4 py-3 text-left label-upper">Score</th>
-            <th class="px-4 py-3 text-left label-upper">Selections</th>
-            <% if @contest.settled? && current_user&.admin? %>
-              <th class="px-4 py-3 text-left label-upper">Payout</th>
-            <% end %>
-          </tr>
-        </thead>
-        <tbody>
-          <% @entries.each_with_index do |entry, i| %>
-            <%
-              paid = @contest.settled? && entry.payout_cents.to_i > 0
-              display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
-              next_entry = @entries[i + 1] if @contest.settled?
-              show_divider = paid && (next_entry.nil? || next_entry.payout_cents.to_i == 0)
-            %>
-            <tr class="<%= paid ? 'border-l-4 border-l-primary' : '' %> border-b <%= show_divider ? 'border-b-2 border-b-primary/30' : 'border-b-subtle' %> hover:bg-surface-alt/50">
-              <td class="px-4 py-3 font-mono text-secondary">
-                <div class="flex items-center gap-2">
-                  <span><%= display_rank %></span>
-                  <% if paid %>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary"><%= dollars(entry.payout_cents / 100.0) %></span>
-                  <% end %>
-                </div>
-              </td>
-              <td class="px-4 py-3 font-medium <%= paid ? 'text-heading' : (@contest.settled? ? 'text-muted' : 'text-heading') %>">
-                <div class="flex items-center gap-2">
-                  <%= render "shared/avatar", user: entry.user, size: "sm" %>
-                  <span><%= entry.user.display_name %></span>
-                </div>
+    <div class="space-y-2">
+      <% @entries.each_with_index do |entry, i| %>
+        <%
+          paid = @contest.settled? && entry.payout_cents.to_i > 0
+          display_rank = @contest.settled? && entry.rank ? entry.rank : i + 1
+          dimmed = @contest.settled? && !paid
+          team_colors = entry.selections.map { |s| s.slate_matchup.team.color_primary }.compact
+          gradient_stops = team_colors.each_with_index.map { |c, idx|
+            pct = team_colors.size > 1 ? (idx * 100.0 / (team_colors.size - 1)).round : 0
+            "#{c}18 #{pct}%"
+          }.join(", ")
+          gradient = team_colors.any? ? "background: linear-gradient(90deg, #{gradient_stops})" : ""
+        %>
+        <div class="card overflow-hidden <%= paid ? 'ring-1 ring-primary/40' : '' %>"
+             style="<%= gradient %>">
+          <div class="flex items-center gap-4 px-4 py-3">
+            <%# Rank %>
+            <div class="w-8 text-center font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-secondary' %>">
+              <%= display_rank %>
+            </div>
+            <%# Player %>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <%= render "shared/avatar", user: entry.user, size: "sm" %>
+                <span class="font-semibold truncate <%= dimmed ? 'text-muted' : 'text-heading' %>"><%= entry.user.display_name %></span>
                 <% if entry.onchain_tx_signature.present? %>
                   <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"
-                     target="_blank" class="inline-block ml-1 text-xs text-muted hover:text-primary transition" title="Verified onchain">
-                    <svg class="w-3 h-3 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                     target="_blank" class="text-muted hover:text-primary transition" title="Verified onchain">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                   </a>
                 <% end %>
-              </td>
-              <td class="px-4 py-3 font-mono <%= paid ? 'text-violet' : (@contest.settled? ? 'text-muted' : 'text-violet') %>"><%= sprintf('%.1f', entry.score) %></td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  <% entry.selections.each do |selection| %>
-                    <%
-                      has_points = selection.points.present?
-                      pill_bg = if has_points && selection.points > 0
-                                    "bg-mint-900/30 text-mint border-mint-700"
-                                  elsif has_points
-                                    "bg-surface-alt text-secondary border-strong"
-                                  else
-                                    "bg-surface-alt text-body border-strong"
-                                  end
-                    %>
-                    <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>"
-                          title="<%= selection.slate_matchup.team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
-                      <%= selection.slate_matchup.team.emoji %><%= selection.slate_matchup.team.short_name %>
-                      <% if has_points %>
-                        <span class="text-violet"><%= sprintf('%.1f', selection.points) %></span>
-                      <% end %>
-                    </span>
-                  <% end %>
-                </div>
-              </td>
-              <% if @contest.settled? && current_user&.admin? %>
-                <td class="px-4 py-3">
-                  <% if paid %>
-                    <div x-data="{ paid_tx: '<%= entry.payout_tx_signature %>' }" class="flex items-center gap-1">
-                      <template x-if="paid_tx">
-                        <a :href="'https://explorer.solana.com/tx/' + paid_tx + '<%= '?cluster=devnet' if Solana::Config.devnet? %>'"
-                           target="_blank" class="text-primary hover:text-primary-300 text-xs font-mono flex items-center gap-1" title="View on Solana Explorer">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                          Paid
-                        </a>
-                      </template>
-                      <template x-if="!paid_tx">
-                        <% if entry.user.solana_connected? %>
-                          <button @click="
-                            $store.solanaModal.show('Sending Payout', 'Transferring <%= dollars(entry.payout_cents / 100.0) %> to <%= entry.user.display_name %>...');
-                            fetch('<%== payout_entry_contest_path(@contest, entry_id: entry.id) %>', {
-                              method: 'POST',
-                              headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
-                            }).then(r => r.json()).then(data => {
-                              if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalanceDelayed(); }
-                              else { $store.solanaModal.error(data.error); }
-                            }).catch(e => { $store.solanaModal.error(e.message); });"
-                            class="btn btn-primary btn-sm"><%= dollars(entry.payout_cents / 100.0) %></button>
-                        <% else %>
-                          <span class="text-xs text-muted" title="User has no Solana wallet">No wallet</span>
-                        <% end %>
-                      </template>
-                    </div>
-                  <% end %>
-                </td>
+              </div>
+              <%# Selections %>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <% entry.selections.each do |selection| %>
+                  <%
+                    has_points = selection.points.present?
+                    pill_bg = if has_points && selection.points > 0
+                                  "bg-mint-900/30 text-mint border-mint-700"
+                                elsif has_points
+                                  "bg-surface-alt text-secondary border-strong"
+                                else
+                                  "bg-surface-alt/70 text-body border-strong"
+                                end
+                  %>
+                  <span class="inline-block px-2 py-0.5 rounded text-xs font-mono border <%= pill_bg %>"
+                        title="<%= selection.slate_matchup.team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
+                    <%= selection.slate_matchup.team.emoji %><%= selection.slate_matchup.team.short_name %>
+                    <% if has_points %>
+                      <span class="text-violet"><%= sprintf('%.1f', selection.points) %></span>
+                    <% end %>
+                  </span>
+                <% end %>
+              </div>
+            </div>
+            <%# Score %>
+            <div class="text-right">
+              <div class="font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-violet' %>"><%= sprintf('%.1f', entry.score) %></div>
+              <% if paid %>
+                <span class="text-xs font-bold text-primary"><%= dollars(entry.payout_cents / 100.0) %></span>
               <% end %>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
+            </div>
+            <%# Payout action (admin only, settled) %>
+            <% if @contest.settled? && current_user&.admin? && paid %>
+              <div x-data="{ paid_tx: '<%= entry.payout_tx_signature %>' }" class="ml-2">
+                <template x-if="paid_tx">
+                  <a :href="'https://explorer.solana.com/tx/' + paid_tx + '<%= '?cluster=devnet' if Solana::Config.devnet? %>'"
+                     target="_blank" class="text-primary hover:text-primary-300 text-xs font-mono flex items-center gap-1" title="View on Solana Explorer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Paid
+                  </a>
+                </template>
+                <template x-if="!paid_tx">
+                  <% if entry.user.solana_connected? %>
+                    <button @click="
+                      $store.solanaModal.show('Sending Payout', 'Transferring <%= dollars(entry.payout_cents / 100.0) %> to <%= entry.user.display_name %>...');
+                      fetch('<%== payout_entry_contest_path(@contest, entry_id: entry.id) %>', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+                      }).then(r => r.json()).then(data => {
+                        if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalanceDelayed(); }
+                        else { $store.solanaModal.error(data.error); }
+                      }).catch(e => { $store.solanaModal.error(e.message); });"
+                      class="btn btn-primary btn-sm"><%= dollars(entry.payout_cents / 100.0) %></button>
+                  <% else %>
+                    <span class="text-xs text-muted" title="User has no Solana wallet">No wallet</span>
+                  <% end %>
+                </template>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </div>
   </section>
 <% end %>
