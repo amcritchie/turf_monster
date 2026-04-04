@@ -97,6 +97,13 @@
           if (!provider || !provider.isPhantom) throw new Error('Phantom wallet not found');
           await provider.connect();
 
+          // Verify the connected wallet matches the logged-in user
+          var connectedKey = provider.publicKey.toBase58();
+          var userWallet = '<%= current_user&.solana_address %>';
+          if (userWallet && connectedKey !== userWallet) {
+            throw new Error('Wrong wallet connected. Switch to ' + userWallet.substring(0, 8) + '... in Phantom, or reconnect your wallet on the Account page.');
+          }
+
           var prepareResp = await fetch('/contests/' + contestSlug + '/prepare_onchain_contest', {
             method: 'POST',
             headers: { 'X-CSRF-Token': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -144,7 +151,20 @@
             }
           }, 1000);
         } catch(err) {
-          Alpine.store('solanaModal').error(err.message);
+          var msg = err.message || 'Unknown error';
+          // Map cryptic Solana/Phantom errors to human-readable messages
+          if (msg.match(/user rejected/i) || msg.match(/user declined/i)) {
+            msg = 'Transaction cancelled — you declined the request in Phantom.';
+          } else if (msg.match(/invalid account data/i)) {
+            msg = 'Transaction failed — your wallet may not have a USDC token account. Try claiming USDC from the Faucet first.';
+          } else if (msg.match(/insufficient funds/i) || msg.match(/0x1/)) {
+            msg = 'Insufficient USDC balance. Top up your wallet via the Faucet.';
+          } else if (msg.match(/blockhash not found/i) || msg.match(/block height exceeded/i)) {
+            msg = 'Transaction expired. Please try again.';
+          } else if (msg === 'Unexpected error' || msg.match(/unexpected/i)) {
+            msg = 'Phantom could not process the transaction. Make sure the correct wallet is connected and has USDC.';
+          }
+          Alpine.store('solanaModal').error(msg);
           btn.disabled = false;
         }
       });

@@ -328,6 +328,7 @@
       userBalanceCents: <%= current_user&.total_balance_cents || 0 %>,
       entryFeeCents: <%= @contest.entry_fee_cents || 0 %>,
       phantomWallet: <%= current_user&.phantom_wallet? ? 'true' : 'false' %>,
+      userWallet: '<%= current_user&.solana_address %>',
       contestOnchain: <%= @contest.onchain? ? 'true' : 'false' %>,
       contestName: '<%== j(@contest.name) %>',
       picksRequired: <%= @contest.picks_required %>,
@@ -548,6 +549,11 @@
             const resp = await provider.connect();
             const pubkeyB58 = resp.publicKey.toBase58();
 
+            // Verify the connected wallet matches the logged-in user
+            if (this.userWallet && pubkeyB58 !== this.userWallet) {
+              throw new Error('Wrong wallet connected. Switch to ' + this.userWallet.substring(0, 8) + '... in Phantom, or reconnect your wallet on the Account page.');
+            }
+
             // 1. Get nonce + sign identity message
             const nonceResp = await fetch('/auth/solana/nonce');
             const { nonce } = await nonceResp.json();
@@ -644,10 +650,23 @@
             }
           }
         } catch (err) {
+          var msg = err.message || 'Failed to sign entry';
+          // Map cryptic Solana/Phantom errors to human-readable messages
+          if (msg.match(/user rejected/i) || msg.match(/user declined/i)) {
+            msg = 'Transaction cancelled — you declined the request in Phantom.';
+          } else if (msg.match(/invalid account data/i)) {
+            msg = 'Transaction failed — your wallet may not have a USDC token account. Try claiming USDC from the Faucet first.';
+          } else if (msg.match(/insufficient funds/i) || msg.match(/0x1/)) {
+            msg = 'Insufficient USDC balance. Top up your wallet via the Faucet.';
+          } else if (msg.match(/blockhash not found/i) || msg.match(/block height exceeded/i)) {
+            msg = 'Transaction expired. Please try again.';
+          } else if (msg === 'Unexpected error' || msg.match(/unexpected/i)) {
+            msg = 'Phantom could not process the transaction. Make sure the correct wallet is connected and has USDC.';
+          }
           if (Alpine.store('solanaModal').visible) {
-            Alpine.store('solanaModal').error(err.message || 'Failed to sign entry');
+            Alpine.store('solanaModal').error(msg);
           } else {
-            this.showError('Network error. Please try again.');
+            this.showError(msg);
           }
           this.submitting = false;
         }
