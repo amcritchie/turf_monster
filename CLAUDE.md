@@ -136,9 +136,10 @@ end
 - Entry slug includes `id` (needs `after_create` callback to re-set slug since `id` is nil during `before_save`)
 - Cart selection slots extracted to `_turf_totals_cart_slots` partial (shared between desktop sidebar and mobile bottom sheet)
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as foreign keys (e.g. `team_slug`, `home_team_slug`) instead of integer IDs. Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props) + 1 role migration (replace admin boolean with role string) + 1 username migration. Fresh DB via `db:drop db:create db:migrate db:seed`.
+- **Consolidated migrations**: 9 clean migrations (one per table) + 2 incremental (add admin to users, add rank/payout to entries) + 3 Solana-related (solana fields on users, promotional_cents, onchain fields) + 1 drop migration (picks/props) + 1 role migration (replace admin boolean with role string) + 1 username migration + 2 seeds migrations (add then drop xp columns — seeds are on-chain only). Fresh DB via `db:drop db:create db:migrate db:seed`.
 - **Balance system**: Users have `balance_cents` (real, onchain-backed, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first on deduction). `total_balance_cents` = sum of both. `deduct_funds!` uses promo first.
 - **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — logarithmic curve, x1.0 at rank 1 to x4.0 at rank N. Integers display without decimal (x1 not x1.0). Centralized on `SlateMatchup.multiplier_for(rank, n)` — see "Centralized Formulas" section below.
+- **Seeds system (on-chain)**: 25 seeds awarded per contest entry on-chain (TurfVault v0.5.0). No DB columns — seeds are read from UserAccount PDA via `sync_balance`. UI-derived levels: `level = seeds / 100 + 1`. Class methods on User: `level_for(seeds)`, `seeds_toward_next_level(seeds)`, `seeds_progress_percent(seeds)`. Constants: `SEEDS_PER_ENTRY = 25`, `SEEDS_PER_LEVEL = 100`. Progress bar partial `_slate_progress_xp.html.erb` renders on contest show page for wallet-connected users.
 
 ## Authentication
 
@@ -417,14 +418,14 @@ The admin gear dropdown (`components/_admin_dropdown.html.erb`) includes links t
 - `Solana::Keypair` — Ed25519 key gen, encrypt/decrypt via Rails master key, sign, base58
 - `Solana::Borsh` — minimal Borsh serialization
 - `Solana::Transaction` — transaction builder, Anchor discriminators, PDA derivation
-- `Solana::Vault` — high-level business logic (deposit, withdraw, enter, settle, sync)
+- `Solana::Vault` — high-level business logic (deposit, withdraw, enter, settle, sync). `sync_balance` decodes seeds from UserAccount PDA. `build_enter_contest_direct` includes `user_account` PDA for seeds award.
 - `Solana::Reconciler` — compare DB vs onchain balances, log discrepancies
 
 ### Anchor Program (`turf_vault/`)
 
 Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
 
-**Deployment status**: v0.4.0 deployed to devnet. Vault re-initialized with dual admin + test SPL mints. Hard escrow contest creation live.
+**Deployment status**: v0.5.0 deployed to devnet. Seeds field on UserAccount (25 per entry). Vault re-initialized. Hard escrow contest creation live.
 - Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
 - Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
 - Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
@@ -501,7 +502,7 @@ Key difference: Phantom users' navbar shows wallet USDC (fetched live), which de
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — minitest tests with fixtures, **67 tests** total
+- `bin/rails test` — minitest tests with fixtures, **71 tests** total
 - **Test fixtures**: 6 contest_matchups (m1-m6), 6 teams (team-a through team-f), 2 games (past_game, future_game), all on contest :one
 - **Test password**: All fixtures use `"password"` (minimum 6 chars required)
 - **Test helper**: `log_in_as(user)` defaults to password "password"
