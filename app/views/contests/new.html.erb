@@ -125,6 +125,9 @@
           var connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'), 'confirmed');
           var txSig = await connection.sendRawTransaction(signedTx.serialize());
 
+          Alpine.store('solanaModal').show('Confirming Onchain', 'Waiting for Solana confirmation...');
+          await connection.confirmTransaction(txSig, 'confirmed');
+
           // 5. Confirm in DB
           Alpine.store('solanaModal').show('Confirming Contest', 'Saving onchain data...');
 
