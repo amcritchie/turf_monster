@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_03_214958) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_04_051037) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -58,6 +58,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_03_214958) do
     t.bigint "slate_id"
     t.string "tagline"
     t.index ["slate_id"], name: "index_contests_on_slate_id"
+    t.index ["slug"], name: "index_contests_on_slug", unique: true
+    t.index ["status"], name: "index_contests_on_status"
   end
 
   create_table "entries", force: :cascade do |t|
@@ -75,6 +77,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_03_214958) do
     t.integer "entry_number"
     t.string "payout_tx_signature"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
+    t.index ["slug"], name: "index_entries_on_slug", unique: true
+    t.index ["status"], name: "index_entries_on_status"
     t.index ["user_id", "contest_id"], name: "index_entries_on_user_id_and_contest_id"
     t.index ["user_id"], name: "index_entries_on_user_id"
   end
