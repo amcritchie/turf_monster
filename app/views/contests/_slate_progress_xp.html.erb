@@ -11,51 +11,160 @@
     0%, 100% { box-shadow: 0 0 6px rgba(var(--color-primary-500-rgb), 0.3); }
     50% { box-shadow: 0 0 14px rgba(var(--color-primary-500-rgb), 0.6); }
   }
+  @keyframes seedsShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  @keyframes levelPop {
+    0% { transform: scale(1) rotate(0deg); }
+    15% { transform: scale(2.4) rotate(-3deg); }
+    30% { transform: scale(1.8) rotate(2deg); }
+    45% { transform: scale(2.2) rotate(-1deg); }
+    65% { transform: scale(1.9) rotate(0deg); }
+    80% { transform: scale(1.2) rotate(0deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes levelGlow {
+    0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0.8); }
+    30% { box-shadow: 0 0 30px 12px rgba(var(--color-primary-500-rgb), 0.6); }
+    60% { box-shadow: 0 0 20px 8px rgba(var(--color-primary-500-rgb), 0.3); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0); }
+  }
+  .level-up-pop {
+    animation: levelPop 1s cubic-bezier(0.34, 1.56, 0.64, 1), levelGlow 1.2s ease-out;
+    z-index: 10;
+  }
 </style>
 
 <div class="card shadow p-5 mb-6"
-     x-data="{ seeds: 0, barWidth: 0 }"
-     x-init="
-       setTimeout(() => {
-         barWidth = <%= pct %>;
-         let target = <%= toward_next %>;
-         if (target > 0) {
-           let step = Math.max(1, Math.ceil(target / 50));
-           let iv = setInterval(() => { $data.seeds = Math.min($data.seeds + step, target); if ($data.seeds >= target) clearInterval(iv); }, 20);
+     x-data="{
+       seeds: 0,
+       barWidth: 0,
+       displayLevel: <%= lvl %>,
+       leveledUp: false,
+       finalPct: <%= pct %>,
+       finalToward: <%= toward_next %>,
+
+       init() {
+         var raw = localStorage.getItem('seedsLevelUp');
+         if (raw) {
+           localStorage.removeItem('seedsLevelUp');
+           try { var lu = JSON.parse(raw); } catch(e) { this.normalStart(); return; }
+           this.runLevelUpSequence(lu);
+         } else {
+           this.normalStart();
          }
-       }, 150);
-     ">
+       },
+
+       normalStart() {
+         var self = this;
+         setTimeout(function() {
+           self.barWidth = self.finalPct;
+           self.countSeeds(0, self.finalToward);
+         }, 150);
+       },
+
+       countSeeds(from, to) {
+         var self = this;
+         self.seeds = from;
+         if (to <= from) { self.seeds = to; return; }
+         var range = to - from;
+         var step = Math.max(1, Math.ceil(range / 50));
+         var iv = setInterval(function() {
+           self.seeds = Math.min(self.seeds + step, to);
+           if (self.seeds >= to) clearInterval(iv);
+         }, 20);
+       },
+
+       runLevelUpSequence(lu) {
+         var self = this;
+         self.displayLevel = lu.oldLevel;
+         self.seeds = lu.oldToward;
+         self.barWidth = lu.oldPct;
+
+         // Phase 1: Fill bar to 100% (after brief pause)
+         setTimeout(function() {
+           self.barWidth = 100;
+           self.countSeeds(lu.oldToward, <%= User::SEEDS_PER_LEVEL %>);
+         }, 300);
+
+         // Phase 2: Level-up celebration (after bar fills)
+         setTimeout(function() {
+           self.displayLevel = lu.newLevel;
+           self.leveledUp = true;
+           self.spawnConfetti();
+         }, 1500);
+
+         // Phase 3: Reset bar and fill to new progress
+         setTimeout(function() {
+           self.leveledUp = false;
+           self.barWidth = 0;
+           self.seeds = 0;
+         }, 2800);
+
+         setTimeout(function() {
+           self.barWidth = self.finalPct;
+           self.countSeeds(0, self.finalToward);
+         }, 3000);
+       },
+
+       spawnConfetti() {
+         var container = this.$refs.confettiZone;
+         if (!container) return;
+         var colors = ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#FBBF24', '#EF4444', '#3B82F6'];
+         for (var i = 0; i < 45; i++) {
+           var el = document.createElement('div');
+           el.style.cssText = 'position:absolute;width:6px;height:6px;border-radius:1px;';
+           el.style.left = (50 + (Math.random() - 0.5) * 80) + '%';
+           el.style.top = '0px';
+           el.style.background = colors[Math.floor(Math.random() * colors.length)];
+           container.appendChild(el);
+           var drift = (Math.random() - 0.5) * 100;
+           var fallDist = 70 + Math.random() * 70;
+           el.animate([
+             { transform: 'translateY(0) translateX(0) rotate(0deg) scale(1)', opacity: 1 },
+             { transform: 'translateY(' + fallDist + 'px) translateX(' + drift + 'px) rotate(' + (360 + Math.random() * 360) + 'deg) scale(0.5)', opacity: 0 }
+           ], { duration: 800 + Math.random() * 800, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', fill: 'forwards', delay: Math.random() * 300 });
+           setTimeout(function(e) { e.remove(); }.bind(null, el), 2000);
+         }
+       }
+     }">
 
   <%# Header %>
   <div class="flex items-center justify-between mb-3">
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
-            style="background: rgba(var(--color-primary-500-rgb), 0.15); color: var(--color-cta); border: 1px solid rgba(var(--color-primary-500-rgb), 0.3);">
+    <h3 class="text-heading font-semibold text-sm">Earn a Free Entry</h3>
+    <div class="relative" x-ref="confettiZone" style="overflow: visible;">
+      <span x-ref="levelBadge"
+            class="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block"
+            :class="leveledUp ? 'level-up-pop' : ''"
+            style="background: rgba(var(--color-primary-500-rgb), 0.15); color: var(--color-cta); border: 1px solid rgba(var(--color-primary-500-rgb), 0.3);"
+            x-text="'Level ' + displayLevel">
         Level <%= lvl %>
       </span>
-      <h3 class="text-heading font-semibold text-sm"><%= seeds %> seeds</h3>
     </div>
-    <p class="text-xs text-muted">
-      <span class="font-semibold" style="color: var(--color-cta)"><%= seeds_left %></span> to next level
-    </p>
   </div>
 
-  <%# Progress bar %>
-  <div class="bg-inset border border-subtle rounded-lg px-3 py-2.5">
-    <div class="relative">
-      <div class="w-full rounded-full overflow-hidden" style="height: 8px; background: var(--color-bg-surface);">
-        <div class="h-full rounded-full"
+  <%# Progress bar with inline counter %>
+  <div class="bg-inset border border-subtle rounded-lg px-3 py-2">
+    <div class="relative" style="height: 18px;">
+      <%# Bar %>
+      <div class="absolute inset-0 rounded-full overflow-hidden" style="background: var(--color-bg-surface);">
+        <div class="h-full rounded-full relative overflow-hidden"
              style="width: 0%; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
                     background: var(--color-cta);
                     <% if toward_next > 0 %>animation: seedsBarGlow 2s ease-in-out infinite;<% end %>"
              :style="{ width: barWidth + '%' }">
+          <div class="absolute inset-0" style="background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%); animation: seedsShimmer 2.5s ease-in-out infinite; animation-delay: 1.5s;"></div>
         </div>
       </div>
-    </div>
-
-    <%# Seeds counter %>
-    <div class="mt-2">
-      <span class="text-xs font-mono font-bold" style="color: var(--color-cta)" x-text="seeds + ' / <%= User::SEEDS_PER_LEVEL %> seeds'">0 / <%= User::SEEDS_PER_LEVEL %> seeds</span>
+      <%# Counter text — two layers for color transition %>
+      <span class="absolute inset-0 flex items-center justify-center text-[11px] font-mono font-bold"
+            style="color: var(--color-cta);"
+            x-text="seeds + ' / <%= User::SEEDS_PER_LEVEL %> seeds'">0 / <%= User::SEEDS_PER_LEVEL %> seeds</span>
+      <span class="absolute inset-0 flex items-center justify-center text-[11px] font-mono font-bold overflow-hidden rounded-full"
+            style="color: white; clip-path: inset(0 0 0 0);"
+            :style="{ 'clip-path': 'inset(0 ' + (100 - barWidth) + '% 0 0)' }"
+            x-text="seeds + ' / <%= User::SEEDS_PER_LEVEL %> seeds'">0 / <%= User::SEEDS_PER_LEVEL %> seeds</span>
     </div>
   </div>
 </div>

@@ -22,6 +22,7 @@ Rails.application.routes.draw do
     post :unlink_google
     post :change_password
     patch :set_inviter
+    patch :update_level
   end
 
   resources :slates, only: [:index, :show] do

@@ -13,6 +13,9 @@
       onClose: null,
       countdown: 0,
       _countdownTimer: null,
+      seedsEarned: 0,
+      seedsTotal: 0,
+      seedsLevel: 0,
 
       show(title, message) {
         this.visible = true;
@@ -23,6 +26,9 @@
         this.errorMessage = null;
         this.onClose = null;
         this.countdown = 0;
+        this.seedsEarned = 0;
+        this.seedsTotal = 0;
+        this.seedsLevel = 0;
         this._clearCountdown();
       },
 
@@ -50,9 +56,10 @@
         }
       },
 
-      error(msg) {
+      error(msg, title) {
         this.state = 'error';
         this.errorMessage = msg;
+        if (title) this.title = title;
       },
 
       close() {
@@ -65,6 +72,9 @@
         this.txSignature = null;
         this.errorMessage = null;
         this.countdown = 0;
+        this.seedsEarned = 0;
+        this.seedsTotal = 0;
+        this.seedsLevel = 0;
         if (cb) cb();
         this.onClose = null;
       },
@@ -115,6 +125,12 @@
         </div>
         <h3 class="text-heading font-bold text-lg mb-2" x-text="$store.solanaModal.title"></h3>
         <p class="text-secondary text-sm mb-4" x-text="$store.solanaModal.message"></p>
+        <template x-if="$store.solanaModal.seedsEarned > 0">
+          <div class="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30">
+            <span class="text-primary font-bold text-sm" x-text="'+' + $store.solanaModal.seedsEarned + ' seeds'"></span>
+            <span class="text-secondary text-xs" x-text="'Level ' + $store.solanaModal.seedsLevel + ' — ' + $store.solanaModal.seedsTotal + ' total'"></span>
+          </div>
+        </template>
         <template x-if="$store.solanaModal.txSignature">
           <a :href="$store.solanaModal.explorerUrl" target="_blank" rel="noopener"
              class="inline-flex items-center gap-1 text-primary hover:text-primary-600 text-xs font-mono mb-4 transition">

@@ -597,6 +597,30 @@
             const confirmData = await confirmResp.json();
             if (!confirmData.success) throw new Error(confirmData.error || 'Failed to confirm entry');
 
+            if (confirmData.seeds_earned) {
+              var m = Alpine.store('solanaModal');
+              m.seedsEarned = confirmData.seeds_earned;
+              m.seedsTotal = confirmData.seeds_total;
+              m.seedsLevel = confirmData.seeds_level;
+
+              // Detect level-up: did seeds cross a 100-boundary?
+              var oldSeeds = confirmData.seeds_total - confirmData.seeds_earned;
+              var oldLevel = Math.floor(oldSeeds / 100) + 1;
+              var newLevel = Math.floor(confirmData.seeds_total / 100) + 1;
+              if (newLevel > oldLevel) {
+                localStorage.setItem('seedsLevelUp', JSON.stringify({
+                  oldLevel: oldLevel,
+                  newLevel: newLevel,
+                  oldPct: Math.round((oldSeeds % 100) / 100 * 100),
+                  oldToward: oldSeeds % 100
+                }));
+                fetch('<%= update_level_account_path %>', {
+                  method: 'PATCH',
+                  headers: { 'X-CSRF-Token': this.csrfToken, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ seeds_total: confirmData.seeds_total })
+                }).catch(function(err) { console.warn('Level update failed:', err); });
+              }
+            }
             Alpine.store('solanaModal').success(txSig, 'Entry submitted onchain');
             refreshBalanceDelayed();
             Alpine.store('solanaModal').onClose = () => { window.location.href = confirmData.redirect || '/'; };

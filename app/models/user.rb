@@ -152,7 +152,7 @@ class User < ApplicationRecord
   # Seeds live on the UserAccount PDA (on-chain). 25 seeds per contest entry.
   # Level = (seeds / 100) + 1. UI-derived, no DB column.
 
-  SEEDS_PER_ENTRY = 25
+  SEEDS_PER_ENTRY = 60
   SEEDS_PER_LEVEL = 100
 
   def self.level_for(seeds)
@@ -165,6 +165,13 @@ class User < ApplicationRecord
 
   def self.seeds_progress_percent(seeds)
     (seeds_toward_next_level(seeds).to_f / SEEDS_PER_LEVEL * 100).round
+  end
+
+  def update_level_from_seeds!(seeds_total)
+    computed_level = self.class.level_for(seeds_total)
+    return nil if computed_level == level
+    update!(level: computed_level)
+    computed_level
   end
 
   # --- Money ---

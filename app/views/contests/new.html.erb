@@ -155,7 +155,7 @@
           }, 1000);
         } catch(err) {
           var msg = parseSolanaError(err.message || 'Unknown error');
-          Alpine.store('solanaModal').error(msg);
+          Alpine.store('solanaModal').error(msg, 'Contest Creation Failed');
           btn.disabled = false;
         }
       });

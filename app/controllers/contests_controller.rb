@@ -117,7 +117,7 @@ class ContestsController < ApplicationController
 
   def show
     @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: :team }).order(score: :desc)
+    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc)
     @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
 
     if logged_in? && current_user.solana_connected?
@@ -252,10 +252,24 @@ class ContestsController < ApplicationController
         entry_pda: params[:entry_pda]
       )
 
+      seeds_earned = User::SEEDS_PER_ENTRY
+      seeds_total = 0
+      if current_user.solana_connected?
+        begin
+          onchain = Solana::Vault.new.sync_balance(current_user.solana_address)
+          seeds_total = onchain&.dig(:seeds) || 0
+        rescue => e
+          Rails.logger.warn "Failed to read seeds after entry: #{e.message}"
+        end
+      end
+
       render json: {
         success: true,
         redirect: contest_path(@contest),
-        tx_signature: params[:tx_signature]
+        tx_signature: params[:tx_signature],
+        seeds_earned: seeds_earned,
+        seeds_total: seeds_total,
+        seeds_level: User.level_for(seeds_total)
       }
     end
   rescue StandardError => e

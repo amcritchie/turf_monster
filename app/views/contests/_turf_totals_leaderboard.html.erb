@@ -165,35 +165,12 @@
                 </a>
               <% end %>
             </div>
-            <%# Selections %>
-            <div class="flex-1 flex flex-wrap gap-2">
-              <% entry.selections.each do |selection| %>
-                <%
-                  team = selection.slate_matchup.team
-                  c1 = team.color_primary || "#666"
-                  c2 = team.color_secondary || c1
-                  has_points = selection.points.present?
-                %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-mono font-semibold text-white border border-white/15"
-                      style="background: linear-gradient(135deg, <%= c1 %>cc, <%= c2 %>99)"
-                      title="<%= team.name %> (<%= selection.slate_matchup.multiplier %>x)<%= has_points ? " — #{selection.points} pts" : '' %>">
-                  <%= team.emoji %> <%= team.short_name %>
-                  <% if has_points %>
-                    <span style="opacity:0.85"><%= sprintf('%.1f', selection.points) %></span>
-                  <% end %>
-                </span>
-              <% end %>
-            </div>
-            <%# Score %>
-            <div class="text-right">
-              <div class="font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-violet' %>"><%= sprintf('%.1f', entry.score) %></div>
-              <% if paid %>
-                <span class="text-xs font-bold text-primary"><%= dollars(entry.payout_cents / 100.0) %></span>
-              <% end %>
-            </div>
+            <% if paid && !@contest.settled? %>
+              <span class="text-xs font-bold text-primary flex-shrink-0"><%= dollars(entry.payout_cents / 100.0) %></span>
+            <% end %>
             <%# Payout action (admin only, settled) %>
             <% if @contest.settled? && current_user&.admin? && paid %>
-              <div x-data="{ paid_tx: '<%= entry.payout_tx_signature %>' }" class="ml-2">
+              <div x-data="{ paid_tx: '<%= entry.payout_tx_signature %>' }" class="flex-shrink-0">
                 <template x-if="paid_tx">
                   <a :href="'https://explorer.solana.com/tx/' + paid_tx + '<%= '?cluster=devnet' if Solana::Config.devnet? %>'"
                      target="_blank" class="text-primary hover:text-primary-300 text-xs font-mono flex items-center gap-1" title="View on Solana Explorer">
@@ -212,13 +189,47 @@
                         if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalanceDelayed(); }
                         else { $store.solanaModal.error(data.error); }
                       }).catch(e => { $store.solanaModal.error(e.message); });"
-                      class="btn btn-primary btn-sm"><%= dollars(entry.payout_cents / 100.0) %></button>
+                      class="btn btn-primary btn-sm">Payout <%= dollars(entry.payout_cents / 100.0) %></button>
                   <% else %>
                     <span class="text-xs text-muted" title="User has no Solana wallet">No wallet</span>
                   <% end %>
                 </template>
               </div>
             <% end %>
+            <%# Selections + Score — float right together %>
+            <div class="flex-1 flex items-center justify-end gap-3">
+              <div class="flex flex-wrap gap-1.5 justify-end">
+                <% entry.selections.sort_by { |s| s.slate_matchup.game&.kickoff_at || Time.at(0) }.each do |selection| %>
+                  <%
+                    team = selection.slate_matchup.team
+                    game = selection.slate_matchup.game
+                    c1 = team.color_primary || "#666"
+                    c2 = team.color_secondary || c1
+                    completed = game&.status == "completed"
+                    if completed && selection.points.present?
+                      score = selection.points
+                      int_part = score.to_i.to_s
+                      dec_part = score == score.to_i ? nil : ".#{((score % 1) * 10).round}"
+                    else
+                      mult = selection.slate_matchup.multiplier
+                      int_part = mult == mult.to_i ? "x#{mult.to_i}" : "x#{mult.to_i}"
+                      dec_part = mult == mult.to_i ? nil : ".#{((mult % 1) * 10).round}"
+                    end
+                    title_val = (completed && selection.points.present?) ? "#{selection.points} pts" : (mult == mult.to_i ? "x#{mult.to_i}" : "x#{mult}")
+                  %>
+                  <span class="inline-flex items-center justify-between w-28 px-2 py-1 rounded-lg text-xs font-semibold text-white border border-white/15"
+                        style="background: linear-gradient(135deg, <%= c1 %>cc, <%= c2 %>99)"
+                        title="<%= team.name %> — <%= title_val %>">
+                    <span class="truncate"><%= team.emoji %> <%= team.short_name %></span>
+                    <span class="font-mono ml-1 flex-shrink-0" style="opacity:0.85"><%= int_part %><% if dec_part %><span style="font-size:0.7em;opacity:0.8"><%= dec_part %></span><% end %></span>
+                  </span>
+                <% end %>
+              </div>
+              <%# Score %>
+              <div class="text-right flex-shrink-0" style="min-width:4.5rem">
+                <div class="font-mono font-bold text-lg <%= dimmed ? 'text-muted' : 'text-violet' %>"><%= sprintf('%.1f', entry.score) %></div>
+              </div>
+            </div>
           </div>
         </div>
       <% end %>

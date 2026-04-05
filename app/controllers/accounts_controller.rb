@@ -84,6 +84,17 @@ class AccountsController < ApplicationController
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  def update_level
+    seeds_total = params[:seeds_total].to_i
+
+    rescue_and_log(target: current_user) do
+      current_user.update_level_from_seeds!(seeds_total)
+      render json: { success: true, level: current_user.level }
+    end
+  rescue StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def change_password
     rescue_and_log(target: current_user) do
       # If user already has a password, verify current one

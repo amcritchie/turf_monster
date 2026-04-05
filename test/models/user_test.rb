@@ -114,4 +114,28 @@ class UserTest < ActiveSupport::TestCase
     assert_equal 50, User.seeds_progress_percent(50)
     assert_equal 25, User.seeds_progress_percent(25)
   end
+
+  # --- update_level_from_seeds! ---
+
+  test "update_level_from_seeds! updates level when crossing boundary" do
+    user = users(:alex)
+    assert_equal 1, user.level
+    result = user.update_level_from_seeds!(100)
+    assert_equal 2, result
+    assert_equal 2, user.reload.level
+  end
+
+  test "update_level_from_seeds! returns nil when level unchanged" do
+    user = users(:alex)
+    assert_equal 1, user.level
+    result = user.update_level_from_seeds!(50)
+    assert_nil result
+    assert_equal 1, user.reload.level
+  end
+
+  test "update_level_from_seeds! handles zero seeds" do
+    user = users(:alex)
+    assert_nil user.update_level_from_seeds!(0)
+    assert_equal 1, user.reload.level
+  end
 end

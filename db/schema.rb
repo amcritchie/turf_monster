@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_04_070001) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_05_005218) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -266,6 +266,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_04_070001) do
     t.string "role", default: "viewer"
     t.string "username"
     t.bigint "invited_by_id"
+    t.integer "level", default: 1, null: false
     t.index "lower((username)::text)", name: "index_users_on_lower_username", unique: true, where: "(username IS NOT NULL)"
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
