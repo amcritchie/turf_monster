@@ -446,7 +446,7 @@ module Solana
       pda, _ = contest_pda(contest_slug)
       pda_base58 = Keypair.encode_base58(pda)
 
-      info = client.call("getAccountInfo", [pda_base58, { encoding: "base64", commitment: commitment }])
+      info = client.get_account_info(pda_base58, commitment: commitment)
       return nil unless info&.dig("value")
 
       data = Base64.decode64(info["value"]["data"][0])
@@ -489,7 +489,7 @@ module Solana
       user_pda, _ = user_account_pda(wallet_address)
       pda_base58 = Keypair.encode_base58(user_pda)
 
-      info = client.call("getAccountInfo", [pda_base58, { encoding: "base64", commitment: commitment }])
+      info = client.get_account_info(pda_base58, commitment: commitment)
       return nil unless info&.dig("value")
 
       account_data = Base64.decode64(info["value"]["data"][0])
