@@ -17,11 +17,16 @@ class AccountsController < ApplicationController
     @user = current_user
     rescue_and_log(target: @user) do
       @user.update!(profile_params)
-      redirect_to session.delete(:return_to) || root_path, notice: "Profile updated!"
+      respond_to do |format|
+        format.html { redirect_to session.delete(:return_to) || root_path, notice: "Profile updated!" }
+        format.json { render json: { success: true, display_name: @user.display_name } }
+      end
     end
   rescue StandardError => e
-    flash.now[:alert] = e.message
-    render :complete_profile, status: :unprocessable_entity
+    respond_to do |format|
+      format.html { flash.now[:alert] = e.message; render :complete_profile, status: :unprocessable_entity }
+      format.json { render json: { error: e.message }, status: :unprocessable_entity }
+    end
   end
 
   def update

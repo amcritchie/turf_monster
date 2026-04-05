@@ -10,7 +10,7 @@ class User < ApplicationRecord
 
   validates :email, uniqueness: true, allow_nil: true
   validates :solana_address, uniqueness: true, allow_nil: true
-  validates :username, length: { in: 3..30 }, format: { with: /\A[a-zA-Z0-9_]+\z/, message: "only letters, numbers, and underscores" }, uniqueness: { case_sensitive: false }, allow_nil: true
+  validates :username, length: { in: 3..30 }, format: { with: /\A[a-zA-Z0-9_-]+\z/, message: "only letters, numbers, hyphens, and underscores" }, uniqueness: { case_sensitive: false }, allow_nil: true
   validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :password, confirmation: true, if: -> { password_confirmation.present? }
   validate :has_authentication_method

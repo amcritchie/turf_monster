@@ -17,8 +17,12 @@ class SolanaSessionsController < ApplicationController
     )
 
     # Find or create user with this Solana address
-    user = User.from_solana_wallet(pubkey_b58) || User.new(
+    user = User.from_solana_wallet(pubkey_b58)
+    is_new = user.nil?
+
+    user ||= User.new(
       name: "anon",
+      username: Studio::UsernameGenerator.generate,
       solana_address: pubkey_b58,
       wallet_type: "phantom",
       password: SecureRandom.hex(16),
@@ -28,7 +32,7 @@ class SolanaSessionsController < ApplicationController
     rescue_and_log(target: user) do
       user.save! if user.new_record?
       set_app_session(user)
-      render json: { success: true, redirect: "/" }
+      render json: { success: true, redirect: "/", new_user: is_new }
     end
   rescue Solana::AuthVerifier::VerificationError => e
     render json: { error: e.message }, status: :unauthorized

@@ -62,7 +62,7 @@
     <%= render "layouts/studio/head" %>
   </head>
 
-  <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }" data-logged-in="<%= logged_in? %>">
+  <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }" data-logged-in="<%= logged_in? %>" data-wallet-address="<%= current_user&.solana_address %>">
     <header x-data="{ scrolled: false }" @scroll.window="scrolled = window.scrollY > 20"
             class="sticky top-0 z-50 bg-page transition-shadow duration-300"
             :class="scrolled && 'shadow-lg border-b border-subtle'">
@@ -120,10 +120,13 @@
             <% if logged_in? %>
               <%# Desktop: horizontal layout %>
               <div class="hidden md:flex items-center gap-4">
-                <div class="relative">
+                <div class="relative flex items-center gap-1">
                   <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
                     <%= current_user.display_name %>
                   <% end %>
+                  <button @click="$store.profileModal.show()" class="text-muted hover:text-primary transition p-1" title="Edit profile">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                  </button>
                   <% if current_user.solana_connected? %>
                     <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
                   <% end %>
@@ -173,5 +176,11 @@
 
     <%= render "shared/solana_errors" %>
     <%= render "shared/solana_modal" %>
+    <% if logged_in? %>
+      <%= render "shared/profile_modal" %>
+    <% end %>
+    <% if logged_in? && current_user.solana_connected? %>
+      <%= render "shared/phantom_watcher" %>
+    <% end %>
   </body>
 </html>
