@@ -156,7 +156,7 @@
             </div>
             <%# Player %>
             <div class="flex items-center gap-2 min-w-0" style="width:7rem">
-              <%= render "shared/avatar", user: entry.user, size: "sm" %>
+              <%= render "components/avatar", user: entry.user, size: "sm" %>
               <span class="font-semibold truncate text-sm <%= dimmed ? 'text-muted' : 'text-heading' %>"><%= entry.user.display_name %></span>
               <% if entry.onchain_tx_signature.present? %>
                 <a href="https://explorer.solana.com/tx/<%= entry.onchain_tx_signature %><%= '?cluster=devnet' if Solana::Config.devnet? %>"

@@ -231,6 +231,7 @@ class Contest < ApplicationRecord
       total = entry.selections.reload.sum { |s| s.points || 0 }
       entry.update!(score: total)
     end
+    touch # Bust show page cache after scoring
   end
 
   # --- Onchain ---

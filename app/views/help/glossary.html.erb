@@ -1,0 +1,59 @@
+<% content_for :title, "Glossary — Turf Monster" %>
+
+<div class="max-w-3xl mx-auto py-8">
+  <%= link_to "&larr; Help Center".html_safe, help_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+
+  <h1 class="text-3xl font-extrabold text-heading mt-4 mb-6">Glossary</h1>
+
+  <dl class="space-y-4">
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Multiplier</dt>
+      <dd class="text-body mt-1">A scoring boost applied to each pick based on team ranking. Lower-ranked (underdog) teams have higher multipliers, making them riskier but more rewarding.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Seeds</dt>
+      <dd class="text-body mt-1">Loyalty points earned by entering contests. You earn 60 seeds per entry. Seeds accumulate on-chain and unlock higher levels over time.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">USDC</dt>
+      <dd class="text-body mt-1">A stablecoin pegged 1:1 to the US dollar. Turf Monster uses USDC for entry fees and payouts so your balance always reflects real dollar value.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">SOL</dt>
+      <dd class="text-body mt-1">The native currency of the Solana blockchain. Small amounts of SOL are needed for transaction fees (fractions of a cent). Turf Monster covers these fees for you.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Devnet</dt>
+      <dd class="text-body mt-1">A test version of the Solana blockchain where tokens have no real value. Turf Monster currently runs on devnet while in beta &mdash; all USDC and SOL are test tokens.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Managed Wallet</dt>
+      <dd class="text-body mt-1">A Solana wallet created and managed by Turf Monster on your behalf. You don't need Phantom or any external wallet &mdash; we handle the blockchain interactions for you.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Phantom</dt>
+      <dd class="text-body mt-1">A popular browser extension and mobile wallet for Solana. Optional &mdash; connect it if you want self-custody of your keys and direct on-chain interaction.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Escrow</dt>
+      <dd class="text-body mt-1">A smart contract that holds entry fees until the contest settles. Funds are locked and can only be released as payouts to winners &mdash; no one can withdraw them early.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Entry Fee</dt>
+      <dd class="text-body mt-1">The cost to enter a contest, paid in USDC. Deducted from your balance when you confirm your picks. Entry fees fund the prize pool.</dd>
+    </div>
+
+    <div class="card p-4">
+      <dt class="text-heading font-bold">Payout</dt>
+      <dd class="text-body mt-1">Prize money distributed to top-ranked entries after a contest settles. Paid in USDC to your Turf Monster balance.</dd>
+    </div>
+  </dl>
+</div>

@@ -182,12 +182,15 @@
           default_text: "Hold to Confirm",
           hold_text: "Almost there...",
           success_text: "Confirmed!",
-          duration: 3000,
+          duration: 2000,
           hold_id: "desktop",
           guard: "data.selectionCount === #{@contest.picks_required}",
           validate: "d.runHoldValidations()",
-          validate_at: 1000,
-          on_success: "d.confirmEntry()" %>
+          validate_at: 750,
+          on_success: "d.confirmEntry()",
+          early_action: "d.confirmEntry()",
+          early_action_at: 1500,
+          early_action_guard: "d.contestOnchain && d.phantomWallet && window.phantom && window.phantom.solana" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
                 class="w-full py-2 text-sm font-semibold text-secondary hover:text-red-400 transition">
@@ -252,12 +255,15 @@
         default_text: "Hold to Confirm",
         hold_text: "Almost there...",
         success_text: "Confirmed!",
-        duration: 3000,
+        duration: 2000,
         hold_id: "mobile",
         guard: "data.selectionCount === #{@contest.picks_required}",
         validate: "d.runHoldValidations()",
-        validate_at: 1000,
-        on_success: "d.confirmEntry()" %>
+        validate_at: 750,
+        on_success: "d.confirmEntry()",
+        early_action: "d.confirmEntry()",
+        early_action_at: 1500,
+        early_action_guard: "d.contestOnchain && d.phantomWallet && window.phantom && window.phantom.solana" %>
     </div>
     <p x-show="selectionCount < <%= @contest.picks_required %>" class="text-heading font-bold text-sm text-center mb-3">Your Picks</p>
     <div class="grid grid-cols-3 gap-1.5">

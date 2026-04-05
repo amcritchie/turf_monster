@@ -8,6 +8,12 @@ Rails.application.routes.draw do
   get  "faucet", to: "faucet#show", as: :faucet
   post "faucet", to: "faucet#claim"
 
+  # Help center
+  get "help",              to: "help#index",       as: :help
+  get "help/how-to-play",  to: "help#how_to_play", as: :help_how_to_play
+  get "help/phantom",      to: "help#phantom",     as: :help_phantom
+  get "help/glossary",     to: "help#glossary",    as: :help_glossary
+
   Studio.routes(self)
 
   # Solana wallet auth

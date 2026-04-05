@@ -1,0 +1,49 @@
+<% content_for :title, "Phantom Wallet — Turf Monster" %>
+
+<div class="max-w-3xl mx-auto py-8">
+  <%= link_to "&larr; Help Center".html_safe, help_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+
+  <h1 class="text-3xl font-extrabold text-heading mt-4 mb-6">Phantom Wallet</h1>
+
+  <div class="space-y-6">
+    <div class="card p-6">
+      <h2 class="text-heading font-bold text-lg mb-3">What is Phantom?</h2>
+      <p class="text-body">Phantom is a browser extension and mobile app that lets you interact with the Solana blockchain. Think of it like a digital wallet &mdash; it holds your tokens (like USDC) and lets you sign transactions.</p>
+      <p class="text-body mt-2">
+        <a href="https://phantom.app" target="_blank" rel="noopener" class="text-primary hover:text-primary-600 font-semibold transition">Install Phantom &rarr;</a>
+      </p>
+    </div>
+
+    <div class="card p-6">
+      <h2 class="text-heading font-bold text-lg mb-3">Why does Turf Monster use it?</h2>
+      <p class="text-body">Turf Monster runs contest entries and payouts on the Solana blockchain for transparency. When you enter a contest with Phantom:</p>
+      <ul class="list-disc list-inside mt-2 space-y-1 text-body">
+        <li>Your entry fee is held in a <strong>smart contract escrow</strong> (not our bank account)</li>
+        <li>Payouts are distributed automatically by the contract</li>
+        <li>Every transaction is publicly verifiable on-chain</li>
+      </ul>
+    </div>
+
+    <div class="card p-6">
+      <h2 class="text-heading font-bold text-lg mb-3">Is Phantom required?</h2>
+      <p class="text-body"><strong>No.</strong> You can play Turf Monster without Phantom. When you sign up with email or Google, we create a <strong>managed wallet</strong> for you behind the scenes. You'll still see your balance and can enter contests normally.</p>
+      <p class="text-body mt-2">Phantom is only needed if you want to:</p>
+      <ul class="list-disc list-inside mt-2 space-y-1 text-body">
+        <li>Control your own private keys</li>
+        <li>Deposit or withdraw USDC to/from external wallets</li>
+        <li>Verify transactions on-chain yourself</li>
+      </ul>
+    </div>
+
+    <div class="card p-6">
+      <h2 class="text-heading font-bold text-lg mb-3">Connecting Phantom</h2>
+      <ol class="list-decimal list-inside space-y-2 text-body">
+        <li>Install the <a href="https://phantom.app" target="_blank" rel="noopener" class="text-primary hover:text-primary-600 font-semibold transition">Phantom extension</a> in your browser</li>
+        <li>Go to your <strong>Account</strong> page on Turf Monster</li>
+        <li>Click <strong>Connect Phantom Wallet</strong></li>
+        <li>Approve the connection in the Phantom popup</li>
+      </ol>
+      <p class="text-body mt-3">Once connected, contest entries will prompt Phantom for transaction signing. Your balance updates automatically after each transaction.</p>
+    </div>
+  </div>
+</div>

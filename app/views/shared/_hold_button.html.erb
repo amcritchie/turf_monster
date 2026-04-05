@@ -2,26 +2,32 @@
   Reusable hold-to-confirm button module.
 
   Locals:
-    default_text - Button label in idle state (default: "Hold to Confirm")
-    hold_text    - Text shown while holding (default: "Almost there...")
-    success_text - Text shown on completion (default: "Confirmed!")
-    duration     - Hold duration in ms (default: 3000)
-    hold_id      - Unique ID for this button instance (default: "hold")
-    guard        - JS expression that must be truthy to allow hold (default: "true")
-    on_success   - JS to execute on successful hold (default: none)
-    validate     - JS expression returning Promise<boolean>, called at validate_at ms (default: none)
-    validate_at  - ms delay before running validation (default: 1000)
+    default_text     - Button label in idle state (default: "Hold to Confirm")
+    hold_text        - Text shown while holding (default: "Almost there...")
+    success_text     - Text shown on completion (default: "Confirmed!")
+    duration         - Hold duration in ms (default: 2000)
+    hold_id          - Unique ID for this button instance (default: "hold")
+    guard            - JS expression that must be truthy to allow hold (default: "true")
+    on_success       - JS to execute on successful hold (default: none)
+    validate         - JS expression returning Promise<boolean>, called at validate_at ms (default: none)
+    validate_at      - ms delay before running validation (default: 750)
+    early_action     - JS to execute early (for Web3 users) (default: none)
+    early_action_at  - ms delay before firing early action (default: 1500)
+    early_action_guard - JS expression that must be truthy for early action (default: none)
 %>
-<% default_text ||= "Hold to Confirm" %>
-<% hold_text    ||= "Almost there..." %>
-<% success_text ||= "Confirmed!" %>
-<% error_text   ||= "Entry Blocked" %>
-<% duration     ||= 3000 %>
-<% hold_id      ||= "hold" %>
-<% guard        ||= "true" %>
-<% on_success   ||= nil %>
-<% validate     ||= nil %>
-<% validate_at  ||= 1000 %>
+<% default_text       ||= "Hold to Confirm" %>
+<% hold_text          ||= "Almost there..." %>
+<% success_text       ||= "Confirmed!" %>
+<% error_text         ||= "Entry Blocked" %>
+<% duration           ||= 2000 %>
+<% hold_id            ||= "hold" %>
+<% guard              ||= "true" %>
+<% on_success         ||= nil %>
+<% validate           ||= nil %>
+<% validate_at        ||= 750 %>
+<% early_action       ||= nil %>
+<% early_action_at    ||= 1500 %>
+<% early_action_guard ||= nil %>
 
 <style>
   /* ── Hold Button Base ── */
@@ -462,6 +468,21 @@
         <% end %>
       }, duration);
 
+      <% if early_action %>
+      // Early action for Web3 users
+      timers[id + '_early'] = setTimeout(function() {
+        var s = el.closest('[x-data]');
+        if (s) {
+          var d = Alpine.$data(s);
+          if (d && (<%== early_action_guard || "true" %>)) {
+            clearTimeout(timers[id]);
+            delete timers[id];
+            try { <%== early_action %> } catch(e) {}
+          }
+        }
+      }, <%= early_action_at %>);
+      <% end %>
+
       <% if validate %>
       // Mid-hold validation check
       timers[id + '_val'] = setTimeout(function() {
@@ -511,6 +532,10 @@
       if (timers[id + '_val']) {
         clearTimeout(timers[id + '_val']);
         delete timers[id + '_val'];
+      }
+      if (timers[id + '_early']) {
+        clearTimeout(timers[id + '_early']);
+        delete timers[id + '_early'];
       }
 
       // Restart with soft-only nudges (big nudge already seen)

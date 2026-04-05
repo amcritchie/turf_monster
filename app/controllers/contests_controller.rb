@@ -116,8 +116,20 @@ class ContestsController < ApplicationController
   end
 
   def show
-    @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
-    @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc)
+    if @contest.locked? || @contest.settled?
+      cache_key = "contest/#{@contest.slug}/v#{@contest.updated_at.to_i}/show_data"
+      cached = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+        {
+          matchups: @contest.matchups.ranked.includes(:team, :opponent_team, :game).to_a,
+          entries: @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc).to_a
+        }
+      end
+      @matchups = cached[:matchups]
+      @entries = cached[:entries]
+    else
+      @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
+      @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc)
+    end
     @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
 
     if logged_in? && current_user.solana_connected?

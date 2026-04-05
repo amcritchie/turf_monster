@@ -9,22 +9,30 @@
         document.addEventListener('alpine:init', () => {
           Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
         });
+        var _lockedFetchKeys = {};
+        function lockedFetch(key, url, opts) {
+          if (_lockedFetchKeys[key]) return Promise.resolve(null);
+          _lockedFetchKeys[key] = true;
+          return fetch(url, opts).finally(function() { delete _lockedFetchKeys[key]; });
+        }
         function refreshBalance() {
-          fetch('/admin/usdc_balance', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
-            .then(r => r.json())
-            .then(data => {
+          return lockedFetch('balance', '/admin/usdc_balance', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+            .then(function(r) { return r && r.json(); })
+            .then(function(data) {
+              if (!data) return;
               var formatted = '$' + Math.floor(parseFloat(data.balance));
-              document.querySelectorAll('[data-balance-display]').forEach(el => { el.textContent = formatted; });
+              document.querySelectorAll('[data-balance-display]').forEach(function(el) { el.textContent = formatted; });
             })
-            .catch(() => {});
+            .catch(function() {});
         }
         function refreshBalanceDelayed(ms) {
           var delay = ms || 10000;
           var btns = document.querySelectorAll('[data-balance-refresh]');
-          btns.forEach(function(btn) { btn.querySelector('svg').style.animation = 'spin 1.5s linear infinite'; });
+          btns.forEach(function(btn) { var svg = btn.querySelector('svg'); if (svg) svg.style.animation = 'spin 1.5s linear infinite'; });
           setTimeout(function() {
-            refreshBalance();
-            btns.forEach(function(btn) { btn.querySelector('svg').style.animation = ''; });
+            refreshBalance().finally(function() {
+              btns.forEach(function(btn) { var svg = btn.querySelector('svg'); if (svg) svg.style.animation = ''; });
+            });
           }, delay);
         }
         <% if logged_in? && Solana::Config.devnet? %>
@@ -113,31 +121,17 @@
           </div>
 
           <div class="flex items-center gap-4">
-            <div class="hidden md:flex items-center gap-3">
-              <div class="leading-none">
-                <div class="flex items-center gap-2 leading-none">
-                  <%= render "components/admin_dropdown" %>
-                  <%= render "components/theme_toggle" %>
-                  <% if logged_in? %>
-                    <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
-                            class="text-secondary hover:text-primary transition p-1 rounded-md" title="Refresh balance">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    </button>
-                    <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition text-lg font-bold", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
-                    <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition text-sm leading-none self-end" do %>
-                      <%= current_user.display_name %>
-                    <% end %>
-                  <% end %>
-                </div>
-                <% if logged_in? && current_user.solana_connected? %>
-                  <div class="text-right text-muted font-mono text-[10px] mt-px"><%= current_user.truncated_solana %></div>
-                <% end %>
-              </div>
-              <% if logged_in? %>
-                <%= link_to account_path, class: "hover:opacity-80 transition" do %>
-                  <%= render "shared/avatar", user: current_user, size: "sm" %>
-                <% end %>
-              <% end %>
+            <% balance_html = capture do %>
+              <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition text-lg font-bold", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
+            <% end if logged_in? %>
+            <% extra_icons_html = capture do %>
+              <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
+                      class="text-secondary hover:text-primary transition p-1 rounded-md" title="Refresh balance">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+            <% end if logged_in? %>
+            <div class="hidden md:flex">
+              <%= render "components/user_nav", balance_html: balance_html, extra_icons_html: extra_icons_html %>
             </div>
             <% if logged_in? %>
               <%# Mobile: horizontal with avatar %>
@@ -155,12 +149,13 @@
                   </div>
                 </div>
                 <%= link_to account_path, class: "hover:opacity-80 transition" do %>
-                  <%= render "shared/avatar", user: current_user, size: "sm" %>
+                  <%= render "components/avatar", user: current_user, size: "sm" %>
                 <% end %>
               </div>
             <% else %>
-              <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
-              <%= link_to "Sign up", signup_path, class: "hidden md:inline-flex btn btn-primary btn-sm" %>
+              <div class="md:hidden">
+                <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
+              </div>
             <% end %>
           </div>
         </div>
