@@ -85,7 +85,18 @@ When hold-to-confirm hits a blocker (geo-blocked, not logged in, insufficient fu
 - `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component
 
 ## Navbar
-Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms. Content: Logo + brand, My Contests (auth), Rules, Faucet (devnet only, yellow text), DEV toggle, admin gear dropdown, theme toggle. Right side: user info/auth. Username links to `/account`. Balance links to `/wallet`.
+Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms.
+
+### Left side
+Logo + brand, nav links (Join Contest, My Contests, Rules, Faucet), DEV toggle, Devnet badge, geo state badge.
+
+### Right side — two-row block + avatar
+- **Row 1**: gear dropdown, theme toggle, refresh button, balance (`text-lg font-bold`, no cents), username (`self-end` aligned). All in one `flex items-center gap-2 leading-none` row.
+- **Row 2**: truncated wallet address (`text-[10px]`, right-aligned, `mt-px` gap).
+- **Avatar**: `_avatar.html.erb` partial (`size: "sm"`), outside the two-row block, vertically centered. Links to `/account`.
+- Balance shows whole dollars only (no cents) — JS `refreshBalance` uses `Math.floor`, ERB uses `.to_i`.
+- Theme toggle is locally overridden (`components/_theme_toggle.html.erb`) to match app styling.
+- Username and balance link to `/account` and `/wallet` respectively. No pencil edit icon — profile editing via account page.
 
 ## Leaderboard (Contest Show)
 Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing multiplier (e.g., `x4`) before game completes and points (goals x multiplier) after. Badges float right with score rightmost (`min-width: 4.5rem`). Non-integer values show decimal portion in smaller font. Payout label (`$40.00`) appears on left (after player name) only before settling. Admin payout button says "Payout $X". After settling — paid rows get primary ring, divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.

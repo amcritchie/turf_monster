@@ -13,7 +13,7 @@
           fetch('/admin/usdc_balance', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
             .then(r => r.json())
             .then(data => {
-              var formatted = '$' + parseFloat(data.balance).toFixed(2);
+              var formatted = '$' + Math.floor(parseFloat(data.balance));
               document.querySelectorAll('[data-balance-display]').forEach(el => { el.textContent = formatted; });
             })
             .catch(() => {});
@@ -88,11 +88,6 @@
               <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
                       class="text-xs font-mono px-2 py-1 rounded-md border transition"
                       :class="$store.devMode ? 'bg-yellow-500/20 text-yellow-400 border-yellow-600/50' : 'bg-surface-alt text-muted border-subtle hover:text-secondary hover:border-strong'">DEV</button>
-            </nav>
-          </div>
-
-          <div class="flex items-center gap-4">
-            <div class="hidden md:flex items-center gap-2">
               <% if Solana::Config.devnet? %>
                 <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
               <% end %>
@@ -114,50 +109,54 @@
                   <%= state || "??" %>
                 </span>
               <% end %>
-              <%= render "components/admin_dropdown" %>
-              <%= render "components/theme_toggle" %>
-            </div>
-            <% if logged_in? %>
-              <%# Desktop: horizontal layout %>
-              <div class="hidden md:flex items-center gap-4">
-                <div class="relative flex items-center gap-1">
-                  <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition" do %>
-                    <%= current_user.display_name %>
-                  <% end %>
-                  <button @click="$store.profileModal.show()" class="text-muted hover:text-primary transition p-1" title="Edit profile">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                  </button>
-                  <% if current_user.solana_connected? %>
-                    <div class="wallet-badge absolute right-0 text-muted font-mono whitespace-nowrap"><%= current_user.truncated_solana %></div>
+            </nav>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <div class="hidden md:flex items-center gap-3">
+              <div class="leading-none">
+                <div class="flex items-center gap-2 leading-none">
+                  <%= render "components/admin_dropdown" %>
+                  <%= render "components/theme_toggle" %>
+                  <% if logged_in? %>
+                    <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
+                            class="text-secondary hover:text-primary transition p-1 rounded-md" title="Refresh balance">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+                    <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition text-lg font-bold", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
+                    <%= link_to account_path, class: "text-heading font-semibold hover:text-primary transition text-sm leading-none self-end" do %>
+                      <%= current_user.display_name %>
+                    <% end %>
                   <% end %>
                 </div>
-                <span class="flex items-center gap-1">
-                  <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
-                  <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
-                          class="text-secondary hover:text-primary transition p-1" title="Refresh balance">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  </button>
-                </span>
-                <%= link_to "Log out", logout_path, class: "text-secondary hover:text-heading text-sm font-medium transition" %>
+                <% if logged_in? && current_user.solana_connected? %>
+                  <div class="text-right text-muted font-mono text-[10px] mt-px"><%= current_user.truncated_solana %></div>
+                <% end %>
               </div>
-              <%# Mobile: stacked right-aligned, wallet overlaid above name %>
-              <div class="md:hidden flex flex-col items-end gap-0.5 text-right">
-                <div class="relative">
-                  <% if current_user.solana_connected? %>
-                    <div x-show="!scrolled" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-                         class="absolute right-0 text-muted font-mono" style="bottom:18px;font-size:10px"><%= current_user.truncated_solana %></div>
-                  <% end %>
+              <% if logged_in? %>
+                <%= link_to account_path, class: "hover:opacity-80 transition" do %>
+                  <%= render "shared/avatar", user: current_user, size: "sm" %>
+                <% end %>
+              <% end %>
+            </div>
+            <% if logged_in? %>
+              <%# Mobile: horizontal with avatar %>
+              <div class="md:hidden flex items-center gap-2">
+                <div class="text-right">
                   <%= link_to account_path, class: "text-heading font-semibold text-sm hover:text-primary transition" do %>
                     <%= current_user.display_name %>
                   <% end %>
+                  <div class="flex items-center justify-end gap-1">
+                    <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
+                    <button onclick="this.querySelector('svg').classList.add('animate-spin'); refreshBalance(); setTimeout(() => this.querySelector('svg').classList.remove('animate-spin'), 1000)"
+                            class="text-muted hover:text-primary transition p-0.5" title="Refresh balance">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
+                  </div>
                 </div>
-                <span class="flex items-center gap-1">
-                  <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 text-sm transition", data: { balance_display: true } do %><%= dollars(display_balance) %><% end %>
-                  <button onclick="this.querySelector('svg').classList.add('animate-spin'); refreshBalance(); setTimeout(() => this.querySelector('svg').classList.remove('animate-spin'), 1000)"
-                          class="text-muted hover:text-primary transition p-0.5" title="Refresh balance">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  </button>
-                </span>
+                <%= link_to account_path, class: "hover:opacity-80 transition" do %>
+                  <%= render "shared/avatar", user: current_user, size: "sm" %>
+                <% end %>
               </div>
             <% else %>
               <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
