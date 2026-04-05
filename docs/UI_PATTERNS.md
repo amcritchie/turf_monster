@@ -106,6 +106,15 @@ Public marketing page with hero, "How It Works" cards, and USDC claim form. Mint
 - DEV toggle in header nav bar — yellow badge when active, subtle dark button when off
 - Debug tools hidden by default, visible when `.dev-mode` is on body (e.g. nudge countdown ring)
 - Future debug tools should use `.dev-mode` ancestor selector or `$store.devMode` in Alpine
+- Seeds XP bar has a "Replay" link (left of Level badge) visible only in dev mode — triggers a simulated level-up animation
+
+## Seeds XP Bar (`_slate_progress_xp.html.erb`)
+- Progress bar showing seeds toward next level with animated fill, shimmer, and glow
+- Level badge pops on level-up (3.2x scale bounce) with firework burst animation
+- Firework: 72 particles explode radially from badge center using branding colors (green, violet, mint, orange, red)
+- Level-up data stored in `localStorage('seedsLevelUp')` as JSON, consumed on next page load
+- Sequence: fill bar to 100% → level pop + firework → reset bar → fill to new progress
+- Dev mode "Replay" link simulates level-up for testing
 
 ## Login Page SSO
 When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).

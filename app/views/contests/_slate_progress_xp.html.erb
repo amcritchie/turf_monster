@@ -4,7 +4,7 @@
 <% lvl = seeds_data[:level] %>
 <% toward_next = seeds_data[:toward_next] %>
 <% pct = seeds_data[:progress] %>
-<% seeds_left = seeds_data[:seeds_to_next] %>
+
 
 <style>
   @keyframes seedsBarGlow {
@@ -17,21 +17,21 @@
   }
   @keyframes levelPop {
     0% { transform: scale(1) rotate(0deg); }
-    15% { transform: scale(2.4) rotate(-3deg); }
-    30% { transform: scale(1.8) rotate(2deg); }
-    45% { transform: scale(2.2) rotate(-1deg); }
-    65% { transform: scale(1.9) rotate(0deg); }
-    80% { transform: scale(1.2) rotate(0deg); }
+    12% { transform: scale(3.2) rotate(-4deg); }
+    28% { transform: scale(2.4) rotate(3deg); }
+    42% { transform: scale(2.8) rotate(-1.5deg); }
+    60% { transform: scale(2.2) rotate(1deg); }
+    78% { transform: scale(1.3) rotate(0deg); }
     100% { transform: scale(1) rotate(0deg); }
   }
   @keyframes levelGlow {
-    0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0.8); }
-    30% { box-shadow: 0 0 30px 12px rgba(var(--color-primary-500-rgb), 0.6); }
-    60% { box-shadow: 0 0 20px 8px rgba(var(--color-primary-500-rgb), 0.3); }
+    0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0.9); }
+    25% { box-shadow: 0 0 40px 16px rgba(var(--color-primary-500-rgb), 0.7); }
+    50% { box-shadow: 0 0 25px 10px rgba(var(--color-primary-500-rgb), 0.4); }
     100% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0); }
   }
   .level-up-pop {
-    animation: levelPop 1s cubic-bezier(0.34, 1.56, 0.64, 1), levelGlow 1.2s ease-out;
+    animation: levelPop 1.1s cubic-bezier(0.34, 1.56, 0.64, 1), levelGlow 1.4s ease-out;
     z-index: 10;
   }
 </style>
@@ -82,17 +82,17 @@
          self.seeds = lu.oldToward;
          self.barWidth = lu.oldPct;
 
-         // Phase 1: Fill bar to 100% (after brief pause)
+         // Phase 1: Fill bar to 100%
          setTimeout(function() {
            self.barWidth = 100;
            self.countSeeds(lu.oldToward, <%= User::SEEDS_PER_LEVEL %>);
          }, 300);
 
-         // Phase 2: Level-up celebration (after bar fills)
+         // Phase 2: Level-up celebration
          setTimeout(function() {
            self.displayLevel = lu.newLevel;
            self.leveledUp = true;
-           self.spawnConfetti();
+           self.spawnFirework();
          }, 1500);
 
          // Phase 3: Reset bar and fill to new progress
@@ -108,24 +108,59 @@
          }, 3000);
        },
 
-       spawnConfetti() {
+       replay() {
+         var self = this;
+         self.displayLevel = Math.max(1, self.displayLevel - 1);
+         self.barWidth = 60;
+         self.seeds = Math.round(<%= User::SEEDS_PER_LEVEL %> * 0.6);
+
+         setTimeout(function() {
+           self.barWidth = 100;
+           self.countSeeds(self.seeds, <%= User::SEEDS_PER_LEVEL %>);
+         }, 300);
+
+         setTimeout(function() {
+           self.displayLevel = self.displayLevel + 1;
+           self.leveledUp = true;
+           self.spawnFirework();
+         }, 1500);
+
+         setTimeout(function() {
+           self.leveledUp = false;
+           self.barWidth = 0;
+           self.seeds = 0;
+         }, 2800);
+
+         setTimeout(function() {
+           self.barWidth = self.finalPct;
+           self.countSeeds(0, self.finalToward);
+         }, 3000);
+       },
+
+       spawnFirework() {
          var container = this.$refs.confettiZone;
          if (!container) return;
-         var colors = ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#FBBF24', '#EF4444', '#3B82F6'];
-         for (var i = 0; i < 45; i++) {
+         var colors = ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#EF4444'];
+         var particles = 72;
+         for (var i = 0; i < particles; i++) {
            var el = document.createElement('div');
-           el.style.cssText = 'position:absolute;width:6px;height:6px;border-radius:1px;';
-           el.style.left = (50 + (Math.random() - 0.5) * 80) + '%';
-           el.style.top = '0px';
+           el.style.cssText = 'position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;';
+           el.style.left = '50%';
+           el.style.top = '50%';
            el.style.background = colors[Math.floor(Math.random() * colors.length)];
            container.appendChild(el);
-           var drift = (Math.random() - 0.5) * 100;
-           var fallDist = 70 + Math.random() * 70;
+
+           var angle = (Math.PI * 2 * i / particles) + (Math.random() - 0.5) * 0.4;
+           var distance = 80 + Math.random() * 100;
+           var dx = Math.cos(angle) * distance;
+           var dy = Math.sin(angle) * distance;
+           var dur = 700 + Math.random() * 600;
+
            el.animate([
-             { transform: 'translateY(0) translateX(0) rotate(0deg) scale(1)', opacity: 1 },
-             { transform: 'translateY(' + fallDist + 'px) translateX(' + drift + 'px) rotate(' + (360 + Math.random() * 360) + 'deg) scale(0.5)', opacity: 0 }
-           ], { duration: 800 + Math.random() * 800, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', fill: 'forwards', delay: Math.random() * 300 });
-           setTimeout(function(e) { e.remove(); }.bind(null, el), 2000);
+             { transform: 'translate(-50%, -50%) scale(1.8)', opacity: 1 },
+             { transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(0.2)', opacity: 0 }
+           ], { duration: dur, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards', delay: Math.random() * 100 });
+           setTimeout(function(e) { e.remove(); }.bind(null, el), 1500);
          }
        }
      }">
@@ -133,7 +168,9 @@
   <%# Header %>
   <div class="flex items-center justify-between mb-3">
     <h3 class="text-heading font-semibold text-sm">Earn a Free Entry</h3>
-    <div class="relative" x-ref="confettiZone" style="overflow: visible;">
+    <div class="relative flex items-center gap-2" x-ref="confettiZone" style="overflow: visible;">
+      <a href="#" @click.prevent="replay()" x-show="$store.devMode" x-cloak
+         class="text-[10px] font-bold text-yellow-400 hover:text-yellow-300 transition">Replay</a>
       <span x-ref="levelBadge"
             class="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block"
             :class="leveledUp ? 'level-up-pop' : ''"
