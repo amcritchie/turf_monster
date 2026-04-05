@@ -1,0 +1,80 @@
+# Solana Integration (Devnet)
+
+"DeFi mullet" — Web2 UX front, Solana settlement back. Onchain methods are non-blocking (rescue + log errors) so app works without deployed program.
+
+## Services (`app/services/solana/`)
+
+- `Solana::Config` — program ID, RPC URL, mints, network
+- `Solana::Client` — JSON-RPC HTTP wrapper (Net::HTTP), retry logic
+- `Solana::Keypair` — Ed25519 key gen, encrypt/decrypt via Rails master key, sign, base58
+- `Solana::Borsh` — minimal Borsh serialization
+- `Solana::Transaction` — transaction builder, Anchor discriminators, PDA derivation
+- `Solana::Vault` — high-level business logic (deposit, withdraw, enter, settle, sync). `sync_balance` decodes seeds from UserAccount PDA. `build_enter_contest_direct` includes `user_account` PDA for seeds award.
+- `Solana::Reconciler` — compare DB vs onchain balances, log discrepancies
+
+## Anchor Program (`turf_vault/`)
+
+Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
+
+**Deployment status**: v0.5.0 deployed to devnet. Seeds field on UserAccount (60 per entry). Vault re-initialized. Hard escrow contest creation live.
+- Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
+- Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
+- Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
+- Admin (backup): Alex Human — `7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr`
+- IDL Account: `DCP2XRu8ZwzsCpXBgu5xa4vTYdYQhKUZRU49iJuFv8Lf`
+- USDC Mint: `222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9`
+- USDT Mint: `9mxkN8KaVA8FFgDE2LEsn2UbYLPG8Xg9bf4V9MYYi8Ne`
+
+## Navbar Balance
+
+`display_balance` helper shows the logged-in user's Phantom wallet USDC balance on devnet (cached 60s), falling back to DB `total_balance_dollars` for non-wallet users or non-devnet. The `/admin/usdc_balance` JSON endpoint (used by `refreshBalance()` JS) follows the same logic. Both use `fetch_user_usdc` → `Vault#fetch_wallet_balances(current_user.solana_address)`.
+
+**Balance refresh system**: `refreshBalance()` fetches `/admin/usdc_balance` and updates all `[data-balance-display]` elements. `refreshBalanceDelayed(ms)` waits (default 10s) then calls `refreshBalance()` — spins the navbar refresh icon (`[data-balance-refresh]`) during the wait as a visual cue. Called automatically after Solana operations (faucet, contest creation, payout). Manual refresh button (circular arrows icon) next to the balance in navbar (desktop + mobile).
+
+## Wallet Types
+
+- **Managed**: Server generates + encrypts Ed25519 keypair, signs transactions on behalf of user (formerly "custodial")
+- **Phantom**: User connects Phantom browser extension, signs transactions directly
+
+## Hard Escrow Contest Creation (v0.4.0)
+
+Contest creation transfers bonus USDC from creator's Phantom wallet to vault — real hard escrow, not just a number on the PDA. Dual-signer: admin bot pays SOL rent, creator's Phantom signs the USDC transfer.
+
+1. Admin fills form + submits → `POST /contests` (creates DB record)
+2. `POST /contests/:id/prepare_onchain_contest` → server builds + admin partial-signs tx
+3. `phantom.signTransaction(tx)` → creator co-signs the bonus USDC transfer
+4. `connection.sendRawTransaction()` → submit to Solana
+5. `POST /contests/:id/confirm_onchain_contest` → saves onchain_contest_id + tx_signature
+
+Replaced the old server-only `create_onchain` flow. Contest model's `create_onchain!` method removed. Vault service uses `build_create_contest` (partial-sign) instead of `create_contest` (full-sign).
+
+## Dual-Path Onchain Entry Flow
+
+Two paths for entering onchain contests, determined by wallet type:
+
+**Phantom (direct path)**: User's USDC transfers directly from their wallet ATA to vault via `enter_contest_direct` Anchor instruction. Admin pays PDA rent, user signs token transfer. Flow:
+1. Hold completes → sign identity message → `POST /prepare_entry` (server builds + partial-signs tx)
+2. `phantom.signTransaction(tx)` → user co-signs the USDC transfer
+3. `connection.sendRawTransaction()` → submit to Solana
+4. `POST /confirm_onchain_entry` → confirm in DB (no DB balance deduction)
+
+**Managed / non-onchain (standard path)**: Server deducts DB balance, admin-signs `enter_contest` (existing PDA balance deduction). Unchanged from before.
+
+Key difference: Phantom users' navbar shows wallet USDC (fetched live), which decreases naturally after the onchain transfer — no DB balance tracking needed.
+
+## Seeds System (On-Chain)
+
+60 seeds awarded per contest entry on-chain (TurfVault v0.5.0). No DB columns — seeds are read from UserAccount PDA via `sync_balance`. UI-derived levels: `level = seeds / 100 + 1`. Class methods on User: `level_for(seeds)`, `seeds_toward_next_level(seeds)`, `seeds_progress_percent(seeds)`. Constants: `SEEDS_PER_ENTRY = 60`, `SEEDS_PER_LEVEL = 100`. Progress bar partial `_slate_progress_xp.html.erb` renders on contest show page for wallet-connected users. Level-up animation with confetti on progress bar, seeds earned badge in Solana modal. `User#level` column (integer, default 1) persisted via `update_level_from_seeds!` endpoint (`PATCH /account/update_level`).
+
+## Rake Tasks
+
+- `solana:init_vault` — initialize vault on Devnet (`INIT=true ADMIN_BACKUP=<base58>`)
+- `solana:airdrop` — airdrop SOL to admin
+- `solana:check_balance` — read onchain balance
+- `solana:faucet` — mint test USDC
+- `solana:reconcile` — reconcile all user balances
+- `solana:reconcile_contest` — reconcile specific contest
+
+## Solana Auth Security
+
+- **Nonce replay prevention**: Solana nonces include timestamp, enforced 5-minute expiry window. Nonce is deleted from session before verification (delete-before-verify pattern) to prevent replay attacks.
