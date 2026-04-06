@@ -609,6 +609,14 @@
               m.seedsTotal = confirmData.seeds_total;
               m.seedsLevel = confirmData.seeds_level;
 
+              // Cache seeds data for navbar progress bar
+              localStorage.setItem('seedsNavbar', JSON.stringify({
+                seeds_total: confirmData.seeds_total,
+                level: confirmData.seeds_level,
+                toward_next: confirmData.seeds_total % <%= User::SEEDS_PER_LEVEL %>,
+                progress: Math.round((confirmData.seeds_total % <%= User::SEEDS_PER_LEVEL %>) / <%= User::SEEDS_PER_LEVEL %> * 100)
+              }));
+
               // Detect level-up: did seeds cross a 100-boundary?
               var oldSeeds = confirmData.seeds_total - confirmData.seeds_earned;
               var oldLevel = Math.floor(oldSeeds / 100) + 1;

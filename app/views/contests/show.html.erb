@@ -7,6 +7,14 @@
 
 <% if logged_in? && @seeds_data %>
   <%= render "contests/slate_progress_xp", seeds_data: @seeds_data %>
+  <script>
+    localStorage.setItem('seedsNavbar', JSON.stringify({
+      seeds_total: <%= @seeds_data[:seeds] %>,
+      level: <%= @seeds_data[:level] %>,
+      toward_next: <%= @seeds_data[:toward_next] %>,
+      progress: <%= @seeds_data[:progress] %>
+    }));
+  </script>
 <% end %>
 <% if @contest.open? %>
   <% has_entry = logged_in? && @contest.entries.where(user: current_user, status: [:active, :complete]).exists? %>
