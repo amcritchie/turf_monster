@@ -32,9 +32,19 @@
     matchups_desc = matchups_asc.reverse
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <div class="mb-6">
-      <h2 class="text-2xl font-extrabold text-heading">Build Your <%= @contest.picks_required %> Team Lineup</h2>
-      <p class="text-xs md:text-sm text-secondary mt-3"><span class="font-semibold text-heading"><%= @contest.tagline || @contest.name %></span> — compete for the highest score in our <span class="font-semibold text-heading">peer-to-peer contest</span> where scoring is <span class="font-bold text-heading">goals &times; multiplier</span>. <%= link_to "Contest Details ⚽", "https://turf.mcritchie.studio/turf-totals-v1", target: "_blank", class: "text-primary hover:text-primary-300 font-semibold underline underline-offset-2" %></p>
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="card p-3 text-center">
+        <p class="text-lg font-extrabold text-heading">Build</p>
+        <p class="text-xs text-secondary mt-1"><%= @contest.picks_required %> team roster</p>
+      </div>
+      <div class="card p-3 text-center">
+        <p class="text-lg font-extrabold text-heading">Compete</p>
+        <p class="text-xs text-secondary mt-1">Peer-to-peer contest</p>
+      </div>
+      <div class="card p-3 text-center">
+        <p class="text-lg font-extrabold text-heading">Win</p>
+        <p class="text-xs text-secondary mt-1">Highest score: goals &times; multiplier</p>
+      </div>
     </div>
     <div class="flex items-center justify-between gap-2 mb-4">
       <div class="flex items-center gap-2">
