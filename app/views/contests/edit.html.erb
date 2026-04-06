@@ -1,0 +1,43 @@
+<div class="max-w-lg mx-auto py-8">
+  <h1 class="text-2xl font-bold text-heading mb-6">Edit Contest</h1>
+
+  <div class="card shadow p-8">
+    <% if @contest.errors.any? %>
+      <div class="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">
+        <% @contest.errors.full_messages.each do |msg| %>
+          <p><%= msg %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%= form_with model: @contest, method: :patch do |f| %>
+      <div class="mb-5">
+        <label for="contest_name" class="block text-sm text-secondary mb-2 font-medium">Name</label>
+        <%= f.text_field :name, id: "contest_name", class: "input-field" %>
+      </div>
+
+      <div class="mb-5">
+        <label for="contest_tagline" class="block text-sm text-secondary mb-2 font-medium">Tagline</label>
+        <%= f.text_field :tagline, id: "contest_tagline", class: "input-field", placeholder: "Matchday 1 — World Cup 2026 Group Stage" %>
+      </div>
+
+      <div class="mb-5">
+        <label for="contest_status" class="block text-sm text-secondary mb-2 font-medium">Status</label>
+        <%= f.select :status, Contest.statuses.keys.map { |s| [s.capitalize, s] }, {},
+          id: "contest_status", class: "input-field" %>
+      </div>
+
+      <div class="mb-6">
+        <label for="contest_rank" class="block text-sm text-secondary mb-2 font-medium">Rank</label>
+        <%= f.number_field :rank, id: "contest_rank", class: "input-field", placeholder: "100" %>
+        <p class="text-xs text-muted mt-1">Lowest rank = shown on root page. Use increments of 100.</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg w-full">Save Changes</button>
+    <% end %>
+  </div>
+
+  <p class="text-center text-secondary text-sm mt-4">
+    <%= link_to "Back", root_path, class: "text-primary hover:text-primary-300 font-medium underline underline-offset-2" %>
+  </p>
+</div>

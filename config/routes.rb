@@ -44,7 +44,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :contests, only: [:index, :show, :new, :create] do
+  resources :contests, only: [:index, :show, :new, :create, :edit, :update] do
     collection do
       get :my
     end

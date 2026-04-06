@@ -2,8 +2,8 @@ class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
   skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup]
-  before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest]
-  before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
+  before_action :set_contest, only: [:show, :edit, :update, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest]
+  before_action :require_admin, only: [:new, :create, :edit, :update, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
   def index
@@ -47,6 +47,18 @@ class ContestsController < ApplicationController
       format.html { render :new, status: :unprocessable_entity }
       format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
     end
+  end
+
+  def edit
+  end
+
+  def update
+    rescue_and_log(target: @contest) do
+      @contest.update!(contest_update_params)
+      redirect_to root_path, notice: "Contest updated."
+    end
+  rescue StandardError => e
+    render :edit, status: :unprocessable_entity
   end
 
   # Build a partially-signed create_contest transaction for Phantom co-signing.
@@ -437,5 +449,9 @@ class ContestsController < ApplicationController
 
   def contest_params
     params.require(:contest).permit(:name, :slate_id, :contest_type)
+  end
+
+  def contest_update_params
+    params.require(:contest).permit(:name, :tagline, :status, :rank)
   end
 end
