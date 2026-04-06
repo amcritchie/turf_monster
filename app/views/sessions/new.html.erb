@@ -9,21 +9,24 @@
       <p class="text-secondary mt-2">Log in to play</p>
     </div>
 
+    <% if has_sso %>
+      <div x-data="{ revealed: false }" class="relative" :class="{ 'select-none': !revealed }">
+          <div x-show="!revealed" @click="revealed = true; setTimeout(() => $refs.emailField.focus(), 500)"
+               x-transition:leave="transition ease-in duration-500"
+               x-transition:leave-start="opacity-100"
+               x-transition:leave-end="opacity-0"
+               class="absolute inset-0 z-10 rounded-2xl cursor-pointer flex items-center justify-center"
+               style="backdrop-filter: blur(2px) brightness(0.7); -webkit-backdrop-filter: blur(2px) brightness(0.7); background: rgba(58,51,89,0.2);">
+            <span class="text-secondary text-xs font-medium uppercase tracking-wider">Click to show other options</span>
+          </div>
+    <% end %>
     <div class="card shadow p-8">
-      <%= render "sessions/sso_continue" %>
-
       <% if has_sso %>
-        <div x-data="{ revealed: false }">
-          <div class="relative" :class="{ 'select-none': !revealed }">
-            <div x-show="!revealed" @click="revealed = true; setTimeout(() => $refs.emailField.focus(), 500)"
-                 x-transition:leave="transition ease-in duration-500"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"
-                 class="absolute inset-0 z-10 rounded-xl cursor-pointer flex items-center justify-center pb-20"
-                 style="backdrop-filter: blur(2px) brightness(0.7); -webkit-backdrop-filter: blur(2px) brightness(0.7); background: rgba(58,51,89,0.2);">
-              <span class="text-secondary text-xs font-medium uppercase tracking-wider">Click to show other options</span>
-            </div>
-            <div :class="{ 'pointer-events-none': !revealed }">
+        <div class="relative" style="z-index: 20;">
+          <%= render "sessions/sso_continue" %>
+        </div>
+      <% else %>
+        <%= render "sessions/sso_continue" %>
       <% end %>
 
       <%= form_tag login_path, method: :post do %>
@@ -66,16 +69,14 @@
         <%= render "shared/solana_wallet_connect" %>
       </div>
 
-      <% if has_sso %>
-            </div>
-          </div>
-        </div>
-      <% end %>
-
       <p class="text-center text-secondary text-sm mt-6">
         Don't have an account?
         <%= link_to "Sign up", signup_path, class: "text-primary hover:text-primary-300 font-medium underline underline-offset-2" %>
       </p>
+
     </div>
+    <% if has_sso %>
+      </div>
+    <% end %>
   </div>
 </div>

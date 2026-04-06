@@ -619,20 +619,25 @@
 
               // Detect level-up: did seeds cross a 100-boundary?
               var oldSeeds = confirmData.seeds_total - confirmData.seeds_earned;
-              var oldLevel = Math.floor(oldSeeds / 100) + 1;
-              var newLevel = Math.floor(confirmData.seeds_total / 100) + 1;
+              var oldLevel = Math.floor(oldSeeds / <%= User::SEEDS_PER_LEVEL %>) + 1;
+              var newLevel = Math.floor(confirmData.seeds_total / <%= User::SEEDS_PER_LEVEL %>) + 1;
+              var newPct = Math.round((confirmData.seeds_total % <%= User::SEEDS_PER_LEVEL %>) / <%= User::SEEDS_PER_LEVEL %> * 100);
               if (newLevel > oldLevel) {
+                var oldPct = Math.round((oldSeeds % <%= User::SEEDS_PER_LEVEL %>) / <%= User::SEEDS_PER_LEVEL %> * 100);
                 localStorage.setItem('seedsLevelUp', JSON.stringify({
                   oldLevel: oldLevel,
                   newLevel: newLevel,
-                  oldPct: Math.round((oldSeeds % 100) / 100 * 100),
-                  oldToward: oldSeeds % 100
+                  oldPct: oldPct,
+                  oldToward: oldSeeds % <%= User::SEEDS_PER_LEVEL %>
                 }));
+                window.dispatchEvent(new CustomEvent('navbar-seeds-update', { detail: { levelUp: true, oldPct: oldPct, newLevel: newLevel, progress: newPct } }));
                 fetch('<%= update_level_account_path %>', {
                   method: 'PATCH',
                   headers: { 'X-CSRF-Token': this.csrfToken, 'Content-Type': 'application/json' },
                   body: JSON.stringify({ seeds_total: confirmData.seeds_total })
                 }).catch(function(err) { console.warn('Level update failed:', err); });
+              } else {
+                window.dispatchEvent(new CustomEvent('navbar-seeds-update', { detail: { levelUp: false, level: newLevel, progress: newPct } }));
               }
             }
             Alpine.store('solanaModal').success(txSig, 'Entry submitted onchain');

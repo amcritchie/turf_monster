@@ -4,6 +4,7 @@
     <title><%= content_for(:title) || "Turf Monster" %></title>
     <link rel="apple-touch-icon" href="/favicon.png">
     <script src="https://unpkg.com/@solana/web3.js@1/lib/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <% content_for :head do %>
       <script>
         document.addEventListener('alpine:init', () => {
@@ -152,7 +153,14 @@
           </button>
         <% end if logged_in? %>
         <div class="w-80 flex-shrink-0 px-4">
-          <%= render "components/user_nav", balance_html: balance_html, extra_icons_html: extra_icons_html %>
+          <% if logged_in? %>
+            <%= render "components/user_nav", balance_html: balance_html, extra_icons_html: extra_icons_html %>
+          <% else %>
+            <div class="flex items-center justify-end gap-3">
+              <%= render "components/theme_toggle" %>
+              <%= link_to "Log in", login_path, class: "btn btn-primary" %>
+            </div>
+          <% end %>
         </div>
       </div>
     </header>

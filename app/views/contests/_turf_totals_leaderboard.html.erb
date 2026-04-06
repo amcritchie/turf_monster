@@ -97,6 +97,12 @@
 
       <%= link_to "Rank Matchups", slate_path(@contest.slate),
         class: "px-6 py-2 bg-surface-alt hover:bg-surface-alt/80 text-heading font-bold rounded-xl shadow transition inline-flex items-center" %>
+
+      <% if @contest.open? && logged_in? && @contest.entries.where(user: current_user, status: [:active, :complete]).exists? %>
+        <%= link_to contest_path(@contest, add_entry: true), class: "btn btn-outline btn-lg" do %>
+          + Add Another Entry
+        <% end %>
+      <% end %>
     </div>
   </section>
 <% end %>

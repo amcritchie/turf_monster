@@ -86,9 +86,32 @@
       }
     });
   });
+
+  function fireSuccessConfetti() {
+    if (typeof confetti === 'undefined') return;
+    var colors = ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#FFD700', '#00BFFF', '#FF6B9D', '#C084FC'];
+    confetti({ particleCount: 150, spread: 100, origin: { x: 0.5, y: 0.5 }, colors: colors, zIndex: 99, startVelocity: 45, gravity: 0.8, ticks: 300, scalar: 1.2 });
+    setTimeout(function() {
+      confetti({ particleCount: 80, angle: 60, spread: 60, origin: { x: 0, y: 0.6 }, colors: colors, zIndex: 99, startVelocity: 55, gravity: 1, ticks: 250 });
+    }, 150);
+    setTimeout(function() {
+      confetti({ particleCount: 80, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors: colors, zIndex: 99, startVelocity: 55, gravity: 1, ticks: 250 });
+    }, 150);
+    setTimeout(function() {
+      confetti({ particleCount: 100, spread: 160, origin: { x: 0.5, y: 0.3 }, colors: colors, zIndex: 99, startVelocity: 30, gravity: 1.2, ticks: 200, scalar: 0.8 });
+    }, 400);
+  }
 </script>
 
-<div x-data x-show="$store.solanaModal.visible" x-cloak
+<div x-data="{
+       init() {
+         var self = this;
+         this.$watch('$store.solanaModal.state', function(val) {
+           if (val === 'success') { setTimeout(fireSuccessConfetti, 100); }
+         });
+       }
+     }"
+     x-show="$store.solanaModal.visible" x-cloak
      class="fixed inset-0 z-[100] flex items-center justify-center"
      x-transition:enter="transition ease-out duration-200"
      x-transition:enter-start="opacity-0"

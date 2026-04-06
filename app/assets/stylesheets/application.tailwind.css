@@ -71,7 +71,8 @@
     filter: brightness(0.9);
   }
   .btn-google {
-    @apply bg-white text-body border border-strong shadow-sm;
+    @apply bg-white border border-strong shadow-sm;
+    color: #374151;
   }
   .btn-google:hover {
     @apply bg-gray-50;

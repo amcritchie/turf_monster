@@ -33,6 +33,9 @@
       <%= button_to "Mint $500 USDC", admin_mint_usdc_path, method: :post,
         class: "block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition" %>
     <% end %>
+    <div class="border-t border-subtle my-1"></div>
+    <button @click="$dispatch('navbar-replay-level'); open = false"
+            class="block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition">Replay Level</button>
     <% contest = Contest.order(created_at: :desc).first %>
     <% if contest %>
       <div class="border-t border-subtle my-1"></div>

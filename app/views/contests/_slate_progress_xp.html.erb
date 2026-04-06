@@ -185,9 +185,9 @@
   <div class="bg-inset border border-subtle rounded-lg px-3 py-2">
     <div class="relative" style="height: 18px;">
       <%# Bar %>
-      <div class="absolute inset-0 rounded-full overflow-hidden" style="background: var(--color-bg-surface);">
-        <div class="h-full rounded-full relative overflow-hidden"
-             style="width: 0%; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      <div class="absolute inset-0 overflow-hidden" style="background: var(--color-bg-surface); border-radius: 6px;">
+        <div class="h-full relative overflow-hidden"
+             style="border-radius: 6px; width: 0%; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
                     background: var(--color-cta);
                     <% if toward_next > 0 %>animation: seedsBarGlow 2s ease-in-out infinite;<% end %>"
              :style="{ width: barWidth + '%' }">
