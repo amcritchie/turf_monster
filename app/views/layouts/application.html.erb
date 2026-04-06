@@ -10,32 +10,6 @@
         document.addEventListener('alpine:init', () => {
           Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
         });
-        var _lockedFetchKeys = {};
-        function lockedFetch(key, url, opts) {
-          if (_lockedFetchKeys[key]) return Promise.resolve(null);
-          _lockedFetchKeys[key] = true;
-          return fetch(url, opts).finally(function() { delete _lockedFetchKeys[key]; });
-        }
-        function refreshBalance() {
-          return lockedFetch('balance', '/admin/usdc_balance', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
-            .then(function(r) { return r && r.json(); })
-            .then(function(data) {
-              if (!data) return;
-              var formatted = '$' + Math.floor(parseFloat(data.balance));
-              document.querySelectorAll('[data-balance-display]').forEach(function(el) { el.textContent = formatted; });
-            })
-            .catch(function() {});
-        }
-        function refreshBalanceDelayed(ms) {
-          var delay = ms || 10000;
-          var btns = document.querySelectorAll('[data-balance-refresh]');
-          btns.forEach(function(btn) { var svg = btn.querySelector('svg'); if (svg) svg.style.animation = 'spin 1.5s linear infinite'; });
-          setTimeout(function() {
-            refreshBalance().finally(function() {
-              btns.forEach(function(btn) { var svg = btn.querySelector('svg'); if (svg) svg.style.animation = ''; });
-            });
-          }, delay);
-        }
         <% if logged_in? && Solana::Config.devnet? %>
           document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
         <% end %>
@@ -147,7 +121,7 @@
           <%= link_to wallet_path, class: "font-mono text-primary hover:text-primary-600 transition text-lg font-bold leading-none", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
         <% end if logged_in? %>
         <% extra_icons_html = capture do %>
-          <button data-balance-refresh onclick="this.querySelector('svg').style.animation='spin 1s linear'; refreshBalance(); setTimeout(() => this.querySelector('svg').style.animation='', 1000)"
+          <button data-balance-refresh onclick="this.querySelector('svg').classList.add('animate-spin'); refreshBalance(); setTimeout(() => this.querySelector('svg').classList.remove('animate-spin'), 1000)"
                   class="text-secondary hover:text-primary transition" title="Refresh balance">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           </button>

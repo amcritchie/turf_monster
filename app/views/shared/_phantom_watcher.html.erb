@@ -1,15 +1,4 @@
 <script>
-// Minimal Base58 encoder (Bitcoin alphabet) — duplicated from _solana_wallet_connect
-var PW_B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function pwEncodeBase58(bytes) {
-  var num = BigInt(0);
-  for (var i = 0; i < bytes.length; i++) num = num * 256n + BigInt(bytes[i]);
-  var result = '';
-  while (num > 0n) { result = PW_B58[Number(num % 58n)] + result; num = num / 58n; }
-  for (var i = 0; i < bytes.length; i++) { if (bytes[i] !== 0) break; result = '1' + result; }
-  return result || '1';
-}
-
 document.addEventListener('alpine:init', function() {
   Alpine.store('phantom', {
     address: null,
@@ -62,7 +51,7 @@ document.addEventListener('alpine:init', function() {
           var message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\nSign in to Turf Monster\n\nNonce: ' + nonce;
           var encoded = new TextEncoder().encode(message);
           return provider.signMessage(encoded, 'utf8').then(function(signed) {
-            var signatureB58 = pwEncodeBase58(signed.signature);
+            var signatureB58 = encodeBase58(signed.signature);
             var csrf = document.querySelector('meta[name="csrf-token"]').content;
             return fetch('/auth/solana/verify', {
               method: 'POST',

@@ -109,7 +109,7 @@
        spawnFirework() {
          var container = this.$refs.confettiZone;
          if (!container) return;
-         var colors = ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#EF4444'];
+         var colors = window.CONFETTI_COLORS || ['#4BAF50', '#8E82FE', '#06D6A0', '#FF7C47', '#EF4444'];
          var particles = 72;
          for (var i = 0; i < particles; i++) {
            var el = document.createElement('div');
