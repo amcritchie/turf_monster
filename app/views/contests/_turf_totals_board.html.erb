@@ -35,11 +35,11 @@
     <div class="grid grid-cols-3 gap-3 mb-6">
       <div class="card p-3 text-center">
         <p class="text-lg font-extrabold text-heading">Build</p>
-        <p class="text-xs text-secondary mt-1">Your <%= @contest.picks_required %> Team Roster from the 1st slate of games from World Cup Group Play</p>
+        <p class="text-xs text-secondary mt-1">Your <span class="font-bold text-heading"><%= @contest.picks_required %> Team Roster</span> from the 1st slate of games from World Cup Group Play</p>
       </div>
       <div class="card p-3 text-center">
         <p class="text-lg font-extrabold text-heading">Compete</p>
-        <p class="text-xs text-secondary mt-1">In the Peer-to-peer contest and climb the leaderboard based on your teams goals &times; multiplier</p>
+        <p class="text-xs text-secondary mt-1">In the <span class="font-bold text-heading">peer-to-peer contest</span> and climb the leaderboard based on your <span class="font-bold text-heading">team's goals &times; multiplier</span></p>
       </div>
       <div class="card p-3 text-center">
         <p class="text-lg font-extrabold text-heading">Win</p>
