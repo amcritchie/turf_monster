@@ -84,10 +84,166 @@
     @apply px-8 py-3 text-base rounded-xl shadow;
   }
 
+  .backdrop-overlay {
+    backdrop-filter: blur(2px) brightness(0.7);
+    -webkit-backdrop-filter: blur(2px) brightness(0.7);
+    background: rgb(var(--color-primary-900-rgb, 58 51 89) / 0.2);
+  }
+
   .seeds-invite-row .card {
     margin-bottom: 0;
     height: 100%;
   }
+
+  /* ── Hold Button Component ── */
+  .hold-btn {
+    --duration: 2000ms;
+    --color: #F6F8FF;
+    --bg: var(--color-cta);
+    --shadow: rgba(0, 61, 9, 0.2);
+    --shadow-active: rgba(0, 61, 9, 0.32);
+    --progress-border: var(--color-inset, #3a3359);
+    --progress-active: #F6F8FF;
+    --progress-success: #06D6A0;
+    --tick-stroke: var(--progress-active);
+
+    position: relative;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 19px;
+    padding: 14px 32px;
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    outline: none;
+    user-select: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    backface-visibility: hidden;
+    color: var(--color);
+    background: var(--bg);
+    transition: transform .3s, box-shadow .3s, background .3s, border-color .3s;
+    transform: scale(var(--scale, 1));
+    border: 1px solid rgb(var(--color-primary-rgb) / 0.5);
+    box-shadow: 0 0 20px rgb(var(--color-primary-rgb) / 0.25);
+  }
+  .hold-btn.nudge { animation: hold-nudge 0.5s ease-in-out 1; }
+  .hold-btn.nudge-soft { animation: hold-nudge-soft 0.4s ease-in-out 1; }
+
+  /* Progress circle */
+  .hold-btn > .hold-icon {
+    position: absolute; top: 50%; left: 14px;
+    width: 20px; height: 20px; margin-top: -10px;
+    border-radius: 50%; background: var(--progress-border);
+    opacity: var(--icon-o, 0);
+    transform: translateX(var(--icon-x, -4px));
+    transition: transform .3s, opacity .2s;
+  }
+  .hold-btn > .hold-icon::before {
+    content: ''; width: 16px; height: 16px; left: 2px; top: 2px; z-index: 1;
+    position: absolute; background: var(--bg); border-radius: inherit;
+    transform: scale(var(--bg-scale, 1)); transition: transform .32s ease;
+  }
+  .hold-btn > .hold-icon svg { display: block; fill: none; width: 20px; height: 20px; }
+  .hold-btn > .hold-icon svg.progress {
+    transform: rotate(-90deg) scale(var(--progress-scale, 1)); transition: transform .5s ease;
+  }
+  .hold-btn > .hold-icon svg.progress circle {
+    stroke-dashoffset: 1; stroke-dasharray: var(--progress-array, 0) 52;
+    stroke-width: 16; stroke: var(--progress-active);
+    transition: stroke-dasharray var(--duration) linear;
+  }
+  .hold-btn > .hold-icon svg.tick {
+    position: absolute; left: 0; top: 0; stroke-width: 3;
+    stroke-linecap: round; stroke-linejoin: round; stroke: var(--tick-stroke);
+    transition: stroke .3s ease .7s;
+  }
+  .hold-btn > .hold-icon svg.tick polyline {
+    stroke-dasharray: 18 18 18; stroke-dashoffset: var(--tick-offset, 18);
+    transition: stroke-dashoffset .4s ease .7s;
+  }
+
+  /* Sliding text */
+  .hold-btn .hold-text {
+    margin: 0; padding: 0; list-style: none; text-align: center;
+    pointer-events: none; position: relative; backface-visibility: hidden;
+    transition: transform .3s; transform: translate3d(var(--ul-x, 0), 0, 0);
+  }
+  .hold-btn .hold-text li {
+    backface-visibility: hidden; transform: translateY(var(--ul-y, 0));
+    transition: transform .3s ease .16s, opacity .2s ease .16s;
+  }
+  .hold-btn .hold-text li:not(:first-child) { position: absolute; left: 0; right: 0; }
+  .hold-btn .hold-text li:nth-child(1) { top: 0; opacity: var(--ul-o-1, 1); }
+  .hold-btn .hold-text li:nth-child(2) { top: 100%; opacity: var(--ul-o-2, 0); }
+  .hold-btn .hold-text li:nth-child(3) { top: 200%; opacity: var(--ul-o-3, 0); }
+  .hold-btn .hold-text li:nth-child(4) { top: 300%; opacity: var(--ul-o-4, 0); }
+
+  /* State: hover */
+  .hold-btn:hover:not(.process):not(.success) {
+    --shadow-color: var(--shadow-active);
+    filter: brightness(0.92);
+    border-color: rgb(var(--color-primary-rgb) / 0.7);
+    box-shadow: 0 0 30px rgb(var(--color-primary-rgb) / 0.4);
+  }
+  .hold-btn:active:not(.success) { --scale: .97; }
+  .hold-btn.process, .hold-btn.success { animation: none; }
+
+  /* State: process (holding) */
+  .hold-btn.process {
+    --icon-x: 0; --ul-y: -100%; --ul-o-1: 0; --ul-o-2: 1; --ul-o-3: 0;
+    --bg: var(--color-page, #1e1b35);
+    border-color: rgba(6, 214, 160, 0.7);
+    box-shadow: 0 0 30px rgba(6, 214, 160, 0.45), 0 0 80px rgba(6, 214, 160, 0.25),
+                0 0 120px rgba(6, 214, 160, 0.1), inset 0 0 40px rgba(6, 214, 160, 0.1);
+    transition: transform .3s, box-shadow 2.5s ease-out, border-color 1s, background .5s;
+  }
+  .hold-btn.process, .hold-btn.success {
+    --ul-x: 8px; --icon-o: 1; --progress-array: 52;
+  }
+
+  /* State: success */
+  .hold-btn.success {
+    --scale: 1.03; --icon-x: 6px; --progress-border: none; --progress-scale: .11;
+    --tick-stroke: var(--progress-success); --bg-scale: 0; --tick-offset: 36;
+    --ul-y: -200%; --ul-o-1: 0; --ul-o-2: 0; --ul-o-3: 1;
+    border-color: #06D6A0;
+    background: linear-gradient(135deg, #025e40, #06D6A0);
+    --color: #fff;
+    box-shadow: 0 0 40px rgba(6, 214, 160, 0.7), 0 0 100px rgba(6, 214, 160, 0.4),
+                0 0 160px rgba(6, 214, 160, 0.15);
+    animation: hold-glow-pulse .8s ease-in-out 1;
+  }
+  .hold-btn.success > .hold-icon svg.progress { animation: hold-tick .3s linear forwards .4s; }
+
+  /* State: error */
+  .hold-btn.error {
+    --ul-x: 0; --icon-o: 0; --ul-y: -300%;
+    --ul-o-1: 0; --ul-o-2: 0; --ul-o-3: 0; --ul-o-4: 1;
+    --bg: var(--color-danger, #EF4444);
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+    animation: none; cursor: default;
+  }
+
+  /* Debug nudge countdown */
+  .nudge-debug {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; pointer-events: none; display: none;
+  }
+  .dev-mode .nudge-debug { display: block; }
+  .nudge-debug svg { width: 24px; height: 24px; transform: rotate(-90deg); }
+  .nudge-debug svg circle.track { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 3; }
+  .nudge-debug svg circle.fill {
+    fill: none; stroke: var(--color-cta, #8E82FE); stroke-width: 3;
+    stroke-linecap: round; stroke-dasharray: 56.55; stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.3s linear;
+  }
+  .nudge-debug .countdown-num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; color: #F6F8FF; font-family: ui-monospace, monospace;
+  }
+  .hold-btn.process .nudge-debug, .hold-btn.success .nudge-debug { opacity: 0; }
 
   .matchup-selected {
     outline: 3px solid rgb(var(--color-primary-rgb));
@@ -117,6 +273,59 @@
   75% { transform: translateX(-1px); }
 }
 .shake { animation: card-shake 0.4s ease-out; }
+
+/* Hold button animations */
+@keyframes hold-tick {
+  100% { transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale)); }
+}
+@keyframes hold-glow-pulse {
+  50% { box-shadow: 0 0 60px rgba(6, 214, 160, 0.9), 0 0 140px rgba(6, 214, 160, 0.5), 0 0 200px rgba(6, 214, 160, 0.2); }
+}
+@keyframes hold-nudge {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  15% { transform: scale(1.06) rotate(-2deg); }
+  30% { transform: scale(1.06) rotate(2deg); }
+  45% { transform: scale(1.04) rotate(-1.5deg); }
+  60% { transform: scale(1.03) rotate(1deg); }
+  75% { transform: scale(1.02) rotate(-0.5deg); }
+  90% { transform: scale(1.01) rotate(0.3deg); }
+}
+@keyframes hold-nudge-soft {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  20% { transform: scale(1.03) rotate(-1deg); }
+  40% { transform: scale(1.03) rotate(1deg); }
+  60% { transform: scale(1.02) rotate(-0.5deg); }
+  80% { transform: scale(1.01) rotate(0.5deg); }
+}
+
+/* Seeds bar animations */
+@keyframes seedsBarGlow {
+  0%, 100% { box-shadow: 0 0 6px rgba(var(--color-primary-500-rgb), 0.3); }
+  50% { box-shadow: 0 0 14px rgba(var(--color-primary-500-rgb), 0.6); }
+}
+@keyframes seedsShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes levelPop {
+  0% { transform: scale(1) rotate(0deg); }
+  12% { transform: scale(3.2) rotate(-4deg); }
+  28% { transform: scale(2.4) rotate(3deg); }
+  42% { transform: scale(2.8) rotate(-1.5deg); }
+  60% { transform: scale(2.2) rotate(1deg); }
+  78% { transform: scale(1.3) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes levelGlow {
+  0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0.9); }
+  25% { box-shadow: 0 0 40px 16px rgba(var(--color-primary-500-rgb), 0.7); }
+  50% { box-shadow: 0 0 25px 10px rgba(var(--color-primary-500-rgb), 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--color-primary-500-rgb), 0); }
+}
+.level-up-pop {
+  animation: levelPop 1.1s cubic-bezier(0.34, 1.56, 0.64, 1), levelGlow 1.4s ease-out;
+  z-index: 10;
+}
 
 /* Pick slot attention animations */
 @keyframes pick-pulse {
