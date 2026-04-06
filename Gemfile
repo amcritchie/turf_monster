@@ -73,3 +73,6 @@ gem "solana_studio", git: "https://github.com/amcritchie/solana_studio.git"
 
 # IP geolocation for state-level geo-blocking
 gem "geocoder"
+
+# Random username generation for new wallet-only users (via Studio::UsernameGenerator)
+gem "faker"
