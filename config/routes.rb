@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
-  root "contests#index"
+  root "contests#world_cup"
 
   get "turf-totals-v1", to: "pages#turf_totals_v1", as: :turf_totals_v1
 

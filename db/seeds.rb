@@ -658,7 +658,7 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
 end
 
 # ─── Create Slates + Contests ────────────────────────────────
-create_slate_with_contest(
+contest1 = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 1",
   contest_name: "Turf Totals — World Cup 2026 Group 1",
   games: MATCHDAY_1_GAMES,
@@ -667,8 +667,9 @@ create_slate_with_contest(
   starts_at: et(2026, 6, 11, 15, 0),
   tagline: "Matchday 1 — World Cup 2026 Group Stage"
 )
+contest1.update!(rank: 100) if contest1.rank.nil?
 
-create_slate_with_contest(
+contest2 = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 2",
   contest_name: "Turf Totals — World Cup 2026 Group 2",
   games: MATCHDAY_2_GAMES,
@@ -678,8 +679,9 @@ create_slate_with_contest(
   general_rankings: true,
   tagline: "Matchday 2 — World Cup 2026 Group Stage"
 )
+contest2.update!(rank: 200) if contest2.rank.nil?
 
-create_slate_with_contest(
+contest3 = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 3",
   contest_name: "Turf Totals — World Cup 2026 Group 3",
   games: MATCHDAY_3_GAMES,
@@ -689,6 +691,7 @@ create_slate_with_contest(
   general_rankings: true,
   tagline: "Matchday 3 — World Cup 2026 Group Stage"
 )
+contest3.update!(rank: 300) if contest3.rank.nil?
 
 # ─── Default Slate (formula defaults record) ──────────────────
 Slate.find_or_create_by!(name: "Default")

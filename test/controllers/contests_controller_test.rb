@@ -110,12 +110,23 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
   # --- page load tests ---
 
   test "index loads" do
-    get root_path
+    get contests_path
     assert_response :success
   end
 
   test "show loads" do
     get contest_path(@contest)
     assert_response :success
+  end
+
+  test "world_cup loads" do
+    get root_path
+    assert_response :success
+  end
+
+  test "world_cup redirects when no target" do
+    Contest.update_all(rank: nil)
+    get root_path
+    assert_redirected_to contests_path
   end
 end

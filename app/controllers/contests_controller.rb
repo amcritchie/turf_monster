@@ -1,7 +1,7 @@
 class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
-  skip_before_action :require_authentication, only: [:index, :show, :my]
+  skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup]
   before_action :set_contest, only: [:show, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_admin, only: [:new, :create, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
@@ -115,22 +115,14 @@ class ContestsController < ApplicationController
     render json: { success: false, error: e.message }, status: :unprocessable_entity
   end
 
+  def world_cup
+    @contest = Contest.target
+    return redirect_to contests_path unless @contest
+    load_contest_board_data
+  end
+
   def show
-    if @contest.locked? || @contest.settled?
-      cache_key = "contest/#{@contest.slug}/v#{@contest.updated_at.to_i}/show_data"
-      cached = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-        {
-          matchups: @contest.matchups.ranked.includes(:team, :opponent_team, :game).to_a,
-          entries: @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc).to_a
-        }
-      end
-      @matchups = cached[:matchups]
-      @entries = cached[:entries]
-    else
-      @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
-      @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc)
-    end
-    @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
+    load_contest_board_data
 
     if logged_in? && current_user.solana_connected?
       begin
@@ -423,6 +415,24 @@ class ContestsController < ApplicationController
       format.html { redirect_to root_path, alert: "Contest not found" }
       format.json { render json: { error: "Contest not found" }, status: :not_found }
     end
+  end
+
+  def load_contest_board_data
+    if @contest.locked? || @contest.settled?
+      cache_key = "contest/#{@contest.slug}/v#{@contest.updated_at.to_i}/show_data"
+      cached = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+        {
+          matchups: @contest.matchups.ranked.includes(:team, :opponent_team, :game).to_a,
+          entries: @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc).to_a
+        }
+      end
+      @matchups = cached[:matchups]
+      @entries = cached[:entries]
+    else
+      @matchups = @contest.matchups.ranked.includes(:team, :opponent_team, :game)
+      @entries = @contest.entries.where(status: [:active, :complete]).includes(:user, selections: { slate_matchup: [:team, :game] }).order(score: :desc)
+    end
+    @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
   end
 
   def contest_params

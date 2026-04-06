@@ -8,6 +8,12 @@ class Contest < ApplicationRecord
 
   enum :status, { draft: "draft", open: "open", locked: "locked", settled: "settled" }
 
+  scope :ranked, -> { where.not(rank: nil).order(rank: :asc) }
+
+  def self.target
+    ranked.find_by(status: :open)
+  end
+
   def matchups
     slate.slate_matchups
   end
