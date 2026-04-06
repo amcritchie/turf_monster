@@ -36,6 +36,14 @@ draft → open → locked → settled
 - **locked**: No new entries, waiting for game results
 - **settled**: All games scored, entries ranked, payouts distributed
 
+### Contest Targeting (root page)
+
+- `Contest.ranked` scope: contests with non-nil `rank`, ordered by rank ASC
+- `Contest.target`: first open contest by lowest rank — displayed on root `/`
+- Rank values use increments of 100 (Matchday 1=100, 2=200, 3=300)
+- If no target contest exists, root redirects to `/contests`
+- `load_contest_board_data` — shared private method used by both `world_cup` and `show` actions
+
 ### Admin Actions (contest show page + navbar)
 
 - **Fill Contest** — generates random entries (5 random matchups each). Cycles through seeded users. Deduplicates against existing entries.
@@ -106,7 +114,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 ## Models
 
 - **User** — name, username, email (nullable), solana_address, wallet_type, balance_cents, promotional_cents, role, slug. See `docs/AUTH.md`.
-- **Contest** — name, entry_fee_cents, status, max_entries, slate association, onchain fields, slug
+- **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank (priority for root page), slate association, onchain fields, slug
 - **ContestMatchup** — team_slug, opponent_team_slug, rank, multiplier, status. Belongs to contest + teams via slug FKs.
 - **Entry** — user + contest, score, status (cart/active/complete/abandoned), rank, payout_cents, onchain fields, slug (includes id)
 - **Selection** — joins entry + contest_matchup (unique pair)
@@ -123,14 +131,16 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 Every write action MUST use `rescue_and_log` with target/parent context. See top-level `CLAUDE.md` for full pattern docs.
 
-- ContestsController: toggle_selection, enter, clear_picks → `target: entry, parent: @contest`. Grade, fill, lock, jump, reset → `target: @contest`.
+- ContestsController: toggle_selection, enter, clear_picks → `target: entry, parent: @contest`. Grade, fill, lock, jump, reset, update → `target: @contest`.
 - AccountsController: update, unlink_google, change_password → `target: current_user`
 
 ## Routes
 
 ### Public
-- `/` — contests#index (main dashboard, matchup grid, cart, hold-to-confirm)
+- `/` — contests#world_cup (branded landing page, matchup grid from target contest)
+- `/contests` — contests#index (all contests card grid)
 - `/contests/:id` — contest show (leaderboard + admin actions)
+- `/contests/:id/edit` — admin contest editor (name, tagline, status, rank)
 - `/teams`, `/teams/:slug` — team index/show
 - `/games` — games index
 - `/faucet` — public faucet page (GET marketing, POST mint USDC)
@@ -155,15 +165,16 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Seeds / World Cup Data
 
-- 5 seeded users (password: "password"), Alex is admin
-- 48 teams, 72 group stage matches, 67 players
+- 4 seeded users (password: "password"), Alex is admin
+- 48 teams, 72 group stage matches, 85 players
+- 3 matchday contests with rank 100/200/300 (seeds assign ranks idempotently)
 - Seed is idempotent (`find_or_create_by!`) — safe to re-run
 - See `docs/world_cup_2026.md` for format details
 
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — **71 tests** total (minitest + fixtures)
+- `bin/rails test` — **81 tests** total (minitest + fixtures)
 - Test fixtures: 6 contest_matchups, 6 teams, 2 games
 - Test password: `"password"` (min 6 chars)
 - Test helper: `log_in_as(user)` defaults to password "password"
