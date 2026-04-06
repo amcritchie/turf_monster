@@ -71,9 +71,14 @@ draft → open → locked → settled
 - Tailwind CSS via `tailwindcss-rails` gem (compiled, not CDN)
 - Alpine.js via CDN for interactivity
 - ERB views, import maps, no JS frameworks
+- Stimulus infrastructure ready (pinned, eager-loaded, no controllers yet)
 - bcrypt + Google OAuth + Solana wallet auth (Phantom)
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
 - **SolanaStudio gem** — `gem "solana_studio", git: "https://github.com/amcritchie/solana_studio.git"`
+
+## JS Modules (importmap)
+
+- `solana_utils` — shared Solana/crypto utilities: `encodeBase58`, `lockedFetch`, `refreshBalance`, `refreshBalanceDelayed`, `CONFETTI_COLORS`. All attached to `window` for backward compatibility with inline scripts/onclick handlers. Single source of truth — do not duplicate these functions in views.
 
 ## Studio Engine
 

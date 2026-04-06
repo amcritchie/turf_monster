@@ -64,6 +64,8 @@ Uses `outline` (not border) for selection highlight — avoids layout shift. Dyn
 - Params: `default_text`, `hold_text`, `success_text`, `error_text`, `duration`, `hold_id`, `guard`, `on_success`, `validate`, `validate_at`
 - The `on_success` callback sets the final state via `setHoldSuccess()` or `setHoldError()`
 - Renders in both desktop + mobile cart (2 DOM elements, differentiated by `hold_id`)
+- **CSS**: All hold button styles (`.hold-btn`, state classes, keyframes) live in `application.tailwind.css` using CSS variables (`--color-cta`, `--color-danger`, `--color-page`). Duration passed via inline `style="--duration: Xms"`.
+- **JS**: Inline in the partial (uses ERB interpolation for callbacks). Not extracted to importmap.
 
 ### Hold Validation
 Optional mid-hold validation via `validate`/`validate_at` params. `validate` is a JS expression returning `Promise<boolean>`, called at `validate_at` ms (default 1000). If false, hold aborts. Both buttons use `validate: "d.runHoldValidations()"` which checks geo-blocking (fresh `GET /geo/check`) then login status.
@@ -133,8 +135,8 @@ Public marketing page with hero, "How It Works" cards, and USDC claim form. Mint
 - Entry confirmation dispatches `navbar-seeds-update` custom event with seeds detail
 
 ## Login Page SSO
-When SSO session available, blur overlay covers the entire card (`absolute inset-0 z-10, rounded-2xl`). The SSO "Continue as" button sits above the blur (`relative z-20`). Click-to-reveal fades out the blur (500ms transition) and focuses the email field. Inline `backdrop-filter` style (not Tailwind class — won't compile).
+When SSO session available, blur overlay covers the entire card (`absolute inset-0 z-10, rounded-2xl`). The SSO "Continue as" button sits above the blur (`relative z-20`). Click-to-reveal fades out the blur (500ms transition) and focuses the email field. Uses `.backdrop-overlay` CSS class (defined in `application.tailwind.css`).
 
 ## Contest Show Layout
-- Seeds progress bar and invite card rendered side-by-side on desktop (`display: flex; flex-wrap: wrap; flex: 1 1 300px`), stacked on mobile. Cards stretch to equal height via scoped `<style>` that strips `mb-6` and sets `height: 100%`.
+- Seeds progress bar and invite card rendered side-by-side on desktop (`flex gap-4 flex-wrap items-stretch` with `flex-1 basis-[300px]`), stacked on mobile.
 - "+ Add Another Entry" button appears in the admin actions row (next to Lock Contest, Jump, Rank Matchups) rather than as a standalone section.
