@@ -389,6 +389,7 @@
           this.selectionOrder = this.selectionOrder.filter(id => id !== matchupId);
           this.blurDismissed = false;
           if (wasFull) this.pickUrgent = true;
+          if (this.selectionCount === 0) this.cartOpen = false;
         } else if (this.selectionCount < this.picksRequired) {
           this.selections = { ...this.selections, [matchupId]: true };
           this.selectionOrder = [...this.selectionOrder, matchupId];

@@ -28,8 +28,9 @@
         </div>
       </template>
       <template x-if="!selectionSlots[i-1]">
-        <div class="border-2 border-dashed border-strong rounded-xl p-3 text-center">
-          <p class="text-muted text-sm">Pick <span x-text="i"></span></p>
+        <div class="border-2 border-dashed border-strong rounded-xl p-3 text-center"
+             :class="i === selectionCount + 1 ? (i === <%= @contest.picks_required %> ? (pickUrgent ? 'pick-pulse-urgent' : 'pick-pulse-shimmer') : (i === 2 ? 'pick-pulse-shimmer' : 'pick-pulse')) : ''">
+          <p class="text-sm" :class="i === selectionCount + 1 ? 'text-secondary' : 'text-muted'">Pick <span x-text="i"></span></p>
         </div>
       </template>
     </div>
