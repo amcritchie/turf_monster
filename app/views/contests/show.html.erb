@@ -6,10 +6,9 @@
 </div>
 
 <% if logged_in? %>
-  <style>.seeds-invite-row .card { margin-bottom: 0; height: 100%; }</style>
-  <div class="seeds-invite-row" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: stretch;">
+  <div class="seeds-invite-row flex gap-4 mb-4 flex-wrap items-stretch">
     <% if @seeds_data %>
-      <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column;">
+      <div class="flex-1 basis-[300px] min-w-0 flex flex-col">
         <%= render "contests/slate_progress_xp", seeds_data: @seeds_data %>
         <script>
           localStorage.setItem('seedsNavbar', JSON.stringify({
@@ -21,7 +20,7 @@
         </script>
       </div>
     <% end %>
-    <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column;">
+    <div class="flex-1 basis-[300px] min-w-0 flex flex-col">
       <%= render "contests/share_invite" %>
     </div>
   </div>

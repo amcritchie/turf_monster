@@ -84,6 +84,11 @@
     @apply px-8 py-3 text-base rounded-xl shadow;
   }
 
+  .seeds-invite-row .card {
+    margin-bottom: 0;
+    height: 100%;
+  }
+
   .matchup-selected {
     outline: 3px solid rgb(var(--color-primary-rgb));
     outline-offset: -3px;
