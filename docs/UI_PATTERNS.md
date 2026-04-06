@@ -27,7 +27,7 @@ mint=open, yellow=locked, gray=settled, violet=draft
 ## Button System
 
 CSS component classes in `application.tailwind.css`:
-- `.btn` (base), `.btn-primary` (green/white), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-warning` (orange/white), `.btn-danger` (red), `.btn-google` (white/gray)
+- `.btn` (base), `.btn-primary` (green/white), `.btn-secondary` (violet/white), `.btn-outline` (border/transparent), `.btn-warning` (orange/white), `.btn-danger` (red), `.btn-google` (white/hardcoded gray-700 — uses `color: #374151` for dark mode compat)
 - Size modifiers: `.btn-sm`, `.btn-lg`
 - Disabled state built into `.btn` base
 - Combine: `class="btn btn-primary btn-lg w-full"`
@@ -90,13 +90,15 @@ Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `s
 ### Left side
 Logo + brand, nav links (Join Contest, My Contests, Rules, Faucet), DEV toggle, Devnet badge, geo state badge.
 
-### Right side — two-row block + avatar
-- **Row 1**: gear dropdown, theme toggle, refresh button, balance (`text-lg font-bold`, no cents), username (`self-end` aligned). All in one `flex items-center gap-2 leading-none` row.
-- **Row 2**: truncated wallet address (`text-[10px]`, right-aligned, `mt-px` gap).
-- **Avatar**: `_avatar.html.erb` partial (`size: "sm"`), outside the two-row block, vertically centered. Links to `/account`.
+### Right side — logged in: two-row block + avatar
+- **Row 1 (Div 1)**: balance, gear dropdown, theme toggle, refresh button, username. Inline padding via `:style` (Tailwind `px-*` won't compile). Dev mode background via Alpine `:style`.
+- **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. Wallet address (left) + Level X (right). Green fill bar (`#4BAF50`, 14px height, 4px border-radius) animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted color underneath, white on top with `clip-path: inset(0 X% 0 0)` revealing as bar fills. Level-up: bar fills 100% → Level bounces (`nav-level-pop` keyframe) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
+- **Avatar**: `_avatar.html.erb` partial, outside the two-row block. Links to `/account`.
 - Balance shows whole dollars only (no cents) — JS `refreshBalance` uses `Math.floor`, ERB uses `.to_i`.
-- Theme toggle is locally overridden (`components/_theme_toggle.html.erb`) to match app styling.
-- Username and balance link to `/account` and `/wallet` respectively. No pencil edit icon — profile editing via account page.
+- Username and balance link to `/account` and `/wallet` respectively.
+
+### Right side — logged out
+- Theme toggle + green "Log in" button, right-aligned in the `w-80` div.
 
 ## Leaderboard (Contest Show)
 Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing multiplier (e.g., `x4`) before game completes and points (goals x multiplier) after. Badges float right with score rightmost (`min-width: 4.5rem`). Non-integer values show decimal portion in smaller font. Payout label (`$40.00`) appears on left (after player name) only before settling. Admin payout button says "Payout $X". After settling — paid rows get primary ring, divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
@@ -105,11 +107,11 @@ Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing 
 Public marketing page with hero, "How It Works" cards, and USDC claim form. Mints SPL USDC tokens directly to user's Phantom wallet via `Vault#mint_spl(to: wallet)`. Three view states: wallet connected (amount picker + claim), logged in no wallet (connect CTA), logged out (login/signup CTAs). Preset amounts $10/$50/$100/$500, custom input $1-$500.
 
 ## Solana Modal
-`shared/_solana_modal.html.erb` — Alpine.js store (`Alpine.store('solanaModal')`) for onchain operation feedback. Three states: processing (spinner), success (checkmark + TX link), error (red icon + message).
+`shared/_solana_modal.html.erb` — Alpine.js store (`Alpine.store('solanaModal')`) for onchain operation feedback. Three states: processing (spinner), success (checkmark + TX link + confetti), error (red icon + message). Uses `canvas-confetti` CDN library (`confetti.browser.min.js`) — `fireSuccessConfetti()` fires 4 bursts (center, left cannon, right cannon, delayed shower) on success state via `$watch`.
 
 ## Admin Dropdowns
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): Soccer ball emoji trigger, links to Teams and Games pages.
-- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon, links to Theme, Slates, Formula, Formula Defaults, Error Logs.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon, links to Theme, Slates, Formula, Formula Defaults, Error Logs, Replay Level (dispatches `navbar-replay-level` event), Reset Contest.
 
 ## Dev Mode
 - Global `Alpine.store('devMode')` persisted to `localStorage`
@@ -121,11 +123,18 @@ Public marketing page with hero, "How It Works" cards, and USDC claim form. Mint
 
 ## Seeds XP Bar (`_slate_progress_xp.html.erb`)
 - Progress bar showing seeds toward next level with animated fill, shimmer, and glow
+- Bar fill uses 6px border-radius (not fully rounded)
 - Level badge pops on level-up (3.2x scale bounce) with firework burst animation
 - Firework: 72 particles explode radially from badge center using branding colors (green, violet, mint, orange, red)
 - Level-up data stored in `localStorage('seedsLevelUp')` as JSON, consumed on next page load
 - Sequence: fill bar to 100% → level pop + firework → reset bar → fill to new progress
 - Dev mode "Replay" link simulates level-up for testing
+- Contest show page saves seeds data to `seedsNavbar` localStorage for navbar bar
+- Entry confirmation dispatches `navbar-seeds-update` custom event with seeds detail
 
 ## Login Page SSO
-When SSO session available, shows "Easy sign in" button prominently. Fallback options blurred behind click-to-reveal overlay (inline `backdrop-filter` style, not Tailwind class — won't compile).
+When SSO session available, blur overlay covers the entire card (`absolute inset-0 z-10, rounded-2xl`). The SSO "Continue as" button sits above the blur (`relative z-20`). Click-to-reveal fades out the blur (500ms transition) and focuses the email field. Inline `backdrop-filter` style (not Tailwind class — won't compile).
+
+## Contest Show Layout
+- Seeds progress bar and invite card rendered side-by-side on desktop (`display: flex; flex-wrap: wrap; flex: 1 1 300px`), stacked on mobile. Cards stretch to equal height via scoped `<style>` that strips `mb-6` and sets `height: 100%`.
+- "+ Add Another Entry" button appears in the admin actions row (next to Lock Contest, Jump, Rank Matchups) rather than as a standalone section.
