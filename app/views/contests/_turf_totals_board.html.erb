@@ -160,9 +160,9 @@
        x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-       @scroll.window="$el.style.top = (window.scrollY > 20 ? '3rem' : '5rem'); $el.style.height = 'calc(100% - ' + (window.scrollY > 20 ? '3rem' : '5rem') + ')'"
+       @scroll.window="$el.style.top = (window.scrollY > 20 ? '3rem' : '6rem'); $el.style.height = 'calc(100% - ' + (window.scrollY > 20 ? '3rem' : '6rem') + ')'"
        class="hidden md:flex fixed right-0 w-80 bg-surface border-l border-subtle shadow-2xl z-40 flex-col transition-all duration-300"
-       style="top:5rem;height:calc(100% - 5rem)">
+       style="top:6rem;height:calc(100% - 6rem)">
     <div class="flex flex-col h-full">
       <!-- Cart header -->
       <div class="flex items-center justify-between p-4 border-b border-subtle">
