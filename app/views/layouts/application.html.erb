@@ -74,7 +74,7 @@
     <header x-data="{ scrolled: false }" @scroll.window="scrolled = window.scrollY > 20"
             class="sticky top-0 z-50 bg-page transition-shadow duration-300"
             :class="scrolled && 'shadow-lg border-b border-subtle'">
-      <div class="flex items-end transition-all duration-300"
+      <div class="flex items-center transition-all duration-300"
            :class="scrolled ? 'py-2' : 'py-6'">
         <%# Left side: logo + nav %>
         <div class="flex-1 px-4">
