@@ -16,7 +16,6 @@ module ApplicationHelper
 
   def format_multiplier(value)
     return "—" unless value
-    formatted = value == value.to_i ? value.to_i.to_s : sprintf('%.1f', value)
-    "x#{formatted}"
+    value == value.to_i ? value.to_i.to_s : sprintf('%.1f', value)
   end
 end

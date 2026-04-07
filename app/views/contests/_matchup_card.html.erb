@@ -1,7 +1,7 @@
 <%# locals: (matchup:) %>
 <% locked = matchup.locked? %>
 <button @click="toggleSelection('<%= matchup.id %>')"
-        class="relative bg-surface p-3 md:p-4 rounded-xl transition-all text-center border-2 shadow <%= locked ? 'opacity-50' : '' %>"
+        class="relative w-full bg-surface p-3 md:p-4 rounded-2xl transition-all text-center border-2 shadow <%= locked ? 'opacity-50' : '' %>"
         :class="{
           'matchup-selected': selections['<%= matchup.id %>'],
           'border-subtle hover:bg-surface-alt/50': !selections['<%= matchup.id %>']
@@ -12,13 +12,13 @@
   <% if locked %>
     <span class="absolute top-2 left-2 text-[10px] text-yellow-500">&#128274;</span>
   <% end %>
-  <p class="text-2xl" style="margin-bottom: -2px"><%= matchup.team.emoji %></p>
+  <p class="text-3xl mb-1"><%= matchup.team.emoji %></p>
   <p class="font-bold text-heading text-lg md:text-xl mb-0.5 truncate team-name" title="<%= matchup.team.name %>"><%= matchup.team.name %></p>
-  <p class="text-sm text-secondary mb-2"><span class="font-bold text-body">Goals</span><% if matchup.opponent_team %> vs <%= matchup.opponent_team.short_name %>&ensp;<%= matchup.opponent_team.emoji %><% end %></p>
   <% if matchup.multiplier %>
-    <p class="font-mono text-xl md:text-2xl text-primary"><%= format_multiplier(matchup.multiplier) %></p>
+    <p class="font-mono text-2xl md:text-3xl text-primary"><%= format_multiplier(matchup.multiplier) %></p>
+    <p class="text-sm text-secondary"><%= matchup.multiplier == 1 ? 'Point' : 'Points' %> / Goal</p>
   <% end %>
-  <% if matchup.expected_team_total %>
-    <p class="text-xs text-muted mt-1">O/U <%= sprintf('%.1f', matchup.expected_team_total) %></p>
+  <% if matchup.opponent_team %>
+    <p class="text-muted mt-2" style="font-size: 0.65rem"><%= matchup.team.emoji %> <%= matchup.team.short_name %> vs <%= matchup.opponent_team.short_name %> <%= matchup.opponent_team.emoji %></p>
   <% end %>
 </button>
