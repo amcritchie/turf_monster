@@ -1,4 +1,46 @@
+require "sidekiq/web"
+
+# Back-to-app link in Sidekiq header
+Sidekiq::Web.app_url = "/"
+
+# Admin-only session guard — redirects non-admins to login
+class SidekiqAdminMiddleware
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    session = env["rack.session"] || {}
+    user_id = session[Studio.session_key.to_s] || session[Studio.session_key]
+    user = user_id && User.find_by(id: user_id)
+
+    if user&.admin?
+      @app.call(env)
+    else
+      body = <<~HTML
+        <!DOCTYPE html>
+        <html>
+        <head><title>Not Found</title></head>
+        <body style="background:#1A1535; color:#f8fafc; font-family:system-ui,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0;">
+          <div style="text-align:center;">
+            <p style="font-size:4rem; margin:0;">&#129300;</p>
+            <h1 style="font-size:1.5rem; margin:1rem 0 0.5rem;">You look lost</h1>
+            <p style="color:#94a3b8; margin-bottom:1.5rem;">There's nothing to see here.</p>
+            <a href="/" style="background:#4BAF50; color:#fff; padding:0.5rem 1.5rem; border-radius:0.5rem; text-decoration:none; font-weight:bold;">Take me home</a>
+          </div>
+        </body>
+        </html>
+      HTML
+      [404, { "Content-Type" => "text/html" }, [body]]
+    end
+  end
+end
+
+Sidekiq::Web.use SidekiqAdminMiddleware
+
 Rails.application.routes.draw do
+  mount Sidekiq::Web => "/admin/jobs"
+
   get "up" => "rails/health#show", as: :rails_health_check
   root "contests#world_cup"
 

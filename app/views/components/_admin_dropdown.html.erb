@@ -25,6 +25,7 @@
     <a href="/admin/schema" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Schema</a>
     <%= link_to "Geo Settings", admin_geo_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <a href="/error_logs" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Error Logs</a>
+    <a href="/admin/jobs" class="block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Jobs</a>
     <div class="border-t border-subtle my-1"></div>
     <%= button_to geo_override_active? ? "Clear GEO Override" : "Simulate WA", admin_geo_toggle_path, method: :post,
       class: "block w-full text-left px-4 py-2 text-sm #{geo_override_active? ? 'text-red-400 hover:text-red-300' : 'text-body hover:text-heading'} hover:bg-surface-alt transition" %>

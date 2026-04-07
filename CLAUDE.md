@@ -63,15 +63,17 @@ draft → open → locked → settled
 ## Dev Server
 
 - **Port 3001** — `bin/rails server -p 3001`
-- `bin/dev` starts both web (port 3001) and CSS watcher via Procfile.dev
+- `bin/dev` starts web (port 3001), CSS watcher, and Sidekiq worker via Procfile.dev
+- **Redis required** — `brew services start redis` before running. Sidekiq connects to `redis://localhost:6379/0` by default.
 
 ## Deployment
 
 - **Heroku app**: `turf-monster`
 - **URL**: https://turf.mcritchie.studio
 - **Database**: Heroku Postgres (essential-0)
+- **Redis**: Heroku Redis mini (`redis-clear-09691`) — `REDIS_URL` set automatically
 - **Deploy**: `git push heroku main` (then `heroku run bin/rails db:migrate --app turf-monster` if needed)
-- **Env vars**: `RAILS_MASTER_KEY`, `RAILS_SERVE_STATIC_FILES`, `DATABASE_URL` (auto), `SOLANA_ADMIN_KEY`, `SOLANA_RPC_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- **Env vars**: `RAILS_MASTER_KEY`, `RAILS_SERVE_STATIC_FILES`, `DATABASE_URL` (auto), `REDIS_URL` (auto), `SOLANA_ADMIN_KEY`, `SOLANA_RPC_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 
 ## Tech Stack
 
@@ -81,6 +83,7 @@ draft → open → locked → settled
 - ERB views, import maps, no JS frameworks
 - Stimulus infrastructure ready (pinned, eager-loaded, no controllers yet)
 - bcrypt + Google OAuth + Solana wallet auth (Phantom)
+- **Sidekiq** + Redis for background jobs (web UI at `/admin/jobs`, admin-only)
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
 - **SolanaStudio gem** — `gem "solana_studio", git: "https://github.com/amcritchie/solana_studio.git"`
 
@@ -160,6 +163,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ### Admin
 - `/slates/*` — formula editor. See `docs/FORMULAS.md`.
 - `/admin/theme` — theme editor (from engine)
+- `/admin/jobs` — Sidekiq dashboard (admin-only, mounted via route constraint)
 - `/admin/geo` — geo settings
 - `/error_logs` — error log browser
 

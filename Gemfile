@@ -76,3 +76,6 @@ gem "geocoder"
 
 # Random username generation for new wallet-only users (via Studio::UsernameGenerator)
 gem "faker"
+
+# Background jobs
+gem "sidekiq"
