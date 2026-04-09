@@ -1,35 +1,46 @@
-<div class="flex items-center justify-center min-h-[60vh]">
+<div class="flex flex-col items-center justify-center min-h-[60vh] px-4">
   <div class="text-center">
     <div id="phantom-spinner" class="inline-block w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
     <p id="phantom-status" class="text-secondary text-sm">Connecting to Phantom...</p>
     <p id="phantom-error" class="text-red-400 text-sm mt-2 hidden"></p>
-    <p id="phantom-debug" class="text-muted text-xs mt-4 font-mono max-w-md mx-auto break-all hidden"></p>
+  </div>
+
+  <%# Visual debug log — scrollable panel showing every step %>
+  <div id="phantom-log" class="mt-6 w-full max-w-lg text-left bg-surface-alt rounded-lg border border-subtle p-3 overflow-y-auto" style="max-height:50vh">
+    <p class="text-xs font-mono text-muted mb-2">Debug Log</p>
   </div>
 </div>
 
 <script>
 (function() {
-  var LOG_PREFIX = '[PhantomDL]';
-  var LR = window.LogRocket;
-  function log() {
-    var args = [LOG_PREFIX].concat(Array.prototype.slice.call(arguments));
-    console.log.apply(console, args);
-    // Also push to LogRocket directly in case console capture is delayed
-    if (LR) {
-      try { LR.log.apply(LR, args); } catch(e) {}
+  var logEl = document.getElementById('phantom-log');
+
+  // Append a line to the visible debug panel
+  function dbg(label, value) {
+    var line = document.createElement('p');
+    line.className = 'text-xs font-mono break-all mb-1';
+    if (label === 'ERROR' || label === 'CATCH') {
+      line.style.color = '#EF4444';
+    } else if (label === 'OK') {
+      line.style.color = '#4BAF50';
+    } else {
+      line.style.color = '#94a3b8';
     }
+    var val = (value === undefined || value === null) ? '' : String(value);
+    line.textContent = label + (val ? ': ' + val : '');
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    console.log('[PhantomDL]', label, value);
   }
 
-  // Tag this session so it's findable in LogRocket dashboard
-  if (LR) {
-    LR.track('phantom_callback', { url: window.location.href });
-    LR.identify('phantom_mobile_auth', { source: 'deep_link' });
+  function truncate(s, n) {
+    return s && s.length > n ? s.substring(0, n) + '...' : s;
   }
 
-  log('Callback page loaded', window.location.href);
-  log('URL params:', window.location.search);
+  dbg('Page loaded', new Date().toISOString());
+  dbg('URL', window.location.href);
 
-  // Self-contained Base58 (avoids timing issues with deferred importmap modules)
+  // Self-contained Base58
   var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
   function b58encode(bytes) {
@@ -69,21 +80,14 @@
   var statusEl = document.getElementById('phantom-status');
   var errorEl = document.getElementById('phantom-error');
   var spinnerEl = document.getElementById('phantom-spinner');
-  var debugEl = document.getElementById('phantom-debug');
-
-  function showDebug(text) {
-    debugEl.textContent = text;
-    debugEl.classList.remove('hidden');
-  }
 
   function showError(msg) {
-    log('ERROR:', msg);
-    if (LR) { try { LR.captureMessage('PhantomDL Error: ' + msg); } catch(e) {} }
+    dbg('ERROR', msg);
     spinnerEl.classList.add('hidden');
     statusEl.classList.add('hidden');
     errorEl.textContent = msg;
     errorEl.classList.remove('hidden');
-    setTimeout(function() { window.location.href = '/login'; }, 10000);
+    setTimeout(function() { window.location.href = '/login'; }, 30000);
   }
 
   var ALL_KEYS = [
@@ -97,133 +101,152 @@
     ALL_KEYS.forEach(function(k) { localStorage.removeItem(k); });
   }
 
-  function dumpState() {
-    var state = {};
-    ALL_KEYS.forEach(function(k) {
-      var v = localStorage.getItem(k);
-      if (v) state[k.replace('phantom_dl_', '')] = v.length > 20 ? v.substring(0, 20) + '...' : v;
-    });
-    log('localStorage state:', JSON.stringify(state));
-    return state;
-  }
-
-  // Dump localStorage state on load
-  dumpState();
-
-  // Parse URL params
-  var params = new URLSearchParams(window.location.search);
-
-  // Log all URL params
-  var urlParamObj = {};
-  params.forEach(function(val, key) {
-    urlParamObj[key] = val.length > 30 ? val.substring(0, 30) + '...' : val;
+  // Dump localStorage
+  dbg('--- localStorage ---');
+  ALL_KEYS.forEach(function(k) {
+    var v = localStorage.getItem(k);
+    var short = k.replace('phantom_dl_', '');
+    dbg('  ' + short, v ? truncate(v, 40) : '(empty)');
   });
-  log('URL params parsed:', JSON.stringify(urlParamObj));
+
+  // Parse + dump URL params
+  var params = new URLSearchParams(window.location.search);
+  dbg('--- URL params ---');
+  params.forEach(function(val, key) {
+    dbg('  ' + key, truncate(val, 40));
+  });
 
   // Check for Phantom error
   if (params.get('errorCode')) {
-    log('Phantom returned error:', params.get('errorCode'), params.get('errorMessage'));
-    showDebug('errorCode=' + params.get('errorCode') + ' errorMessage=' + params.get('errorMessage'));
+    dbg('ERROR', 'Phantom returned errorCode=' + params.get('errorCode'));
+    dbg('ERROR', 'errorMessage=' + params.get('errorMessage'));
+
+    // Dump all URL params fully for debugging
+    dbg('--- Full error URL params ---');
+    params.forEach(function(val, key) {
+      dbg('  ' + key, val);
+    });
+
     cleanup();
     showError('Phantom error: ' + (params.get('errorMessage') || 'Request rejected'));
     return;
   }
 
   var step = localStorage.getItem('phantom_dl_step');
-  log('Current step:', step);
+  dbg('Step', step);
 
   if (!step) {
     showError('No pending Phantom request. Redirecting to login...');
     return;
   }
 
-  // Check nonce expiry (4.5 min = 270000ms, nonce expires server-side at 5 min)
+  // Check nonce expiry
   var nonceAt = parseInt(localStorage.getItem('phantom_dl_nonce_at') || '0');
   var elapsed = Date.now() - nonceAt;
-  log('Nonce age:', Math.round(elapsed / 1000) + 's');
+  dbg('Nonce age', Math.round(elapsed / 1000) + 's');
   if (elapsed > 270000) {
     cleanup();
     showError('Session expired. Please try again.');
     return;
   }
 
-  // Recover dapp keypair from localStorage
+  // Check nacl availability
+  dbg('nacl available', typeof nacl !== 'undefined');
+  if (typeof nacl === 'undefined') {
+    showError('TweetNaCl not loaded — cannot decrypt');
+    return;
+  }
+
+  // Recover dapp keypair
   var dappSecretKey = b58decode(localStorage.getItem('phantom_dl_secret'));
   var dappPublicKeyB58 = localStorage.getItem('phantom_dl_pubkey');
-  log('Dapp pubkey:', dappPublicKeyB58);
+  dbg('Dapp secret key bytes', dappSecretKey.length);
+  dbg('Dapp pubkey', truncate(dappPublicKeyB58, 20));
 
-  // Decrypt using precomputed shared secret (nacl.box.open.after)
   function decryptPayload(dataB58, nonceB58, sharedSecret) {
-    log('Decrypting payload, data length:', dataB58.length, 'nonce length:', nonceB58.length);
+    dbg('Decrypt input', 'data=' + dataB58.length + 'chars nonce=' + nonceB58.length + 'chars');
     var data = b58decode(dataB58);
     var nonce = b58decode(nonceB58);
-    log('Decoded data bytes:', data.length, 'nonce bytes:', nonce.length);
+    dbg('Decrypt bytes', 'data=' + data.length + 'B nonce=' + nonce.length + 'B secret=' + sharedSecret.length + 'B');
     var decrypted = nacl.box.open.after(data, nonce, sharedSecret);
     if (!decrypted) throw new Error('Decryption failed — nacl.box.open.after returned null');
-    var json = JSON.parse(new TextDecoder().decode(decrypted));
-    log('Decrypted payload keys:', Object.keys(json).join(', '));
+    var text = new TextDecoder().decode(decrypted);
+    dbg('Decrypted text', truncate(text, 80));
+    var json = JSON.parse(text);
+    dbg('OK', 'Decrypted keys: ' + Object.keys(json).join(', '));
     return json;
   }
 
-  // Encrypt using precomputed shared secret (nacl.box.after)
   function encryptPayload(payload, sharedSecret) {
     var nonce = nacl.randomBytes(24);
     var jsonStr = JSON.stringify(payload);
-    log('Encrypting payload, JSON length:', jsonStr.length);
+    dbg('Encrypt', 'JSON length=' + jsonStr.length + ' nonce=24B secret=' + sharedSecret.length + 'B');
     var msgBytes = new TextEncoder().encode(jsonStr);
     var encrypted = nacl.box.after(msgBytes, nonce, sharedSecret);
     if (!encrypted) throw new Error('Encryption failed — nacl.box.after returned null');
-    log('Encrypted payload bytes:', encrypted.length);
+    dbg('OK', 'Encrypted ' + encrypted.length + 'B');
     return { nonce: nonce, encrypted: encrypted };
   }
 
-  // Helper: delay redirect so LogRocket captures the state
   function delayedRedirect(url, label) {
-    log('Will redirect to ' + label + ' in 10s:', url.substring(0, 80) + '...');
-    if (LR) { try { LR.track('phantom_redirect', { label: label, url_length: url.length }); } catch(e) {} }
+    dbg('Redirect in 10s', label);
+    dbg('Full URL', url);
     statusEl.textContent = 'Redirecting to ' + label + ' in 10s...';
-    showDebug(url.substring(0, 120) + '...');
-    setTimeout(function() {
-      log('Redirecting now to ' + label);
-      window.location.href = url;
-    }, 10000);
+    var countdown = 10;
+    var timer = setInterval(function() {
+      countdown--;
+      statusEl.textContent = 'Redirecting to ' + label + ' in ' + countdown + 's...';
+      if (countdown <= 0) {
+        clearInterval(timer);
+        dbg('Redirecting now', label);
+        window.location.href = url;
+      }
+    }, 1000);
   }
 
   try {
     if (step === 'connect') {
-      log('=== CONNECT STEP ===');
+      dbg('=== CONNECT STEP ===');
       statusEl.textContent = 'Processing wallet connection...';
 
       var phantomEncPubkeyB58 = params.get('phantom_encryption_public_key');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
-      log('phantom_encryption_public_key:', phantomEncPubkeyB58);
+      dbg('Phantom enc pubkey', truncate(phantomEncPubkeyB58, 20));
+      dbg('Has data', !!dataParm);
+      dbg('Has nonce', !!nonceParm);
 
       if (!phantomEncPubkeyB58 || !dataParm || !nonceParm) {
-        throw new Error('Missing connect response parameters');
+        throw new Error('Missing connect response params');
       }
 
-      // Compute shared secret (Diffie-Hellman) — reused for all subsequent messages
-      var sharedSecret = nacl.box.before(b58decode(phantomEncPubkeyB58), dappSecretKey);
-      log('Shared secret computed, length:', sharedSecret.length);
+      // Compute shared secret
+      var phantomPubBytes = b58decode(phantomEncPubkeyB58);
+      dbg('Phantom pubkey bytes', phantomPubBytes.length);
+      var sharedSecret = nacl.box.before(phantomPubBytes, dappSecretKey);
+      dbg('OK', 'Shared secret computed, ' + sharedSecret.length + 'B');
 
-      // Decrypt connect response using shared secret
+      // Decrypt connect response
       var connectData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var walletPubkey = connectData.public_key;
       var phantomSession = connectData.session;
-      log('Wallet pubkey:', walletPubkey);
-      log('Session token length:', phantomSession ? phantomSession.length : 'null');
+      dbg('Wallet pubkey', walletPubkey);
+      dbg('Session token', truncate(phantomSession, 30));
+      dbg('Session type', typeof phantomSession);
 
       if (!walletPubkey || !phantomSession) {
-        throw new Error('Invalid connect response — missing public_key or session');
+        throw new Error('Missing public_key or session in connect response');
       }
 
-      // Build SIWS message (matches desktop flow exactly)
+      // Build SIWS message
       var serverNonce = localStorage.getItem('phantom_dl_nonce');
       var domain = window.location.host;
       var message = domain + ' wants you to sign in with your Solana account:\n' +
         walletPubkey + '\n\nSign in to Turf Monster\n\nNonce: ' + serverNonce;
-      log('SIWS message:', message);
+      dbg('Domain', domain);
+      dbg('Server nonce', serverNonce);
+      dbg('SIWS message', truncate(message, 60));
+      dbg('Message length', message.length + ' chars');
 
       // Save state for sign step
       localStorage.setItem('phantom_dl_step', 'sign');
@@ -231,54 +254,66 @@
       localStorage.setItem('phantom_dl_session', phantomSession);
       localStorage.setItem('phantom_dl_message', message);
       localStorage.setItem('phantom_dl_shared_secret', b58encode(sharedSecret));
-      log('State saved for sign step');
+      dbg('OK', 'State saved for sign step');
 
-      // Encrypt signMessage payload using shared secret
+      // Encrypt signMessage payload
       var messageBytes = new TextEncoder().encode(message);
+      var messageB58 = b58encode(messageBytes);
       var payload = {
         session: phantomSession,
-        message: b58encode(messageBytes)
+        message: messageB58,
+        display: "utf8"
       };
-      log('signMessage payload keys:', Object.keys(payload).join(', '));
-      log('message (b58) length:', payload.message.length);
+      dbg('Payload.session', truncate(payload.session, 30));
+      dbg('Payload.message', truncate(payload.message, 30));
+      dbg('Payload.display', payload.display);
+      dbg('Payload JSON', truncate(JSON.stringify(payload), 80));
 
       var result = encryptPayload(payload, sharedSecret);
+      var encNonceB58 = b58encode(result.nonce);
+      var encPayloadB58 = b58encode(result.encrypted);
 
       var callbackUrl = window.location.origin + '/auth/phantom/callback';
+      dbg('redirect_link', callbackUrl);
+      dbg('dapp_enc_pubkey', truncate(dappPublicKeyB58, 20));
+      dbg('enc nonce b58', truncate(encNonceB58, 20));
+      dbg('enc payload b58', encPayloadB58.length + ' chars');
+
       var signParams = new URLSearchParams({
         dapp_encryption_public_key: dappPublicKeyB58,
-        nonce: b58encode(result.nonce),
+        nonce: encNonceB58,
         redirect_link: callbackUrl,
-        payload: b58encode(result.encrypted)
+        payload: encPayloadB58
       });
 
       var signUrl = 'https://phantom.app/ul/v1/signMessage?' + signParams.toString();
-      log('signMessage URL length:', signUrl.length);
-      log('redirect_link:', callbackUrl);
+      dbg('signMessage URL', signUrl.length + ' chars total');
+      dbg('OK', 'Ready to redirect to Phantom signMessage');
 
       delayedRedirect(signUrl, 'Phantom signMessage');
 
     } else if (step === 'sign') {
-      log('=== SIGN STEP ===');
+      dbg('=== SIGN STEP ===');
       statusEl.textContent = 'Verifying signature...';
 
       var sharedSecretB58 = localStorage.getItem('phantom_dl_shared_secret');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
 
-      log('Has shared secret:', !!sharedSecretB58);
-      log('Has data:', !!dataParm);
-      log('Has nonce:', !!nonceParm);
+      dbg('Has shared secret', !!sharedSecretB58 + ' (' + (sharedSecretB58 || '').length + ' chars)');
+      dbg('Has data', !!dataParm + ' (' + (dataParm || '').length + ' chars)');
+      dbg('Has nonce', !!nonceParm + ' (' + (nonceParm || '').length + ' chars)');
 
       if (!dataParm || !nonceParm || !sharedSecretB58) {
-        throw new Error('Missing sign response parameters — data=' + !!dataParm + ' nonce=' + !!nonceParm + ' secret=' + !!sharedSecretB58);
+        throw new Error('Missing sign params — data=' + !!dataParm + ' nonce=' + !!nonceParm + ' secret=' + !!sharedSecretB58);
       }
 
-      // Decrypt sign response using shared secret
       var sharedSecret = b58decode(sharedSecretB58);
+      dbg('Shared secret bytes', sharedSecret.length);
+
       var signData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var signatureB58 = signData.signature;
-      log('Signature:', signatureB58 ? signatureB58.substring(0, 20) + '...' : 'null');
+      dbg('Signature', truncate(signatureB58, 30));
 
       if (!signatureB58) {
         throw new Error('No signature in response');
@@ -288,13 +323,17 @@
       var message = localStorage.getItem('phantom_dl_message');
       var linkMode = localStorage.getItem('phantom_dl_link_mode') === 'true';
 
-      log('Posting to verify — pubkey:', walletPubkey, 'linkMode:', linkMode);
+      dbg('Wallet pubkey', walletPubkey);
+      dbg('Message', truncate(message, 40));
+      dbg('Link mode', linkMode);
 
       var verifyUrl = linkMode ? '/account/link_solana' : '/auth/solana/verify';
       var csrfToken = document.querySelector('meta[name="csrf-token"]');
-      log('CSRF token present:', !!csrfToken);
+      dbg('Verify URL', verifyUrl);
+      dbg('CSRF token', !!csrfToken);
 
       statusEl.textContent = 'Logging in...';
+      dbg('POSTing to verify...');
 
       fetch(verifyUrl, {
         method: 'POST',
@@ -309,40 +348,38 @@
         })
       })
       .then(function(r) {
-        log('Verify response status:', r.status);
+        dbg('Verify status', r.status);
         return r.json();
       })
       .then(function(result) {
-        log('Verify result:', JSON.stringify(result));
-        if (LR) { try { LR.track('phantom_verify_result', { success: result.success, error: result.error }); } catch(e) {} }
+        dbg('Verify result', JSON.stringify(result));
         if (result.success) {
           cleanup();
           if (result.new_user) {
             localStorage.setItem('show_profile_modal', 'true');
           }
-          log('Login success, redirecting to:', result.redirect || '/');
+          dbg('OK', 'Login success! Redirecting to ' + (result.redirect || '/'));
           window.location.href = result.redirect || '/';
         } else {
           cleanup();
-          showDebug(JSON.stringify(result));
+          dbg('ERROR', 'Verify failed: ' + (result.error || JSON.stringify(result)));
           showError(result.error || 'Verification failed');
         }
       })
       .catch(function(err) {
-        log('Verify fetch error:', err.message);
+        dbg('ERROR', 'Fetch error: ' + err.message);
         cleanup();
         showError('Verification failed: ' + err.message);
       });
 
     } else {
-      log('Unknown step:', step);
+      dbg('ERROR', 'Unknown step: ' + step);
       cleanup();
       showError('Unknown step. Redirecting to login...');
     }
   } catch (e) {
-    log('CAUGHT ERROR:', e.message, e.stack);
-    if (LR) { try { LR.captureException(e); } catch(ex) {} }
-    showDebug(e.message + '\n' + (e.stack || ''));
+    dbg('CATCH', e.message);
+    dbg('CATCH', e.stack || '(no stack)');
     cleanup();
     showError(e.message || 'Something went wrong');
   }
