@@ -1,0 +1,139 @@
+<%# Shared right-side navbar user section.
+    Locals (all optional):
+      balance_html     — raw HTML for balance display (e.g. Turf Monster wallet balance)
+      extra_icons_html — raw HTML for app-specific icon buttons (e.g. refresh button)
+      show_logout_link — boolean, show explicit "Log out" link (Studio uses this)
+      div2_html        — raw HTML to replace default Div 2 (e.g. Turf Monster seeds bar)
+%>
+<% balance_html     ||= nil %>
+<% extra_icons_html ||= nil %>
+<% show_logout_link ||= false %>
+<% div2_html        ||= nil %>
+
+<div class="flex gap-2">
+  <% if logged_in? %>
+    <%# Left column: Div 1 + Div 2 stacked %>
+    <div class="flex-1">
+      <%# Div 1 (Bigger): balance + icons + username %>
+      <div class="flex items-center gap-1 leading-none" :style="'padding: 0 6px;' + ($store.devMode ? 'background: cornflowerblue;' : '')">
+        <% if balance_html.present? %>
+          <%= raw balance_html %>
+        <% end %>
+        <div class="flex items-center gap-2 self-center">
+          <%= raw extra_icons_html %>
+          <%= render "components/theme_toggle" %>
+          <%= render "components/admin_dropdown" %>
+        </div>
+        <% account_link = defined?(account_path) ? account_path : "#" %>
+        <%= link_to account_link, class: "text-heading font-semibold hover:text-primary transition leading-none ml-auto overflow-hidden whitespace-nowrap",
+              "x-bind:class": "scrolled ? 'text-base' : 'text-lg'",
+              style: "max-width: 6rem;",
+              "x-data": "{ overflows: false, init() { this.overflows = this.$el.scrollWidth > this.$el.clientWidth } }",
+              "x-bind:style": "'max-width: 6rem;' + (overflows ? ' -webkit-mask-image: linear-gradient(to right, black 50%, transparent); mask-image: linear-gradient(to right, black 50%, transparent);' : '')" do %>
+          <%= current_user.display_name %>
+        <% end %>
+      </div>
+      <%# Div 2 (Smaller): wallet address (left) + level (right) with progress bar %>
+      <% server_level = current_user.respond_to?(:level) && current_user.level.present? ? current_user.level : nil %>
+      <div x-data="{
+             barWidth: 0,
+             displayLevel: <%= server_level || 1 %>,
+             leveledUp: false,
+             init() {
+               var self = this;
+               var data = this.getSeedsData();
+               if (data) {
+                 self.displayLevel = data.level;
+                 setTimeout(function() { self.barWidth = data.progress; }, 150);
+               }
+             },
+             getSeedsData() {
+               try {
+                 var raw = localStorage.getItem('seedsNavbar');
+                 if (!raw) return null;
+                 return JSON.parse(raw);
+               } catch(e) { return null; }
+             },
+             replayLevel() {
+               var self = this;
+               var data = this.getSeedsData();
+               var finalPct = data ? data.progress : self.barWidth;
+               self.displayLevel = Math.max(1, self.displayLevel - 1);
+               self.barWidth = 60;
+               setTimeout(function() { self.barWidth = 100; }, 300);
+               setTimeout(function() { self.displayLevel += 1; self.leveledUp = true; }, 1500);
+               setTimeout(function() { self.leveledUp = false; self.barWidth = 0; }, 2800);
+               setTimeout(function() { self.barWidth = finalPct; }, 3000);
+             },
+             handleSeedsUpdate(d) {
+               var self = this;
+               if (d.levelUp) {
+                 self.barWidth = d.oldPct;
+                 setTimeout(function() { self.barWidth = 100; }, 300);
+                 setTimeout(function() { self.displayLevel = d.newLevel; self.leveledUp = true; }, 1500);
+                 setTimeout(function() { self.leveledUp = false; self.barWidth = 0; }, 2800);
+                 setTimeout(function() { self.barWidth = d.progress; }, 3000);
+               } else {
+                 self.displayLevel = d.level;
+                 self.barWidth = d.progress;
+               }
+             }
+           }"
+           @navbar-replay-level.window="replayLevel()"
+           @navbar-seeds-update.window="handleSeedsUpdate($event.detail)"
+           class="relative mt-0.5" style="height: 14px;">
+        <%# Fill bar %>
+        <div class="absolute inset-y-0 left-0 rounded z-0" style="background: linear-gradient(to right, transparent, color-mix(in srgb, var(--color-cta) 75%, transparent)); transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);" :style="{ width: barWidth + '%' }"></div>
+        <%# Text layer 1: muted (visible outside bar) %>
+        <div class="absolute inset-0 flex items-center justify-between px-1.5 font-mono text-muted z-[1]" style="font-size: 10px;">
+          <span>
+            <% if current_user.respond_to?(:truncated_solana) && current_user.try(:solana_connected?) %>
+              <%= current_user.truncated_solana %>
+            <% end %>
+          </span>
+          <% if server_level %>
+            <span :class="leveledUp && 'nav-level-pop'" x-text="'Level ' + displayLevel">Level <%= server_level %></span>
+          <% elsif show_logout_link %>
+            <%= link_to "Log out", logout_path, class: "font-mono text-muted no-underline", style: "font-size: 10px;" %>
+          <% end %>
+        </div>
+        <%# Text layer 2: white (clip-path reveals where bar covers) %>
+        <div class="absolute inset-0 flex items-center justify-between px-1.5 font-mono text-white z-[2]" style="font-size: 10px;" :style="{ 'clip-path': 'inset(0 ' + (100 - barWidth) + '% 0 0)' }">
+          <span>
+            <% if current_user.respond_to?(:truncated_solana) && current_user.try(:solana_connected?) %>
+              <%= current_user.truncated_solana %>
+            <% end %>
+          </span>
+          <% if server_level %>
+            <span :class="leveledUp && 'nav-level-pop'" x-text="'Level ' + displayLevel">Level <%= server_level %></span>
+          <% elsif show_logout_link %>
+            <%= link_to "Log out", logout_path, class: "font-mono text-white no-underline", style: "font-size: 10px;" %>
+          <% end %>
+        </div>
+      </div>
+      <style>
+        @keyframes navLevelPop {
+          0% { transform: scale(1); }
+          15% { transform: scale(1.5); }
+          35% { transform: scale(1.2); }
+          50% { transform: scale(1.4); }
+          70% { transform: scale(1.1); }
+          100% { transform: scale(1); }
+        }
+        .nav-level-pop { animation: navLevelPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+      </style>
+    </div>
+    <%# Div 3 (Avatar): spans both rows %>
+    <% account_link = defined?(account_path) ? account_path : "#" %>
+    <%= link_to account_link, class: "hover:opacity-80 transition flex-shrink-0 flex items-center", "x-bind:style": "$store.devMode && 'background: lightgreen'" do %>
+      <%= render "components/avatar", user: current_user, size: "nav" %>
+    <% end %>
+  <% else %>
+    <%= render "components/admin_dropdown" %>
+    <%= render "components/theme_toggle" %>
+    <div class="flex items-center gap-3 ml-auto">
+      <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
+      <%= link_to "Sign up", signup_path, class: "btn btn-primary btn-sm" %>
+    </div>
+  <% end %>
+</div>
