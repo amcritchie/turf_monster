@@ -66,6 +66,10 @@
           .nav-logo { width: 2rem !important; height: 2rem !important; }
           .nav-title { font-size: 1.25rem !important; }
         }
+        @media (max-width: 399px) {
+          .nav-logo-link { gap: 0.25rem !important; }
+          .nav-title { font-size: 1.1rem !important; }
+        }
       </style>
       <div class="flex items-center transition-all duration-300"
            :class="scrolled ? 'py-2' : 'py-6'">
@@ -73,7 +77,7 @@
         <div class="flex-1 px-4">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-6">
-              <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
+              <%= link_to root_path, class: "nav-logo-link inline-flex items-center gap-3 group" do %>
                 <img src="/logo.png" alt="Turf Monster" class="nav-logo rounded-full shadow-lg group-hover:scale-105 transition-all duration-300"
                      x-bind:class="scrolled ? 'w-8 h-8' : 'w-12 h-12'">
                 <h1 class="nav-title font-extrabold text-heading tracking-tight transition-all duration-300"

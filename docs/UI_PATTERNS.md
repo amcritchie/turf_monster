@@ -87,20 +87,33 @@ When hold-to-confirm hits a blocker (geo-blocked, not logged in, insufficient fu
 - `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component
 
 ## Navbar
-Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state (triggers at 20px). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms.
+Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state using hysteresis (scrolls past 30px to compact, back below 5px to expand — prevents jittery toggling). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms.
+
+### Responsive breakpoints
+Custom `<style>` block in `<header>` with three tiers:
+- **< 400px**: `.user-nav-col` 14rem, `.nav-logo-link` gap 0.25rem, `.nav-title` 1.1rem
+- **400–767px**: `.user-nav-col` 15rem, `.nav-logo` 2rem (matches avatar), `.nav-title` 1.25rem
+- **768px+**: `.user-nav-col` 20rem, logo/title use Alpine scroll animation
 
 ### Left side
-Logo + brand, nav links (Join Contest, My Contests, Rules, Faucet), DEV toggle, Devnet badge, geo state badge.
+Logo (`.nav-logo`) + "Turf Totals" brand title (`.nav-title`, visible on all sizes), desktop nav links (`hidden md:flex`: Join Contest, Rules, DEV toggle, Devnet badge, geo badge).
+
+### Mobile sub-navbar
+`flex md:hidden` compact row below main nav with `bg-surface-alt border-t border-subtle`. Contains: Join Contest, Rules, DEV toggle, Devnet badge, geo badge. Theme toggle + admin dropdown pushed right via `ml-auto`.
+
+### Geo badge
+Extracted to `_geo_badge.html.erb` partial — shared by desktop nav and mobile sub-navbar. State flag image uses inline styles for reliable sizing (`height: 12px; width: 16px; object-fit: cover`). Badge shape is `rounded-lg`.
 
 ### Right side — logged in: two-row block + avatar
-- **Row 1 (Div 1)**: balance, gear dropdown, theme toggle, refresh button, username. Inline padding via `:style` (Tailwind `px-*` won't compile). Dev mode background via Alpine `:style`.
-- **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. Wallet address (left) + Level X (right). Green fill bar (`#4BAF50`, 14px height, 4px border-radius) animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted color underneath, white on top with `clip-path: inset(0 X% 0 0)` revealing as bar fills. Level-up: bar fills 100% → Level bounces (`nav-level-pop` keyframe) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
-- **Avatar**: `_avatar.html.erb` partial, outside the two-row block. Links to `/account`.
+- **Row 1 (Div 1)**: balance, refresh button, username. Theme toggle + gear hidden on mobile (`hidden md:flex`/`hidden md:block`), shown in sub-navbar instead. Right-only padding via inline `:style`. Dev mode background via Alpine `:style`.
+- **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. Wallet address (left) + Level X (right). `margin-left: -6px` to align with balance above. Green fill bar (14px height) animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted underneath, white on top with `clip-path` reveal. Level-up: bar fills 100% → Level bounces (`nav-level-pop` keyframe) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
+- **Avatar**: `_avatar.html.erb` partial (size "nav" = `w-8 h-8`), outside the two-row block. Links to `/account`.
 - Balance shows whole dollars only (no cents) — JS `refreshBalance` uses `Math.floor`, ERB uses `.to_i`.
 - Username and balance link to `/account` and `/wallet` respectively.
+- User nav column has `pl-0 pr-4 md:px-4` — no left padding on mobile.
 
 ### Right side — logged out
-- Theme toggle + green "Log in" button, right-aligned in the `w-80` div.
+- Theme toggle (`hidden md:flex`) + green "Log in" button, right-aligned. Theme toggle appears in mobile sub-navbar instead.
 
 ## Leaderboard (Contest Show)
 Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing multiplier (e.g., `x4`) before game completes and points (goals x multiplier) after. Badges float right with score rightmost (`min-width: 4.5rem`). Non-integer values show decimal portion in smaller font. Payout label (`$40.00`) appears on left (after player name) only before settling. Admin payout button says "Payout $X". After settling — paid rows get primary ring, divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
