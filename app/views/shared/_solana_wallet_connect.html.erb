@@ -39,7 +39,7 @@ function solanaWalletConnect(linkMode) {
     error: null,
     statusText: 'Connect Phantom',
     walletAvailable: !!(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom),
-    isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent),
+    isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)),
 
     async connect() {
       this.connecting = true;
