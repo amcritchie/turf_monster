@@ -10,9 +10,20 @@
 <script>
 (function() {
   var LOG_PREFIX = '[PhantomDL]';
+  var LR = window.LogRocket;
   function log() {
     var args = [LOG_PREFIX].concat(Array.prototype.slice.call(arguments));
     console.log.apply(console, args);
+    // Also push to LogRocket directly in case console capture is delayed
+    if (LR) {
+      try { LR.log.apply(LR, args); } catch(e) {}
+    }
+  }
+
+  // Tag this session so it's findable in LogRocket dashboard
+  if (LR) {
+    LR.track('phantom_callback', { url: window.location.href });
+    LR.identify('phantom_mobile_auth', { source: 'deep_link' });
   }
 
   log('Callback page loaded', window.location.href);
@@ -67,6 +78,7 @@
 
   function showError(msg) {
     log('ERROR:', msg);
+    if (LR) { try { LR.captureMessage('PhantomDL Error: ' + msg); } catch(e) {} }
     spinnerEl.classList.add('hidden');
     statusEl.classList.add('hidden');
     errorEl.textContent = msg;
@@ -168,6 +180,7 @@
   // Helper: delay redirect so LogRocket captures the state
   function delayedRedirect(url, label) {
     log('Will redirect to ' + label + ' in 10s:', url.substring(0, 80) + '...');
+    if (LR) { try { LR.track('phantom_redirect', { label: label, url_length: url.length }); } catch(e) {} }
     statusEl.textContent = 'Redirecting to ' + label + ' in 10s...';
     showDebug(url.substring(0, 120) + '...');
     setTimeout(function() {
@@ -301,6 +314,7 @@
       })
       .then(function(result) {
         log('Verify result:', JSON.stringify(result));
+        if (LR) { try { LR.track('phantom_verify_result', { success: result.success, error: result.error }); } catch(e) {} }
         if (result.success) {
           cleanup();
           if (result.new_user) {
@@ -327,6 +341,7 @@
     }
   } catch (e) {
     log('CAUGHT ERROR:', e.message, e.stack);
+    if (LR) { try { LR.captureException(e); } catch(ex) {} }
     showDebug(e.message + '\n' + (e.stack || ''));
     cleanup();
     showError(e.message || 'Something went wrong');
