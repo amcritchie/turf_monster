@@ -14,13 +14,14 @@ function startPhantomDeepLink(linkMode) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       // Build SIWS input (CAIP-122 / Sign In With Solana format)
+      // Note: chainId omitted — optional per spec, avoids mismatch warning
+      // when app is on devnet but user's wallet is on mainnet
       var signInInput = {
         domain: window.location.host,
         statement: 'Sign in to Turf Monster',
         uri: window.location.origin,
         version: '1',
         nonce: data.nonce,
-        chainId: 'solana:' + (cluster === 'devnet' ? 'devnet' : 'mainnet'),
         issuedAt: new Date().toISOString()
       };
 
