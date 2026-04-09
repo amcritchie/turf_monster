@@ -56,12 +56,15 @@ Rails.application.routes.draw do
   get "help/phantom",      to: "help#phantom",     as: :help_phantom
   get "help/glossary",     to: "help#glossary",    as: :help_glossary
 
+  # Phantom deep link callback — must be before Studio.routes to avoid
+  # matching OmniAuth's /auth/:provider/callback wildcard
+  get  "auth/phantom/callback", to: "solana_sessions#phantom_callback"
+
   Studio.routes(self)
 
   # Solana wallet auth
   get  "auth/solana/nonce",  to: "solana_sessions#nonce"
   post "auth/solana/verify", to: "solana_sessions#verify"
-  get  "auth/phantom/callback", to: "solana_sessions#phantom_callback"
 
   # Account management
   resource :account, only: [:show, :update] do
