@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_09_031546) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -44,20 +44,20 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
 
   create_table "contests", force: :cascade do |t|
     t.string "name", null: false
+    t.string "contest_type", default: "small", null: false
     t.integer "entry_fee_cents", default: 0, null: false
     t.string "status", default: "draft", null: false
     t.integer "max_entries"
+    t.string "tagline"
+    t.integer "rank"
     t.datetime "starts_at"
-    t.string "slug"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "contest_type", default: "small", null: false
+    t.bigint "slate_id"
     t.string "onchain_contest_id"
     t.boolean "onchain_settled", default: false, null: false
     t.string "onchain_tx_signature"
-    t.bigint "slate_id"
-    t.string "tagline"
-    t.integer "rank"
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["rank"], name: "index_contests_on_rank"
     t.index ["slate_id"], name: "index_contests_on_slate_id"
     t.index ["slug"], name: "index_contests_on_slug", unique: true
@@ -69,15 +69,15 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
     t.bigint "contest_id", null: false
     t.float "score", default: 0.0, null: false
     t.string "status", default: "cart", null: false
+    t.integer "rank"
+    t.integer "payout_cents", default: 0
+    t.integer "entry_number"
+    t.string "onchain_entry_id"
+    t.string "onchain_tx_signature"
+    t.string "payout_tx_signature"
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "rank"
-    t.integer "payout_cents", default: 0
-    t.string "onchain_entry_id"
-    t.string "onchain_tx_signature"
-    t.integer "entry_number"
-    t.string "payout_tx_signature"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["slug"], name: "index_entries_on_slug", unique: true
     t.index ["status"], name: "index_entries_on_status"
@@ -144,11 +144,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
 
   create_table "selections", force: :cascade do |t|
     t.bigint "entry_id", null: false
+    t.bigint "slate_matchup_id", null: false
     t.decimal "points", precision: 5, scale: 1
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "slate_matchup_id", null: false
     t.index ["entry_id", "slate_matchup_id"], name: "index_selections_on_entry_id_and_slate_matchup_id", unique: true
     t.index ["entry_id"], name: "index_selections_on_entry_id"
     t.index ["slate_matchup_id"], name: "index_selections_on_slate_matchup_id"
@@ -167,12 +167,12 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
     t.decimal "expected_team_total", precision: 3, scale: 1
     t.integer "team_total_over_odds"
     t.integer "team_total_under_odds"
+    t.decimal "over_decimal_odds", precision: 4, scale: 2
+    t.decimal "under_decimal_odds", precision: 4, scale: 2
     t.decimal "dk_score", precision: 4, scale: 2
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.decimal "over_decimal_odds", precision: 4, scale: 2
-    t.decimal "under_decimal_odds", precision: 4, scale: 2
     t.index ["game_slug"], name: "index_slate_matchups_on_game_slug"
     t.index ["slate_id", "team_slug"], name: "index_slate_matchups_on_slate_id_and_team_slug", unique: true
     t.index ["slate_id"], name: "index_slate_matchups_on_slate_id"
@@ -182,9 +182,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
   create_table "slates", force: :cascade do |t|
     t.string "name", null: false
     t.datetime "starts_at"
-    t.string "slug"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
     t.float "formula_a"
     t.float "formula_line_exp"
     t.float "formula_prob_exp"
@@ -192,6 +189,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
     t.float "formula_mult_scale"
     t.float "formula_goal_base"
     t.float "formula_goal_scale"
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_slates_on_slug", unique: true
   end
 
@@ -249,32 +249,31 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_06_060821) do
   create_table "users", force: :cascade do |t|
     t.string "name"
     t.string "email"
-    t.integer "balance_cents", default: 0, null: false
-    t.string "password_digest", default: "", null: false
-    t.string "provider"
-    t.string "uid"
-    t.string "wallet_address"
-    t.string "slug"
+    t.string "username"
     t.string "first_name"
     t.string "last_name"
     t.date "birth_date"
     t.integer "birth_year"
+    t.integer "balance_cents", default: 0, null: false
+    t.integer "promotional_cents", default: 0, null: false
+    t.string "password_digest", default: "", null: false
+    t.string "provider"
+    t.string "uid"
+    t.string "role", default: "viewer"
+    t.integer "level", default: 1, null: false
+    t.string "web2_solana_address"
+    t.string "web3_solana_address"
+    t.text "encrypted_web2_solana_private_key"
+    t.bigint "invited_by_id"
+    t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "solana_address"
-    t.text "encrypted_solana_private_key"
-    t.string "wallet_type"
-    t.integer "promotional_cents", default: 0, null: false
-    t.string "role", default: "viewer"
-    t.string "username"
-    t.bigint "invited_by_id"
-    t.integer "level", default: 1, null: false
     t.index "lower((username)::text)", name: "index_users_on_lower_username", unique: true, where: "(username IS NOT NULL)"
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
-    t.index ["solana_address"], name: "index_users_on_solana_address", unique: true, where: "(solana_address IS NOT NULL)"
-    t.index ["wallet_address"], name: "index_users_on_wallet_address", unique: true, where: "(wallet_address IS NOT NULL)"
+    t.index ["web2_solana_address"], name: "index_users_on_web2_solana_address", unique: true, where: "(web2_solana_address IS NOT NULL)"
+    t.index ["web3_solana_address"], name: "index_users_on_web3_solana_address", unique: true, where: "(web3_solana_address IS NOT NULL)"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
