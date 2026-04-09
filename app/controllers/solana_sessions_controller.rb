@@ -8,6 +8,10 @@ class SolanaSessionsController < ApplicationController
     render json: { nonce: session[:solana_nonce] }
   end
 
+  def phantom_callback
+    # Client-side only — JS handles decryption and verify POST
+  end
+
   def verify
     pubkey_b58 = verify_solana_signature!(
       message: params[:message],
@@ -23,8 +27,7 @@ class SolanaSessionsController < ApplicationController
     user ||= User.new(
       name: "anon",
       username: Studio::UsernameGenerator.generate,
-      solana_address: pubkey_b58,
-      wallet_type: "phantom",
+      web3_solana_address: pubkey_b58,
       password: SecureRandom.hex(16),
       balance_cents: 0
     )

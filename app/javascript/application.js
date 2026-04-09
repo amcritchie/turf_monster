@@ -2,3 +2,4 @@
 import "@hotwired/turbo-rails"
 import "controllers"
 import "solana_utils"
+import "phantom_deeplink"

@@ -18,6 +18,23 @@ export function encodeBase58(bytes) {
   return str;
 }
 
+export function decodeBase58(str) {
+  const bytes = [];
+  for (let i = 0; i < str.length; i++) {
+    const idx = B58_ALPHABET.indexOf(str[i]);
+    if (idx < 0) throw new Error('Invalid base58 character');
+    let carry = idx;
+    for (let j = 0; j < bytes.length; j++) {
+      carry += bytes[j] * 58;
+      bytes[j] = carry & 0xff;
+      carry >>= 8;
+    }
+    while (carry) { bytes.push(carry & 0xff); carry >>= 8; }
+  }
+  for (let i = 0; i < str.length && str[i] === '1'; i++) bytes.push(0);
+  return new Uint8Array(bytes.reverse());
+}
+
 // Deduplication-safe fetch — prevents concurrent requests for the same key
 const _lockedKeys = {};
 export function lockedFetch(key, url, opts) {
@@ -67,4 +84,5 @@ window.lockedFetch = lockedFetch;
 window.refreshBalance = refreshBalance;
 window.refreshBalanceDelayed = refreshBalanceDelayed;
 window.encodeBase58 = encodeBase58;
+window.decodeBase58 = decodeBase58;
 window.CONFETTI_COLORS = CONFETTI_COLORS;

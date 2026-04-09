@@ -61,6 +61,7 @@ Rails.application.routes.draw do
   # Solana wallet auth
   get  "auth/solana/nonce",  to: "solana_sessions#nonce"
   post "auth/solana/verify", to: "solana_sessions#verify"
+  get  "auth/phantom/callback", to: "solana_sessions#phantom_callback"
 
   # Account management
   resource :account, only: [:show, :update] do
@@ -114,11 +115,17 @@ Rails.application.routes.draw do
 
   resource :wallet, only: [:show] do
     post :deposit
+    post :stripe_deposit
+    post :moonpay_deposit
     post :withdraw
     post :faucet
     post :airdrop
     get :sync
   end
+
+  # Payment webhooks
+  post "webhooks/stripe", to: "webhooks/stripe#create"
+  post "webhooks/moonpay", to: "webhooks/moonpay#create"
 
   post "add_funds", to: "users#add_funds"
 
@@ -134,6 +141,7 @@ Rails.application.routes.draw do
   get "admin/transactions/:slug", to: "transaction_logs#show", as: :admin_transaction
   post "admin/transactions/:slug/approve", to: "transaction_logs#approve", as: :admin_transaction_approve
   post "admin/transactions/:slug/deny", to: "transaction_logs#deny", as: :admin_transaction_deny
+  post "admin/transactions/:slug/complete", to: "transaction_logs#complete", as: :admin_transaction_complete
 
   # Geo check (public — used by hold-to-confirm validation)
   get "geo/check", to: "geo_settings#check", as: :geo_check
