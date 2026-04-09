@@ -3,11 +3,21 @@
     <div id="phantom-spinner" class="inline-block w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
     <p id="phantom-status" class="text-secondary text-sm">Connecting to Phantom...</p>
     <p id="phantom-error" class="text-red-400 text-sm mt-2 hidden"></p>
+    <p id="phantom-debug" class="text-muted text-xs mt-4 font-mono max-w-md mx-auto break-all hidden"></p>
   </div>
 </div>
 
 <script>
 (function() {
+  var LOG_PREFIX = '[PhantomDL]';
+  function log() {
+    var args = [LOG_PREFIX].concat(Array.prototype.slice.call(arguments));
+    console.log.apply(console, args);
+  }
+
+  log('Callback page loaded', window.location.href);
+  log('URL params:', window.location.search);
+
   // Self-contained Base58 (avoids timing issues with deferred importmap modules)
   var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
@@ -48,13 +58,20 @@
   var statusEl = document.getElementById('phantom-status');
   var errorEl = document.getElementById('phantom-error');
   var spinnerEl = document.getElementById('phantom-spinner');
+  var debugEl = document.getElementById('phantom-debug');
+
+  function showDebug(text) {
+    debugEl.textContent = text;
+    debugEl.classList.remove('hidden');
+  }
 
   function showError(msg) {
+    log('ERROR:', msg);
     spinnerEl.classList.add('hidden');
     statusEl.classList.add('hidden');
     errorEl.textContent = msg;
     errorEl.classList.remove('hidden');
-    setTimeout(function() { window.location.href = '/login'; }, 3000);
+    setTimeout(function() { window.location.href = '/login'; }, 10000);
   }
 
   var ALL_KEYS = [
@@ -68,17 +85,41 @@
     ALL_KEYS.forEach(function(k) { localStorage.removeItem(k); });
   }
 
+  function dumpState() {
+    var state = {};
+    ALL_KEYS.forEach(function(k) {
+      var v = localStorage.getItem(k);
+      if (v) state[k.replace('phantom_dl_', '')] = v.length > 20 ? v.substring(0, 20) + '...' : v;
+    });
+    log('localStorage state:', JSON.stringify(state));
+    return state;
+  }
+
+  // Dump localStorage state on load
+  dumpState();
+
   // Parse URL params
   var params = new URLSearchParams(window.location.search);
 
+  // Log all URL params
+  var urlParamObj = {};
+  params.forEach(function(val, key) {
+    urlParamObj[key] = val.length > 30 ? val.substring(0, 30) + '...' : val;
+  });
+  log('URL params parsed:', JSON.stringify(urlParamObj));
+
   // Check for Phantom error
   if (params.get('errorCode')) {
+    log('Phantom returned error:', params.get('errorCode'), params.get('errorMessage'));
+    showDebug('errorCode=' + params.get('errorCode') + ' errorMessage=' + params.get('errorMessage'));
     cleanup();
     showError('Phantom error: ' + (params.get('errorMessage') || 'Request rejected'));
     return;
   }
 
   var step = localStorage.getItem('phantom_dl_step');
+  log('Current step:', step);
+
   if (!step) {
     showError('No pending Phantom request. Redirecting to login...');
     return;
@@ -86,7 +127,9 @@
 
   // Check nonce expiry (4.5 min = 270000ms, nonce expires server-side at 5 min)
   var nonceAt = parseInt(localStorage.getItem('phantom_dl_nonce_at') || '0');
-  if (Date.now() - nonceAt > 270000) {
+  var elapsed = Date.now() - nonceAt;
+  log('Nonce age:', Math.round(elapsed / 1000) + 's');
+  if (elapsed > 270000) {
     cleanup();
     showError('Session expired. Please try again.');
     return;
@@ -95,32 +138,53 @@
   // Recover dapp keypair from localStorage
   var dappSecretKey = b58decode(localStorage.getItem('phantom_dl_secret'));
   var dappPublicKeyB58 = localStorage.getItem('phantom_dl_pubkey');
+  log('Dapp pubkey:', dappPublicKeyB58);
 
   // Decrypt using precomputed shared secret (nacl.box.open.after)
   function decryptPayload(dataB58, nonceB58, sharedSecret) {
+    log('Decrypting payload, data length:', dataB58.length, 'nonce length:', nonceB58.length);
     var data = b58decode(dataB58);
     var nonce = b58decode(nonceB58);
+    log('Decoded data bytes:', data.length, 'nonce bytes:', nonce.length);
     var decrypted = nacl.box.open.after(data, nonce, sharedSecret);
-    if (!decrypted) throw new Error('Decryption failed');
-    return JSON.parse(new TextDecoder().decode(decrypted));
+    if (!decrypted) throw new Error('Decryption failed — nacl.box.open.after returned null');
+    var json = JSON.parse(new TextDecoder().decode(decrypted));
+    log('Decrypted payload keys:', Object.keys(json).join(', '));
+    return json;
   }
 
   // Encrypt using precomputed shared secret (nacl.box.after)
   function encryptPayload(payload, sharedSecret) {
     var nonce = nacl.randomBytes(24);
-    var msgBytes = new TextEncoder().encode(JSON.stringify(payload));
+    var jsonStr = JSON.stringify(payload);
+    log('Encrypting payload, JSON length:', jsonStr.length);
+    var msgBytes = new TextEncoder().encode(jsonStr);
     var encrypted = nacl.box.after(msgBytes, nonce, sharedSecret);
-    if (!encrypted) throw new Error('Encryption failed');
+    if (!encrypted) throw new Error('Encryption failed — nacl.box.after returned null');
+    log('Encrypted payload bytes:', encrypted.length);
     return { nonce: nonce, encrypted: encrypted };
+  }
+
+  // Helper: delay redirect so LogRocket captures the state
+  function delayedRedirect(url, label) {
+    log('Will redirect to ' + label + ' in 10s:', url.substring(0, 80) + '...');
+    statusEl.textContent = 'Redirecting to ' + label + ' in 10s...';
+    showDebug(url.substring(0, 120) + '...');
+    setTimeout(function() {
+      log('Redirecting now to ' + label);
+      window.location.href = url;
+    }, 10000);
   }
 
   try {
     if (step === 'connect') {
+      log('=== CONNECT STEP ===');
       statusEl.textContent = 'Processing wallet connection...';
 
       var phantomEncPubkeyB58 = params.get('phantom_encryption_public_key');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
+      log('phantom_encryption_public_key:', phantomEncPubkeyB58);
 
       if (!phantomEncPubkeyB58 || !dataParm || !nonceParm) {
         throw new Error('Missing connect response parameters');
@@ -128,14 +192,17 @@
 
       // Compute shared secret (Diffie-Hellman) — reused for all subsequent messages
       var sharedSecret = nacl.box.before(b58decode(phantomEncPubkeyB58), dappSecretKey);
+      log('Shared secret computed, length:', sharedSecret.length);
 
       // Decrypt connect response using shared secret
       var connectData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var walletPubkey = connectData.public_key;
       var phantomSession = connectData.session;
+      log('Wallet pubkey:', walletPubkey);
+      log('Session token length:', phantomSession ? phantomSession.length : 'null');
 
       if (!walletPubkey || !phantomSession) {
-        throw new Error('Invalid connect response');
+        throw new Error('Invalid connect response — missing public_key or session');
       }
 
       // Build SIWS message (matches desktop flow exactly)
@@ -143,6 +210,7 @@
       var domain = window.location.host;
       var message = domain + ' wants you to sign in with your Solana account:\n' +
         walletPubkey + '\n\nSign in to Turf Monster\n\nNonce: ' + serverNonce;
+      log('SIWS message:', message);
 
       // Save state for sign step
       localStorage.setItem('phantom_dl_step', 'sign');
@@ -150,8 +218,7 @@
       localStorage.setItem('phantom_dl_session', phantomSession);
       localStorage.setItem('phantom_dl_message', message);
       localStorage.setItem('phantom_dl_shared_secret', b58encode(sharedSecret));
-
-      statusEl.textContent = 'Opening Phantom to sign...';
+      log('State saved for sign step');
 
       // Encrypt signMessage payload using shared secret
       var messageBytes = new TextEncoder().encode(message);
@@ -159,6 +226,9 @@
         session: phantomSession,
         message: b58encode(messageBytes)
       };
+      log('signMessage payload keys:', Object.keys(payload).join(', '));
+      log('message (b58) length:', payload.message.length);
+
       var result = encryptPayload(payload, sharedSecret);
 
       var callbackUrl = window.location.origin + '/auth/phantom/callback';
@@ -169,23 +239,33 @@
         payload: b58encode(result.encrypted)
       });
 
-      window.location.href = 'https://phantom.app/ul/v1/signMessage?' + signParams.toString();
+      var signUrl = 'https://phantom.app/ul/v1/signMessage?' + signParams.toString();
+      log('signMessage URL length:', signUrl.length);
+      log('redirect_link:', callbackUrl);
+
+      delayedRedirect(signUrl, 'Phantom signMessage');
 
     } else if (step === 'sign') {
+      log('=== SIGN STEP ===');
       statusEl.textContent = 'Verifying signature...';
 
       var sharedSecretB58 = localStorage.getItem('phantom_dl_shared_secret');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
 
+      log('Has shared secret:', !!sharedSecretB58);
+      log('Has data:', !!dataParm);
+      log('Has nonce:', !!nonceParm);
+
       if (!dataParm || !nonceParm || !sharedSecretB58) {
-        throw new Error('Missing sign response parameters');
+        throw new Error('Missing sign response parameters — data=' + !!dataParm + ' nonce=' + !!nonceParm + ' secret=' + !!sharedSecretB58);
       }
 
       // Decrypt sign response using shared secret
       var sharedSecret = b58decode(sharedSecretB58);
       var signData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var signatureB58 = signData.signature;
+      log('Signature:', signatureB58 ? signatureB58.substring(0, 20) + '...' : 'null');
 
       if (!signatureB58) {
         throw new Error('No signature in response');
@@ -195,8 +275,11 @@
       var message = localStorage.getItem('phantom_dl_message');
       var linkMode = localStorage.getItem('phantom_dl_link_mode') === 'true';
 
+      log('Posting to verify — pubkey:', walletPubkey, 'linkMode:', linkMode);
+
       var verifyUrl = linkMode ? '/account/link_solana' : '/auth/solana/verify';
       var csrfToken = document.querySelector('meta[name="csrf-token"]');
+      log('CSRF token present:', !!csrfToken);
 
       statusEl.textContent = 'Logging in...';
 
@@ -212,29 +295,39 @@
           pubkey: walletPubkey
         })
       })
-      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        log('Verify response status:', r.status);
+        return r.json();
+      })
       .then(function(result) {
+        log('Verify result:', JSON.stringify(result));
         if (result.success) {
           cleanup();
           if (result.new_user) {
             localStorage.setItem('show_profile_modal', 'true');
           }
+          log('Login success, redirecting to:', result.redirect || '/');
           window.location.href = result.redirect || '/';
         } else {
           cleanup();
+          showDebug(JSON.stringify(result));
           showError(result.error || 'Verification failed');
         }
       })
       .catch(function(err) {
+        log('Verify fetch error:', err.message);
         cleanup();
         showError('Verification failed: ' + err.message);
       });
 
     } else {
+      log('Unknown step:', step);
       cleanup();
       showError('Unknown step. Redirecting to login...');
     }
   } catch (e) {
+    log('CAUGHT ERROR:', e.message, e.stack);
+    showDebug(e.message + '\n' + (e.stack || ''));
     cleanup();
     showError(e.message || 'Something went wrong');
   }
