@@ -165,7 +165,7 @@
       var signParams = new URLSearchParams({
         dapp_encryption_public_key: dappPublicKeyB58,
         nonce: b58encode(result.nonce),
-        redirect_link: encodeURIComponent(callbackUrl),
+        redirect_link: callbackUrl,
         payload: b58encode(result.encrypted)
       });
 
