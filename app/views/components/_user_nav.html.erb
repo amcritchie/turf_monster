@@ -15,7 +15,7 @@
     <%# Left column: Div 1 + Div 2 stacked %>
     <div class="flex-1">
       <%# Div 1 (Bigger): balance + icons + username %>
-      <div class="flex items-center gap-1 leading-none" :style="'padding: 0 6px;' + ($store.devMode ? 'background: cornflowerblue;' : '')">
+      <div class="flex items-center gap-1 leading-none" :style="'padding: 0 6px 0 0;' + ($store.devMode ? 'background: cornflowerblue;' : '')">
         <% if balance_html.present? %>
           <%= raw balance_html %>
         <% end %>
@@ -81,7 +81,7 @@
            }"
            @navbar-replay-level.window="replayLevel()"
            @navbar-seeds-update.window="handleSeedsUpdate($event.detail)"
-           class="relative mt-0.5" style="height: 14px;">
+           class="relative mt-0.5" style="height: 14px; margin-left: -6px;">
         <%# Fill bar %>
         <div class="absolute inset-y-0 left-0 rounded z-0" style="background: linear-gradient(to right, transparent, color-mix(in srgb, var(--color-cta) 75%, transparent)); transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);" :style="{ width: barWidth + '%' }"></div>
         <%# Text layer 1: muted (visible outside bar) %>

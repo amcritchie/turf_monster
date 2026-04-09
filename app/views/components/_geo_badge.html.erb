@@ -1,0 +1,18 @@
+<% if logged_in? %>
+  <% state = geo_state %>
+  <span class="inline-flex items-center gap-1 text-xs font-mono px-1.5 py-0.5 rounded-full whitespace-nowrap
+    <%= if geo_override_active?
+          'bg-red-500/10 text-red-400 border border-red-500/30'
+        elsif geo_blocked?
+          'bg-red-500/10 text-red-400 border border-red-500/30'
+        elsif state.present?
+          'bg-surface-alt text-secondary border border-subtle'
+        else
+          'bg-surface-alt text-muted border border-subtle'
+        end %>">
+    <% if state.present? && (flag = state_flag_path(state)) %>
+      <img src="<%= flag %>" alt="<%= state %>" class="h-3 rounded-sm" style="width:auto">
+    <% end %>
+    <%= state || "??" %>
+  </span>
+<% end %>

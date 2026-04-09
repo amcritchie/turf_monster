@@ -55,9 +55,17 @@
   </head>
 
   <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }" data-logged-in="<%= logged_in? %>" data-wallet-address="<%= current_user&.solana_address %>" data-solana-cluster="<%= Solana::Config.devnet? ? 'devnet' : 'mainnet-beta' %>">
-    <header x-data="{ scrolled: false }" @scroll.window="scrolled = window.scrollY > 20"
+    <header x-data="{ scrolled: false }" @scroll.window="scrolled = scrolled ? (window.scrollY > 5) : (window.scrollY > 30)"
             class="sticky top-0 z-50 bg-page transition-shadow duration-300"
             :class="scrolled && 'shadow-lg border-b border-subtle'">
+      <style>
+        .user-nav-col { width: 15rem; }
+        @media (min-width: 768px) { .user-nav-col { width: 20rem; } }
+        @media (max-width: 767px) {
+          .nav-logo { width: 2rem !important; height: 2rem !important; }
+          .nav-title { font-size: 1.25rem !important; }
+        }
+      </style>
       <div class="flex items-center transition-all duration-300"
            :class="scrolled ? 'py-2' : 'py-6'">
         <%# Left side: logo + nav %>
@@ -65,7 +73,7 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-6">
               <%= link_to root_path, class: "inline-flex items-center gap-3 group" do %>
-                <img src="/logo.png" alt="Turf Monster" class="rounded-full shadow-lg group-hover:scale-105 transition-all duration-300"
+                <img src="/logo.png" alt="Turf Monster" class="nav-logo rounded-full shadow-lg group-hover:scale-105 transition-all duration-300"
                      x-bind:class="scrolled ? 'w-8 h-8' : 'w-12 h-12'">
                 <h1 class="nav-title font-extrabold text-heading tracking-tight transition-all duration-300"
                     x-bind:class="scrolled ? 'text-xl' : 'text-3xl'">Turf <span class="text-primary">Totals</span></h1>
@@ -79,24 +87,7 @@
                 <% if Solana::Config.devnet? %>
                   <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30">Devnet</span>
                 <% end %>
-                <% if logged_in? %>
-                  <% state = geo_state %>
-                  <span class="inline-flex items-center gap-1 text-xs font-mono px-1.5 py-0.5 rounded-full
-                    <%= if geo_override_active?
-                          'bg-red-500/10 text-red-400 border border-red-500/30'
-                        elsif geo_blocked?
-                          'bg-red-500/10 text-red-400 border border-red-500/30'
-                        elsif state.present?
-                          'bg-surface-alt text-secondary border border-subtle'
-                        else
-                          'bg-surface-alt text-muted border border-subtle'
-                        end %>">
-                    <% if state.present? && (flag = state_flag_path(state)) %>
-                      <img src="<%= flag %>" alt="<%= state %>" class="h-3 rounded-sm" style="width:auto">
-                    <% end %>
-                    <%= state || "??" %>
-                  </span>
-                <% end %>
+                <%= render "components/geo_badge" %>
               </nav>
             </div>
           </div>
@@ -111,13 +102,6 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           </button>
         <% end if logged_in? %>
-        <style>
-          .user-nav-col { width: 15rem; }
-          @media (min-width: 768px) { .user-nav-col { width: 20rem; } }
-          @media (max-width: 767px) {
-            .nav-title { font-size: 1.25rem !important; }
-          }
-        </style>
         <div class="user-nav-col flex-shrink-0 pl-0 pr-4 md:px-4">
           <% if logged_in? %>
             <%= render "components/user_nav", balance_html: balance_html, extra_icons_html: extra_icons_html %>
@@ -131,8 +115,6 @@
       </div>
       <%# Mobile sub-navbar: compact row of links hidden on desktop %>
       <div class="flex md:hidden items-center gap-3 px-4 py-1.5 overflow-x-auto border-t border-subtle bg-surface-alt">
-        <%= render "components/theme_toggle" %>
-        <%= render "components/admin_dropdown" %>
         <%= link_to "Join Contest", root_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
         <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
         <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
@@ -141,24 +123,11 @@
         <% if Solana::Config.devnet? %>
           <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-600/30 whitespace-nowrap">Devnet</span>
         <% end %>
-        <% if logged_in? %>
-          <% state = geo_state %>
-          <span class="inline-flex items-center gap-1 text-xs font-mono px-1.5 py-0.5 rounded-full whitespace-nowrap
-            <%= if geo_override_active?
-                  'bg-red-500/10 text-red-400 border border-red-500/30'
-                elsif geo_blocked?
-                  'bg-red-500/10 text-red-400 border border-red-500/30'
-                elsif state.present?
-                  'bg-surface-alt text-secondary border border-subtle'
-                else
-                  'bg-surface-alt text-muted border border-subtle'
-                end %>">
-            <% if state.present? && (flag = state_flag_path(state)) %>
-              <img src="<%= flag %>" alt="<%= state %>" class="h-3 rounded-sm" style="width:auto">
-            <% end %>
-            <%= state || "??" %>
-          </span>
-        <% end %>
+        <%= render "components/geo_badge" %>
+        <span class="ml-auto flex items-center gap-3">
+          <%= render "components/admin_dropdown" %>
+          <%= render "components/theme_toggle" %>
+        </span>
       </div>
     </header>
 
