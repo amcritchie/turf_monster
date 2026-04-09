@@ -1,35 +1,51 @@
 // Phantom deep link protocol for mobile browsers
-// Flow: generate keypair → fetch nonce → save state → redirect to Phantom app
+// Uses signIn deep link — ONE trip to Phantom (connect + sign combined)
+// Flow: generate keypair → fetch nonce → build SIWS input → redirect to Phantom signIn
 
 function startPhantomDeepLink(linkMode) {
   var cluster = document.body.dataset.solanaCluster || 'devnet';
   var callbackUrl = window.location.origin + '/auth/phantom/callback';
 
-  // Generate x25519 keypair for NaCl box encryption
+  // Generate x25519 keypair for decrypting Phantom's response
   var dappKeyPair = nacl.box.keyPair();
 
-  // Fetch nonce from server, then redirect to Phantom connect
+  // Fetch nonce from server, then redirect to Phantom signIn
   fetch('/auth/solana/nonce')
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      // Save state to localStorage (persists across redirects)
+      // Build SIWS input (CAIP-122 / Sign In With Solana format)
+      var signInInput = {
+        domain: window.location.host,
+        statement: 'Sign in to Turf Monster',
+        uri: window.location.origin,
+        version: '1',
+        nonce: data.nonce,
+        chainId: 'solana:' + (cluster === 'devnet' ? 'devnet' : 'mainnet'),
+        issuedAt: new Date().toISOString()
+      };
+
+      // Save state to localStorage (persists across redirect)
       localStorage.setItem('phantom_dl_secret', encodeBase58(dappKeyPair.secretKey));
       localStorage.setItem('phantom_dl_pubkey', encodeBase58(dappKeyPair.publicKey));
       localStorage.setItem('phantom_dl_nonce', data.nonce);
       localStorage.setItem('phantom_dl_nonce_at', Date.now().toString());
-      localStorage.setItem('phantom_dl_step', 'connect');
+      localStorage.setItem('phantom_dl_step', 'signIn');
       localStorage.setItem('phantom_dl_link_mode', linkMode ? 'true' : 'false');
       localStorage.setItem('phantom_dl_cluster', cluster);
 
-      // Build Phantom connect deep link
+      // Base58-encode the SIWS input JSON (NOT encrypted — per Phantom signIn protocol)
+      var payloadB58 = encodeBase58(new TextEncoder().encode(JSON.stringify(signInInput)));
+
+      // Build Phantom signIn deep link
       var params = new URLSearchParams({
-        app_url: window.location.origin,
         dapp_encryption_public_key: encodeBase58(dappKeyPair.publicKey),
+        cluster: cluster,
+        app_url: window.location.origin,
         redirect_link: callbackUrl,
-        cluster: cluster
+        payload: payloadB58
       });
 
-      window.location.href = 'https://phantom.app/ul/v1/connect?' + params.toString();
+      window.location.href = 'https://phantom.app/ul/v1/signIn?' + params.toString();
     })
     .catch(function(err) {
       alert('Failed to start Phantom connection: ' + err.message);
