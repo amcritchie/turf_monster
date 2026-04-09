@@ -57,12 +57,15 @@
     setTimeout(function() { window.location.href = '/login'; }, 3000);
   }
 
+  var ALL_KEYS = [
+    'phantom_dl_secret', 'phantom_dl_pubkey', 'phantom_dl_nonce', 'phantom_dl_nonce_at',
+    'phantom_dl_step', 'phantom_dl_link_mode', 'phantom_dl_cluster',
+    'phantom_dl_wallet_pubkey', 'phantom_dl_session', 'phantom_dl_message',
+    'phantom_dl_shared_secret'
+  ];
+
   function cleanup() {
-    ['phantom_dl_secret', 'phantom_dl_pubkey', 'phantom_dl_nonce', 'phantom_dl_nonce_at',
-     'phantom_dl_step', 'phantom_dl_link_mode', 'phantom_dl_cluster',
-     'phantom_dl_wallet_pubkey', 'phantom_dl_session', 'phantom_dl_message'].forEach(function(k) {
-      localStorage.removeItem(k);
-    });
+    ALL_KEYS.forEach(function(k) { localStorage.removeItem(k); });
   }
 
   // Parse URL params
@@ -91,38 +94,43 @@
 
   // Recover dapp keypair from localStorage
   var dappSecretKey = b58decode(localStorage.getItem('phantom_dl_secret'));
-  var dappPublicKey = b58decode(localStorage.getItem('phantom_dl_pubkey'));
+  var dappPublicKeyB58 = localStorage.getItem('phantom_dl_pubkey');
 
-  function decryptPayload(dataB58, nonceB58, phantomPubkeyB58) {
+  // Decrypt using precomputed shared secret (nacl.box.open.after)
+  function decryptPayload(dataB58, nonceB58, sharedSecret) {
     var data = b58decode(dataB58);
     var nonce = b58decode(nonceB58);
-    var phantomPubkey = b58decode(phantomPubkeyB58);
-    var decrypted = nacl.box.open(data, nonce, phantomPubkey, dappSecretKey);
+    var decrypted = nacl.box.open.after(data, nonce, sharedSecret);
     if (!decrypted) throw new Error('Decryption failed');
     return JSON.parse(new TextDecoder().decode(decrypted));
   }
 
-  function encryptPayload(payload, nonceBytes, phantomPubkeyBytes) {
+  // Encrypt using precomputed shared secret (nacl.box.after)
+  function encryptPayload(payload, sharedSecret) {
+    var nonce = nacl.randomBytes(24);
     var msgBytes = new TextEncoder().encode(JSON.stringify(payload));
-    var encrypted = nacl.box(msgBytes, nonceBytes, phantomPubkeyBytes, dappSecretKey);
+    var encrypted = nacl.box.after(msgBytes, nonce, sharedSecret);
     if (!encrypted) throw new Error('Encryption failed');
-    return encrypted;
+    return { nonce: nonce, encrypted: encrypted };
   }
 
   try {
     if (step === 'connect') {
       statusEl.textContent = 'Processing wallet connection...';
 
-      var phantomEncPubkey = params.get('phantom_encryption_public_key');
+      var phantomEncPubkeyB58 = params.get('phantom_encryption_public_key');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
 
-      if (!phantomEncPubkey || !dataParm || !nonceParm) {
+      if (!phantomEncPubkeyB58 || !dataParm || !nonceParm) {
         throw new Error('Missing connect response parameters');
       }
 
-      // Decrypt connect response
-      var connectData = decryptPayload(dataParm, nonceParm, phantomEncPubkey);
+      // Compute shared secret (Diffie-Hellman) — reused for all subsequent messages
+      var sharedSecret = nacl.box.before(b58decode(phantomEncPubkeyB58), dappSecretKey);
+
+      // Decrypt connect response using shared secret
+      var connectData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var walletPubkey = connectData.public_key;
       var phantomSession = connectData.session;
 
@@ -141,29 +149,24 @@
       localStorage.setItem('phantom_dl_wallet_pubkey', walletPubkey);
       localStorage.setItem('phantom_dl_session', phantomSession);
       localStorage.setItem('phantom_dl_message', message);
+      localStorage.setItem('phantom_dl_shared_secret', b58encode(sharedSecret));
 
       statusEl.textContent = 'Opening Phantom to sign...';
 
-      // Encrypt the signMessage payload
-      var signNonce = nacl.randomBytes(24);
-      var phantomPubkeyBytes = b58decode(phantomEncPubkey);
+      // Encrypt signMessage payload using shared secret
       var messageBytes = new TextEncoder().encode(message);
-
       var payload = {
         session: phantomSession,
         message: b58encode(messageBytes)
       };
-      var encryptedPayload = encryptPayload(payload, signNonce, phantomPubkeyBytes);
-
-      // Save phantom encryption pubkey for sign callback decryption
-      localStorage.setItem('phantom_dl_phantom_enc_pubkey', phantomEncPubkey);
+      var result = encryptPayload(payload, sharedSecret);
 
       var callbackUrl = window.location.origin + '/auth/phantom/callback';
       var signParams = new URLSearchParams({
-        dapp_encryption_public_key: b58encode(dappPublicKey),
-        nonce: b58encode(signNonce),
-        redirect_link: callbackUrl,
-        payload: b58encode(encryptedPayload)
+        dapp_encryption_public_key: dappPublicKeyB58,
+        nonce: b58encode(result.nonce),
+        redirect_link: encodeURIComponent(callbackUrl),
+        payload: b58encode(result.encrypted)
       });
 
       window.location.href = 'https://phantom.app/ul/v1/signMessage?' + signParams.toString();
@@ -171,16 +174,17 @@
     } else if (step === 'sign') {
       statusEl.textContent = 'Verifying signature...';
 
-      var phantomEncPubkey = localStorage.getItem('phantom_dl_phantom_enc_pubkey');
+      var sharedSecretB58 = localStorage.getItem('phantom_dl_shared_secret');
       var dataParm = params.get('data');
       var nonceParm = params.get('nonce');
 
-      if (!dataParm || !nonceParm || !phantomEncPubkey) {
+      if (!dataParm || !nonceParm || !sharedSecretB58) {
         throw new Error('Missing sign response parameters');
       }
 
-      // Decrypt sign response
-      var signData = decryptPayload(dataParm, nonceParm, phantomEncPubkey);
+      // Decrypt sign response using shared secret
+      var sharedSecret = b58decode(sharedSecretB58);
+      var signData = decryptPayload(dataParm, nonceParm, sharedSecret);
       var signatureB58 = signData.signature;
 
       if (!signatureB58) {
