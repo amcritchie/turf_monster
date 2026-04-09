@@ -21,8 +21,8 @@
         <% end %>
         <div class="flex items-center gap-2 self-center">
           <%= raw extra_icons_html %>
-          <%= render "components/theme_toggle" %>
-          <%= render "components/admin_dropdown" %>
+          <span class="hidden md:flex"><%= render "components/theme_toggle" %></span>
+          <span class="hidden md:block"><%= render "components/admin_dropdown" %></span>
         </div>
         <% account_link = defined?(account_path) ? account_path : "#" %>
         <%= link_to account_link, class: "text-heading font-semibold hover:text-primary transition leading-none ml-auto overflow-hidden whitespace-nowrap",
@@ -129,8 +129,8 @@
       <%= render "components/avatar", user: current_user, size: "nav" %>
     <% end %>
   <% else %>
-    <%= render "components/admin_dropdown" %>
-    <%= render "components/theme_toggle" %>
+    <span class="hidden md:block"><%= render "components/admin_dropdown" %></span>
+    <span class="hidden md:flex"><%= render "components/theme_toggle" %></span>
     <div class="flex items-center gap-3 ml-auto">
       <%= link_to "Log in", login_path, class: "text-heading hover:text-primary text-sm font-semibold transition" %>
       <%= link_to "Sign up", signup_path, class: "btn btn-primary btn-sm" %>
