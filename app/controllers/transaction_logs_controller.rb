@@ -28,11 +28,33 @@ class TransactionLogsController < ApplicationController
 
     rescue_and_log(target: txn) do
       raise "Only pending transactions can be approved" unless txn.status == "pending"
-      txn.update!(status: "completed")
-      redirect_to admin_transactions_path(status: "pending"), notice: "Withdrawal approved for #{txn.user.display_name}."
+
+      # Execute onchain withdrawal for managed wallet users
+      onchain_tx = nil
+      if txn.user.managed_wallet? && txn.user.solana_keypair
+        vault = Solana::Vault.new
+        amount_lamports = Solana::Config.dollars_to_lamports(txn.amount_cents / 100.0)
+        onchain_tx = vault.withdraw(txn.user.solana_keypair, amount_lamports)
+      end
+
+      txn.update!(status: "approved", onchain_tx: onchain_tx)
+      redirect_to admin_transactions_path(status: "pending"), notice: "Withdrawal approved for #{txn.user.display_name}. Onchain withdrawal executed."
     end
   rescue StandardError => e
     redirect_to admin_transactions_path, alert: "Approve failed: #{e.message}"
+  end
+
+  def complete
+    txn = TransactionLog.find_by(slug: params[:slug])
+    return redirect_to admin_transactions_path, alert: "Transaction not found" unless txn
+
+    rescue_and_log(target: txn) do
+      raise "Only approved transactions can be completed" unless txn.status == "approved"
+      txn.update!(status: "completed", description: "#{txn.description} (fiat sent)")
+      redirect_to admin_transactions_path, notice: "Withdrawal marked complete for #{txn.user.display_name}."
+    end
+  rescue StandardError => e
+    redirect_to admin_transactions_path, alert: "Complete failed: #{e.message}"
   end
 
   def deny

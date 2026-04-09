@@ -248,6 +248,52 @@ module Solana
       { signature: signature, pda: Keypair.encode_base58(user_pda) }
     end
 
+    # Fund a user's wallet ATA with USDC.
+    # Devnet: mints new tokens (admin has mint authority).
+    # Mainnet: would transfer from treasury.
+    def fund_user(wallet_address, amount_lamports, mint: :usdc)
+      mint_key = mint == :usdc ? Config::USDC_MINT : Config::USDT_MINT
+      ensure_ata(wallet_address, mint: mint_key)
+
+      if Config.devnet?
+        mint_spl(amount_lamports, mint: mint_key, to: wallet_address)
+      else
+        transfer_spl(wallet_address, amount_lamports, mint: mint_key)
+      end
+    end
+
+    # Withdraw from vault back to user's ATA (server signs with managed wallet keypair)
+    def withdraw(user_keypair, amount_lamports, mint: :usdc)
+      admin = Keypair.admin
+      wallet_address = user_keypair.to_base58
+      user_pda, _ = user_account_pda(wallet_address)
+      vault_pda, _ = vault_state_pda
+      vault_token_pda, _ = mint == :usdc ? vault_usdc_pda : vault_usdt_pda
+      mint_pubkey = mint == :usdc ? Config::USDC_MINT : Config::USDT_MINT
+
+      user_ata, _ = Solana::SplToken.find_associated_token_address(wallet_address, mint_pubkey)
+
+      data = Transaction.anchor_discriminator("withdraw") +
+             Borsh.encode_u64(amount_lamports)
+
+      tx = build_tx(user_keypair)
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: user_keypair.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: user_pda, is_signer: false, is_writable: true },
+          { pubkey: vault_pda, is_signer: false, is_writable: false },
+          { pubkey: Keypair.decode_base58(mint_pubkey), is_signer: false, is_writable: false },
+          { pubkey: user_ata, is_signer: false, is_writable: true },
+          { pubkey: vault_token_pda, is_signer: false, is_writable: true },
+          { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false }
+        ],
+        data: data
+      )
+
+      client.send_and_confirm(tx.serialize_base64)
+    end
+
     # Deposit for managed wallet users (server signs with their keypair)
     def deposit(user_keypair, amount_lamports, mint: :usdc)
       admin = Keypair.admin
@@ -256,6 +302,8 @@ module Solana
       vault_pda, _ = vault_state_pda
       vault_token_pda, _ = mint == :usdc ? vault_usdc_pda : vault_usdt_pda
       mint_pubkey = mint == :usdc ? Config::USDC_MINT : Config::USDT_MINT
+
+      user_ata, _ = Solana::SplToken.find_associated_token_address(wallet_address, mint_pubkey)
 
       data = Transaction.anchor_discriminator("deposit") +
              Borsh.encode_u64(amount_lamports)
@@ -269,7 +317,7 @@ module Solana
           { pubkey: user_pda, is_signer: false, is_writable: true },
           { pubkey: vault_pda, is_signer: false, is_writable: false },
           { pubkey: Keypair.decode_base58(mint_pubkey), is_signer: false, is_writable: false },
-          { pubkey: nil, is_signer: false, is_writable: true },  # user_token_account — caller must set
+          { pubkey: user_ata, is_signer: false, is_writable: true },
           { pubkey: vault_token_pda, is_signer: false, is_writable: true },
           { pubkey: Transaction::TOKEN_PROGRAM_ID, is_signer: false, is_writable: false }
         ],

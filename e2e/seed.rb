@@ -36,6 +36,15 @@ sam = User.create!(
   balance_cents: 100_000
 )
 
+joe = User.create!(
+  name: "Joe",
+  username: "joe",
+  email: "joe@turf.com",
+  password: "password",
+  password_confirmation: "password",
+  balance_cents: 100_000
+)
+
 # Teams (needed for matchup card rendering)
 teams = {}
 [
@@ -81,9 +90,13 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-# Set Phantom wallet addresses (real wallets, not managed)
-alex.update!(solana_address: "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr", wallet_type: "phantom")
+# Set Phantom wallet addresses
+# Alex uses mock keypair (deterministic seed byte 1) so Playwright tests can sign
+alex.update!(solana_address: "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt", wallet_type: "phantom")
 sam.update!(solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds", wallet_type: "phantom")
+
+# Enable onchain path for the seeded contest (directOnchain check needs this)
+contest.update!(onchain_contest_id: "MockContestPDA11111111111111111111111111111")
 
 # GeoSetting (disabled by default for most tests)
 GeoSetting.create!(

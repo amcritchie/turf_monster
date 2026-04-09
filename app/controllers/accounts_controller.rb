@@ -56,7 +56,7 @@ class AccountsController < ApplicationController
         return render json: { success: true, redirect: account_path, notice: "Accounts merged." }
       end
 
-      current_user.update!(solana_address: pubkey_b58, wallet_type: "phantom")
+      current_user.update!(web3_solana_address: pubkey_b58)
       render json: { success: true, redirect: account_path }
     end
   rescue Solana::AuthVerifier::VerificationError => e

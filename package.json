@@ -8,6 +8,7 @@
     "scrape:headed": "node scripts/scrape_draftkings.js --headed"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0"
+    "@playwright/test": "^1.52.0",
+    "tweetnacl": "^1.0.3"
   }
 }

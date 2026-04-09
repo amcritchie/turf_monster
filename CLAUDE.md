@@ -158,13 +158,15 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ### Account & Auth
 - `/account` — profile, password, Google link/unlink. See `docs/AUTH.md`.
 - `/auth/solana/nonce`, `/auth/solana/verify` — Phantom wallet auth
-- `/wallet` — balance, deposit, withdraw, sync
+- `/wallet` — balance, deposit (quick/Stripe/MoonPay), withdraw, sync
+- `/webhooks/stripe`, `/webhooks/moonpay` — payment webhooks (skip CSRF/auth)
 
 ### Admin
 - `/slates/*` — formula editor. See `docs/FORMULAS.md`.
 - `/admin/theme` — theme editor (from engine)
 - `/admin/jobs` — Sidekiq dashboard (admin-only, mounted via route constraint)
 - `/admin/geo` — geo settings
+- `/admin/transactions/:slug/complete` — mark approved withdrawal as fiat-sent
 - `/error_logs` — error log browser
 
 ## Seeds / World Cup Data
@@ -211,5 +213,6 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## TODO
 
 - [x] Google OAuth, Solana integration Phases 1-6, remove Ethereum, remove Over/Under, deploy Anchor
+- [ ] Deposits & withdrawals — ON ICE. Code written (Stripe, MoonPay, vault withdraw, admin 3-step flow), not committed. See `memory/deposits-withdrawals.md` for resume checklist.
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
 - [ ] Test Phantom wallet auth end-to-end on Devnet

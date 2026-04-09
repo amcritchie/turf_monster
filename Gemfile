@@ -79,3 +79,6 @@ gem "faker"
 
 # Background jobs
 gem "sidekiq"
+
+# Payment processing
+gem "stripe"

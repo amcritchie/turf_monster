@@ -10,7 +10,6 @@ class CreateThemeSettings < ActiveRecord::Migration[7.2]
       t.string :dark
       t.string :light
       t.string :slug
-
       t.timestamps
     end
 

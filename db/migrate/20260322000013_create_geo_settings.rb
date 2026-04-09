@@ -5,7 +5,6 @@ class CreateGeoSettings < ActiveRecord::Migration[7.2]
       t.boolean :enabled, default: false, null: false
       t.jsonb :banned_states, default: []
       t.string :slug
-
       t.timestamps
     end
 

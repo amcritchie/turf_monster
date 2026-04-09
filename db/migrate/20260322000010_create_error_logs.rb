@@ -14,8 +14,8 @@ class CreateErrorLogs < ActiveRecord::Migration[7.2]
       t.timestamps
     end
 
+    add_index :error_logs, :created_at
     add_index :error_logs, [:target_type, :target_id]
     add_index :error_logs, [:parent_type, :parent_id]
-    add_index :error_logs, :created_at
   end
 end

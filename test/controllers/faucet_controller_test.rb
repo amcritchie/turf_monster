@@ -3,7 +3,7 @@ require "minitest/mock"
 
 class FaucetControllerTest < ActionDispatch::IntegrationTest
   setup do
-    @user = users(:sam)          # has solana_address + phantom wallet
+    @user = users(:sam)          # has web3_solana_address (phantom wallet)
     @user_no_wallet = users(:alex) # no solana wallet
   end
 

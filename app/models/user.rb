@@ -9,13 +9,15 @@ class User < ApplicationRecord
   has_many :invitees, class_name: "User", foreign_key: :invited_by_id
 
   validates :email, uniqueness: true, allow_nil: true
-  validates :solana_address, uniqueness: true, allow_nil: true
+  validates :web2_solana_address, uniqueness: true, allow_nil: true
+  validates :web3_solana_address, uniqueness: true, allow_nil: true
   validates :username, length: { in: 3..30 }, format: { with: /\A[a-zA-Z0-9_-]+\z/, message: "only letters, numbers, hyphens, and underscores" }, uniqueness: { case_sensitive: false }, allow_nil: true
   validates :password, length: { minimum: 6 }, if: -> { password.present? }
   validates :password, confirmation: true, if: -> { password_confirmation.present? }
   validate :has_authentication_method
 
   before_save :set_name_parts, if: -> { name_changed? }
+  after_create :generate_managed_wallet!
 
   # --- Class methods ---
 
@@ -46,7 +48,7 @@ class User < ApplicationRecord
   end
 
   def self.from_solana_wallet(address)
-    find_by(solana_address: address)
+    find_by(web3_solana_address: address)
   end
 
   def admin?
@@ -107,15 +109,15 @@ class User < ApplicationRecord
   # --- Predicates ---
 
   def solana_connected?
-    solana_address.present?
+    web2_solana_address.present? || web3_solana_address.present?
   end
 
   def managed_wallet?
-    wallet_type == "managed"
+    web2_solana_address.present?
   end
 
   def phantom_wallet?
-    wallet_type == "phantom"
+    web3_solana_address.present?
   end
 
   def google_connected?
@@ -132,19 +134,24 @@ class User < ApplicationRecord
 
   # --- Solana wallet ---
 
+  # Convenience — returns "primary" address (web3 preferred, fallback web2)
+  def solana_address
+    web3_solana_address || web2_solana_address
+  end
+
   def solana_keypair
-    return nil unless encrypted_solana_private_key.present?
-    Solana::Keypair.from_encrypted(encrypted_solana_private_key)
+    return nil unless encrypted_web2_solana_private_key.present?
+    Solana::Keypair.from_encrypted(encrypted_web2_solana_private_key)
   end
 
   def generate_managed_wallet!
-    return if solana_address.present?
+    return if web2_solana_address.present?
     keypair = Solana::Keypair.generate
     update!(
-      solana_address: keypair.to_base58,
-      encrypted_solana_private_key: keypair.encrypt,
-      wallet_type: "managed"
+      web2_solana_address: keypair.to_base58,
+      encrypted_web2_solana_private_key: keypair.encrypt
     )
+    EnsureAtaJob.perform_later(keypair.to_base58)
     keypair
   end
 
@@ -223,7 +230,7 @@ class User < ApplicationRecord
   private
 
   def has_authentication_method
-    return if email.present? || solana_address.present? || (provider.present? && uid.present?)
+    return if email.present? || web3_solana_address.present? || (provider.present? && uid.present?)
     errors.add(:base, "Must have email, Solana address, or linked social account")
   end
 

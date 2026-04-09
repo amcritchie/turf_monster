@@ -70,7 +70,7 @@ class ContestsController < ApplicationController
 
       vault = Solana::Vault.new
       result = vault.build_create_contest(
-        current_user.solana_address,
+        current_user.web3_solana_address,
         @contest.slug,
         **@contest.onchain_params
       )
@@ -238,10 +238,10 @@ class ContestsController < ApplicationController
       vault = Solana::Vault.new
 
       # Ensure user's onchain account exists and is current (auto-migrate if needed)
-      vault.ensure_user_account(current_user.solana_address)
+      vault.ensure_user_account(current_user.web3_solana_address)
 
       result = vault.build_enter_contest_direct(
-        current_user.solana_address,
+        current_user.web3_solana_address,
         @contest.slug,
         entry.entry_number
       )

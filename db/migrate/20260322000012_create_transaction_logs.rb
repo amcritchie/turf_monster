@@ -14,7 +14,6 @@ class CreateTransactionLogs < ActiveRecord::Migration[7.2]
       t.string :onchain_tx
       t.jsonb :metadata, default: {}
       t.string :slug
-
       t.timestamps
     end
 

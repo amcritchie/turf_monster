@@ -84,6 +84,9 @@
                 <%= button_to "Approve", admin_transaction_approve_path(slug: txn.slug), method: :post, class: "btn btn-primary btn-sm mr-1" %>
                 <%= button_to "Deny", admin_transaction_deny_path(slug: txn.slug), method: :post, class: "btn btn-danger btn-sm",
                   data: { turbo_confirm: "Deny withdrawal and return funds to #{txn.user.display_name}?" } %>
+              <% elsif txn.status == "approved" && txn.transaction_type == "withdrawal" %>
+                <%= button_to "Mark Complete", admin_transaction_complete_path(slug: txn.slug), method: :post, class: "btn btn-secondary btn-sm",
+                  data: { turbo_confirm: "Mark as complete (fiat sent) for #{txn.user.display_name}?" } %>
               <% end %>
             </td>
           </tr>

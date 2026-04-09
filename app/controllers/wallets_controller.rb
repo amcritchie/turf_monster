@@ -1,10 +1,10 @@
 class WalletsController < ApplicationController
   before_action :require_login
-  before_action :require_geo_allowed, only: [:deposit, :withdraw]
+  before_action :require_geo_allowed, only: [:deposit, :withdraw, :stripe_deposit, :moonpay_deposit]
 
   def show
     @user = current_user
-    @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: "pending").order(created_at: :desc)
+    @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: %w[pending approved]).order(created_at: :desc)
     @recent_transactions = TransactionLog.where(user: current_user).order(created_at: :desc).limit(10)
 
     # Fetch SOL balance if wallet connected and devnet
@@ -39,6 +39,71 @@ class WalletsController < ApplicationController
     end
   rescue StandardError => e
     redirect_to wallet_path, alert: "Deposit failed: #{e.message}"
+  end
+
+  def stripe_deposit
+    amount_dollars = params[:amount].to_f
+    return redirect_to wallet_path, alert: "Amount must be between $1 and $500" unless amount_dollars >= 1 && amount_dollars <= 500
+
+    amount_cents = (amount_dollars * 100).to_i
+
+    rescue_and_log(target: current_user) do
+      session = Stripe::Checkout::Session.create(
+        payment_method_types: ["card"],
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Turf Monster Deposit" },
+            unit_amount: amount_cents
+          },
+          quantity: 1
+        }],
+        mode: "payment",
+        success_url: "#{wallet_url}?deposit=success",
+        cancel_url: "#{wallet_url}?deposit=cancelled",
+        metadata: {
+          user_id: current_user.id,
+          amount_cents: amount_cents,
+          wallet_address: current_user.solana_address
+        }
+      )
+
+      redirect_to session.url, allow_other_host: true
+    end
+  rescue StandardError => e
+    redirect_to wallet_path, alert: "Stripe checkout failed: #{e.message}"
+  end
+
+  def moonpay_deposit
+    rescue_and_log(target: current_user) do
+      raise "No wallet connected" unless current_user.solana_connected?
+
+      config = Rails.application.config.moonpay
+      raise "MoonPay not configured" unless config[:api_key].present?
+
+      params_hash = {
+        apiKey: config[:api_key],
+        currencyCode: "usdc_sol",
+        walletAddress: current_user.solana_address,
+        colorCode: "%234BAF50",
+        redirectURL: wallet_url
+      }
+
+      query_string = params_hash.map { |k, v| "#{k}=#{v}" }.join("&")
+
+      # Sign the URL if secret key is available
+      if config[:secret_key].present?
+        signature = Base64.strict_encode64(
+          OpenSSL::HMAC.digest("SHA256", config[:secret_key], "?#{query_string}")
+        )
+        query_string += "&signature=#{CGI.escape(signature)}"
+      end
+
+      moonpay_url = "#{config[:base_url]}?#{query_string}"
+      redirect_to moonpay_url, allow_other_host: true
+    end
+  rescue StandardError => e
+    redirect_to wallet_path, alert: "MoonPay failed: #{e.message}"
   end
 
   def withdraw
@@ -108,7 +173,7 @@ class WalletsController < ApplicationController
       end
 
       @user = current_user
-      @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: "pending").order(created_at: :desc)
+      @pending_withdrawals = TransactionLog.where(user: current_user, transaction_type: "withdrawal", status: %w[pending approved]).order(created_at: :desc)
       @recent_transactions = TransactionLog.where(user: current_user).order(created_at: :desc).limit(10)
       render :show
     end

@@ -45,7 +45,7 @@ CSS component classes in `application.tailwind.css`:
 - **Filter input**: Text input in the sort toolbar filters matchup cards by team name (both teams). Uses `matchesFilter()` Alpine method with `x-show` on wrapper divs. Clear X button appears when text is entered.
 
 ### Matchup Card Layout
-Flag emoji (large, negative bottom margin) → Team name (bold, lg/xl) → "Goals vs OPP" (secondary text) → Multiplier (primary, xl/2xl, prefixed with "x", integers show without decimal). Auto-shrink JS for long team names.
+Flag emoji (3xl) → Team name (bold, lg/xl) → Multiplier number (primary, 2xl/3xl, no prefix, integers without decimal) → "Points / Goal" label (singular "Point" when multiplier is 1) → Game info line (tiny, both teams' emojis + short names, e.g. "🇪🇸 ESP vs CPV 🇨🇻"). Cards use `rounded-2xl`. Standalone cards have `w-full` to fill grid cells. Auto-shrink JS for long team names.
 
 ### `.matchup-selected` class
 Uses `outline` (not border) for selection highlight — avoids layout shift. Dynamic primary color via `rgb(var(--color-primary-rgb))`. Includes `box-shadow` glow. Double-selected game pairs use inline `outline` + `box-shadow` on the wrapper div.

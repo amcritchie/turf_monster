@@ -40,14 +40,18 @@ turf.update!(password: "password") if turf.password_digest.blank?
 turf.update!(username: "turf") if turf.username.blank?
 
 # Set Phantom wallet addresses (real wallets, not managed)
+# Clear managed wallet — these users use Phantom, not managed
 {
   alex  => "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr",
   mason => "CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR",
   mack  => "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds",
   turf  => "BLSBw8fXHzZc5pbaYCKMpMSsrtXBTbWXpUPVzMrXx9oo"
 }.each do |user, address|
-  user.update!(solana_address: address, wallet_type: "phantom") unless user.solana_address == address
+  user.update!(web3_solana_address: address, web2_solana_address: nil, encrypted_web2_solana_private_key: nil)
 end
+
+# Backfill managed wallets for users without any wallet
+User.where(web2_solana_address: nil, web3_solana_address: nil).find_each(&:generate_managed_wallet!)
 
 # Give email users some promotional credits for testing
 [alex, mason, mack, turf].each do |user|
