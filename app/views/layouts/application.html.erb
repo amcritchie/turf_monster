@@ -6,11 +6,19 @@
     <script src="https://unpkg.com/@solana/web3.js@1/lib/index.iife.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl-fast.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.logr-in.com/LogRocket.min.js" crossorigin="anonymous"></script>
+    <script>window.LogRocket && window.LogRocket.init('jodsqq/mcritchie-studio');</script>
     <% content_for :head do %>
       <script>
         document.addEventListener('alpine:init', () => {
           Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
         });
+        <% if logged_in? && current_user %>
+          window.LogRocket && window.LogRocket.identify('<%= current_user.slug %>', {
+            name: '<%= j(current_user.username || current_user.name || "") %>',
+            email: '<%= j(current_user.email || "") %>'
+          });
+        <% end %>
         <% if logged_in? && Solana::Config.devnet? %>
           document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
         <% end %>
