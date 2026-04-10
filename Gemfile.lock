@@ -7,7 +7,7 @@ GIT
 
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: c313dcd4aabe0820d4f4f75cd82ca29219520599
+  revision: 4d58381097b82c5c39d6b4b0334843cb3111a565
   specs:
     studio (0.2.4)
       faker (>= 2.0)
@@ -283,7 +283,7 @@ GEM
       base64 (>= 0.1.0)
       logger (>= 1.6.0)
       rack (>= 3.0.0, < 4)
-    rack-session (2.1.1)
+    rack-session (2.1.2)
       base64 (>= 0.1.0)
       rack (>= 3.0.0)
     rack-test (2.2.0)
