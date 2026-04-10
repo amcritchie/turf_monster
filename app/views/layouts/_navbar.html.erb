@@ -75,9 +75,12 @@
     <%= link_to "Join Contest", root_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= render "components/geo_badge" %>
-    <span class="ml-auto flex items-center gap-3">
-      <%= render "components/admin_dropdown" %>
-      <%= render "components/theme_toggle" %>
-    </span>
+    <% unless show_user %>
+      <%# Only show gear+moon here when logged out — when logged in, _user_nav already has them %>
+      <span class="ml-auto flex items-center gap-3">
+        <%= render "components/admin_dropdown" %>
+        <%= render "components/theme_toggle" %>
+      </span>
+    <% end %>
   </div>
 </header>
