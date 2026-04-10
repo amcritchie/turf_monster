@@ -97,7 +97,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 **From the engine:** `Studio::ErrorHandling`, `ErrorLog` model, `Sluggable` concern, auth controllers, error log views, theme system.
 
-**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb`, `sessions/_sso_continue.html.erb`, `omniauth_callbacks_controller.rb` (merge support).
+**Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb`, `sessions/_sso_continue.html.erb`, `omniauth_callbacks_controller.rb` (merge support), `layouts/_navbar.html.erb` (app-specific nav links, mobile sub-navbar with duplicate gear+moon fix).
 
 **Routes:** `Studio.routes(self)` draws `/login`, `/signup`, `/logout`, `/sso_continue`, `/sso_login`, `/auth/:provider/callback`, `/error_logs`, `/admin/theme`.
 
@@ -195,6 +195,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Known Gotchas
 
+- **Theme toggle store**: Engine refactored `Alpine.store('theme')` to an object with `toggle()` method and `isDark` getter. Toggle icons now use Heroicons v2.
 - **Hold button guard**: Use `<%== %>` (raw output) in `<script>` tags, NOT `<%= %>` which HTML-escapes `>` to `&gt;`
 - **Selection count = 5**: Hardcoded in multiple places — see Architecture section
 - **Tailwind class compilation**: New utility classes won't compile unless already used elsewhere. Use inline `style` for one-offs.
