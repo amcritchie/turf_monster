@@ -132,6 +132,9 @@ Rails.application.routes.draw do
 
   post "add_funds", to: "users#add_funds"
 
+  # Admin: Navbar review
+  get "admin/navbar", to: "admin#navbar", as: :admin_navbar
+
   # Admin: Mint USDC (devnet) + balance check
   post "admin/mint_usdc", to: "admin#mint_usdc", as: :admin_mint_usdc
   get "admin/usdc_balance", to: "admin#usdc_balance", as: :admin_usdc_balance

@@ -1,0 +1,147 @@
+<% content_for(:title, "Navbar Review") %>
+
+<style>
+  /* Preview container base */
+  .navbar-preview {
+    overflow: hidden;
+    border: 2px solid var(--color-border-strong);
+    border-radius: 0.5rem;
+    pointer-events: none;
+    transition: width 0.15s ease;
+  }
+  .navbar-preview header { position: static !important; }
+
+  /* Mobile previews: force mobile layout (undo md: classes active at desktop viewport) */
+  .navbar-preview.is-mobile .hidden.md\:flex { display: none !important; }
+  .navbar-preview.is-mobile .hidden.md\:block { display: none !important; }
+  .navbar-preview.is-mobile .flex.md\:hidden { display: flex !important; }
+  .navbar-preview.is-mobile .user-nav-col { padding-left: 0 !important; padding-right: 1rem !important; }
+  .navbar-preview.is-mobile .nav-title { flex-direction: column !important; gap: 0 !important; line-height: 1.15 !important; }
+  .navbar-preview.is-mobile .nav-title span:first-child { margin-bottom: -4px !important; }
+  .navbar-preview.is-mobile .nav-title span:last-child { font-size: 1.5rem !important; }
+  .navbar-preview.is-mobile .nav-logo-link { gap: 0.5rem !important; }
+
+  /* Tiny (< 400px) */
+  .navbar-preview.bp-tiny .nav-title { font-size: 1.1rem !important; }
+  .navbar-preview.bp-tiny .nav-title span:last-child { font-size: 1.3rem !important; }
+  .navbar-preview.bp-tiny .nav-logo-link { gap: 0.25rem !important; }
+  .navbar-preview.bp-tiny .user-nav-col { width: 14rem !important; }
+  .navbar-preview.bp-tiny .username-cap { max-width: 5rem !important; }
+
+  /* Small (400–767px) */
+  .navbar-preview.bp-small .nav-title { font-size: 1.25rem !important; }
+  .navbar-preview.bp-small .user-nav-col { width: 15rem !important; }
+  .navbar-preview.bp-small .username-cap { max-width: 6rem !important; }
+
+  /* Desktop (768px+) */
+  .navbar-preview.is-desktop .user-nav-col { width: 20rem !important; }
+  .navbar-preview.is-desktop .username-cap { max-width: 7rem !important; }
+
+  /* Transitions for scrolled toggle */
+  .navbar-preview .nav-logo { transition: width 0.3s, height 0.3s; }
+  .navbar-preview .nav-title,
+  .navbar-preview .nav-title span:last-child { transition: font-size 0.3s; }
+  .navbar-preview .py-6 { transition: padding 0.3s; }
+  .navbar-preview header { transition: box-shadow 0.3s, border-color 0.3s; }
+  .navbar-preview [data-balance-display] { transition: font-size 0.3s; }
+
+  /* Scrolled state: base (all breakpoints) */
+  .navbar-preview.is-scrolled-preview header { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-bottom: 1px solid var(--color-border-subtle); }
+  .navbar-preview.is-scrolled-preview .py-6 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  .navbar-preview.is-scrolled-preview .nav-logo { width: 2rem !important; height: 2rem !important; }
+  .navbar-preview.is-scrolled-preview .nav-title { font-size: 1.25rem !important; }
+  .navbar-preview.is-scrolled-preview [data-balance-display] { font-size: 1.125rem !important; }
+
+  /* Scrolled state: mobile overrides */
+  .navbar-preview.is-mobile.is-scrolled-preview .nav-logo { width: 2.5rem !important; height: 2.5rem !important; }
+  .navbar-preview.bp-tiny.is-scrolled-preview .nav-title { font-size: 0.9rem !important; }
+  .navbar-preview.bp-tiny.is-scrolled-preview .nav-title span:last-child { font-size: 1rem !important; }
+  .navbar-preview.bp-small.is-scrolled-preview .nav-title { font-size: 1rem !important; }
+  .navbar-preview.bp-small.is-scrolled-preview .nav-title span:last-child { font-size: 1.15rem !important; }
+
+  /* Slider with device marker */
+  .slider-wrap { position: relative; }
+  .slider-wrap input[type="range"] { width: 100%; accent-color: var(--color-cta); }
+  .navbar-card { margin-bottom: 1px; }
+  .slider-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 14px;
+    background: var(--color-cta);
+    pointer-events: none;
+    border-radius: 1px;
+  }
+</style>
+
+<div class="py-8 space-y-10" x-data="{
+       previewName: '',
+       updateNames() {
+         var els = document.querySelectorAll('.navbar-preview [data-username-display]');
+         var name = this.previewName;
+         els.forEach(function(el) {
+           el.textContent = name || el.getAttribute('data-original-name');
+           var data = Alpine.$data(el);
+           if (data) { data.overflows = el.scrollWidth > el.clientWidth; }
+         });
+       },
+       init() {
+         var els = document.querySelectorAll('.navbar-preview [data-username-display]');
+         els.forEach(function(el) { el.setAttribute('data-original-name', el.textContent.trim()); });
+       }
+     }" x-effect="updateNames()">
+  <div>
+    <h1 class="text-2xl font-bold text-heading">Navbar Review</h1>
+    <div class="flex items-center gap-4 mt-1">
+      <p class="text-sm text-muted">Desktop (1200px+) is the live navbar above.</p>
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-muted font-medium">Username:</label>
+        <input type="text" x-model="previewName" placeholder="<%= current_user.display_name %>"
+               class="input-field text-xs !py-1 !px-2 !w-36">
+      </div>
+    </div>
+  </div>
+
+  <% breakpoints = [
+    { name: "Tiny",   min: 320, max: 399, classes: "is-mobile bp-tiny",  device: "iPhone 15", device_w: 390 },
+    { name: "Small",  min: 400, max: 767, classes: "is-mobile bp-small", device: "iPhone 16 Pro Max", device_w: 430 },
+    { name: "Tablet", min: 768, max: 1200, classes: "is-desktop",        device: "iPad Pro 13\"", device_w: 1032 },
+  ] %>
+
+  <% [
+    { title: "Logged-In View",  show_logged_in: true },
+    { title: "Pre-Login View",  show_logged_in: false },
+  ].each do |section| %>
+    <section class="space-y-6">
+      <h2 class="text-lg font-semibold text-heading"><%= section[:title] %></h2>
+      <div class="grid gap-8">
+        <% breakpoints.each do |bp|
+             marker_pct = ((bp[:device_w] - bp[:min]).to_f / (bp[:max] - bp[:min]) * 100).round(1)
+        %>
+          <div x-data="{ w: <%= bp[:device_w] %>, scrolled: false }" class="navbar-card">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="text-sm font-bold text-heading"><%= bp[:name] %></span>
+              <span class="text-xs text-muted font-mono" x-text="w + 'px'"><%= bp[:device_w] %>px</span>
+              <div class="flex-1 max-w-xs slider-wrap">
+                <input type="range" min="<%= bp[:min] %>" max="<%= bp[:max] %>" x-model="w">
+                <div class="slider-marker" style="left: <%= marker_pct %>%;"></div>
+              </div>
+              <button @click="w = <%= bp[:device_w] %>" class="text-xs text-primary hover:text-primary-300 font-medium transition whitespace-nowrap">
+                <%= bp[:device] %> (<%= bp[:device_w] %>px)
+              </button>
+              <span class="text-xs text-muted font-mono"><%= bp[:min] %>–<%= bp[:max] %>px</span>
+              <button @click="scrolled = !scrolled" class="text-xs font-bold px-2 py-0.5 rounded transition"
+                      :class="scrolled ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'">
+                Scrolled
+              </button>
+            </div>
+            <div class="navbar-preview <%= bp[:classes] %>" :class="scrolled && 'is-scrolled-preview'" :style="'width: ' + w + 'px'">
+              <%= render "layouts/navbar", preview: true, show_logged_in: section[:show_logged_in] %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</div>

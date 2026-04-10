@@ -1,6 +1,9 @@
 class AdminController < ApplicationController
   before_action :require_admin, except: [:usdc_balance]
 
+  def navbar
+  end
+
   def usdc_balance
     return render json: { error: "Not logged in" }, status: :unauthorized unless logged_in?
     return render json: { balance: current_user.total_balance_dollars } unless Solana::Config.devnet?

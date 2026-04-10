@@ -245,6 +245,19 @@
   }
   .hold-btn.process .nudge-debug, .hold-btn.success .nudge-debug { opacity: 0; }
 
+  /* ── Dev Mode Debug Colors ── */
+  .dev-mode .dm-blue     { background: rgba(100, 149, 237, 0.75) !important; } /* cornflowerblue */
+  .dev-mode .dm-green    { background: rgba(144, 238, 144, 0.75) !important; } /* lightgreen */
+  .dev-mode .dm-orange   { background: rgba(244, 164, 96, 0.75) !important; } /* sandybrown */
+  .dev-mode .dm-salmon   { background: rgba(250, 128, 114, 0.75) !important; } /* lightsalmon */
+  .dev-mode .dm-purple   { background: rgba(128, 0, 128, 0.75) !important; } /* purple */
+  .dev-mode .dm-coral    { background: rgba(240, 128, 128, 0.75) !important; } /* lightcoral */
+  .dev-mode .dm-yellow   { background: rgba(240, 230, 140, 0.75) !important; } /* khaki */
+  .dev-mode .dm-teal     { background: rgba(175, 238, 238, 0.75) !important; } /* paleturquoise */
+
+  /* Nav level-up bounce (shared by _user_nav and _navbar_seeds_bar) */
+  .nav-level-pop { animation: navLevelPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
   .matchup-selected {
     outline: 3px solid rgb(var(--color-primary-rgb));
     outline-offset: -3px;
@@ -260,6 +273,14 @@
   }
 }
 
+@keyframes navLevelPop {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.5); }
+  35% { transform: scale(1.2); }
+  50% { transform: scale(1.4); }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
 @keyframes progress-countdown {
   from { width: 100%; }
   to { width: 0%; }

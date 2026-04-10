@@ -87,29 +87,47 @@ When hold-to-confirm hits a blocker (geo-blocked, not logged in, insufficient fu
 - `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component
 
 ## Navbar
-Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state using hysteresis (scrolls past 30px to compact, back below 5px to expand — prevents jittery toggling). On scroll: logo shrinks `w-12→w-8`, title `text-3xl→text-xl`, padding `py-6→py-2`, adds `shadow-lg border-b border-subtle`. All transitions 300ms.
+
+Extracted to `layouts/_navbar.html.erb` partial. Sticky, scroll-responsive. Full-width `sticky top-0 z-50 bg-page` with Alpine `scrolled` state using hysteresis (scrolls past 30px to compact, back below 5px to expand — prevents jittery toggling). On scroll: header adds `is-scrolled` class + `shadow-lg border-b border-subtle`, logo shrinks `w-12→w-8` (mobile: `w-10`), title `text-3xl→text-xl`, padding `py-6→py-2`. All transitions 300ms via `transition-all duration-300`.
+
+### Partial locals
+- `show_logged_in` — override `logged_in?` (default: real session). Used by admin preview to force logged-in/out views.
+- `preview` — disables scroll handler and sticky positioning. Uses static Tailwind classes instead of Alpine `x-bind:class` bindings.
 
 ### Responsive breakpoints
-Custom `<style>` block in `<header>` with three tiers:
-- **< 400px**: `.user-nav-col` 14rem, `.nav-logo-link` gap 0.25rem, `.nav-title` 1.1rem
-- **400–767px**: `.user-nav-col` 15rem, `.nav-logo` 2rem (matches avatar), `.nav-title` 1.25rem
-- **768px+**: `.user-nav-col` 20rem, logo/title use Alpine scroll animation
+Custom `<style>` block in `<header>` with three tiers. Mobile title stacks "Turf"/"Totals" vertically via `flex-direction: column` with `-4px` bottom margin on "Turf" to tighten spacing. "Totals" renders larger than "Turf" on mobile.
+
+| Range | `.user-nav-col` | `.nav-title` | `.nav-title span:last-child` | Notes |
+|---|---|---|---|---|
+| **< 400px** | 14rem | 1.1rem | 1.3rem | Gap 0.25rem on logo link |
+| **400–767px** | 15rem | 1.25rem | 1.5rem | Gap 0.5rem on logo link |
+| **768px+** | 20rem | Alpine `text-3xl`/`text-xl` | — | Side-by-side title, no stacking |
+
+Scrolled state on mobile (via `.is-scrolled` ancestor):
+| Range | `.nav-title` | `span:last-child` | `.nav-logo` |
+|---|---|---|---|
+| **< 400px** | 0.9rem | 1rem | 2.5rem (w-10) |
+| **400–767px** | 1rem | 1.15rem | 2.5rem (w-10) |
 
 ### Left side
-Logo (`.nav-logo`) + "Turf Totals" brand title (`.nav-title`, visible on all sizes), desktop nav links (`hidden md:flex`: Join Contest, Rules, DEV toggle, Devnet badge, geo badge).
+Logo (`.nav-logo`) + "Turf Totals" brand title (`.nav-title` with two `<span>`s), desktop nav links (`hidden md:flex`: Join Contest, Rules, geo badge).
 
 ### Mobile sub-navbar
-`flex md:hidden` compact row below main nav with `bg-surface-alt border-t border-subtle`. Contains: Join Contest, Rules, DEV toggle, Devnet badge, geo badge. Theme toggle + admin dropdown pushed right via `ml-auto`.
+`flex md:hidden` compact row below main nav with `bg-surface-alt border-t border-subtle`. Contains: Join Contest, Rules, geo badge. Theme toggle + admin dropdown pushed right via `ml-auto`.
+
+### Environment banner
+Lives in `application.html.erb`, **not** in the navbar partial. Conditional on `Solana::Config.devnet?`. Full-width yellow bar (`bg-yellow-500 text-black`) above the sticky header. Contains: centered "X Environment" label, right-aligned DEV MODE toggle + DEVNET badge. Not sticky — scrolls away naturally. The DEV MODE toggle uses `$store.devMode` (see Dev Mode section).
 
 ### Geo badge
 Extracted to `_geo_badge.html.erb` partial — shared by desktop nav and mobile sub-navbar. State flag image uses inline styles for reliable sizing (`height: 12px; width: 16px; object-fit: cover`). Badge shape is `rounded-lg`.
 
 ### Right side — logged in: two-row block + avatar
-- **Row 1 (Div 1)**: balance, refresh button, username. Theme toggle + gear hidden on mobile (`hidden md:flex`/`hidden md:block`), shown in sub-navbar instead. Right-only padding via inline `:style`. Dev mode background via Alpine `:style`.
-- **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. Wallet address (left) + Level X (right). `margin-left: -6px` to align with balance above. Green fill bar (14px height) animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted underneath, white on top with `clip-path` reveal. Level-up: bar fills 100% → Level bounces (`nav-level-pop` keyframe) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
+- **Row 1 (Div 1)**: balance, refresh button, username. Theme toggle + gear hidden on mobile (`hidden md:flex`/`hidden md:block`), shown in sub-navbar instead. `padding-right: 6px` via inline style.
+- **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. CSS classes: `.seeds-bar` (container sizing), `.seeds-fill` (gradient + transition), `.seeds-text` (10px font). Wallet address (left) + Level X (right). Green fill bar animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted underneath, white on top with `clip-path` reveal. Level-up: bar fills 100% → Level bounces (`.nav-level-pop` class, `navLevelPop` keyframe in `application.tailwind.css`) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
 - **Avatar**: `_avatar.html.erb` partial (size "nav" = `w-8 h-8`), outside the two-row block. Links to `/account`.
 - Balance shows whole dollars only (no cents) — JS `refreshBalance` uses `Math.floor`, ERB uses `.to_i`.
-- Username and balance link to `/account` and `/wallet` respectively.
+- Username and balance link to `/account` and `/wallet` respectively. Both use `transition-all duration-300` for smooth scroll-responsive font-size changes.
+- **Username overflow fade**: `.username-cap` class sets responsive `max-width` (5rem tiny, 6rem small, 7rem desktop). When text overflows, Alpine applies a CSS `mask-image` gradient to fade the trailing edge. Overflow is recalculated when the navbar review page's username input changes.
 - User nav column has `pl-0 pr-4 md:px-4` — no left padding on mobile.
 
 ### Right side — logged out
@@ -126,15 +144,37 @@ Public marketing page with hero, "How It Works" cards, and USDC claim form. Mint
 
 ## Admin Dropdowns
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): Soccer ball emoji trigger, links to Teams and Games pages.
-- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon, links to Theme, Slates, Formula, Formula Defaults, Error Logs, Replay Level (dispatches `navbar-replay-level` event), Reset Contest.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon, links to Theme, Navbar, Schema, Slates, Formula, Formula Defaults, Transactions, Error Logs, Geo Settings, Jobs, Replay Level (dispatches `navbar-replay-level` event), Reset Contest.
 
 ## Dev Mode
-- Global `Alpine.store('devMode')` persisted to `localStorage`
-- `<body>` gets `.dev-mode` class when active
-- DEV toggle in header nav bar — yellow badge when active, subtle dark button when off
-- Debug tools hidden by default, visible when `.dev-mode` is on body (e.g. nudge countdown ring)
-- Future debug tools should use `.dev-mode` ancestor selector or `$store.devMode` in Alpine
-- Seeds XP bar has a "Replay" link (left of Level badge) visible only in dev mode — triggers a simulated level-up animation
+- **Toggle**: DEV MODE button in the environment banner (top of page, devnet only). Highlights `bg-primary text-white` when active, subtle `bg-black/20` when off.
+- **Store**: Global `Alpine.store('devMode')` persisted to `localStorage`, initialized on `alpine:init`
+- **Body class**: `<body>` gets `.dev-mode` class when active — use `.dev-mode .your-class` for CSS-only debug visuals
+
+### Debug Color Classes (`dm-*`)
+Reusable CSS classes in `application.tailwind.css` that show colored backgrounds only when dev mode is active. Each uses 75% opacity so overlapping components blend visually. Just add the class to any element — no Alpine bindings needed.
+
+| Class | Color | RGB |
+|-------|-------|-----|
+| `.dm-blue` | Cornflowerblue | `rgba(100, 149, 237, 0.75)` |
+| `.dm-green` | Lightgreen | `rgba(144, 238, 144, 0.75)` |
+| `.dm-orange` | Sandybrown | `rgba(244, 164, 96, 0.75)` |
+| `.dm-salmon` | Lightsalmon | `rgba(250, 128, 114, 0.75)` |
+| `.dm-purple` | Purple | `rgba(128, 0, 128, 0.75)` |
+| `.dm-coral` | Lightcoral | `rgba(240, 128, 128, 0.75)` |
+| `.dm-yellow` | Khaki | `rgba(240, 230, 140, 0.75)` |
+| `.dm-teal` | Paleturquoise | `rgba(175, 238, 238, 0.75)` |
+
+**Current assignments** (navbar only):
+- `_navbar.html.erb`: "Turf"=`dm-salmon`, "Totals"=`dm-yellow`, desktop nav=`dm-teal`, user-nav-col=`dm-purple`, mobile sub-nav=`dm-coral`, balance=`dm-blue`
+- `_user_nav.html.erb`: icons (moon/gear/spin)=`dm-teal`, username=`dm-coral`, seeds bar container=`dm-orange`, avatar link=`dm-green`
+- `_navbar_seeds_bar.html.erb`: seeds bar wrapper=`dm-orange`
+
+- **Current uses**:
+  - Debug color classes (`dm-*`): layout boundary visualization on navbar/user nav components (see table above)
+  - Hidden UI reveals: leaderboard entry debug details, seeds bar "Replay" link, XP slate "Replay" link (all via `x-show="$store.devMode"`)
+  - CSS hook: `.dev-mode .nudge-debug { display: block; }` in `application.tailwind.css`
+- **Adding new debug tools**: Use `x-show="$store.devMode" x-cloak` for Alpine-toggled elements. For layout debugging, add a `dm-*` class to the element — no other changes needed.
 
 ## Seeds XP Bar (`_slate_progress_xp.html.erb`)
 - Progress bar showing seeds toward next level with animated fill, shimmer, and glow
@@ -153,3 +193,54 @@ When SSO session available, blur overlay covers the entire card (`absolute inset
 ## Contest Show Layout
 - Seeds progress bar and invite card rendered side-by-side on desktop (`flex gap-4 flex-wrap items-stretch` with `flex-1 basis-[300px]`), stacked on mobile.
 - "+ Add Another Entry" button appears in the admin actions row (next to Lock Contest, Jump, Rank Matchups) rather than as a standalone section.
+
+## Admin Preview Tools
+
+### Navbar Review (`/admin/navbar`)
+Admin page for visually comparing the navbar at all key breakpoints without resizing the browser. Route: `get "admin/navbar"` → `admin#navbar`. Linked from admin dropdown.
+
+**Architecture**: Renders the `layouts/navbar` partial (with `preview: true`) inside `.navbar-preview` wrapper divs. Container-scoped CSS classes simulate responsive breakpoints at any viewport width — this is necessary because Tailwind/CSS media queries respond to the viewport, not the container.
+
+**Breakpoint simulation classes** (on the `.navbar-preview` wrapper):
+| Class | Range | Overrides |
+|---|---|---|
+| `.is-mobile .bp-tiny` | 320–399px | Hide `md:flex`, show `md:hidden`, stack title, 1.1rem font |
+| `.is-mobile .bp-small` | 400–767px | Same visibility, stack title, 1.25rem font |
+| `.is-desktop` | 768–1200px | Default responsive behavior |
+
+**Interactive controls per breakpoint**:
+- Width slider with range min/max matching the breakpoint range
+- Device marker (vertical line at the device width: iPhone 15 390px, iPhone 16 Pro Max 430px, iPad Pro 13" 1032px)
+- Reset button to snap to device width
+- **Scrolled toggle**: Adds/removes `is-scrolled-preview` class on the wrapper with CSS transitions (0.3s). All scroll effects (padding, logo size, title size, balance size, header shadow) are CSS-only overrides — no DOM swapping. This ensures smooth animated transitions.
+
+**Username override**: Text input at the top of the page temporarily overrides the displayed username in all previews (not persisted). Uses `data-username-display` attribute on the username link for targeting. On change, recalculates the overflow fade mask (`overflows` flag) so the gradient fade activates/deactivates at the correct `.username-cap` max-width per breakpoint.
+
+**Sections**: Logged-In View + Pre-Login View, each with all three breakpoints. Deduplicated via loop over `[{ title:, show_logged_in: }]`.
+
+**Key pattern**: When simulating responsive behavior in a preview container, use container-scoped CSS class selectors with `!important` rather than media queries. Add `transition` properties to the preview elements so state changes (like scrolled toggle) animate smoothly.
+
+## CSS Refactoring Standards
+
+### Inline style consolidation
+- **2+ occurrences** → extract to a named CSS class in a `<style>` block (e.g., `font-size: 10px` × 4 → `.seeds-text`)
+- **Component-scoped names**: Use descriptive prefixes tied to the component (e.g., `seeds-bar`, `seeds-fill`, `seeds-text` for the seeds progress bar)
+- **One-off layout values** can stay inline (e.g., `max-width: 6rem`, `padding-right: 6px`) — don't create a class for a single use
+
+### Dynamic vs static styles
+- **Static properties**: Use CSS classes or Tailwind utilities
+- **Alpine-controlled state**: Use `:style` bindings, but split from static properties. Don't mix static padding and conditional devMode background in one `:style` — use `style="..."` for static + `:style="..."` for dynamic
+- **Scroll-responsive sizes**: Use Alpine `x-bind:class` with Tailwind size classes (e.g., `scrolled ? 'text-lg' : 'text-xl'`). Pair with `transition-all duration-300` to animate the change.
+
+### Transitions
+- **Matching durations**: All scroll-responsive elements use `0.3s` / `duration-300` — keep consistent across logo, title, padding, balance, username
+- **`transition` vs `transition-all`**: Tailwind's `transition` only covers color/opacity/shadow/transform — does NOT include `font-size` or `width`. Use `transition-all duration-300` when Alpine toggles size classes, or explicit `transition: font-size 0.3s` in CSS.
+- **Preview transitions**: Define transitions in the admin preview CSS (`.navbar-preview .nav-logo { transition: width 0.3s, height 0.3s; }`) since preview mode skips the Tailwind transition classes
+
+### Admin preview CSS pattern
+When building a component preview that needs to simulate responsive behavior:
+1. Render the real partial with a `preview` flag that disables dynamic behavior (scroll handlers, sticky positioning)
+2. Wrap in a container with breakpoint-simulation classes (e.g., `.is-mobile`, `.bp-tiny`)
+3. Override Tailwind responsive utilities with `!important` on the container-scoped selectors
+4. For state toggles (scrolled, hover), use CSS class toggling with transitions — never swap between two separate DOM renders (kills transitions)
+5. Use higher-specificity selectors for state + breakpoint combinations (e.g., `.bp-tiny.is-scrolled-preview .nav-title` beats `.is-scrolled-preview .nav-title`)
