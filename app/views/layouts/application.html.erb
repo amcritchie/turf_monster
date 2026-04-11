@@ -10,9 +10,6 @@
     <script>window.LogRocket && window.LogRocket.init('jodsqq/mcritchie-studio');</script>
     <% content_for :head do %>
       <script>
-        document.addEventListener('alpine:init', () => {
-          Alpine.store('devMode', localStorage.getItem('devMode') === 'true');
-        });
         <% if logged_in? && current_user %>
           window.LogRocket && window.LogRocket.identify('<%= current_user.slug %>', {
             name: '<%= j(current_user.username || current_user.name || "") %>',
@@ -55,18 +52,10 @@
   </head>
 
   <body x-data class="bg-page text-body min-h-screen" :class="{ 'dev-mode': $store.devMode }" data-logged-in="<%= logged_in? %>" data-wallet-address="<%= current_user&.solana_address %>" data-solana-cluster="<%= Solana::Config.devnet? ? 'devnet' : 'mainnet-beta' %>">
-    <% unless Rails.env.production? %>
-      <div class="bg-yellow-500 text-black text-xs font-bold py-0.5 flex items-center justify-center relative">
-        <span><%= Rails.env.capitalize %> Environment</span>
-        <span class="absolute right-2 flex items-center gap-1.5">
-          <button @click="$store.devMode = !$store.devMode; localStorage.setItem('devMode', $store.devMode)"
-                  class="px-1.5 rounded text-[10px] font-bold transition cursor-pointer"
-                  :class="$store.devMode ? 'bg-black/40 text-white' : 'bg-black/20 text-black'">DEV MODE</button>
-          <% if Solana::Config.devnet? %>
-            <span class="px-1.5 rounded text-[10px] font-bold bg-black/20">DEVNET</span>
-          <% end %>
-        </span>
-      </div>
+    <%= render "components/dev_banner" do %>
+      <% if Solana::Config.devnet? %>
+        <span class="px-1.5 rounded text-[10px] font-bold bg-black/20">DEVNET</span>
+      <% end %>
     <% end %>
     <%= render "layouts/navbar" %>
 
