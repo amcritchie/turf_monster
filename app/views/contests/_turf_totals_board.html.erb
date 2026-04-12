@@ -234,7 +234,7 @@
         }
 
         // Wallet + onchain: skip DB balance check (USDC comes from wallet)
-        const directOnchain = this.contestOnchain && this.walletConnected && walletProvider.isAvailable();
+        const directOnchain = this.contestOnchain && this.walletConnected && window.walletProvider.isAvailable();
 
         if (!directOnchain && this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
           this.setHoldError();
@@ -260,7 +260,7 @@
         try {
           if (directOnchain) {
             // === Direct onchain path: wallet signs USDC transfer ===
-            const provider = walletProvider.detect();
+            const provider = window.walletProvider.detect();
             Alpine.store('solanaModal').show('Sign Entry', 'Approve in your wallet...');
 
             const resp = await provider.connect();
@@ -299,7 +299,7 @@
 
             Alpine.store('solanaModal').show('Confirming Onchain', 'Submitting transaction to Solana...');
             const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'), 'confirmed');
-            const txSig = await connection.sendRawTransaction(signedTx.serialize());
+            const txSig = await connection.sendRawTransaction(signedTx.serialize(), { skipPreflight: true, maxRetries: 3 });
 
             Alpine.store('solanaModal').show('Confirming Onchain', 'Waiting for Solana confirmation...');
             await connection.confirmTransaction(txSig, 'confirmed');
@@ -358,9 +358,9 @@
           } else {
             // === Standard path: managed wallet or non-onchain contest ===
             let bodyData = {};
-            if (this.contestOnchain && this.walletConnected && walletProvider.isAvailable()) {
+            if (this.contestOnchain && this.walletConnected && window.walletProvider.isAvailable()) {
               // Wallet + onchain but directOnchain was false (shouldn't happen, but fallback)
-              const provider = walletProvider.detect();
+              const provider = window.walletProvider.detect();
               Alpine.store('solanaModal').show('Sign Entry', 'Approve in your wallet...');
               const resp = await provider.connect();
               const pubkeyB58 = resp.publicKey.toBase58();
@@ -653,7 +653,7 @@
           on_success: "d.confirmEntry()",
           early_action: "d.confirmEntry()",
           early_action_at: 1500,
-          early_action_guard: "d.contestOnchain && d.walletConnected && walletProvider.isAvailable()" %>
+          early_action_guard: "d.contestOnchain && d.walletConnected && window.walletProvider.isAvailable()" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
                 class="w-full py-2 text-sm font-semibold text-secondary hover:text-red-400 transition">
@@ -726,7 +726,7 @@
         on_success: "d.confirmEntry()",
         early_action: "d.confirmEntry()",
         early_action_at: 1500,
-        early_action_guard: "d.contestOnchain && d.walletConnected && walletProvider.isAvailable()" %>
+        early_action_guard: "d.contestOnchain && d.walletConnected && window.walletProvider.isAvailable()" %>
     </div>
     <p x-show="selectionCount < <%= @contest.picks_required %>" class="text-heading font-bold text-sm text-center mb-3">Your Picks</p>
     <div class="grid grid-cols-3 gap-1.5">

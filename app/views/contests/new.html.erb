@@ -51,7 +51,7 @@
         </div>
       </div>
 
-      <div x-data="{ hasWallet: walletProvider.isAvailable() }">
+      <div x-data="{ hasWallet: window.walletProvider.isAvailable() }">
         <template x-if="hasWallet">
           <div>
             <button type="submit" class="btn btn-primary btn-lg w-full">Create Contest</button>
@@ -93,7 +93,7 @@
           // 2. Connect wallet + prepare partial-signed tx
           Alpine.store('solanaModal').show('Creating Contest', 'Preparing onchain transaction...');
 
-          var provider = walletProvider.detect();
+          var provider = window.walletProvider.detect();
           if (!provider) throw new Error('No wallet available');
           await provider.connect();
 
@@ -123,7 +123,7 @@
           Alpine.store('solanaModal').show('Confirming Onchain', 'Submitting transaction to Solana...');
 
           var connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('devnet'), 'confirmed');
-          var txSig = await connection.sendRawTransaction(signedTx.serialize());
+          var txSig = await connection.sendRawTransaction(signedTx.serialize(), { skipPreflight: true, maxRetries: 3 });
 
           Alpine.store('solanaModal').show('Confirming Onchain', 'Waiting for Solana confirmation...');
           await connection.confirmTransaction(txSig, 'confirmed');
