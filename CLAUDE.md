@@ -163,6 +163,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ### Admin
 - `/slates/*` — formula editor. See `docs/FORMULAS.md`.
+- `/toast_test` — Toast notification test page (all variants, server-side flash test)
 - `/admin/theme` — theme editor (from engine)
 - `/admin/jobs` — Sidekiq dashboard (admin-only, mounted via route constraint)
 - `/admin/geo` — geo settings
