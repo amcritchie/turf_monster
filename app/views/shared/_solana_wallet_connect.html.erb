@@ -1,11 +1,11 @@
 <%# locals: (link_mode: false) %>
 <div x-data="solanaWalletConnect(<%= link_mode %>)" x-cloak>
-  <%# Desktop: extension available — normal connect flow %>
+  <%# Wallet available (Phantom extension, keypair, etc.) — normal connect flow %>
   <template x-if="walletAvailable">
     <button @click="connect()" :disabled="connecting"
             class="btn btn-secondary btn-lg w-full gap-3 hover:shadow-violet/20 disabled:cursor-wait">
-      <img src="/phantom-white.png" alt="Phantom" class="w-5 h-5">
-      <span x-text="statusText">Connect Phantom</span>
+      <img src="/phantom-white.png" alt="Wallet" class="w-5 h-5">
+      <span x-text="statusText">Connect Wallet</span>
     </button>
   </template>
 
@@ -18,7 +18,7 @@
     </button>
   </template>
 
-  <%# Desktop: no extension, show install link %>
+  <%# Desktop: no wallet, show install link %>
   <template x-if="!walletAvailable && !isMobile">
     <a href="https://phantom.app/download" target="_blank" rel="noopener"
        class="btn btn-secondary btn-lg w-full gap-3">

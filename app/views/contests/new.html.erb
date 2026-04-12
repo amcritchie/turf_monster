@@ -51,16 +51,16 @@
         </div>
       </div>
 
-      <div x-data="{ hasPhantom: !!(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom) }">
-        <template x-if="hasPhantom">
+      <div x-data="{ hasWallet: walletProvider.isAvailable() }">
+        <template x-if="hasWallet">
           <div>
             <button type="submit" class="btn btn-primary btn-lg w-full">Create Contest</button>
-            <p class="text-xs text-muted text-center mt-2">Phantom wallet signs the bonus USDC transfer</p>
+            <p class="text-xs text-muted text-center mt-2">Wallet signs the bonus USDC transfer</p>
           </div>
         </template>
-        <template x-if="!hasPhantom">
+        <template x-if="!hasWallet">
           <div class="text-center p-4 bg-surface-alt rounded-lg border border-subtle">
-            <p class="text-heading font-semibold mb-1">Phantom Wallet Required</p>
+            <p class="text-heading font-semibold mb-1">Wallet Required</p>
             <p class="text-sm text-secondary">Install and connect <a href="https://phantom.app" target="_blank" class="text-primary underline">Phantom</a> to create onchain contests.</p>
           </div>
         </template>
@@ -90,18 +90,18 @@
 
           var contestSlug = createData.slug;
 
-          // 2. Connect Phantom + prepare partial-signed tx
+          // 2. Connect wallet + prepare partial-signed tx
           Alpine.store('solanaModal').show('Creating Contest', 'Preparing onchain transaction...');
 
-          var provider = window.phantom && window.phantom.solana;
-          if (!provider || !provider.isPhantom) throw new Error('Phantom wallet not found');
+          var provider = walletProvider.detect();
+          if (!provider) throw new Error('No wallet available');
           await provider.connect();
 
           // Verify the connected wallet matches the logged-in user
           var connectedKey = provider.publicKey.toBase58();
           var userWallet = '<%= current_user&.solana_address %>';
           if (userWallet && connectedKey !== userWallet) {
-            throw new Error('Wrong wallet connected. Switch to ' + userWallet.substring(0, 8) + '... in Phantom, or reconnect your wallet on the Account page.');
+            throw new Error('Wrong wallet connected. Switch to ' + userWallet.substring(0, 8) + '..., or reconnect your wallet on the Account page.');
           }
 
           var prepareResp = await fetch('/contests/' + contestSlug + '/prepare_onchain_contest', {
@@ -112,8 +112,8 @@
           var prepareData = await prepareResp.json();
           if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare onchain contest');
 
-          // 3. Phantom co-signs the USDC transfer
-          Alpine.store('solanaModal').show('Sign Transaction', 'Approve the bonus USDC transfer in Phantom...');
+          // 3. Wallet co-signs the USDC transfer
+          Alpine.store('solanaModal').show('Sign Transaction', 'Approve the bonus USDC transfer in your wallet...');
 
           var txBytes = Uint8Array.from(atob(prepareData.serialized_tx), function(c) { return c.charCodeAt(0); });
           var tx = solanaWeb3.Transaction.from(txBytes);

@@ -10,7 +10,17 @@ module.exports = defineConfig({
     headless: true,
   },
   projects: [
-    { name: "chromium", use: { browserName: "chromium" } },
+    {
+      name: "chromium",
+      use: { browserName: "chromium" },
+      grepInvert: /@devnet/,
+    },
+    {
+      name: "devnet",
+      use: { browserName: "chromium" },
+      grep: /@devnet/,
+      timeout: 90_000,
+    },
   ],
   webServer: {
     command:

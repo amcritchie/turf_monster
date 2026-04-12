@@ -90,10 +90,12 @@ game_slugs = %w[game-1 game-1 game-2 game-2 game-3 game-3]
   )
 end
 
-# Set Phantom wallet addresses
-# Alex uses mock keypair (deterministic seed byte 1) so Playwright tests can sign
-alex.update!(solana_address: "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt", wallet_type: "phantom")
-sam.update!(solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds", wallet_type: "phantom")
+# Set wallet addresses
+# Alex uses mock keypair (deterministic seed byte 1) so Playwright tests can sign.
+# For devnet smoke tests, SOLANA_BOT_PUBKEY overrides Alex's wallet to Alex Bot's pubkey.
+alex_wallet = ENV.fetch("SOLANA_BOT_PUBKEY", "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt")
+alex.update!(web3_solana_address: alex_wallet)
+sam.update!(web3_solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds")
 
 # Enable onchain path for the seeded contest (directOnchain check needs this)
 contest.update!(onchain_contest_id: "MockContestPDA11111111111111111111111111111")

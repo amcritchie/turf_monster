@@ -23,11 +23,11 @@ async function loginAdmin(page) {
 /**
  * Log in via Phantom wallet mock.
  * Requires setupPhantomMock(page) to have been called first.
- * Clicks "Connect Phantom" on the login page and waits for redirect.
+ * Clicks "Connect Wallet" on the login page and waits for redirect.
  */
 async function loginViaPhantom(page) {
   await page.goto("/login");
-  await page.locator('button:has-text("Connect Phantom")').click();
+  await page.locator('button:has-text("Connect Wallet")').click();
   await page.waitForURL("/");
 }
 

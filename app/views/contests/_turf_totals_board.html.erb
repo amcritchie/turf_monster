@@ -43,7 +43,7 @@
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
       userBalanceCents: <%= current_user&.total_balance_cents || 0 %>,
       entryFeeCents: <%= @contest.entry_fee_cents || 0 %>,
-      phantomWallet: <%= current_user&.phantom_wallet? ? 'true' : 'false' %>,
+      walletConnected: <%= current_user&.phantom_wallet? ? 'true' : 'false' %>,
       userWallet: '<%= current_user&.solana_address %>',
       contestOnchain: <%= @contest.onchain? ? 'true' : 'false' %>,
       contestName: '<%== j(@contest.name) %>',
@@ -233,8 +233,8 @@
           return;
         }
 
-        // Phantom + onchain: skip DB balance check (USDC comes from wallet)
-        const directOnchain = this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana;
+        // Wallet + onchain: skip DB balance check (USDC comes from wallet)
+        const directOnchain = this.contestOnchain && this.walletConnected && walletProvider.isAvailable();
 
         if (!directOnchain && this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
           this.setHoldError();
@@ -259,16 +259,16 @@
 
         try {
           if (directOnchain) {
-            // === Direct onchain path: Phantom signs USDC transfer ===
-            const provider = window.phantom.solana;
-            Alpine.store('solanaModal').show('Sign Entry', 'Approve in your Phantom wallet...');
+            // === Direct onchain path: wallet signs USDC transfer ===
+            const provider = walletProvider.detect();
+            Alpine.store('solanaModal').show('Sign Entry', 'Approve in your wallet...');
 
             const resp = await provider.connect();
             const pubkeyB58 = resp.publicKey.toBase58();
 
             // Verify the connected wallet matches the logged-in user
             if (this.userWallet && pubkeyB58 !== this.userWallet) {
-              throw new Error('Wrong wallet connected. Switch to ' + this.userWallet.substring(0, 8) + '... in Phantom, or reconnect your wallet on the Account page.');
+              throw new Error('Wrong wallet connected. Switch to ' + this.userWallet.substring(0, 8) + '..., or reconnect your wallet on the Account page.');
             }
 
             // 1. Get nonce + sign identity message
@@ -291,8 +291,8 @@
             const prepareData = await prepareResp.json();
             if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare entry');
 
-            // 3. Deserialize, have Phantom sign, and submit
-            Alpine.store('solanaModal').show('Sign Transaction', 'Approve the USDC transfer in Phantom...');
+            // 3. Deserialize, have wallet sign, and submit
+            Alpine.store('solanaModal').show('Sign Transaction', 'Approve the USDC transfer in your wallet...');
             const txBytes = Uint8Array.from(atob(prepareData.serialized_tx), c => c.charCodeAt(0));
             const tx = solanaWeb3.Transaction.from(txBytes);
             const signedTx = await provider.signTransaction(tx);
@@ -358,10 +358,10 @@
           } else {
             // === Standard path: managed wallet or non-onchain contest ===
             let bodyData = {};
-            if (this.contestOnchain && this.phantomWallet && window.phantom && window.phantom.solana) {
-              // Phantom + onchain but directOnchain was false (shouldn't happen, but fallback)
-              const provider = window.phantom.solana;
-              Alpine.store('solanaModal').show('Sign Entry', 'Approve in your Phantom wallet...');
+            if (this.contestOnchain && this.walletConnected && walletProvider.isAvailable()) {
+              // Wallet + onchain but directOnchain was false (shouldn't happen, but fallback)
+              const provider = walletProvider.detect();
+              Alpine.store('solanaModal').show('Sign Entry', 'Approve in your wallet...');
               const resp = await provider.connect();
               const pubkeyB58 = resp.publicKey.toBase58();
               const nonceResp = await fetch('/auth/solana/nonce');
@@ -653,7 +653,7 @@
           on_success: "d.confirmEntry()",
           early_action: "d.confirmEntry()",
           early_action_at: 1500,
-          early_action_guard: "d.contestOnchain && d.phantomWallet && window.phantom && window.phantom.solana" %>
+          early_action_guard: "d.contestOnchain && d.walletConnected && walletProvider.isAvailable()" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
                 class="w-full py-2 text-sm font-semibold text-secondary hover:text-red-400 transition">
@@ -726,7 +726,7 @@
         on_success: "d.confirmEntry()",
         early_action: "d.confirmEntry()",
         early_action_at: 1500,
-        early_action_guard: "d.contestOnchain && d.phantomWallet && window.phantom && window.phantom.solana" %>
+        early_action_guard: "d.contestOnchain && d.walletConnected && walletProvider.isAvailable()" %>
     </div>
     <p x-show="selectionCount < <%= @contest.picks_required %>" class="text-heading font-bold text-sm text-center mb-3">Your Picks</p>
     <div class="grid grid-cols-3 gap-1.5">

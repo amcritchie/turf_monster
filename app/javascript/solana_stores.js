@@ -89,14 +89,14 @@ document.addEventListener('alpine:init', function() {
     }
   });
 
-  // --- Phantom Watcher Store ---
+  // --- Wallet Watcher Store ---
   // Detects wallet switches and re-authenticates silently
-  Alpine.store('phantom', {
+  Alpine.store('wallet', {
     address: null,
     watching: false,
 
     init: function() {
-      var provider = this._provider();
+      var provider = walletProvider.detect();
       var serverAddr = this._serverAddress();
       if (!provider || !serverAddr) return;
 
@@ -112,7 +112,7 @@ document.addEventListener('alpine:init', function() {
         })
         .catch(function() {}); // Not previously approved — no action
 
-      // Listen for wallet switches
+      // Listen for wallet switches (Phantom-specific, no-op for keypair)
       provider.on('accountChanged', function(publicKey) {
         if (publicKey) {
           var newAddr = publicKey.toBase58();
@@ -128,11 +128,11 @@ document.addEventListener('alpine:init', function() {
       this.watching = true;
     },
 
-    _provider: function() { return window.phantom && window.phantom.solana; },
     _serverAddress: function() { return document.body.dataset.walletAddress || ''; },
 
     _reauth: function(pubkeyB58) {
-      var provider = this._provider();
+      var provider = walletProvider.detect();
+      if (!provider) return;
       fetch('/auth/solana/nonce')
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -185,16 +185,17 @@ window.solanaWalletConnect = function(linkMode) {
   return {
     connecting: false,
     error: null,
-    statusText: 'Connect Phantom',
-    walletAvailable: !!(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom),
-    isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)),
+    statusText: 'Connect Wallet',
+    walletAvailable: walletProvider.isAvailable(),
+    isMobile: walletProvider.isMobile(),
 
     async connect() {
       this.connecting = true;
       this.error = null;
 
       try {
-        var provider = window.phantom.solana;
+        var provider = walletProvider.detect();
+        if (!provider) throw new Error('No wallet available');
 
         this.statusText = 'Connecting...';
         var resp = await provider.connect();
@@ -234,7 +235,7 @@ window.solanaWalletConnect = function(linkMode) {
           window.location.href = result.redirect || '/';
         } else {
           this.error = result.error || 'Verification failed';
-          this.statusText = 'Connect Phantom';
+          this.statusText = 'Connect Wallet';
           this.connecting = false;
         }
       } catch (e) {
@@ -243,7 +244,7 @@ window.solanaWalletConnect = function(linkMode) {
         } else {
           this.error = e.message || 'Connection failed';
         }
-        this.statusText = 'Connect Phantom';
+        this.statusText = 'Connect Wallet';
         this.connecting = false;
       }
     }

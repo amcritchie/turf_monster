@@ -6,7 +6,7 @@ window.parseSolanaError = function(msg) {
 
   // User rejection
   if (/user rejected/i.test(msg) || /user declined/i.test(msg)) {
-    return 'Transaction cancelled \u2014 you declined the request in Phantom.';
+    return 'Transaction cancelled \u2014 you declined the request in your wallet.';
   }
   // Account deserialization (old layout needs migration)
   if (/0xbbb/i.test(msg) || /\b3003\b/.test(msg) || /AccountDidNotDeserialize/i.test(msg)) {
@@ -28,9 +28,9 @@ window.parseSolanaError = function(msg) {
   if (/blockhash not found/i.test(msg) || /block height exceeded/i.test(msg)) {
     return 'Transaction expired. Please try again.';
   }
-  // Phantom generic error
+  // Wallet generic error
   if (msg === 'Unexpected error' || /^unexpected/i.test(msg)) {
-    return "Phantom couldn't process the transaction. Check wallet connection and USDC balance.";
+    return "Wallet couldn't process the transaction. Check wallet connection and USDC balance.";
   }
 
   // TurfVault program errors (6000–6012)
