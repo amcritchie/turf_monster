@@ -37,7 +37,7 @@
 
         var form = document.getElementById('profile-modal-form');
         var formData = new FormData(form);
-        var csrf = document.querySelector('meta[name="csrf-token"]').content;
+        var csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
         fetch('<%= save_profile_account_path %>', {
           method: 'POST',

@@ -19,10 +19,7 @@ class MoonpayDepositJob < ApplicationJob
     end
     # Phantom wallets: USDC already in ATA, no vault deposit needed
 
-    # Credit DB balance
-    user.add_funds!(amount_cents)
-
-    # Record transaction
+    # Record transaction (balance is on-chain, no DB credit needed)
     TransactionLog.record!(
       user: user,
       type: "deposit",

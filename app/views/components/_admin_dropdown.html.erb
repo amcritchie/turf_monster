@@ -31,11 +31,6 @@
     <div class="border-t border-subtle my-1"></div>
     <%= button_to geo_override_active? ? "Clear GEO Override" : "Simulate WA", admin_geo_toggle_path, method: :post,
       class: "block w-full text-left px-4 py-2 text-sm #{geo_override_active? ? 'text-red-400 hover:text-red-300' : 'text-body hover:text-heading'} hover:bg-surface-alt transition" %>
-    <% if Solana::Config.devnet? %>
-      <div class="border-t border-subtle my-1"></div>
-      <%= button_to "Mint $500 USDC", admin_mint_usdc_path, method: :post,
-        class: "block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition" %>
-    <% end %>
     <div class="border-t border-subtle my-1"></div>
     <button @click="$dispatch('navbar-replay-level'); open = false"
             class="block w-full text-left px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition">Replay Level</button>

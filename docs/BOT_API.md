@@ -199,8 +199,7 @@ GET /api/v1/account
   "slug": "alex-bot",
   "username": "alex-bot",
   "wallet": "F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ",
-  "balance_cents": 50000,
-  "promotional_cents": 10000,
+  "usdc_balance": 500.00,
   "seeds_total": 180,
   "level": 2
 }

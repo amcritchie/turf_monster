@@ -40,17 +40,16 @@ class ApplicationController < ActionController::Base
     session[:geo_override].present?
   end
 
-  # Navbar balance — cached onchain USDC for user's wallet on devnet, DB balance otherwise
+  # Navbar balance — always on-chain USDC for connected wallets
   def display_balance
-    return current_user.total_balance_dollars unless Solana::Config.devnet?
-    return current_user.total_balance_dollars unless current_user.solana_connected?
+    return 0 unless current_user.solana_connected?
 
     Rails.cache.fetch(usdc_cache_key, expires_in: 60.seconds) do
       fetch_user_usdc
     end
   rescue => e
     Rails.logger.warn "Failed to fetch onchain balance: #{e.message}"
-    current_user.total_balance_dollars
+    0
   end
 
   # Fresh onchain USDC balance from logged-in user's wallet

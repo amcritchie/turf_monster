@@ -54,11 +54,12 @@ Troubleshooting guide for autonomous agents. Format: problem, diagnosis, fix.
 - Diagnosis: Payouts don't add up or ties split wrong.
 - Fix: `grade!` ranks entries by score DESC, ties get same rank, payouts for tied ranks are averaged across spanned positions. Check `Entry` records: `Contest.find_by(slug: "<slug>").entries.order(rank: :asc).pluck(:slug, :score, :rank, :payout_cents)`.
 
-## Balance Discrepancies (DB vs Onchain)
+## Balance Issues
 
-**DB balance != onchain UserAccount balance**
-- Diagnosis: Rails stores `balance_cents` independently. Onchain balance lives in UserAccount PDA.
-- Fix: Use `/wallet` sync button or: `bin/rails runner "user = User.find_by(slug: '<slug>'); Solana::Vault.sync_balance(user)"`. The sync reads onchain state and updates DB. Convert: onchain `u64` / 10_000 = cents.
+**On-chain USDC balance not showing**
+- All balances are on-chain USDC. DB `balance_cents`/`promotional_cents` columns are deprecated.
+- Use `/wallet` sync button or check: `bin/rails runner "vault = Solana::Vault.new; puts vault.fetch_wallet_balances(User.find_by(slug: '<slug>').solana_address)"`.
+- If ATA doesn't exist: `bin/rails runner "vault = Solana::Vault.new; vault.ensure_ata('<address>', mint: Solana::Config::USDC_MINT)"`.
 
 ## Geo-Blocking Not Working
 

@@ -198,13 +198,17 @@
 
       <%# -- Balances -- %>
       <div class="bg-inset rounded-lg p-4 space-y-3">
-        <%# Turf Monster balance %>
+        <%# USDC balance (on-chain) %>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-lg">🟢</span>
-            <span class="text-sm font-medium text-body">Turf Monster</span>
+            <span class="text-lg">💲</span>
+            <span class="text-sm font-medium text-body">USDC Balance</span>
           </div>
-          <span class="font-mono font-bold text-primary"><%= dollars(@user.total_balance_dollars) %></span>
+          <% if @wallet_balances && @wallet_balances[:usdc] %>
+            <span class="font-mono font-bold text-primary"><%= sprintf('$%.2f', @wallet_balances[:usdc]) %></span>
+          <% else %>
+            <span class="font-mono font-bold text-primary"><%= dollars(display_balance) %></span>
+          <% end %>
         </div>
 
         <div class="border-t border-subtle"></div>
@@ -217,19 +221,6 @@
           </div>
           <% if @wallet_balances %>
             <span class="font-mono font-bold text-heading"><%= sprintf('%.4f', @wallet_balances[:sol]) %></span>
-          <% else %>
-            <span class="font-mono text-muted">—</span>
-          <% end %>
-        </div>
-
-        <%# USDC balance %>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-lg">💲</span>
-            <span class="text-sm font-medium text-body">USDC</span>
-          </div>
-          <% if @wallet_balances && @wallet_balances[:usdc] %>
-            <span class="font-mono font-bold text-heading"><%= sprintf('%.2f', @wallet_balances[:usdc]) %></span>
           <% else %>
             <span class="font-mono text-muted">—</span>
           <% end %>

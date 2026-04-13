@@ -31,10 +31,7 @@ class StripeDepositJob < ApplicationJob
       onchain_tx = fund_result[:signature]
     end
 
-    # Credit DB balance
-    user.add_funds!(amount_cents)
-
-    # Record transaction
+    # Record transaction (balance is on-chain, no DB credit needed)
     TransactionLog.record!(
       user: user,
       type: "deposit",

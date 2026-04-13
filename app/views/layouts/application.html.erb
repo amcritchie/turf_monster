@@ -39,7 +39,7 @@
           if (loggedIn && inviterSlug) {
             fetch('/account/set_inviter', {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
               body: JSON.stringify({ inviter_slug: inviterSlug })
             }).then(function(r) {
               if (r.ok) localStorage.removeItem('inviter_slug');
@@ -171,7 +171,7 @@
                 var verifyUrl = linkMode ? '/account/link_solana' : '/auth/solana/verify';
                 var result = await (await fetch(verifyUrl, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+                  headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || '' },
                   body: JSON.stringify({ message: message, signature: signatureB58, pubkey: pubkeyB58 })
                 })).json();
                 if (result.success) {

@@ -41,9 +41,7 @@
       contestId: '<%= @contest&.slug %>',
       csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
       loggedIn: <%= logged_in? ? 'true' : 'false' %>,
-      userBalanceCents: <%= current_user&.total_balance_cents || 0 %>,
       entryFeeCents: <%= @contest.entry_fee_cents || 0 %>,
-      walletConnected: <%= current_user&.phantom_wallet? ? 'true' : 'false' %>,
       userWallet: '<%= current_user&.solana_address %>',
       contestOnchain: <%= @contest.onchain? ? 'true' : 'false' %>,
       contestName: '<%== j(@contest.name) %>',
@@ -233,15 +231,8 @@
           return;
         }
 
-        // Wallet + onchain: skip DB balance check (USDC comes from wallet)
-        const directOnchain = this.contestOnchain && this.walletConnected && window.walletProvider.isAvailable();
-
-        if (!directOnchain && this.entryFeeCents > 0 && this.userBalanceCents < this.entryFeeCents) {
-          this.setHoldError();
-          this.showRedirectModal('Insufficient Funds', 'Add funds to your wallet to cover the entry fee.', '💰', '/wallet', 5, 'Top Up Wallet');
-          this.submitting = false;
-          return;
-        }
+        // Require both: contest is onchain, browser wallet available, AND user has a web3 wallet linked
+        const directOnchain = this.contestOnchain && window.walletProvider.isAvailable() && <%= current_user&.phantom_wallet? ? 'true' : 'false' %>;
 
         this.setHoldSuccess();
         this.submitting = true;
@@ -357,24 +348,9 @@
 
           } else {
             // === Standard path: managed wallet or non-onchain contest ===
-            let bodyData = {};
-            if (this.contestOnchain && this.walletConnected && window.walletProvider.isAvailable()) {
-              // Wallet + onchain but directOnchain was false (shouldn't happen, but fallback)
-              const provider = window.walletProvider.detect();
-              Alpine.store('solanaModal').show('Sign Entry', 'Approve in your wallet...');
-              const resp = await provider.connect();
-              const pubkeyB58 = resp.publicKey.toBase58();
-              const nonceResp = await fetch('/auth/solana/nonce');
-              const { nonce } = await nonceResp.json();
-              const domain = window.location.host;
-              const message = `${domain} wants you to sign in with your Solana account:\n${pubkeyB58}\n\nEnter contest: ${this.contestName}\n\nNonce: ${nonce}`;
-              const encoded = new TextEncoder().encode(message);
-              const signed = await provider.signMessage(encoded, 'utf8');
-              const signatureB58 = b58encode(signed.signature);
-              bodyData = { message, signature: signatureB58, pubkey: pubkeyB58 };
-              Alpine.store('solanaModal').show('Submitting Entry', 'Recording entry onchain...');
-            }
+            Alpine.store('solanaModal').show('Submitting Entry', 'Processing your entry...');
 
+            let bodyData = {};
             const hasBody = Object.keys(bodyData).length > 0;
             const response = await fetch(`/contests/${this.contestId}/enter`, {
               method: 'POST',
@@ -388,7 +364,6 @@
             const data = await response.json();
 
             if (data.success) {
-              this.userBalanceCents -= this.entryFeeCents;
               if (data.tx_signature) {
                 Alpine.store('solanaModal').success(data.tx_signature, 'Entry submitted onchain');
                 refreshBalanceDelayed();
@@ -597,7 +572,7 @@
             <p class="text-sm text-secondary"><%= current_user.email %></p>
           </div>
           <div class="text-right">
-            <p class="font-mono text-lg text-primary"><%= dollars(current_user.balance_dollars) %></p>
+            <p class="font-mono text-lg text-primary"><%= dollars(display_balance) %></p>
           </div>
         </div>
       </div>
@@ -653,7 +628,7 @@
           on_success: "d.confirmEntry()",
           early_action: "d.confirmEntry()",
           early_action_at: 1500,
-          early_action_guard: "d.contestOnchain && d.walletConnected && window.walletProvider.isAvailable()" %>
+          early_action_guard: "d.contestOnchain && window.walletProvider.isAvailable()" %>
         </div>
         <button x-show="selectionCount > 0" @click="clearSelections()"
                 class="w-full py-2 text-sm font-semibold text-secondary hover:text-red-400 transition">
@@ -726,7 +701,7 @@
         on_success: "d.confirmEntry()",
         early_action: "d.confirmEntry()",
         early_action_at: 1500,
-        early_action_guard: "d.contestOnchain && d.walletConnected && window.walletProvider.isAvailable()" %>
+        early_action_guard: "d.contestOnchain && window.walletProvider.isAvailable()" %>
     </div>
     <p x-show="selectionCount < <%= @contest.picks_required %>" class="text-heading font-bold text-sm text-center mb-3">Your Picks</p>
     <div class="grid grid-cols-3 gap-1.5">

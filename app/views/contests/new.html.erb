@@ -72,7 +72,7 @@
         e.preventDefault();
         var form = e.target;
         var btn = form.querySelector('button[type="submit"]');
-        var csrfToken = document.querySelector('meta[name=csrf-token]').content;
+        var csrfToken = document.querySelector('meta[name=csrf-token]')?.content || '';
         btn.disabled = true;
 
         try {

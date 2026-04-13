@@ -60,7 +60,7 @@ function registerWalletStore() {
           var encoded = new TextEncoder().encode(message);
           return provider.signMessage(encoded, 'utf8').then(function(signed) {
             var signatureB58 = encodeBase58(signed.signature);
-            var csrf = document.querySelector('meta[name="csrf-token"]').content;
+            var csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             return fetch('/auth/solana/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },

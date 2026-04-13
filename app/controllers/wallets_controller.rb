@@ -27,15 +27,16 @@ class WalletsController < ApplicationController
     amount_cents = (amount_dollars * 100).to_i
 
     rescue_and_log(target: current_user) do
-      if current_user.managed_wallet?
-        current_user.add_funds!(amount_cents)
-        TransactionLog.record!(user: current_user, type: "deposit", amount_cents: amount_cents, direction: "credit", description: "Deposit $#{'%.2f' % amount_dollars}")
-        redirect_to wallet_path, notice: "Deposited $#{'%.2f' % amount_dollars}."
-      elsif current_user.phantom_wallet?
-        redirect_to wallet_path, alert: "Phantom deposits coming soon. Use the faucet for testing."
-      else
-        redirect_to wallet_path, alert: "Connect a wallet first."
-      end
+      raise "No wallet connected" unless current_user.solana_connected?
+
+      vault = Solana::Vault.new
+      amount_lamports = Solana::Config.dollars_to_lamports(amount_dollars)
+      vault.ensure_ata(current_user.solana_address, mint: Solana::Config::USDC_MINT)
+      result = vault.fund_user(current_user.solana_address, amount_lamports)
+
+      TransactionLog.record!(user: current_user, type: "deposit", amount_cents: amount_cents, direction: "credit", description: "Deposit $#{'%.2f' % amount_dollars}", onchain_tx: result[:signature])
+      invalidate_usdc_cache
+      redirect_to wallet_path, notice: "Deposited $#{'%.2f' % amount_dollars}."
     end
   rescue StandardError => e
     redirect_to wallet_path, alert: "Deposit failed: #{e.message}"
@@ -113,11 +114,8 @@ class WalletsController < ApplicationController
     amount_cents = (amount_dollars * 100).to_i
 
     rescue_and_log(target: current_user) do
-      current_user.with_lock do
-        current_user.reload
-        raise "Insufficient withdrawable balance" if current_user.withdrawable_cents < amount_cents
-        current_user.decrement!(:balance_cents, amount_cents)
-      end
+      raise "No wallet connected" unless current_user.solana_connected?
+
       TransactionLog.record!(
         user: current_user,
         type: "withdrawal",
@@ -135,8 +133,15 @@ class WalletsController < ApplicationController
   def faucet
     rescue_and_log(target: current_user) do
       raise "Faucet only available on Devnet" unless Solana::Config.devnet?
-      current_user.add_funds!(10_00)
-      TransactionLog.record!(user: current_user, type: "faucet", amount_cents: 10_00, direction: "credit", description: "Devnet faucet $10.00")
+      raise "No wallet connected" unless current_user.solana_connected?
+
+      vault = Solana::Vault.new
+      amount_lamports = Solana::Config.dollars_to_lamports(10.0) # $10 USDC
+      vault.ensure_ata(current_user.solana_address, mint: Solana::Config::USDC_MINT)
+      result = vault.fund_user(current_user.solana_address, amount_lamports)
+
+      TransactionLog.record!(user: current_user, type: "faucet", amount_cents: 10_00, direction: "credit", description: "Devnet faucet $10.00", onchain_tx: result[:signature])
+      invalidate_usdc_cache
       redirect_to wallet_path, notice: "Added $10.00 test USDC to your balance."
     end
   rescue StandardError => e

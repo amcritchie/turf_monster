@@ -31,7 +31,7 @@ class Entry < ApplicationRecord
     selections.each_with_object({}) { |s, h| h[s.slate_matchup_id.to_s] = true }
   end
 
-  def confirm!
+  def confirm!(tx_signature: nil)
     raise "Contest is not open" unless contest.open?
     raise "Exactly #{contest.picks_required} selections required" unless selections.count == contest.picks_required
 
@@ -50,18 +50,14 @@ class Entry < ApplicationRecord
 
       transaction do
         if contest.entry_fee_cents > 0
-          user.reload
-          raise "Insufficient funds" if user.total_balance_cents < contest.entry_fee_cents
-          user.deduct_funds!(contest.entry_fee_cents)
           TransactionLog.record!(user: user, type: "entry_fee", amount_cents: contest.entry_fee_cents, direction: "debit", source: contest, description: "Entry fee for #{contest.name}")
         end
-        update!(status: :active)
+        update!(status: :active, onchain_tx_signature: tx_signature)
       end
     end
 
-    # Attempt onchain entry (non-blocking)
-    # Seeds (25 per entry) are awarded on-chain by the turf_vault Anchor program
-    enter_onchain!
+    # Attempt onchain entry (non-blocking) — skip if already transferred on-chain
+    enter_onchain! unless tx_signature
   end
 
   def selection_data

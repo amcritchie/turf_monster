@@ -23,7 +23,6 @@ alex = User.create!(
   email: "alex@turf.com",
   password: "password",
   password_confirmation: "password",
-  balance_cents: 100_000,
   role: "admin"
 )
 
@@ -32,8 +31,7 @@ sam = User.create!(
   username: "sam",
   email: "sam@turf.com",
   password: "password",
-  password_confirmation: "password",
-  balance_cents: 100_000
+  password_confirmation: "password"
 )
 
 joe = User.create!(
@@ -41,8 +39,7 @@ joe = User.create!(
   username: "joe",
   email: "joe@turf.com",
   password: "password",
-  password_confirmation: "password",
-  balance_cents: 100_000
+  password_confirmation: "password"
 )
 
 # Teams (needed for matchup card rendering)
@@ -72,7 +69,8 @@ contest = Contest.create!(
   max_entries: 5,
   contest_type: "small",
   starts_at: 1.week.from_now,
-  slate: slate
+  slate: slate,
+  rank: 100
 )
 
 # Slate matchups (need at least 5 for confirm — creating 6 as 3 game pairs)
@@ -96,6 +94,10 @@ end
 alex_wallet = ENV.fetch("SOLANA_BOT_PUBKEY", "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt")
 alex.update!(web3_solana_address: alex_wallet)
 sam.update!(web3_solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds")
+
+# Clear encrypted keypairs so approve/deny tests don't trigger onchain withdrawals.
+# Keep web2_solana_address so managed_wallet? stays true (needed for deposits).
+User.update_all(encrypted_web2_solana_private_key: nil)
 
 # Enable onchain path for the seeded contest (directOnchain check needs this)
 contest.update!(onchain_contest_id: "MockContestPDA11111111111111111111111111111")

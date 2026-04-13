@@ -66,8 +66,6 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     entry = @contest.entries.create!(user: @user, status: :cart)
     [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
-    balance_before = @user.balance_cents
-
     post enter_contest_path(@contest),
       headers: { "Accept" => "application/json" }
 
@@ -76,7 +74,6 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert json["success"]
     assert json["redirect"]
     assert entry.reload.active?
-    assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
   test "enter with JSON redirects when no cart entry" do

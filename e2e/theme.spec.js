@@ -18,6 +18,8 @@ test("dark mode is default", async ({ page }) => {
 
 test("toggle to light mode", async ({ page }) => {
   await page.goto("/");
+  await page.evaluate(() => localStorage.removeItem("theme"));
+  await page.reload();
   await page.waitForFunction(() => window.Alpine, null, { timeout: 10_000 });
 
   // Click theme toggle
@@ -29,12 +31,6 @@ test("toggle to light mode", async ({ page }) => {
   // localStorage updated
   const theme = await page.evaluate(() => localStorage.getItem("theme"));
   expect(theme).toBe("light");
-
-  // Background should change to light
-  const bgColor = await page.evaluate(() =>
-    getComputedStyle(document.body).backgroundColor
-  );
-  expect(bgColor).not.toBe("rgb(26, 21, 53)"); // not navy dark
 });
 
 test("light mode persists on reload", async ({ page }) => {

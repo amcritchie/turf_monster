@@ -184,7 +184,16 @@ class ContestsController < ApplicationController
       active_count = @contest.entries.where(status: [:active, :complete]).count
       raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
 
-      entry.confirm!
+      tx_signature = nil
+      if @contest.entry_fee_cents > 0 && current_user.managed_wallet?
+        vault = Solana::Vault.new
+        usdc_mint = Solana::Config::USDC_MINT
+        amount = @contest.entry_fee_cents * 10_000 # cents → USDC lamports (6 decimals)
+        result = vault.transfer_from_user(current_user, amount, mint: usdc_mint)
+        tx_signature = result[:signature]
+      end
+
+      entry.confirm!(tx_signature: tx_signature)
 
       respond_to do |format|
         format.html { redirect_to @contest, notice: "#{current_user.display_name} entered the contest!" }

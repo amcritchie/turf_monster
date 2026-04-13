@@ -7,7 +7,7 @@ module Solana
       @discrepancies = []
     end
 
-    # Compare DB balance with onchain UserAccount balance for a single user
+    # Verify user has an on-chain USDC account
     def reconcile_user(user)
       return unless user.solana_connected?
 
@@ -17,25 +17,9 @@ module Solana
           type: :missing_onchain_account,
           user_id: user.id,
           user_name: user.display_name,
-          solana_address: user.solana_address,
-          db_balance_cents: user.balance_cents
+          solana_address: user.solana_address
         }
         return
-      end
-
-      onchain_cents = (onchain[:balance_dollars] * 100).round
-      db_cents = user.balance_cents
-
-      if onchain_cents != db_cents
-        @discrepancies << {
-          type: :balance_mismatch,
-          user_id: user.id,
-          user_name: user.display_name,
-          solana_address: user.solana_address,
-          db_balance_cents: db_cents,
-          onchain_balance_cents: onchain_cents,
-          difference_cents: db_cents - onchain_cents
-        }
       end
 
       onchain

@@ -28,8 +28,7 @@ class SolanaSessionsController < ApplicationController
       name: "anon",
       username: Studio::UsernameGenerator.generate,
       web3_solana_address: pubkey_b58,
-      password: SecureRandom.hex(16),
-      balance_cents: 0
+      password: SecureRandom.hex(16)
     )
 
     rescue_and_log(target: user) do

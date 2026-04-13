@@ -107,7 +107,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 - Money stored in cents, displayed in dollars via `dollars()` helper
 - **5 selections per entry** — hardcoded in Entry model, Contest model, index view JS, cart slots partial. Search "< 5", "=== 5", "in 5", "Exactly 5" when changing.
-- **Balance system**: `balance_cents` (real, withdrawable) + `promotional_cents` (bonus, non-withdrawable, used first). `deduct_funds!` uses promo first.
+- **Balance system**: On-chain USDC is the single source of truth. DB columns `balance_cents`/`promotional_cents` are deprecated (kept for migration safety). All balance reads come from on-chain wallet via `display_balance` helper. Entry fees transfer USDC on-chain via `Vault#transfer_from_user`.
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as FKs (e.g. `team_slug`, `home_team_slug`). Associations use `foreign_key: :*_slug, primary_key: :slug`.
 - **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — x1.0 at rank 1 to x4.0 at rank N. Centralized on `SlateMatchup.multiplier_for(rank, n)`.
 - **Seeds system**: 60 seeds per entry on-chain. No DB columns. See `docs/SOLANA.md`.
@@ -116,7 +116,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 ## Models
 
-- **User** — name, username, email (nullable), solana_address, wallet_type, balance_cents, promotional_cents, role, slug. See `docs/AUTH.md`.
+- **User** — name, username, email (nullable), solana_address, wallet_type, role, slug. Balance is on-chain USDC (DB `balance_cents`/`promotional_cents` deprecated). See `docs/AUTH.md`.
 - **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank (priority for root page), slate association, onchain fields, slug
 - **ContestMatchup** — team_slug, opponent_team_slug, rank, multiplier, status. Belongs to contest + teams via slug FKs.
 - **Entry** — user + contest, score, status (cart/active/complete/abandoned), rank, payout_cents, onchain fields, slug (includes id)

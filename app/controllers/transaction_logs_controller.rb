@@ -63,10 +63,9 @@ class TransactionLogsController < ApplicationController
 
     rescue_and_log(target: txn) do
       raise "Only pending transactions can be denied" unless txn.status == "pending"
-      # Refund the held balance
-      txn.user.increment!(:balance_cents, txn.amount_cents)
-      txn.update!(status: "failed", description: "#{txn.description} (denied — funds returned)")
-      redirect_to admin_transactions_path(status: "pending"), notice: "Withdrawal denied, funds returned to #{txn.user.display_name}."
+      # No DB refund needed — balance is on-chain. Just mark as denied.
+      txn.update!(status: "failed", description: "#{txn.description} (denied)")
+      redirect_to admin_transactions_path(status: "pending"), notice: "Withdrawal denied for #{txn.user.display_name}."
     end
   rescue StandardError => e
     redirect_to admin_transactions_path, alert: "Deny failed: #{e.message}"

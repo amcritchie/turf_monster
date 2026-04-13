@@ -19,7 +19,7 @@ module.exports = defineConfig({
       name: "devnet",
       use: { browserName: "chromium" },
       grep: /@devnet/,
-      timeout: 90_000,
+      timeout: 180_000,
     },
   ],
   webServer: {

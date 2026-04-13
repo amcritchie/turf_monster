@@ -190,7 +190,7 @@
                       $store.solanaModal.show('Sending Payout', 'Transferring <%= dollars(entry.payout_cents / 100.0) %> to <%= entry.user.display_name %>...');
                       fetch('<%== payout_entry_contest_path(@contest, entry_id: entry.id) %>', {
                         method: 'POST',
-                        headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+                        headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' }
                       }).then(r => r.json()).then(data => {
                         if (data.success) { paid_tx = data.tx; $store.solanaModal.success(data.tx, 'Payout sent'); refreshBalanceDelayed(); }
                         else { $store.solanaModal.error(data.error); }

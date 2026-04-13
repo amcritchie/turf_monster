@@ -162,11 +162,12 @@ test("admin creates onchain contest", async ({ page }) => {
 
   await page.goto("/contests/new");
 
-  // Fill the form
-  await page.fill("#contest_name", "E2E Onchain Contest");
+  // Fill the form with unique name
+  const contestName = `E2E Contest ${Date.now().toString(36)}`;
+  await page.fill("#contest_name", contestName);
   await page.selectOption("#contest_slate_id", { label: "World Cup 2026" });
 
-  // Click "Create Contest" (inside x-if="hasPhantom" — mock makes it visible)
+  // Click "Create Contest" (inside x-if="hasWallet" — mock makes it visible)
   await page.getByRole("button", { name: "Create Contest" }).click();
 
   // The inline JS orchestrates: DB create → prepare (mocked) → sign → RPC (mocked)
@@ -178,8 +179,8 @@ test("admin creates onchain contest", async ({ page }) => {
   });
 
   // Auto-redirect after 3s countdown
-  await page.waitForURL(/\/contests\//, { timeout: 10000 });
+  await page.waitForURL(/\/contests\/(?!new)/, { timeout: 10000 });
 
   // Contest show page should display the new contest
-  await expect(page.locator("body")).toContainText("E2E Onchain Contest");
+  await expect(page.locator("body")).toContainText(contestName);
 });

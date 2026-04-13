@@ -7,12 +7,12 @@ const { login } = require("./helpers");
 
 test("index page loads with contest and matchup cards", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("body")).toContainText("Pick 5 Teams");
+  await expect(page.locator("body")).toContainText("Build Your 5 Team Lineup");
   // Matchup cards rendered as buttons with team names
   const matchupCards = page.locator("button.bg-surface");
   await expect(matchupCards.first()).toBeVisible();
   // Should show multiplier values
-  await expect(page.locator("body")).toContainText("x1");
+  await expect(page.locator("body")).toContainText("/ Goal");
 });
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,7 @@ test("guest clicking matchup card does not crash the page", async ({ page }) => 
   await firstCard.click();
 
   // Toggle is an Alpine.js fetch — guest gets a 302/auth error but page stays.
-  await expect(page.locator("body")).toContainText("Pick 5 Teams");
+  await expect(page.locator("body")).toContainText("Build Your 5 Team Lineup");
 });
 
 // ---------------------------------------------------------------------------
@@ -34,8 +34,8 @@ test("guest clicking matchup card does not crash the page", async ({ page }) => 
 
 test("login with valid credentials", async ({ page }) => {
   await login(page, "alex@turf.com", "password");
-  // User name should appear in header
-  await expect(page.locator("body")).toContainText("Alex");
+  // Username should appear in header nav
+  await expect(page.locator('a[href="/account"]').first()).toContainText("alex");
 });
 
 test("login with invalid credentials shows error", async ({ page }) => {
@@ -53,6 +53,17 @@ test("login with invalid credentials shows error", async ({ page }) => {
 
 test("logged-in user can toggle selection and see cart update", async ({ page }) => {
   await login(page, "alex@turf.com", "password");
+
+  // Clear stale selections from prior tests
+  await page.evaluate(async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch("/contests/world-cup-2026/clear_picks", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
 
   const firstCard = page.locator("button.bg-surface").first();
   await firstCard.click();
@@ -73,8 +84,24 @@ test("logged-in user can toggle selection and see cart update", async ({ page })
 test("selection persists after page reload", async ({ page }) => {
   await login(page, "sam@turf.com", "password");
 
+  // Clear stale selections
+  await page.evaluate(async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch("/contests/world-cup-2026/clear_picks", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
   const firstCard = page.locator("button.bg-surface").first();
-  await firstCard.click();
+
+  // Click and wait for the toggle_selection response to ensure server persists
+  const [toggleResponse] = await Promise.all([
+    page.waitForResponse(resp => resp.url().includes("toggle_selection")),
+    firstCard.click(),
+  ]);
   await expect(page.locator("body")).toContainText("1/5");
 
   // Reload
@@ -90,6 +117,17 @@ test("selection persists after page reload", async ({ page }) => {
 
 test("selecting 5 matchups shows Hold to Confirm button", async ({ page }) => {
   await login(page, "alex@turf.com", "password");
+
+  // Clear stale selections from prior tests
+  await page.evaluate(async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch("/contests/world-cup-2026/clear_picks", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
 
   const cards = page.locator("button.bg-surface");
 
@@ -123,37 +161,49 @@ test("selecting 5 matchups shows Hold to Confirm button", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test("user can start a second entry after confirming the first", async ({ page }) => {
-  await login(page, "alex@turf.com", "password");
+  // Use joe (clean state — no selections from other tests)
+  await login(page, "joe@turf.com", "password");
 
-  // Dismiss blur overlay if present
-  const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
-  if (await blurOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
-    await blurOverlay.click();
-  }
-
-  // Ensure we have 5 selections
-  const cards = page.locator("button.bg-surface");
-  for (let i = 0; i < 6; i++) {
-    const bodyText = await page.locator("body").textContent();
-    if (bodyText.includes("5/5")) break;
-    const card = cards.nth(i);
-    if (await card.isVisible().catch(() => false)) {
-      await card.click();
-      await page.waitForTimeout(200);
-    }
-  }
-  await expect(page.locator("body")).toContainText("5/5");
-
-  // Confirm entry via POST (hold button interaction already tested separately)
-  await page.evaluate(async () => {
+  // Clear any existing cart first
+  const contestPath = "/contests/world-cup-2026";
+  await page.evaluate(async (cp) => {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    const link = document.querySelector('a[href*="/contests/"]');
-    const contestPath = link.getAttribute("href").match(/\/contests\/[^/]+/)[0];
-    await fetch(`${contestPath}/enter`, {
+    await fetch(`${cp}/clear_picks`, {
       method: "POST",
       headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
     });
-  });
+  }, contestPath);
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // Select 5 matchups
+  const cards = page.locator("button.bg-surface");
+  for (let i = 0; i < 5; i++) {
+    const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
+    if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
+      await blurOverlay.click();
+    }
+    await cards.nth(i).click();
+    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+  }
+
+  // Confirm entry via POST
+  await page.evaluate(async (cp) => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch(`${cp}/enter`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  }, contestPath);
+
+  // Clear stale cart after confirming so the new entry starts fresh
+  await page.evaluate(async (cp) => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch(`${cp}/clear_picks`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  }, contestPath);
 
   // Reload to get fresh page state after confirm
   await page.goto("/");
@@ -165,9 +215,8 @@ test("user can start a second entry after confirming the first", async ({ page }
     await overlay.click();
   }
 
-  // Try to toggle a selection on a matchup card
-  const firstCard = page.locator("button.bg-surface").first();
-  await firstCard.click();
+  // Click a matchup card to start a new entry
+  await cards.first().click();
 
   // Should see the selection registered in the cart (1/5)
   await expect(page.locator("body")).toContainText("1/5");

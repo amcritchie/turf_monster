@@ -6,8 +6,7 @@ class AdminController < ApplicationController
 
   def usdc_balance
     return render json: { error: "Not logged in" }, status: :unauthorized unless logged_in?
-    return render json: { balance: current_user.total_balance_dollars } unless Solana::Config.devnet?
-    return render json: { balance: current_user.total_balance_dollars } unless current_user.solana_connected?
+    return render json: { balance: 0 } unless current_user.solana_connected?
 
     # Always fetch fresh, then cache for server-side renders
     balance = fetch_user_usdc
@@ -15,7 +14,7 @@ class AdminController < ApplicationController
 
     render json: { balance: balance }
   rescue => e
-    render json: { balance: current_user.total_balance_dollars }
+    render json: { balance: 0 }
   end
 
   def mint_usdc

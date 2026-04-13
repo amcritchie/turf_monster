@@ -27,7 +27,7 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 
 ## Navbar Balance
 
-`display_balance` helper shows the logged-in user's Phantom wallet USDC balance on devnet (cached 60s), falling back to DB `total_balance_dollars` for non-wallet users or non-devnet. The `/admin/usdc_balance` JSON endpoint (used by `refreshBalance()` JS) follows the same logic. Both use `fetch_user_usdc` → `Vault#fetch_wallet_balances(current_user.solana_address)`.
+`display_balance` helper shows the user's on-chain USDC balance (cached 60s) for all wallet types. Falls back to 0 on error. The `/admin/usdc_balance` JSON endpoint (used by `refreshBalance()` JS) follows the same logic. Both use `fetch_user_usdc` → `Vault#fetch_wallet_balances(current_user.solana_address)`.
 
 **Balance refresh system**: `refreshBalance()` fetches `/admin/usdc_balance` and updates all `[data-balance-display]` elements. `refreshBalanceDelayed(ms)` waits (default 10s) then calls `refreshBalance()` — spins the navbar refresh icon (`[data-balance-refresh]`) during the wait as a visual cue. Called automatically after Solana operations (faucet, contest creation, payout). Manual refresh button (circular arrows icon) next to the balance in navbar (desktop + mobile).
 

@@ -70,6 +70,13 @@ module Solana
       signature = client.send_and_confirm(tx.serialize_base64)
 
       { ata: ata_base58, created: true, signature: signature }
+    rescue Solana::Client::RpcError => e
+      # ATA may have been created concurrently (e.g. by EnsureAtaJob).
+      # Re-check and return if it now exists; otherwise re-raise.
+      raise unless e.message.include?("IllegalOwner")
+      info = client.get_account_info(ata_base58)
+      raise unless info&.dig("value")
+      { ata: ata_base58, created: false, signature: nil }
     end
 
     # Mint SPL tokens (admin must be mint authority). Defaults to admin's ATA.
@@ -117,6 +124,33 @@ module Solana
       signature = client.send_and_confirm(tx.serialize_base64)
 
       { signature: signature, amount: amount_lamports, destination: Keypair.encode_base58(to_bytes) }
+    end
+
+    # Transfer USDC from a user's managed wallet to the admin wallet.
+    # Server signs with the user's keypair. Used for entry fee payments.
+    def transfer_from_user(user, amount_lamports, mint:)
+      keypair = user.solana_keypair
+      raise "No managed wallet key" unless keypair
+
+      from_pubkey = keypair.public_key_bytes
+      to_pubkey = Keypair.admin.public_key_bytes
+
+      ensure_ata(Keypair.encode_base58(from_pubkey), mint: mint)
+      ensure_ata(Keypair.encode_base58(to_pubkey), mint: mint)
+
+      from_ata, _ = Solana::SplToken.find_associated_token_address(from_pubkey, mint)
+      to_ata, _ = Solana::SplToken.find_associated_token_address(to_pubkey, mint)
+
+      transfer_ix = Solana::SplToken.transfer_instruction(
+        from: from_ata, to: to_ata,
+        authority: from_pubkey, amount: amount_lamports
+      )
+
+      tx = build_tx(keypair)
+      tx.add_instruction(**transfer_ix)
+      signature = client.send_and_confirm(tx.serialize_base64)
+
+      { signature: signature, amount: amount_lamports }
     end
 
     # --- High-level operations ---

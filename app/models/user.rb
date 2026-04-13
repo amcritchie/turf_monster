@@ -39,8 +39,7 @@ class User < ApplicationRecord
       name: auth.info.name,
       provider: auth.provider,
       uid: auth.uid,
-      password: SecureRandom.hex(16),
-      balance_cents: 0
+      password: SecureRandom.hex(16)
     )
   rescue ActiveRecord::RecordNotUnique
     # Race condition: another request created the user between our find_by and create
@@ -181,51 +180,9 @@ class User < ApplicationRecord
     computed_level
   end
 
-  # --- Money ---
-
-  def balance_dollars
-    balance_cents / 100.0
-  end
-
-  def promotional_dollars
-    promotional_cents / 100.0
-  end
-
-  def total_balance_cents
-    balance_cents + promotional_cents
-  end
-
-  def total_balance_dollars
-    total_balance_cents / 100.0
-  end
-
-  def add_funds!(cents)
-    increment!(:balance_cents, cents)
-  end
-
-  def add_promotional!(cents)
-    increment!(:promotional_cents, cents)
-  end
-
-  def deduct_funds!(cents)
-    with_lock do
-      reload
-      raise "Insufficient funds" if total_balance_cents < cents
-      promo_use = [promotional_cents, cents].min
-      real_use = cents - promo_use
-      decrement!(:promotional_cents, promo_use) if promo_use > 0
-      decrement!(:balance_cents, real_use) if real_use > 0
-    end
-  end
-
-  # Only real (onchain-backed) balance is withdrawable
-  def withdrawable_cents
-    balance_cents
-  end
-
-  def withdrawable_dollars
-    withdrawable_cents / 100.0
-  end
+  # --- Money (on-chain only) ---
+  # All balances are now on-chain USDC. DB balance_cents / promotional_cents columns
+  # are deprecated — kept for migration safety but no longer written to or read from.
 
   private
 

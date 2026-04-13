@@ -13,9 +13,6 @@ module UserMergeable
       # Transfer entries
       Entry.where(user_id: absorbed.id).update_all(user_id: survivor.id)
 
-      # Sum balances
-      survivor.balance_cents += absorbed.balance_cents
-
       # Fill in blank auth fields on survivor
       survivor.email = absorbed.email if survivor.email.blank? && absorbed.email.present?
       survivor.name = absorbed.name if survivor.name.blank? && absorbed.name.present?

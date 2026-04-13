@@ -12,15 +12,13 @@ class EntryTest < ActiveSupport::TestCase
     @m6 = slate_matchups(:m6)
   end
 
-  test "confirm! charges fee and sets status to active" do
+  test "confirm! sets status to active" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
-    balance_before = @user.balance_cents
     entry.confirm!
 
     assert entry.active?
-    assert_equal balance_before - @contest.entry_fee_cents, @user.reload.balance_cents
   end
 
   test "confirm! rejects with less than 5 selections" do
@@ -41,13 +39,14 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal "Contest is not open", error.message
   end
 
-  test "confirm! rejects with insufficient funds" do
-    @user.update!(balance_cents: 0, promotional_cents: 0)
+  test "confirm! accepts tx_signature parameter" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
 
-    error = assert_raises(RuntimeError) { entry.confirm! }
-    assert_equal "Insufficient funds", error.message
+    entry.confirm!(tx_signature: "fake_tx_sig_123")
+
+    assert entry.active?
+    assert_equal "fake_tx_sig_123", entry.onchain_tx_signature
   end
 
   # --- toggle_selection! tests ---

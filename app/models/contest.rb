@@ -96,7 +96,6 @@ class Contest < ApplicationRecord
           position_in_tie = tied_indices.index(i)
           share = position_in_tie < remainder ? base_share + 1 : base_share
           if share > 0
-            entry.user.add_funds!(share)
             TransactionLog.record!(user: entry.user, type: "payout", amount_cents: share, direction: "credit", source: self, description: "Payout rank ##{rank} for #{name}")
           end
         end

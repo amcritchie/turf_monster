@@ -7,7 +7,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "display_name returns capitalized email prefix when name is blank" do
-    user = User.create!(email: "newplayer@turf.com", password: "password", balance_cents: 0)
+    user = User.create!(email: "newplayer@turf.com", password: "password")
     assert_equal "Newplayer", user.display_name
   end
 
@@ -59,7 +59,7 @@ class UserTest < ActiveSupport::TestCase
       assert_equal "Google User", user.name
       assert_equal "google_oauth2", user.provider
       assert_equal "123456", user.uid
-      assert_equal 0, user.balance_cents
+      assert user.persisted?
     end
   end
 

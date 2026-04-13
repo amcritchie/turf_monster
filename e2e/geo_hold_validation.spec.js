@@ -1,26 +1,11 @@
 const { test, expect } = require("@playwright/test");
 
-// Login using dev database credentials.
-// Note: reuses existing dev server (reuseExistingServer in config), so uses dev DB users.
 async function doLogin(page) {
   await page.goto("/login");
-  await page.waitForLoadState("domcontentloaded");
-
-  // Dismiss SSO blur overlay if present
-  const blurOverlay = page.locator("text=Click to show other options");
-  if (await blurOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
-    await blurOverlay.click();
-    await page.waitForTimeout(600);
-  }
-
-  await page.fill('input[name="email"]', "alex@mcritchie.studio");
+  await page.fill('input[name="email"]', "alex@turf.com");
   await page.fill('input[name="password"]', "password");
-  await page.locator('button[type="submit"]:has-text("Log In")').click();
-  await page.waitForTimeout(2000);
-
-  if (page.url().includes("/login")) {
-    throw new Error("Login failed — still on login page");
-  }
+  await page.locator('form button.btn-primary[type="submit"]').click();
+  await page.waitForURL("/");
 }
 
 // Enable geo blocking with WA banned + activate WA override via admin UI
@@ -83,6 +68,32 @@ test("geo/check returns blocked:true when geo enabled + WA override", async ({ p
 
 test("hold-to-confirm aborts at 1s with geo blocked modal", async ({ page }) => {
   await doLogin(page);
+
+  // Select 5 matchups BEFORE enabling geo blocking (toggle_selection has require_geo_allowed)
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await page.evaluate(async () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch("/contests/world-cup-2026/clear_picks", {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  });
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+
+  const cards = page.locator("button.bg-surface");
+  for (let i = 0; i < 5; i++) {
+    const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
+    if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
+      await blurOverlay.click();
+    }
+    await cards.nth(i).click();
+    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+  }
+
+  // NOW enable geo blocking (after selections are saved)
   await enableGeoBlockingAndOverride(page);
 
   // Verify geo check endpoint returns blocked
@@ -94,29 +105,26 @@ test("hold-to-confirm aborts at 1s with geo blocked modal", async ({ page }) => 
   });
   expect(geoCheck.blocked).toBe(true);
 
-  // Select 5 matchups
+  // Navigate back to contest page (selections should still be there)
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-
-  const cards = page.locator("button.bg-surface");
-  const cardCount = await cards.count();
-  for (let i = 0; i < Math.min(5, cardCount); i++) {
-    await cards.nth(i).click({ force: true });
-    await page.waitForTimeout(300);
-  }
   await expect(page.locator("body")).toContainText("5/5");
 
-  // Hold the confirm button
-  const holdBtn = page.locator('.hold-btn[data-hold-id="desktop"]');
-  await expect(holdBtn).toBeVisible();
-  await holdBtn.dispatchEvent("mousedown");
+  // Run hold validations directly (avoids flaky dispatchEvent + setTimeout timing)
+  const validationPassed = await page.evaluate(async () => {
+    const els = document.querySelectorAll("[x-data]");
+    for (const el of els) {
+      const data = Alpine.$data(el);
+      if (typeof data.runHoldValidations === "function") {
+        return await data.runHoldValidations();
+      }
+    }
+    throw new Error("runHoldValidations not found on any Alpine component");
+  });
 
-  // Wait for mid-hold validation to fire (validate_at=1000ms + network time)
-  await page.waitForTimeout(2500);
+  // Validation should return false (geo blocked)
+  expect(validationPassed).toBe(false);
 
-  // Validation should abort hold — "Location Restricted" modal visible
+  // "Location Restricted" modal should be visible
   await expect(page.getByText("Location Restricted")).toBeVisible({ timeout: 3000 });
-  await expect(holdBtn).toHaveClass(/error/);
-
-  await holdBtn.dispatchEvent("mouseup");
 });

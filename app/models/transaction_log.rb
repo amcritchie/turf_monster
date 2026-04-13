@@ -18,14 +18,12 @@ class TransactionLog < ApplicationRecord
   TYPES = %w[deposit withdrawal entry_fee payout admin_credit faucet].freeze
 
   def self.record!(user:, type:, amount_cents:, direction:, source: nil, description: nil, status: "completed", onchain_tx: nil, metadata: {})
-    balance_after = user.reload.total_balance_cents
-
     create!(
       user: user,
       transaction_type: type,
       amount_cents: amount_cents,
       direction: direction,
-      balance_after_cents: balance_after,
+      balance_after_cents: nil,
       source: source,
       source_name: source&.slug,
       description: description,
