@@ -420,7 +420,21 @@ test("@devnet 3 — second entry submission: Mason re-enters with different pick
 
   // 2. Mason's balance is on-chain USDC — no DB top-up needed
 
-  // 3. Navigate to shared contest with add_entry=true to show board for second entry
+  // 3. Navigate to shared contest and clear stale picks from Test 2's cart
+  await page.goto(sharedContestUrl + "?add_entry=true");
+  await page.waitForLoadState("networkidle");
+
+  const contestPath = new URL(sharedContestUrl).pathname;
+  await page.evaluate(async (cp) => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    await fetch(`${cp}/clear_picks`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken, "Accept": "application/json" },
+    });
+  }, contestPath);
+  console.log("Test 3 — cleared stale picks from Test 2");
+
+  // Reload board so pick count resets to 0/5
   await page.goto(sharedContestUrl + "?add_entry=true");
   await page.waitForLoadState("networkidle");
 
