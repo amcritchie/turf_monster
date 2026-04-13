@@ -240,21 +240,51 @@ async function selectFiveMatchups(page, startIndex = 0) {
 // ---------------------------------------------------------------------------
 
 async function confirmEntry(page) {
-  await page.evaluate(async () => {
-    const els = document.querySelectorAll("[x-data]");
-    for (const el of els) {
-      const data = Alpine.$data(el);
-      if (typeof data.confirmEntry === "function") {
-        await data.confirmEntry();
-        return;
+  await withDevnetRetry(page, "confirmEntry", async (pg) => {
+    await pg.evaluate(async () => {
+      const els = document.querySelectorAll("[x-data]");
+      for (const el of els) {
+        const data = Alpine.$data(el);
+        if (typeof data.confirmEntry === "function") {
+          await data.confirmEntry();
+          return;
+        }
       }
-    }
-    throw new Error("confirmEntry() not found on any Alpine component");
-  });
+      throw new Error("confirmEntry() not found on any Alpine component");
+    });
 
-  await expect(page.locator("body")).toContainText("Entry submitted onchain", {
-    timeout: 60000,
+    await expect(pg.locator("body")).toContainText("Entry submitted onchain", {
+      timeout: 60000,
+    });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Helper: retry a devnet action once on failure
+// ---------------------------------------------------------------------------
+
+/**
+ * Tries an async action up to 2 times. If the first attempt throws or the
+ * `detectFailure` callback returns true, waits `delayMs` then retries.
+ *
+ * @param {object} page - Playwright page
+ * @param {string} label - Human-readable label for console output
+ * @param {function} action - async (page, attempt) => void — the action to try
+ * @param {object} opts
+ * @param {number} opts.delayMs - ms to wait before retry (default 5000)
+ */
+async function withDevnetRetry(page, label, action, { delayMs = 5000 } = {}) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await action(page, attempt);
+      return; // success
+    } catch (e) {
+      if (attempt === 2) throw e;
+      console.warn(`${label} — attempt ${attempt} failed: ${e.message.slice(0, 120)}`);
+      console.log(`${label} — retrying in ${delayMs}ms...`);
+      await page.waitForTimeout(delayMs);
+    }
+  }
 }
 
 // ===========================================================================
@@ -274,15 +304,16 @@ test("@devnet 1 — new contest flow: wallet login → create contest → pick 5
 
   // 2. Create a real onchain contest via the form
   const contestName = `Smoke ${Date.now().toString(36)}`;
-  await page.goto("/contests/new");
-  await page.fill("#contest_name", contestName);
-  await selectFirstSlate(page);
 
-  await page.getByRole("button", { name: "Create Contest" }).click();
-  await page.waitForURL(/\/contests\/(?!new)/, { timeout: 90000 });
+  await withDevnetRetry(page, "Test 1 contest create", async (pg) => {
+    await pg.goto("/contests/new");
+    await pg.fill("#contest_name", contestName);
+    await selectFirstSlate(pg);
+    await pg.getByRole("button", { name: "Create Contest" }).click();
+    await pg.waitForURL(/\/contests\/(?!new)/, { timeout: 90000 });
+    await expect(pg.locator("body")).toContainText(contestName);
+  });
 
-  // Verify we're on the new contest page
-  await expect(page.locator("body")).toContainText(contestName);
   const contestUrl = page.url();
   sharedContestUrl = contestUrl;
   console.log(`Test 1 — created onchain contest: ${contestUrl}`);
@@ -345,27 +376,28 @@ test("@devnet 2 — new entry submission: Mason picks 5 → enters shared contes
 
   await selectFiveMatchups(page);
 
-  // Managed wallet: confirmEntry() posts to /enter and redirects (no onchain modal)
-  await page.evaluate(async () => {
-    const els = document.querySelectorAll("[x-data]");
-    for (const el of els) {
-      const data = Alpine.$data(el);
-      if (typeof data.confirmEntry === "function") {
-        await data.confirmEntry();
-        return;
+  // Managed wallet: confirmEntry() posts to /enter (on-chain USDC transfer) and redirects
+  await withDevnetRetry(page, "Test 2 entry", async (pg) => {
+    await pg.evaluate(async () => {
+      const els = document.querySelectorAll("[x-data]");
+      for (const el of els) {
+        const data = Alpine.$data(el);
+        if (typeof data.confirmEntry === "function") {
+          await data.confirmEntry();
+          return;
+        }
       }
-    }
-    throw new Error("confirmEntry() not found on any Alpine component");
+      throw new Error("confirmEntry() not found on any Alpine component");
+    });
+
+    // Wait for redirect back to the contest page (managed wallet entries redirect)
+    await pg.waitForURL(/\/contests\//, { timeout: 60000 });
+    await pg.waitForLoadState("networkidle");
+
+    // Verify Mason's entry appears on the contest page
+    await expect(pg.locator("body")).toContainText("Leaderboard", { timeout: 10000 });
   });
-
-  // Wait for redirect back to the contest page (managed wallet entries redirect)
-  await page.waitForURL(/\/contests\//, { timeout: 60000 });
-  await page.waitForLoadState("networkidle");
-  console.log("Test 2 —Mason entry submitted");
-
-  // Verify Mason's entry appears on the contest page
-  await expect(page.locator("body")).toContainText("Leaderboard", { timeout: 10000 });
-  console.log("Test 2 —leaderboard visible, entry confirmed");
+  console.log("Test 2 —Mason entry submitted, leaderboard visible");
 });
 
 // ===========================================================================
@@ -395,23 +427,25 @@ test("@devnet 3 — second entry submission: Mason re-enters with different pick
   // Pick different 5 matchups (cards 5-9) to avoid sybil check
   await selectFiveMatchups(page, 5);
 
-  // 4. Managed wallet: confirmEntry() posts to /enter and redirects
-  await page.evaluate(async () => {
-    const els = document.querySelectorAll("[x-data]");
-    for (const el of els) {
-      const data = Alpine.$data(el);
-      if (typeof data.confirmEntry === "function") {
-        await data.confirmEntry();
-        return;
+  // 4. Managed wallet: confirmEntry() posts to /enter (on-chain USDC transfer) and redirects
+  await withDevnetRetry(page, "Test 3 entry", async (pg) => {
+    await pg.evaluate(async () => {
+      const els = document.querySelectorAll("[x-data]");
+      for (const el of els) {
+        const data = Alpine.$data(el);
+        if (typeof data.confirmEntry === "function") {
+          await data.confirmEntry();
+          return;
+        }
       }
-    }
-    throw new Error("confirmEntry() not found on any Alpine component");
+      throw new Error("confirmEntry() not found on any Alpine component");
+    });
+
+    await pg.waitForURL(/\/contests\//, { timeout: 60000 });
+    await pg.waitForLoadState("networkidle");
+
+    await expect(pg.locator("body")).toContainText("Leaderboard", { timeout: 10000 });
   });
-
-  await page.waitForURL(/\/contests\//, { timeout: 60000 });
-  await page.waitForLoadState("networkidle");
-
-  await expect(page.locator("body")).toContainText("Leaderboard", { timeout: 10000 });
   console.log("Test 3 —Mason second entry submitted, leaderboard visible");
 });
 
@@ -542,16 +576,19 @@ test("@devnet 7 — faucet flow: signup → claim $50 USDC → verify balance", 
   console.log(`Test 7 — registered: ${email}`);
 
   // 2. Navigate to faucet and claim $50 USDC
-  // Wait for Sidekiq to process EnsureAtaJob (creates the token account)
+  // Wait for EnsureAtaJob to process (background job creates the token account on signup)
   await page.waitForTimeout(5000);
-  await page.goto("/faucet");
-  await page.waitForLoadState("networkidle");
 
-  await page.getByRole("button", { name: "$50", exact: true }).click();
-  await page.getByRole("button", { name: "Claim $50 Test USDC" }).click();
+  await withDevnetRetry(page, "Test 7 faucet", async (pg) => {
+    await pg.goto("/faucet");
+    await pg.waitForLoadState("networkidle");
 
-  // Wait for the Solana modal to show success (devnet can be slow)
-  await expect(page.locator("body")).toContainText("Minted", { timeout: 90000 });
+    await pg.getByRole("button", { name: "$50", exact: true }).click();
+    await pg.getByRole("button", { name: "Claim $50 Test USDC" }).click();
+
+    // Wait for the Solana modal to show success (devnet can be slow)
+    await expect(pg.locator("body")).toContainText("Minted", { timeout: 90000 });
+  });
   console.log("Test 7 — faucet claim successful");
 
   // Close the modal
