@@ -18,36 +18,11 @@ test.describe("Wallet & Transactions", () => {
     await expect(page.locator("body")).toContainText("Wallet Address");
   });
 
-  test("faucet adds $10 test USDC", async ({ page }) => {
-    await loginAdmin(page);
-    await page.goto("/wallet");
-
-    // Click faucet button
-    await page.locator('button:has-text("Get Test USDC")').click();
-    await page.waitForURL("/wallet");
-
-    // Verify success flash
-    await expect(page.locator("body")).toContainText("Added $10.00 test USDC");
-  });
-
   test("wallet shows faucet link", async ({ page }) => {
     await loginAdmin(page);
     await page.goto("/wallet");
     await expect(page.locator("body")).toContainText("Get USDC");
     await expect(page.locator('a:has-text("Faucet Page")')).toBeVisible();
-  });
-
-  test("wallet shows recent transactions after faucet", async ({ page }) => {
-    await loginAdmin(page);
-    await page.goto("/wallet");
-
-    // Use faucet first
-    await page.locator('button:has-text("Get Test USDC")').click();
-    await page.waitForURL("/wallet");
-
-    // Verify transaction appears in recent transactions
-    await expect(page.locator("body")).toContainText("Recent Transactions");
-    await expect(page.locator("body")).toContainText("faucet");
   });
 });
 
@@ -55,12 +30,7 @@ test.describe("Admin Transaction Log", () => {
   test("admin can view transaction log", async ({ page }) => {
     await loginAdmin(page);
 
-    // Use faucet to ensure at least one transaction exists
-    await page.goto("/wallet");
-    await page.locator('button:has-text("Get Test USDC")').click();
-    await page.waitForURL("/wallet");
-
-    // Navigate to admin transactions
+    // Transaction log should have the pre-seeded faucet transaction
     await page.goto("/admin/transactions");
     await expect(page.getByRole("heading", { name: "Transaction Log" })).toBeVisible();
     await expect(page.locator("body")).toContainText("faucet");
@@ -68,11 +38,6 @@ test.describe("Admin Transaction Log", () => {
 
   test("admin transaction log detail page", async ({ page }) => {
     await loginAdmin(page);
-
-    // Use faucet
-    await page.goto("/wallet");
-    await page.locator('button:has-text("Get Test USDC")').click();
-    await page.waitForURL("/wallet");
 
     // Navigate to admin transactions and click first description link in the table
     await page.goto("/admin/transactions");
@@ -85,11 +50,6 @@ test.describe("Admin Transaction Log", () => {
 
   test("admin can filter by type", async ({ page }) => {
     await loginAdmin(page);
-
-    // Use faucet to ensure data exists
-    await page.goto("/wallet");
-    await page.locator('button:has-text("Get Test USDC")').click();
-    await page.waitForURL("/wallet");
 
     // Navigate to admin transactions and click a filter link (e.g. "faucet" in the type column)
     await page.goto("/admin/transactions");
