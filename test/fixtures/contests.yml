@@ -1,10 +1,10 @@
 one:
   name: Test Contest
   slug: test-contest
-  entry_fee_cents: 900
+  entry_fee_cents: 1900
   status: open
-  max_entries: 5
-  contest_type: small
+  max_entries: 30
+  contest_type: standard
   starts_at: 2026-06-11 16:00:00
   slate: one
   rank: 100

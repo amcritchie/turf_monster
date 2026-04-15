@@ -17,12 +17,12 @@ Load these when working on specific areas:
 ## Game Rules
 
 - Each contest has a set of **matchups** — team/opponent pairs with multipliers based on rank
-- Players select **5 matchups** per entry
+- Players select **6 matchups** per entry
 - Each selection is scored: **team goals x multiplier**
 - Entry score = sum of all selection scores
 - Entries ranked by score DESC; ties get the same rank
-- **Payouts**: 1st-6th = $40 each. Rank 1 also gets $50 bonus. Ties split the combined prize pool for their spanned ranks evenly.
-- Multiple entries per user per contest allowed (different selection combos required)
+- **Payouts**: Standard (30 entries, $19 fee): 1st=$300, 2nd-6th=$50 each. Small (3 entries, $19 fee): winner-take-all $50. Ties split evenly.
+- Max 3 entries per user per contest (different selection combos required)
 - Entry fee deducted from user balance on confirm
 
 ## Contest Lifecycle
@@ -46,7 +46,7 @@ draft → open → locked → settled
 
 ### Admin Actions (contest show page + navbar)
 
-- **Fill Contest** — generates random entries (5 random matchups each). Cycles through seeded users. Deduplicates against existing entries.
+- **Fill Contest** — generates random entries (6 random matchups each). Cycles through seeded users. Deduplicates against existing entries.
 - **Lock Contest** — transitions open → locked
 - **Jump** — simulates all game results and settles the contest in one click
 - **Grade Contest** — scores entries based on game results, assigns ranks, distributes payouts
@@ -54,11 +54,11 @@ draft → open → locked → settled
 
 ### Key Model Methods
 
-- `Contest#fill!(users:)` — random entries, 5 random matchups each, no duplicate combos
+- `Contest#fill!(users:)` — random entries, 6 random matchups each, no duplicate combos
 - `Contest#jump!` — simulate game results + grade in one transaction
 - `Contest#grade!` — score entries → rank → distribute payouts → settle. Persists `rank` and `payout_cents` on each entry.
 - `Contest#reset!` — destroy entries, reset game scores, reopen contest
-- `Entry#confirm!` — validates exactly 5 selections, checks for locked games, deducts entry fee, cart → active
+- `Entry#confirm!` — validates exactly 6 selections, checks for locked games, deducts entry fee, cart → active
 
 ## Dev Server
 
@@ -106,11 +106,11 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 ## Architecture
 
 - Money stored in cents, displayed in dollars via `dollars()` helper
-- **5 selections per entry** — hardcoded in Entry model, Contest model, index view JS, cart slots partial. Search "< 5", "=== 5", "in 5", "Exactly 5" when changing.
+- **6 selections per entry** — `Contest#picks_required` returns 6. All views use this dynamically. Max 3 entries per user per contest (`Contest#max_entries_per_user`).
 - **Balance system**: On-chain USDC is the single source of truth. DB columns `balance_cents`/`promotional_cents` are deprecated (kept for migration safety). All balance reads come from on-chain wallet via `display_balance` helper. Entry fees transfer USDC on-chain via `Vault#transfer_from_user`.
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as FKs (e.g. `team_slug`, `home_team_slug`). Associations use `foreign_key: :*_slug, primary_key: :slug`.
 - **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — x1.0 at rank 1 to x4.0 at rank N. Centralized on `SlateMatchup.multiplier_for(rank, n)`.
-- **Seeds system**: 60 seeds per entry on-chain. No DB columns. See `docs/SOLANA.md`.
+- **Seeds system**: 65 seeds per entry on-chain. No DB columns. See `docs/SOLANA.md`.
 - Entry slug includes `id` — requires `after_create` callback
 - Every page shows JSON debug block of its primary record
 
@@ -181,7 +181,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — **81 tests** total (minitest + fixtures)
+- `bin/rails test` — **83 tests** total (minitest + fixtures)
 - Test fixtures: 6 contest_matchups, 6 teams, 2 games
 - Test password: `"password"` (min 6 chars)
 - Test helper: `log_in_as(user)` defaults to password "password"
@@ -198,7 +198,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 - **Theme toggle store**: Engine refactored `Alpine.store('theme')` to an object with `toggle()` method and `isDark` getter. Toggle icons now use Heroicons v2.
 - **Hold button guard**: Use `<%== %>` (raw output) in `<script>` tags, NOT `<%= %>` which HTML-escapes `>` to `&gt;`
-- **Selection count = 5**: Hardcoded in multiple places — see Architecture section
+- **Selection count = 6**: Dynamic via `Contest#picks_required` — all views reference this method
 - **Tailwind class compilation**: New utility classes won't compile unless already used elsewhere. Use inline `style` for one-offs.
 - **Chart.js + Alpine.js**: Never store Chart.js instances as Alpine reactive properties (Proxy infinite loops). See `docs/FORMULAS.md`.
 - **Cross-component Alpine**: Use global functions/variables instead of `$dispatch`/`$store` for shared state.

@@ -7,7 +7,7 @@ const { login } = require("./helpers");
 
 test("index page loads with contest and matchup cards", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("body")).toContainText("Build Your 5 Team Lineup");
+  await expect(page.locator("body")).toContainText("Build Your 6 Team Lineup");
   // Matchup cards rendered as buttons with team names
   const matchupCards = page.locator("button.bg-surface");
   await expect(matchupCards.first()).toBeVisible();
@@ -25,7 +25,7 @@ test("guest clicking matchup card does not crash the page", async ({ page }) => 
   await firstCard.click();
 
   // Toggle is an Alpine.js fetch — guest gets a 302/auth error but page stays.
-  await expect(page.locator("body")).toContainText("Build Your 5 Team Lineup");
+  await expect(page.locator("body")).toContainText("Build Your 6 Team Lineup");
 });
 
 // ---------------------------------------------------------------------------
@@ -69,12 +69,12 @@ test("logged-in user can toggle selection and see cart update", async ({ page })
   await firstCard.click();
 
   // Cart should show 1 selection
-  await expect(page.locator("body")).toContainText("1/5");
+  await expect(page.locator("body")).toContainText("1/6");
 
   // Click same card again to deselect
   await firstCard.click();
   // Selection count should go back to 0
-  await expect(page.getByText("1/5")).not.toBeVisible();
+  await expect(page.getByText("1/6")).not.toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
@@ -102,20 +102,20 @@ test("selection persists after page reload", async ({ page }) => {
     page.waitForResponse(resp => resp.url().includes("toggle_selection")),
     firstCard.click(),
   ]);
-  await expect(page.locator("body")).toContainText("1/5");
+  await expect(page.locator("body")).toContainText("1/6");
 
   // Reload
   await page.reload();
 
   // The selection should still be there (Alpine reads from server-rendered data)
-  await expect(page.locator("body")).toContainText("1/5");
+  await expect(page.locator("body")).toContainText("1/6");
 });
 
 // ---------------------------------------------------------------------------
-// Five selections shows confirm button
+// Six selections shows confirm button
 // ---------------------------------------------------------------------------
 
-test("selecting 5 matchups shows Hold to Confirm button", async ({ page }) => {
+test("selecting 6 matchups shows Hold to Confirm button", async ({ page }) => {
   await login(page, "alex@turf.com", "password");
 
   // Clear stale selections from prior tests
@@ -132,16 +132,16 @@ test("selecting 5 matchups shows Hold to Confirm button", async ({ page }) => {
   const cards = page.locator("button.bg-surface");
 
   await cards.nth(0).click();
-  await expect(page.locator("body")).toContainText("1/5");
+  await expect(page.locator("body")).toContainText("1/6");
 
   await cards.nth(1).click();
-  await expect(page.locator("body")).toContainText("2/5");
+  await expect(page.locator("body")).toContainText("2/6");
 
   await cards.nth(2).click();
-  await expect(page.locator("body")).toContainText("3/5");
+  await expect(page.locator("body")).toContainText("3/6");
 
   await cards.nth(3).click();
-  await expect(page.locator("body")).toContainText("4/5");
+  await expect(page.locator("body")).toContainText("4/6");
 
   // Dismiss blur overlay before clicking 5th
   const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
@@ -150,7 +150,15 @@ test("selecting 5 matchups shows Hold to Confirm button", async ({ page }) => {
   }
 
   await cards.nth(4).click();
-  await expect(page.locator("body")).toContainText("5/5");
+  await expect(page.locator("body")).toContainText("5/6");
+
+  // Dismiss blur overlay before clicking 6th
+  if (await blurOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
+    await blurOverlay.click();
+  }
+
+  await cards.nth(5).click();
+  await expect(page.locator("body")).toContainText("6/6");
 
   // Hold to Confirm button should be visible (desktop + mobile = 2 elements, use first)
   await expect(page.getByText("Hold to Confirm").first()).toBeVisible();
@@ -176,15 +184,15 @@ test("user can start a second entry after confirming the first", async ({ page }
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
-  // Select 5 matchups
+  // Select 6 matchups
   const cards = page.locator("button.bg-surface");
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
     if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
       await blurOverlay.click();
     }
     await cards.nth(i).click();
-    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+    await expect(page.locator("body")).toContainText(`${i + 1}/6`);
   }
 
   // Confirm entry via POST
@@ -218,8 +226,8 @@ test("user can start a second entry after confirming the first", async ({ page }
   // Click a matchup card to start a new entry
   await cards.first().click();
 
-  // Should see the selection registered in the cart (1/5)
-  await expect(page.locator("body")).toContainText("1/5");
+  // Should see the selection registered in the cart (1/6)
+  await expect(page.locator("body")).toContainText("1/6");
 });
 
 // ---------------------------------------------------------------------------

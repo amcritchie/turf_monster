@@ -41,6 +41,10 @@ class Entry < ApplicationRecord
     end
 
     user.with_lock do
+      # Per-user entry limit
+      user_active_count = contest.entries.where(user: user, status: [:active, :complete]).count
+      raise "Maximum #{contest.max_entries_per_user} entries per contest" if user_active_count >= contest.max_entries_per_user
+
       # Sybil check (inside lock to prevent concurrent duplicate entries)
       my_combo = selections.map(&:slate_matchup_id).sort
       contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
@@ -86,6 +90,10 @@ class Entry < ApplicationRecord
     selections.includes(slate_matchup: :game).each do |s|
       raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
     end
+
+    # Per-user entry limit
+    user_active_count = contest.entries.where(user: user, status: [:active, :complete]).count
+    raise "Maximum #{contest.max_entries_per_user} entries per contest" if user_active_count >= contest.max_entries_per_user
 
     # Sybil check
     my_combo = selections.map(&:slate_matchup_id).sort

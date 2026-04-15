@@ -81,7 +81,7 @@ List open contests. Returns summary array.
       "max_entries": 100,
       "current_entries": 42,
       "starts_at": "2026-06-11T16:00:00Z",
-      "picks_required": 5
+      "picks_required": 6
     }
   ]
 }
@@ -240,7 +240,7 @@ Api::V1::AccountsController      — show
 - **Rate limiting**: Per wallet address, configurable per endpoint
 - **Bot registration**: Admin registers bot wallets, assigns roles
 - **Webhooks**: Notify bots of contest state changes (open → locked → settled)
-- **Batch selections**: Submit all 5 selections at once instead of toggling individually
+- **Batch selections**: Submit all 6 selections at once instead of toggling individually
 - **Leaderboard API**: `GET /api/v1/contests/:slug/leaderboard`
 - **WebSocket**: Real-time contest updates for active bots
 

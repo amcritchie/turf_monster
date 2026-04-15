@@ -70,13 +70,13 @@ The `devnet` project in `playwright.config.js` filters tests by the `@devnet` ta
 
 | # | Test Name | What It Does |
 |---|-----------|-------------|
-| 1 | New Contest Flow | Alex logs in via KeypairProvider wallet, creates onchain contest, selects 5 matchups, submits onchain entry. Saves contest URL for later tests. |
+| 1 | New Contest Flow | Alex logs in via KeypairProvider wallet, creates onchain contest, selects 6 matchups, submits onchain entry. Saves contest URL for later tests. |
 | 2 | New Manual Registration | Registers Mason via email/password, completes profile, claims $50 USDC from faucet, verifies wallet balance. |
-| 3 | New Entry Submission | Registers a fresh Mason, funds via faucet, enters Test 1's shared contest with 5 picks. Saves Mason's credentials. |
-| 4 | Second Entry Submission | Mason logs back in, claims more faucet USDC, enters the same contest with 5 different picks. Tests multi-entry per user. |
+| 3 | New Entry Submission | Registers a fresh Mason, funds via faucet, enters Test 1's shared contest with 6 picks. Saves Mason's credentials. |
+| 4 | Second Entry Submission | Mason logs back in, claims more faucet USDC, enters the same contest with 6 different picks. Tests multi-entry per user. |
 | 5 | New Web3 Registration | Mack connects via KeypairProvider wallet (different key from Alex), completes profile. Tests new user creation via wallet auth. |
-| 6 | New Web3 Submission | Mack logs in via wallet, enters the shared contest with 5 picks via direct onchain path. Verifies explorer tx link. |
-| 7 | Web3 Second Entry | Mack logs in via wallet, re-enters the shared contest with 5 different picks (cards 5-9). Tests multi-entry for Web3 users. |
+| 6 | New Web3 Submission | Mack logs in via wallet, enters the shared contest with 6 picks via direct onchain path. Verifies explorer tx link. |
+| 7 | Web3 Second Entry | Mack logs in via wallet, re-enters the shared contest with 6 different picks (cards 6-11). Tests multi-entry for Web3 users. |
 
 **Note:** Tests run serially (`workers: 1`). Tests 3-4 and 6-7 depend on Test 1's `sharedContestUrl`. Test 4 depends on Test 3's Mason credentials. Tests use two wallets: Alex Bot (admin) and Mack (Web3 user).
 

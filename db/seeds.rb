@@ -569,9 +569,9 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
 
   contest = Contest.find_or_create_by!(name: contest_name) do |c|
     c.slate = slate
-    c.contest_type = "small"
-    c.entry_fee_cents = Contest::FORMATS["small"][:entry_fee_cents]
-    c.max_entries = Contest::FORMATS["small"][:max_entries]
+    c.contest_type = "standard"
+    c.entry_fee_cents = Contest::FORMATS["standard"][:entry_fee_cents]
+    c.max_entries = Contest::FORMATS["standard"][:max_entries]
     c.status = "open"
     c.starts_at = starts_at
     c.tagline = tagline

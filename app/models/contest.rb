@@ -19,7 +19,11 @@ class Contest < ApplicationRecord
   end
 
   def picks_required
-    5
+    6
+  end
+
+  def max_entries_per_user
+    3
   end
 
   def entry_fee_dollars
@@ -43,12 +47,12 @@ class Contest < ApplicationRecord
   end
 
   FORMATS = {
-    "small" => { entry_fee_cents: 9_00, max_entries: 5, payouts: { 1 => 40_00 } },
-    "large" => { entry_fee_cents: 9_00, max_entries: 25, payouts: { 1 => 100_00, 2 => 25_00, 3 => 25_00, 4 => 25_00, 5 => 25_00 } }
+    "small" => { entry_fee_cents: 19_00, max_entries: 3, payouts: { 1 => 50_00 } },
+    "standard" => { entry_fee_cents: 19_00, max_entries: 30, payouts: { 1 => 300_00, 2 => 50_00, 3 => 50_00, 4 => 50_00, 5 => 50_00, 6 => 50_00 } }
   }
 
   def format_config
-    FORMATS[contest_type] || FORMATS["small"]
+    FORMATS[contest_type] || FORMATS["standard"]
   end
 
   def payouts

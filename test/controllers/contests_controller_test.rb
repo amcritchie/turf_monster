@@ -64,7 +64,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     post enter_contest_path(@contest),
       headers: { "Accept" => "application/json" }
@@ -96,7 +96,7 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     log_in_as(@user)
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     post enter_contest_path(@contest)
 

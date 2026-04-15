@@ -158,7 +158,7 @@ class User < ApplicationRecord
   # Seeds live on the UserAccount PDA (on-chain). 25 seeds per contest entry.
   # Level = (seeds / 100) + 1. UI-derived, no DB column.
 
-  SEEDS_PER_ENTRY = 60
+  SEEDS_PER_ENTRY = 65
   SEEDS_PER_LEVEL = 100
 
   def self.level_for(seeds)

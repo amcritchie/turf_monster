@@ -14,14 +14,14 @@ class EntryTest < ActiveSupport::TestCase
 
   test "confirm! sets status to active" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     entry.confirm!
 
     assert entry.active?
   end
 
-  test "confirm! rejects with less than 5 selections" do
+  test "confirm! rejects with less than 6 selections" do
     entry = @contest.entries.create!(user: @user, status: :cart)
     [@m1, @m2].each { |m| entry.selections.create!(slate_matchup: m) }
 
@@ -33,7 +33,7 @@ class EntryTest < ActiveSupport::TestCase
   test "confirm! rejects for non-open contest" do
     @contest.update!(status: "locked")
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_equal "Contest is not open", error.message
@@ -41,7 +41,7 @@ class EntryTest < ActiveSupport::TestCase
 
   test "confirm! accepts tx_signature parameter" do
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     entry.confirm!(tx_signature: "fake_tx_sig_123")
 
@@ -72,12 +72,12 @@ class EntryTest < ActiveSupport::TestCase
   test "confirm! rejects duplicate selection combo (sybil check)" do
     # First entry
     entry1 = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry1.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry1.selections.create!(slate_matchup: m) }
     entry1.confirm!
 
     # Second entry with same combo
     entry2 = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry2.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry2.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry2.confirm! }
     assert_match(/already have an entry/, error.message)
@@ -102,11 +102,29 @@ class EntryTest < ActiveSupport::TestCase
     @m1.update!(game_slug: "past-game")
 
     entry = @contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5].each { |m| entry.selections.create!(slate_matchup: m) }
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
     error = assert_raises(RuntimeError) { entry.confirm! }
     assert_match(/already started/, error.message)
     assert entry.reload.cart?
+  end
+
+  test "confirm! rejects when user has reached per-contest entry limit" do
+    # Create 3 confirmed entries with different combos
+    # We only have 6 matchups, so we need different combos — use subsets
+    # Actually with 6 matchups and picks_required=6, all combos are the same.
+    # So we need more matchups. Let's mock the limit directly.
+    # Create entries that are already active to fill the limit.
+    3.times do |i|
+      entry = @contest.entries.create!(user: @user, status: :active)
+    end
+
+    # Try to confirm a 4th entry
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    error = assert_raises(RuntimeError) { entry.confirm! }
+    assert_match(/Maximum 3 entries per contest/, error.message)
   end
 
 end

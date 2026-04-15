@@ -69,7 +69,7 @@ test("geo/check returns blocked:true when geo enabled + WA override", async ({ p
 test("hold-to-confirm aborts at 1s with geo blocked modal", async ({ page }) => {
   await doLogin(page);
 
-  // Select 5 matchups BEFORE enabling geo blocking (toggle_selection has require_geo_allowed)
+  // Select 6 matchups BEFORE enabling geo blocking (toggle_selection has require_geo_allowed)
   await page.goto("/");
   await page.waitForLoadState("networkidle");
 
@@ -84,13 +84,13 @@ test("hold-to-confirm aborts at 1s with geo blocked modal", async ({ page }) => 
   await page.waitForLoadState("networkidle");
 
   const cards = page.locator("button.bg-surface");
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
     if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
       await blurOverlay.click();
     }
     await cards.nth(i).click();
-    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+    await expect(page.locator("body")).toContainText(`${i + 1}/6`);
   }
 
   // NOW enable geo blocking (after selections are saved)
@@ -108,7 +108,7 @@ test("hold-to-confirm aborts at 1s with geo blocked modal", async ({ page }) => 
   // Navigate back to contest page (selections should still be there)
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  await expect(page.locator("body")).toContainText("5/5");
+  await expect(page.locator("body")).toContainText("6/6");
 
   // Run hold validations directly (avoids flaky dispatchEvent + setTimeout timing)
   const validationPassed = await page.evaluate(async () => {

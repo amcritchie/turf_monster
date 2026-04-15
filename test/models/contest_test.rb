@@ -15,8 +15,12 @@ class ContestTest < ActiveSupport::TestCase
     assert_equal 2 * @contest.entry_fee_cents, @contest.pool_cents
   end
 
-  test "picks_required returns 5" do
-    assert_equal 5, @contest.picks_required
+  test "picks_required returns 6" do
+    assert_equal 6, @contest.picks_required
+  end
+
+  test "max_entries_per_user returns 3" do
+    assert_equal 3, @contest.max_entries_per_user
   end
 
   test "slug is set on save" do

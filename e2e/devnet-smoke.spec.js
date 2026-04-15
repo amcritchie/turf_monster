@@ -218,20 +218,20 @@ async function loginViaKeypair(page) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: select 5 matchup cards
+// Helper: select 6 matchup cards
 // ---------------------------------------------------------------------------
 
-async function selectFiveMatchups(page, startIndex = 0) {
+async function selectMatchups(page, startIndex = 0) {
   const cards = page.locator("button.bg-surface");
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
     if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
       await blurOverlay.click();
     }
 
     await cards.nth(startIndex + i).click();
-    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+    await expect(page.locator("body")).toContainText(`${i + 1}/6`);
   }
 }
 
@@ -291,7 +291,7 @@ async function withDevnetRetry(page, label, action, { delayMs = 5000 } = {}) {
 // Test 1: New Contest Flow
 // ===========================================================================
 
-test("@devnet 1 — new contest flow: wallet login → create contest → pick 5 → submit entry", async ({
+test("@devnet 1 — new contest flow: wallet login → create contest → pick 6 → submit entry", async ({
   page,
 }) => {
   await setupKeypairProvider(page);
@@ -318,11 +318,11 @@ test("@devnet 1 — new contest flow: wallet login → create contest → pick 5
   sharedContestUrl = contestUrl;
   console.log(`Test 1 — created onchain contest: ${contestUrl}`);
 
-  // 3. Select 5 matchups
+  // 3. Select 6 matchups
   await page.goto(contestUrl);
   await page.waitForLoadState("networkidle");
-  await selectFiveMatchups(page);
-  await expect(page.locator("body")).toContainText("5/5");
+  await selectMatchups(page);
+  await expect(page.locator("body")).toContainText("6/6");
 
   // 4. Submit onchain entry
   await confirmEntry(page);
@@ -341,7 +341,7 @@ test("@devnet 1 — new contest flow: wallet login → create contest → pick 5
 // Test 2: New Entry Submission (Mason enters Test 1's contest)
 // ===========================================================================
 
-test("@devnet 2 — new entry submission: Mason picks 5 → enters shared contest", async ({
+test("@devnet 2 — new entry submission: Mason picks 6 → enters shared contest", async ({
   page,
 }) => {
   test.skip(!sharedContestUrl, "No shared contest URL from Test 1");
@@ -370,11 +370,11 @@ test("@devnet 2 — new entry submission: Mason picks 5 → enters shared contes
   masonPassword = password;
   console.log(`Test 2 —Mason registered: ${email}`);
 
-  // Navigate to shared contest, pick 5, enter
+  // Navigate to shared contest, pick 6, enter
   await page.goto(sharedContestUrl);
   await page.waitForLoadState("networkidle");
 
-  await selectFiveMatchups(page);
+  await selectMatchups(page);
 
   // Managed wallet: confirmEntry() posts to /enter (on-chain USDC transfer) and redirects
   await withDevnetRetry(page, "Test 2 entry", async (pg) => {
@@ -434,12 +434,12 @@ test("@devnet 3 — second entry submission: Mason re-enters with different pick
   }, contestPath);
   console.log("Test 3 — cleared stale picks from Test 2");
 
-  // Reload board so pick count resets to 0/5
+  // Reload board so pick count resets to 0/6
   await page.goto(sharedContestUrl + "?add_entry=true");
   await page.waitForLoadState("networkidle");
 
-  // Pick different 5 matchups (cards 5-9) to avoid sybil check
-  await selectFiveMatchups(page, 5);
+  // Pick different 6 matchups (cards 6-11) to avoid sybil check
+  await selectMatchups(page, 6);
 
   // 4. Managed wallet: confirmEntry() posts to /enter (on-chain USDC transfer) and redirects
   await withDevnetRetry(page, "Test 3 entry", async (pg) => {
@@ -500,7 +500,7 @@ test("@devnet 4 — new web3 registration: Mack wallet connect → complete prof
 // Test 5: New Web3 Submission (Mack enters shared contest)
 // ===========================================================================
 
-test("@devnet 5 — new web3 submission: Mack picks 5 → enters shared contest onchain", async ({
+test("@devnet 5 — new web3 submission: Mack picks 6 → enters shared contest onchain", async ({
   page,
 }) => {
   test.skip(!sharedContestUrl, "No shared contest URL from Test 1");
@@ -511,10 +511,10 @@ test("@devnet 5 — new web3 submission: Mack picks 5 → enters shared contest 
   await loginViaKeypair(page);
   console.log("Test 5 —Mack logged in via wallet");
 
-  // 2. Navigate to shared contest, pick 5 matchups
+  // 2. Navigate to shared contest, pick 6 matchups
   await page.goto(sharedContestUrl);
   await page.waitForLoadState("networkidle");
-  await selectFiveMatchups(page);
+  await selectMatchups(page);
 
   // 3. Web3 wallet: confirmEntry() goes through direct onchain path
   await confirmEntry(page);
@@ -548,8 +548,8 @@ test("@devnet 6 — web3 second entry: Mack re-enters shared contest with differ
   await page.goto(sharedContestUrl + "?add_entry=true");
   await page.waitForLoadState("networkidle");
 
-  // Pick different 5 matchups (cards 5-9) to avoid sybil check
-  await selectFiveMatchups(page, 5);
+  // Pick different 6 matchups (cards 6-11) to avoid sybil check
+  await selectMatchups(page, 6);
 
   // 3. Web3 wallet: direct onchain path
   await confirmEntry(page);

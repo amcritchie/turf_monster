@@ -98,8 +98,8 @@ async function setupOnchainMocks(page) {
         success: true,
         redirect: `/contests/${contestSlug}`,
         tx_signature: MOCK_TX_SIG,
-        seeds_earned: 60,
-        seeds_total: 60,
+        seeds_earned: 65,
+        seeds_total: 65,
         seeds_level: 1,
       }),
     });

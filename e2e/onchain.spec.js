@@ -9,21 +9,21 @@ const {
 const CONTEST_PATH = "/contests/world-cup-2026";
 
 // ---------------------------------------------------------------------------
-// Helper: select 5 matchup cards on the contest show page
+// Helper: select 6 matchup cards on the contest show page
 // ---------------------------------------------------------------------------
 
-async function selectFiveMatchups(page) {
+async function selectMatchups(page) {
   const cards = page.locator("button.bg-surface");
 
-  for (let i = 0; i < 5; i++) {
-    // Dismiss blur overlay if it appears (after 4th selection)
+  for (let i = 0; i < 6; i++) {
+    // Dismiss blur overlay if it appears (after 5th selection)
     const blurOverlay = page.locator("div.fixed.inset-0.z-20.cursor-pointer");
     if (await blurOverlay.isVisible({ timeout: 300 }).catch(() => false)) {
       await blurOverlay.click();
     }
 
     await cards.nth(i).click();
-    await expect(page.locator("body")).toContainText(`${i + 1}/5`);
+    await expect(page.locator("body")).toContainText(`${i + 1}/6`);
   }
 }
 
@@ -75,7 +75,7 @@ test("standard entry with balance deduction", async ({ page }) => {
   await page.waitForLoadState("networkidle");
 
   // Select 5 matchups
-  await selectFiveMatchups(page);
+  await selectMatchups(page);
 
   // Confirm entry via direct POST (same pattern as smoke.spec.js)
   await page.evaluate(async (contestPath) => {
@@ -121,7 +121,7 @@ test("onchain entry via Phantom with mocked devnet", async ({ page }) => {
   await page.waitForLoadState("networkidle");
 
   // Select 5 matchups
-  await selectFiveMatchups(page);
+  await selectMatchups(page);
 
   // Trigger confirmEntry() directly via Alpine (avoids hold-button timing)
   await page.evaluate(async () => {
@@ -140,7 +140,7 @@ test("onchain entry via Phantom with mocked devnet", async ({ page }) => {
   await expect(page.locator("body")).toContainText("Entry submitted onchain", {
     timeout: 15000,
   });
-  await expect(page.locator("body")).toContainText("+60");
+  await expect(page.locator("body")).toContainText("+65");
 
   // Close modal → triggers redirect to contest page
   await page.evaluate(() => Alpine.store("solanaModal").close());

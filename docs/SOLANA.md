@@ -64,7 +64,7 @@ Key difference: Phantom users' navbar shows wallet USDC (fetched live), which de
 
 ## Seeds System (On-Chain)
 
-60 seeds awarded per contest entry on-chain (TurfVault v0.5.0). No DB columns — seeds are read from UserAccount PDA via `sync_balance`. UI-derived levels: `level = seeds / 100 + 1`. Class methods on User: `level_for(seeds)`, `seeds_toward_next_level(seeds)`, `seeds_progress_percent(seeds)`. Constants: `SEEDS_PER_ENTRY = 60`, `SEEDS_PER_LEVEL = 100`. Progress bar partial `_slate_progress_xp.html.erb` renders on contest show page for wallet-connected users. Level-up animation with confetti on progress bar, seeds earned badge in Solana modal. `User#level` column (integer, default 1) persisted via `update_level_from_seeds!` endpoint (`PATCH /account/update_level`).
+65 seeds awarded per contest entry on-chain (TurfVault v0.7.0). No DB columns — seeds are read from UserAccount PDA via `sync_balance`. UI-derived levels: `level = seeds / 100 + 1`. Class methods on User: `level_for(seeds)`, `seeds_toward_next_level(seeds)`, `seeds_progress_percent(seeds)`. Constants: `SEEDS_PER_ENTRY = 65`, `SEEDS_PER_LEVEL = 100`. Progress bar partial `_slate_progress_xp.html.erb` renders on contest show page for wallet-connected users. Level-up animation with confetti on progress bar, seeds earned badge in Solana modal. `User#level` column (integer, default 1) persisted via `update_level_from_seeds!` endpoint (`PATCH /account/update_level`).
 
 ## Rake Tasks
 
