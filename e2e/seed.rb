@@ -13,34 +13,16 @@ Entry.delete_all
 SlateMatchup.delete_all
 Contest.delete_all
 Slate.delete_all
+Game.delete_all
 Team.delete_all
 User.delete_all
 
-# Users
-alex = User.create!(
-  name: "Alex",
-  username: "alex",
-  email: "alex@turf.com",
-  password: "password",
-  password_confirmation: "password",
-  role: "admin"
-)
-
-sam = User.create!(
-  name: "Sam",
-  username: "sam",
-  email: "sam@turf.com",
-  password: "password",
-  password_confirmation: "password"
-)
-
-joe = User.create!(
-  name: "Joe",
-  username: "joe",
-  email: "joe@turf.com",
-  password: "password",
-  password_confirmation: "password"
-)
+# Users (shared definitions across all seed files)
+load Rails.root.join("db/seeds/users.rb")
+users = seed_core_users!
+alex  = users["alex"]
+mason = users["mason"]
+mack  = users["mack"]
 
 # Teams — full World Cup 2026 Matchday 1 roster (48 teams)
 TEAMS_DATA = [
@@ -140,10 +122,18 @@ MATCHDAY_1_GAMES = [
   { home: "GHA", away: "PAN" }, { home: "UZB", away: "COL" },
 ]
 
-MATCHDAY_1_GAMES.each do |game_data|
+base_kickoff = 1.week.from_now
+MATCHDAY_1_GAMES.each_with_index do |game_data, i|
   home = teams[game_data[:home]]
   away = teams[game_data[:away]]
   game_slug = "#{home.slug}-vs-#{away.slug}"
+
+  Game.create!(
+    home_team_slug: home.slug,
+    away_team_slug: away.slug,
+    kickoff_at: base_kickoff + i.hours,
+    status: "pending"
+  )
 
   slate.slate_matchups.create!(
     team_slug: home.slug,
@@ -167,12 +157,11 @@ matchups.each_with_index do |matchup, i|
   matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
 end
 
-# Set wallet addresses
+# Test-specific wallet overrides:
 # Alex uses mock keypair (deterministic seed byte 1) so Playwright tests can sign.
 # For devnet smoke tests, SOLANA_BOT_PUBKEY overrides Alex's wallet to Alex Bot's pubkey.
 alex_wallet = ENV.fetch("SOLANA_BOT_PUBKEY", "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt")
 alex.update!(web3_solana_address: alex_wallet)
-sam.update!(web3_solana_address: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds")
 
 # Clear encrypted keypairs so approve/deny tests don't trigger onchain withdrawals.
 # Keep web2_solana_address so managed_wallet? stays true (needed for deposits).

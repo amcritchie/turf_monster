@@ -1,3 +1,4 @@
+<% unless local_assigns[:compact] %>
 <!-- Contest Details -->
 <% explorer_base = Solana::Config.devnet? ? "?cluster=devnet" : "" %>
 <section class="mb-8">
@@ -28,7 +29,7 @@
         </div>
         <div class="bg-surface-alt rounded-lg p-3">
           <p class="label-upper">Prize Pool</p>
-          <p class="font-mono text-lg text-primary"><%= dollars(oc[:bonus_dollars]) %></p>
+          <p class="font-mono text-lg text-primary"><%= dollars(oc[:prizes_dollars]) %></p>
         </div>
         <div class="bg-surface-alt rounded-lg p-3">
           <p class="label-upper">Entries</p>
@@ -105,6 +106,7 @@
       <% end %>
     </div>
   </section>
+<% end %>
 <% end %>
 
 <!-- Completed Games -->

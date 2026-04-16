@@ -1,61 +1,9 @@
 puts "Seeding Turf Picks..."
 
-# Users
-alex = User.find_or_create_by!(email: "alex@mcritchie.studio") do |u|
-  u.name = "Alex McRitchie"
-  u.username = "alex"
-
-  u.password = "password"
-  u.role = "admin"
-end
-alex.update!(password: "password") if alex.password_digest.blank?
-alex.update!(role: "admin") unless alex.admin?
-alex.update!(username: "alex") if alex.username.blank?
-
-mason = User.find_or_create_by!(email: "mason@mcritchie.studio") do |u|
-  u.name = "Mason McRitchie"
-  u.username = "mason"
-
-  u.password = "password"
-end
-mason.update!(password: "password") if mason.password_digest.blank?
-mason.update!(username: "mason") if mason.username.blank?
-
-mack = User.find_or_create_by!(email: "mack@mcritchie.studio") do |u|
-  u.name = "Mack McRitchie"
-  u.username = "mack"
-
-  u.password = "password"
-end
-mack.update!(password: "password") if mack.password_digest.blank?
-mack.update!(username: "mack") if mack.username.blank?
-
-turf = User.find_or_create_by!(email: "turf@mcritchie.studio") do |u|
-  u.name = "Turf Monster"
-  u.username = "turf"
-
-  u.password = "password"
-end
-turf.update!(password: "password") if turf.password_digest.blank?
-turf.update!(username: "turf") if turf.username.blank?
-
-# Set Phantom wallet addresses (real wallets, not managed)
-# Clear managed wallet — these users use Phantom, not managed
-{
-  alex  => "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr",
-  mason => "CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR",
-  mack  => "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds",
-  turf  => "BLSBw8fXHzZc5pbaYCKMpMSsrtXBTbWXpUPVzMrXx9oo"
-}.each do |user, address|
-  user.update!(web3_solana_address: address, web2_solana_address: nil, encrypted_web2_solana_private_key: nil)
-end
-
-# Backfill managed wallets for users without any wallet
-User.where(web2_solana_address: nil, web3_solana_address: nil).find_each(&:generate_managed_wallet!)
-
-# Users get USDC from the faucet page — no more DB balance seeding
-
-puts "  Created #{User.count} users"
+# Users (shared definitions across all seed files)
+load Rails.root.join("db/seeds/users.rb")
+core_users = seed_core_users!
+admin = core_users["alex"]
 
 # ─── Teams (all 48 World Cup 2026) ──────────────────────────────
 # All 48 confirmed (playoff spots decided March 26-31, 2026)
@@ -562,7 +510,7 @@ def compute_dk_score(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
-def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil)
+def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil, user: nil)
   slate = Slate.find_or_create_by!(name: slate_name) do |s|
     s.starts_at = starts_at
   end
@@ -575,9 +523,11 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
     c.status = "open"
     c.starts_at = starts_at
     c.tagline = tagline
+    c.user = user if user
   end
   contest.update!(slate: slate) if contest.slate_id.nil?
   contest.update!(tagline: tagline) if tagline && contest.tagline.blank?
+  contest.update!(user: user) if user && contest.user_id.nil?
 
   puts "  Created slate: #{slate.name}, contest: #{contest.name}"
 
@@ -666,7 +616,8 @@ contest1 = create_slate_with_contest(
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 11, 15, 0),
-  tagline: "Matchday 1 — World Cup 2026 Group Stage"
+  tagline: "Matchday 1 — World Cup 2026 Group Stage",
+  user: admin
 )
 contest1.update!(rank: 100) if contest1.rank.nil?
 
@@ -678,7 +629,8 @@ contest2 = create_slate_with_contest(
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 18, 12, 0),
   general_rankings: true,
-  tagline: "Matchday 2 — World Cup 2026 Group Stage"
+  tagline: "Matchday 2 — World Cup 2026 Group Stage",
+  user: admin
 )
 contest2.update!(rank: 200) if contest2.rank.nil?
 
@@ -690,9 +642,13 @@ contest3 = create_slate_with_contest(
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 24, 15, 0),
   general_rankings: true,
-  tagline: "Matchday 3 — World Cup 2026 Group Stage"
+  tagline: "Matchday 3 — World Cup 2026 Group Stage",
+  user: admin
 )
 contest3.update!(rank: 300) if contest3.rank.nil?
+
+# Backfill creator on any existing contests without one
+Contest.where(user_id: nil).update_all(user_id: admin.id)
 
 # ─── Default Slate (formula defaults record) ──────────────────
 Slate.find_or_create_by!(name: "Default")

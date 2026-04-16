@@ -1,0 +1,45 @@
+# Shared core user definitions — used by db/seeds.rb and e2e/seed.rb.
+#
+# Returns a hash of User objects keyed by username string.
+# Uses find_or_create_by! for idempotency.
+
+CORE_USERS = [
+  { email: "alex@mcritchie.studio",    name: "Alex McRitchie",  username: "alex",     role: "admin", wallet: "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr" },
+  { email: "alexbot@mcritchie.studio", name: "Alex Bot",        username: "alex-bot", role: "admin", wallet: "F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ" },
+  { email: "mason@mcritchie.studio",   name: "Mason McRitchie", username: "mason",    wallet: "CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR" },
+  { email: "mack@mcritchie.studio",    name: "Mack McRitchie",  username: "mack",     wallet: "foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds" },
+  { email: "turf@mcritchie.studio",    name: "Turf Monster",    username: "turf",     wallet: "BLSBw8fXHzZc5pbaYCKMpMSsrtXBTbWXpUPVzMrXx9oo" },
+].freeze
+
+def seed_core_users!
+  users = {}
+
+  CORE_USERS.each do |data|
+    user = User.find_or_create_by!(email: data[:email]) do |u|
+      u.name     = data[:name]
+      u.username = data[:username]
+      u.password = "password"
+      u.role     = data[:role] || "user"
+    end
+
+    # Ensure fields are up to date on existing records
+    user.update!(password: "password") if user.password_digest.blank?
+    user.update!(username: data[:username]) if user.username.blank?
+    user.update!(role: data[:role]) if data[:role] && !user.send("#{data[:role]}?")
+
+    # Set Phantom wallet address (real wallets, not managed)
+    user.update!(
+      web3_solana_address: data[:wallet],
+      web2_solana_address: nil,
+      encrypted_web2_solana_private_key: nil
+    )
+
+    users[data[:username]] = user
+  end
+
+  # Backfill managed wallets for users without any wallet
+  User.where(web2_solana_address: nil, web3_solana_address: nil).find_each(&:generate_managed_wallet!)
+
+  puts "  Created #{User.count} users"
+  users
+end

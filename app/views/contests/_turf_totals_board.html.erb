@@ -454,23 +454,11 @@
     matchups_desc = matchups_asc.reverse
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
-    <div class="grid grid-cols-3 gap-3 mb-6">
-      <div class="bg-surface-alt rounded-lg p-3 text-center border border-subtle">
-        <p class="text-2xl mb-1">⚽</p>
-        <p class="text-lg font-extrabold text-heading">Build</p>
-        <p class="text-xs text-muted mt-1">Your <span class="font-semibold text-secondary"><%= @contest.picks_required %> Team Roster</span> from the 1<sup>st</sup> slate of matchups in World Cup Group Play</p>
+    <% unless local_assigns[:compact] %>
+      <div class="mb-6">
+        <%= render "contests/lobby_info_cards" %>
       </div>
-      <div class="bg-surface-alt rounded-lg p-3 text-center border border-subtle">
-        <p class="text-2xl mb-1">🍿</p>
-        <p class="text-lg font-extrabold text-heading">Compete</p>
-        <p class="text-xs text-muted mt-1">In the <span class="font-semibold text-secondary">peer-to-peer contest</span> and climb the leaderboard based on your <span class="font-semibold text-secondary">team's goals &times; multiplier</span></p>
-      </div>
-      <div class="bg-surface-alt rounded-lg p-3 text-center border border-subtle">
-        <p class="text-2xl mb-1">🪎</p>
-        <p class="text-lg font-extrabold text-heading">Win</p>
-        <p class="text-xs text-muted mt-1">Each <span class="font-semibold text-secondary">$<%= @contest.entry_fee_dollars.to_i %> Entry</span> gives you a shot at the <span class="font-bold text-primary text-sm">$<%= (@contest.payouts[1] || 0) / 100 %> prize</span> for 1<sup>st</sup> in the leaderboard. <span class="font-semibold text-secondary">$<%= (@contest.payouts[2] || 0) / 100 %> prizes</span> for 2<sup>nd</sup>&ndash;5<sup>th</sup></p>
-      </div>
-    </div>
+    <% end %>
     <div class="flex items-center justify-between gap-2 mb-4">
       <div class="flex items-center gap-2">
         <span class="text-sm text-muted font-medium">Sort by</span>

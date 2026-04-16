@@ -8,8 +8,8 @@ End-to-end tests that exercise Turf Monster against real Solana devnet. These te
 - Dev server running on port 3001 (`bin/dev` or `bin/rails server -p 3001`)
 - Sidekiq running (`bundle exec sidekiq`) — required for `EnsureAtaJob` after user registration
 - `SOLANA_BOT_KEY` env var set to Alex Bot's base58-encoded private key (same as `SOLANA_ADMIN_KEY` in `.env`)
-- Alex Bot wallet funded on devnet (see minimum balances below)
-- Mack wallet funded on devnet (~1 SOL + ~$100 USDC for Web3 tests 5-6)
+- Alex Bot wallet funded with ~0.2 SOL + ~$20 USDC on devnet
+- Mack wallet funded with ~1 SOL on devnet (USDC seeded by faucet in Test 6)
 
 ## Pre-Flight Balance Check
 
@@ -27,15 +27,15 @@ spl-token balance 222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9 --owner F6f8h5yyn
 
 | Token | Consumption | Notes |
 |-------|-------------|-------|
-| SOL | ~0.008 SOL | Transaction fees (contest creation, ATA creation, entries) |
-| USDC | ~$49 | Entry fees ($40 per contest entry) + faucet doesn't cost admin USDC |
+| SOL | ~0.01 SOL | Transaction fees (contest creation, ATA creation, entries, faucet mints) |
+| USDC | ~$19 | Net cost: faucet seeds +$600 ($500 Alex, $50 Mason, $50 Mack), small contest costs -$69. Standard contest is DB-only. |
 
 ### Minimum Balances
 
 | Token | Minimum | Why |
 |-------|---------|-----|
 | SOL | 0.1 SOL | Transaction fees with safety margin |
-| USDC | $50 | Entry fee headroom |
+| USDC | $20 | Faucet seeds wallets before contests need USDC — only need to cover the gap |
 
 ### Topping Up
 
@@ -51,34 +51,56 @@ spl-token balance 222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9 --owner F6f8h5yyn
 ## Running the Tests
 
 ```bash
-# Full devnet suite (7 tests)
+# Full devnet suite (17 tests)
 SOLANA_BOT_KEY=<key> npx playwright test --project=devnet
 
 # Using the .env key directly
 export SOLANA_BOT_KEY=$(grep SOLANA_ADMIN_KEY .env | cut -d= -f2) && npx playwright test --project=devnet
 
 # Single test by name
-SOLANA_BOT_KEY=<key> npx playwright test --project=devnet -g "contest flow"
+SOLANA_BOT_KEY=<key> npx playwright test --project=devnet -g "small contest"
 
 # Headed mode (see the browser)
 SOLANA_BOT_KEY=<key> npx playwright test --project=devnet --headed
 ```
 
-The `devnet` project in `playwright.config.js` filters tests by the `@devnet` tag in test names. Timeout is 90s per test.
+The `devnet` project in `playwright.config.js` filters tests by the `@devnet` tag in test names. Timeout is 180s per test.
 
 ## Test Inventory
 
+### Part 1: Onboarding (register + seed wallets)
+
 | # | Test Name | What It Does |
 |---|-----------|-------------|
-| 1 | New Contest Flow | Alex logs in via KeypairProvider wallet, creates onchain contest, selects 6 matchups, submits onchain entry. Saves contest URL for later tests. |
-| 2 | New Manual Registration | Registers Mason via email/password, completes profile, claims $50 USDC from faucet, verifies wallet balance. |
-| 3 | New Entry Submission | Registers a fresh Mason, funds via faucet, enters Test 1's shared contest with 6 picks. Saves Mason's credentials. |
-| 4 | Second Entry Submission | Mason logs back in, claims more faucet USDC, enters the same contest with 6 different picks. Tests multi-entry per user. |
-| 5 | New Web3 Registration | Mack connects via KeypairProvider wallet (different key from Alex), completes profile. Tests new user creation via wallet auth. |
-| 6 | New Web3 Submission | Mack logs in via wallet, enters the shared contest with 6 picks via direct onchain path. Verifies explorer tx link. |
-| 7 | Web3 Second Entry | Mack logs in via wallet, re-enters the shared contest with 6 different picks (cards 6-11). Tests multi-entry for Web3 users. |
+| 1 | Alex Wallet Login | Alex logs in via KeypairProvider wallet. |
+| 2 | Alex Faucet | Alex claims $500 USDC from faucet. Seeds wallet for contest creation + entry fees. |
+| 3 | Mason Registration | Registers Mason via email/password, completes profile. |
+| 4 | Mason Faucet | Mason claims $50 USDC from faucet, verifies $50.00 balance. |
+| 5 | Mack Registration | Mack connects via KeypairProvider wallet, completes profile. |
+| 6 | Mack Faucet | Mack claims $50 USDC from faucet. Seeds wallet before onchain entry. |
 
-**Note:** Tests run serially (`workers: 1`). Tests 3-4 and 6-7 depend on Test 1's `sharedContestUrl`. Test 4 depends on Test 3's Mason credentials. Tests use two wallets: Alex Bot (admin) and Mack (Web3 user).
+### Part 2: Small Contest (onchain, full lifecycle)
+
+| # | Test Name | What It Does |
+|---|-----------|-------------|
+| 7 | Small Contest Creation | Alex creates small (3-entry) onchain contest. |
+| 8 | Mason Entry (Small) | Mason enters small contest with 6 picks. [1/3] |
+| 9 | Mack Entry (Small) | Mack enters small contest via direct onchain path with 6 picks. [2/3] |
+| 10 | Alex Entry (Small) | Alex enters small contest onchain with 6 picks. [3/3 — fills contest] |
+| 11 | Lock Contest | Alex locks the small contest (open → locked). |
+| 12 | Simulate First Game | Alex simulates the first pending game via admin action. |
+
+### Part 3: Standard Contest (DB-only, multi-entry)
+
+| # | Test Name | What It Does |
+|---|-----------|-------------|
+| 13 | Standard Contest Creation | Alex creates standard (30-entry) contest via form. DB-only (no onchain) to avoid $550 USDC bonus. |
+| 14 | Mason 1st Entry (Standard) | Mason enters standard contest with 6 picks. |
+| 15 | Mason 2nd Entry (Standard) | Mason re-enters with different picks (cards 6-11). Tests multi-entry + sybil check. |
+| 16 | Mack 1st Entry (Standard) | Mack enters standard contest with 6 picks via standard path. |
+| 17 | Mack 2nd Entry (Standard) | Mack re-enters with different picks (cards 6-11). Tests multi-entry for Web3 users. |
+
+**Dependencies:** Tests run serially (`workers: 1`). Onboarding (1-6) seeds wallets for all later tests. Tests 8-12 depend on `sharedSmallContestUrl` (Test 7). Tests 14-17 depend on `sharedStandardContestUrl` (Test 13). Tests 4, 8, 14-15 depend on Mason credentials (Test 3). Tests use two wallets: Alex Bot (admin) and Mack (Web3 user).
 
 ## Pre-Flight Checks (Automatic)
 
@@ -106,17 +128,17 @@ The `chromium` project excludes `@devnet` tests via `grepInvert`.
 ### IllegalOwner on Faucet/Entry
 Error: `Transaction failed: {"InstructionError"=>[0, "IllegalOwner"]}`
 
-Race condition between Sidekiq's `EnsureAtaJob` and the faucet's `ensure_ata`. The tests include a 5-second wait after registration to allow Sidekiq to create the token account. If this still fails:
+Race condition between Sidekiq's `EnsureAtaJob` and the faucet's `ensure_ata`. The faucet tests include a 5-second wait to allow Sidekiq to create the token account. If this still fails:
 - Verify Sidekiq is running: `ps aux | grep sidekiq`
 - Restart Sidekiq: `bundle exec sidekiq`
 
 ### Insufficient SOL Balance
 Error: `Attempt to debit an account but found no record of a prior credit`
 
-Top up SOL using the faucet protocol above. Each test run uses ~0.008 SOL.
+Top up SOL using the faucet protocol above. Each test run uses ~0.01 SOL.
 
 ### Insufficient USDC Balance
-If entry submissions fail with balance errors, mint more USDC via `/faucet` while logged in as Alex Bot.
+Faucet seeds $500 for Alex and $50 per other user, so pre-existing USDC requirement is low (~$20). If still failing, mint more via `/faucet` while logged in as Alex Bot.
 
 ### RPC Timeout / Rate Limiting
 Devnet RPC can be flaky. If tests fail with timeout errors:
@@ -124,8 +146,8 @@ Devnet RPC can be flaky. If tests fail with timeout errors:
 - Switch RPC: set `SOLANA_RPC_URL` to a different devnet endpoint (QuickNode, Helius, etc.)
 - Check devnet status: https://status.solana.com
 
-### Tests 3-4 or 6 Skipped
-`No shared contest URL from Test 1` or `No Mason credentials from Test 3` — dependent tests skip if their prerequisite didn't run. Run the full suite, not individual tests in isolation.
+### Tests Skipped
+`No shared small contest URL from Test 7` or `No shared standard contest URL from Test 13` or `No Mason credentials from Test 3` — dependent tests skip if their prerequisite didn't run. Run the full suite, not individual tests in isolation.
 
 ### Stale Server
 If tests fail on page assertions (wrong content, missing elements):

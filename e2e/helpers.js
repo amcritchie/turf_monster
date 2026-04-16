@@ -14,10 +14,10 @@ async function login(page, email, password) {
 }
 
 /**
- * Log in as admin user (alex@turf.com).
+ * Log in as admin user (alex@mcritchie.studio).
  */
 async function loginAdmin(page) {
-  await login(page, "alex@turf.com", "password");
+  await login(page, "alex@mcritchie.studio", "password");
 }
 
 /**

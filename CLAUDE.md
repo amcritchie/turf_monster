@@ -38,11 +38,24 @@ draft → open → locked → settled
 
 ### Contest Targeting (root page)
 
-- `Contest.ranked` scope: contests with non-nil `rank`, ordered by rank ASC
-- `Contest.target`: first open contest by lowest rank — displayed on root `/`
-- Rank values use increments of 100 (Matchday 1=100, 2=200, 3=300)
-- If no target contest exists, root redirects to `/contests`
-- `load_contest_board_data` — shared private method used by both `world_cup` and `show` actions
+- Root (`/`) redirects to the most recent open/locked/settled contest's **lobby** page (`/c/:id/lobby`)
+- Falls back to `/contests` index if no eligible contest exists
+- `Contest.ranked` scope and `Contest.target` still exist but root no longer uses them
+- `load_contest_board_data` — shared private method used by `lobby` and `show` actions
+
+### Lobby Page (`/c/:id/lobby`)
+
+Mobile-first contest preview/info page. Renders inline matchup board or leaderboard depending on user state.
+
+**Sections:**
+1. Hero banner (Active Storage image or gradient fallback) + creator avatar + Solana PDA overlay (SE corner)
+2. Contest info: name, creator, lock time, stats row (prizes, entry fee, entries count, "+ Add Nth Entry" link)
+3. Conditional cards: seeds+share (entered users) or info cards (new users)
+4. Inline matchup board (not entered) or compact leaderboard (entered)
+5. Admin section (Fill/Lock/Grade + Simulate buttons) — admin only, unsettled contests
+6. Contest selector — other open/locked contests
+
+**Partial `compact` flag**: Both `_turf_totals_board` and `_turf_totals_leaderboard` accept `compact: true` to hide admin buttons, onchain details, and info cards when rendered inline from the lobby.
 
 ### Admin Actions (contest show page + navbar)
 
@@ -117,7 +130,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 ## Models
 
 - **User** — name, username, email (nullable), solana_address, wallet_type, role, slug. Balance is on-chain USDC (DB `balance_cents`/`promotional_cents` deprecated). See `docs/AUTH.md`.
-- **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank (priority for root page), slate association, onchain fields, slug
+- **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank, slate association, onchain fields, slug. `belongs_to :user` (creator, optional). `has_one_attached :contest_image` (Active Storage). Helpers: `lock_time_display`, `active_entry_count`, `locks_at` (alias for `starts_at`).
 - **ContestMatchup** — team_slug, opponent_team_slug, rank, multiplier, status. Belongs to contest + teams via slug FKs.
 - **Entry** — user + contest, score, status (cart/active/complete/abandoned), rank, payout_cents, onchain fields, slug (includes id)
 - **Selection** — joins entry + contest_matchup (unique pair)
@@ -140,10 +153,11 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## Routes
 
 ### Public
-- `/` — contests#world_cup (branded landing page, matchup grid from target contest)
+- `/` — contests#world_cup (redirects to most recent contest lobby)
+- `/c/:id/lobby` — contests#lobby (mobile-first contest preview, inline board/leaderboard)
 - `/contests` — contests#index (all contests card grid)
-- `/contests/:id` — contest show (leaderboard + admin actions)
-- `/contests/:id/edit` — admin contest editor (name, tagline, status, rank)
+- `/contests/:id` — contest show (full leaderboard + admin actions)
+- `/contests/:id/edit` — admin contest editor (name, tagline, status, rank, image, locks_at)
 - `/teams`, `/teams/:slug` — team index/show
 - `/games` — games index
 - `/faucet` — public faucet page (GET marketing, POST mint USDC)
@@ -172,25 +186,28 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 
 ## Seeds / World Cup Data
 
-- 4 seeded users (password: "password"), Alex is admin
+- **Shared users**: `db/seeds/users.rb` defines 5 core users (Alex, Alex Bot, Mason, Mack, Turf Monster) with `@mcritchie.studio` emails and real wallet addresses. Loaded by both `db/seeds.rb` and `e2e/seed.rb`.
+- 5 seeded users (password: "password"), Alex and Alex Bot are admins
 - 48 teams, 72 group stage matches, 85 players
-- 3 matchday contests with rank 100/200/300 (seeds assign ranks idempotently)
+- 3 matchday contests with rank 100/200/300, each assigned to admin user (creator)
+- Seeds assign ranks idempotently and backfill `user_id` on contests without a creator
 - Seed is idempotent (`find_or_create_by!`) — safe to re-run
+- All emails use `@mcritchie.studio` domain (seeds, fixtures, E2E tests)
 - See `docs/world_cup_2026.md` for format details
 
 ## Testing
 
 ### Rails Tests
-- `bin/rails test` — **83 tests** total (minitest + fixtures)
+- `bin/rails test` — **91 tests** total (minitest + fixtures)
 - Test fixtures: 6 contest_matchups, 6 teams, 2 games
 - Test password: `"password"` (min 6 chars)
 - Test helper: `log_in_as(user)` defaults to password "password"
 
 ### Playwright E2E Tests
-- `npm test` — 19 tests across 4 spec files
+- `npm test` — **42 tests** across 8 spec files (chromium project), plus 17 devnet tests
 - `npm run test:headed` / `npm run test:ui` — visual modes
 - Config: `playwright.config.js` — Chromium only, port 3001
-- Seed: `e2e/seed.rb` — 2 users, 1 contest, 6 matchups (idempotent)
+- Seed: `e2e/seed.rb` — 5 users (shared from `db/seeds/users.rb`), 1 contest, 48 matchups
 - Helper: `e2e/helpers.js` — `login(page, email, password)`
 - **Dev server gotcha**: Local runs hit dev DB, not test seed
 
@@ -202,6 +219,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Tailwind class compilation**: New utility classes won't compile unless already used elsewhere. Use inline `style` for one-offs.
 - **Chart.js + Alpine.js**: Never store Chart.js instances as Alpine reactive properties (Proxy infinite loops). See `docs/FORMULAS.md`.
 - **Cross-component Alpine**: Use global functions/variables instead of `$dispatch`/`$store` for shared state.
+- **Navbar scroll bounce**: Unscroll threshold must be low (5px) to prevent oscillation when navbar height change pushes scrollY back across the threshold. Uses `.throttle.50ms` on scroll handler.
 
 ## Workflow
 
@@ -215,6 +233,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ## TODO
 
 - [x] Google OAuth, Solana integration Phases 1-6, remove Ethereum, remove Over/Under, deploy Anchor
+- [x] Contest lobby page (`/c/:id/lobby`) — hero banner, inline board/leaderboard, admin section, contest selector
 - [ ] Deposits & withdrawals — ON ICE. Code written (Stripe, MoonPay, vault withdraw, admin 3-step flow), not committed. See `memory/deposits-withdrawals.md` for resume checklist.
+- [x] TurfVault struct reorder — renamed `bonus` → `prizes`, `prize_pool` → `entry_fees`, reordered fields. Deployed to devnet.
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)
-- [ ] Test Phantom wallet auth end-to-end on Devnet

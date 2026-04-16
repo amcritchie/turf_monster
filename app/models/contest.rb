@@ -3,6 +3,8 @@ class Contest < ApplicationRecord
 
   has_many :entries, dependent: :destroy
   belongs_to :slate
+  belongs_to :user, optional: true
+  has_one_attached :contest_image
 
   validates :name, presence: true
 
@@ -259,7 +261,7 @@ class Contest < ApplicationRecord
       entry_fee: Solana::Config.dollars_to_lamports(fee_cents / 100.0),
       max_entries: max_entries || format_config[:max_entries],
       payout_amounts: payout_amounts,
-      bonus: Solana::Config.dollars_to_lamports(guaranteed / 100.0)
+      prizes: Solana::Config.dollars_to_lamports(guaranteed / 100.0)
     }
   end
 
@@ -283,6 +285,19 @@ class Contest < ApplicationRecord
   rescue => e
     ErrorLog.capture!(e)
     # Don't block DB settlement — onchain can be retried
+  end
+
+  def locks_at
+    starts_at
+  end
+
+  def lock_time_display
+    return "TBD" unless starts_at
+    starts_at.strftime("Locks %B %-d, %Y @ %-I:%M %p")
+  end
+
+  def active_entry_count
+    entries.where(status: [:active, :complete]).count
   end
 
   def name_slug

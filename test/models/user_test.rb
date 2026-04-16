@@ -7,7 +7,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "display_name returns capitalized email prefix when name is blank" do
-    user = User.create!(email: "newplayer@turf.com", password: "password")
+    user = User.create!(email: "newplayer@mcritchie.studio", password: "password")
     assert_equal "Newplayer", user.display_name
   end
 

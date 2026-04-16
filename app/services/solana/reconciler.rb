@@ -64,12 +64,12 @@ module Solana
       end
 
       account_data = Base64.decode64(info["value"]["data"][0])
-      # Skip 8-byte discriminator + 32-byte admin + 32-byte contest_id
-      offset = 8 + 32 + 32
+      # Skip 8-byte discriminator + 32-byte contest_id + 8-byte prizes
+      offset = 8 + 32 + 8
       entry_fee, offset = Borsh.decode_u64(account_data, offset)
+      entry_fees, offset = Borsh.decode_u64(account_data, offset)
       max_entries, offset = Borsh.decode_u32(account_data, offset)
       current_entries, offset = Borsh.decode_u32(account_data, offset)
-      prize_pool, offset = Borsh.decode_u64(account_data, offset)
 
       db_entries = contest.entries.where(status: [:active, :complete]).count
       db_pool = Solana::Config.dollars_to_lamports(contest.pool_dollars)
@@ -84,17 +84,17 @@ module Solana
         }
       end
 
-      if prize_pool.to_i != db_pool
+      if entry_fees.to_i != db_pool
         @discrepancies << {
-          type: :prize_pool_mismatch,
+          type: :entry_fees_mismatch,
           contest_id: contest.id,
           contest_name: contest.name,
           db_pool_lamports: db_pool,
-          onchain_pool_lamports: prize_pool
+          onchain_pool_lamports: entry_fees
         }
       end
 
-      { entry_fee: entry_fee, max_entries: max_entries, current_entries: current_entries, prize_pool: prize_pool }
+      { entry_fee: entry_fee, max_entries: max_entries, current_entries: current_entries, entry_fees: entry_fees }
     end
 
     private

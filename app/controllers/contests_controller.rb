@@ -1,8 +1,8 @@
 class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
-  skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup]
-  before_action :set_contest, only: [:show, :edit, :update, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest]
+  skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup, :lobby]
+  before_action :set_contest, only: [:show, :edit, :update, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest, :lobby]
   before_action :require_admin, only: [:new, :create, :edit, :update, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
@@ -128,30 +128,14 @@ class ContestsController < ApplicationController
   end
 
   def world_cup
-    @contest = Contest.target
+    @contest = Contest.where(status: [:open, :locked, :settled]).order(created_at: :desc).first
     return redirect_to contests_path unless @contest
-    load_contest_board_data
+    redirect_to contest_lobby_path(@contest)
   end
 
   def show
     load_contest_board_data
-
-    if logged_in? && current_user.solana_connected?
-      begin
-        onchain = Solana::Vault.new.sync_balance(current_user.solana_address)
-        seeds = onchain&.dig(:seeds) || 0
-      rescue => e
-        Rails.logger.warn "Failed to read on-chain seeds: #{e.message}"
-        seeds = 0
-      end
-      @seeds_data = {
-        seeds: seeds,
-        level: User.level_for(seeds),
-        toward_next: User.seeds_toward_next_level(seeds),
-        progress: User.seeds_progress_percent(seeds),
-        seeds_to_next: User::SEEDS_PER_LEVEL - User.seeds_toward_next_level(seeds)
-      }
-    end
+    @seeds_data = load_seeds_data
 
     if @contest.onchain?
       begin
@@ -160,6 +144,15 @@ class ContestsController < ApplicationController
         Rails.logger.warn "Failed to read onchain contest: #{e.message}"
       end
     end
+  end
+
+  def lobby
+    @creator = @contest.user
+    @has_entry = logged_in? && @contest.entries.where(user: current_user, status: [:active, :complete]).exists?
+    @seeds_data = load_seeds_data
+
+    load_contest_board_data
+    @contests = Contest.where(status: [:open, :locked]).ranked.where.not(id: @contest.id).includes(:slate)
   end
 
   def enter
@@ -185,7 +178,7 @@ class ContestsController < ApplicationController
       raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
 
       tx_signature = nil
-      if @contest.entry_fee_cents > 0 && current_user.managed_wallet?
+      if @contest.onchain? && @contest.entry_fee_cents > 0 && current_user.managed_wallet? && !current_user.phantom_wallet?
         vault = Solana::Vault.new
         usdc_mint = Solana::Config::USDC_MINT
         amount = @contest.entry_fee_cents * 10_000 # cents → USDC lamports (6 decimals)
@@ -456,11 +449,31 @@ class ContestsController < ApplicationController
     @cart_entry = @contest.entries.cart.find_by(user: current_user) if logged_in?
   end
 
+  def load_seeds_data
+    return unless logged_in? && current_user.solana_connected?
+
+    begin
+      onchain = Solana::Vault.new.sync_balance(current_user.solana_address)
+      seeds = onchain&.dig(:seeds) || 0
+    rescue => e
+      Rails.logger.warn "Failed to read on-chain seeds: #{e.message}"
+      seeds = 0
+    end
+
+    {
+      seeds: seeds,
+      level: User.level_for(seeds),
+      toward_next: User.seeds_toward_next_level(seeds),
+      progress: User.seeds_progress_percent(seeds),
+      seeds_to_next: User::SEEDS_PER_LEVEL - User.seeds_toward_next_level(seeds)
+    }
+  end
+
   def contest_params
-    params.require(:contest).permit(:name, :slate_id, :contest_type)
+    params.require(:contest).permit(:name, :slate_id, :contest_type, :starts_at, :contest_image, :locks_at_date_selected, :locks_at_time_selected, :locks_at_timezone_selected)
   end
 
   def contest_update_params
-    params.require(:contest).permit(:name, :tagline, :status, :rank)
+    params.require(:contest).permit(:name, :tagline, :status, :rank, :contest_image, :starts_at, :locks_at_date_selected, :locks_at_time_selected, :locks_at_timezone_selected)
   end
 end

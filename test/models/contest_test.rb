@@ -27,4 +27,20 @@ class ContestTest < ActiveSupport::TestCase
     @contest.save!
     assert_equal "test-contest", @contest.slug
   end
+
+  test "lock_time_display formats starts_at" do
+    @contest.starts_at = Time.new(2026, 6, 11, 12, 0, 0)
+    assert_match(/Locks June 11, 2026/, @contest.lock_time_display)
+  end
+
+  test "lock_time_display returns TBD when no starts_at" do
+    @contest.starts_at = nil
+    assert_equal "TBD", @contest.lock_time_display
+  end
+
+  test "active_entry_count counts only active and complete entries" do
+    assert_equal 2, @contest.active_entry_count
+    @contest.entries.create!(user: @user, status: :cart)
+    assert_equal 2, @contest.active_entry_count
+  end
 end

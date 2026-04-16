@@ -10,7 +10,7 @@
       </div>
     <% end %>
 
-    <%= form_with model: @contest, method: :patch do |f| %>
+    <%= form_with model: @contest, method: :patch, html: { multipart: true } do |f| %>
       <div class="mb-5">
         <label for="contest_name" class="block text-sm text-secondary mb-2 font-medium">Name</label>
         <%= f.text_field :name, id: "contest_name", class: "input-field" %>
@@ -25,6 +25,202 @@
         <label for="contest_status" class="block text-sm text-secondary mb-2 font-medium">Status</label>
         <%= f.select :status, Contest.statuses.keys.map { |s| [s.capitalize, s] }, {},
           id: "contest_status", class: "input-field" %>
+      </div>
+
+      <div class="mb-5" x-data="{
+        lockDate: '',
+        lockTime: '',
+        calOpen: false,
+        viewYear: new Date().getFullYear(),
+        viewMonth: new Date().getMonth(),
+        tzAbbr: (function() { var s = new Date().toLocaleTimeString('en-US', {timeZoneName:'short'}); return s.split(' ').pop(); })(),
+        tzIana: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        months: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+        days: ['Su','Mo','Tu','We','Th','Fr','Sa'],
+        init() {
+          var utcIso = '<%= @contest.starts_at&.iso8601 %>';
+          if (utcIso) {
+            var local = new Date(utcIso);
+            this.lockDate = local.getFullYear() + '-' + String(local.getMonth()+1).padStart(2,'0') + '-' + String(local.getDate()).padStart(2,'0');
+            this.lockTime = String(local.getHours()).padStart(2,'0') + ':' + String(local.getMinutes()).padStart(2,'0');
+            this.viewYear = local.getFullYear();
+            this.viewMonth = local.getMonth();
+            this.sync();
+          }
+        },
+        sync() {
+          var hidden = document.getElementById('contest_starts_at');
+          var dateSnap = document.getElementById('locks_at_date_selected');
+          var timeSnap = document.getElementById('locks_at_time_selected');
+          var tzSnap = document.getElementById('locks_at_timezone_selected');
+          if (this.lockDate && this.lockTime) {
+            var local = new Date(this.lockDate + 'T' + this.lockTime);
+            var utc = local.toISOString().substring(0, 16);
+            hidden.value = utc;
+            dateSnap.value = this.lockDate;
+            timeSnap.value = this.lockTime;
+            tzSnap.value = this.tzIana;
+          } else {
+            hidden.value = '';
+            dateSnap.value = '';
+            timeSnap.value = '';
+            tzSnap.value = '';
+          }
+        },
+        get displayDate() {
+          if (!this.lockDate) return '';
+          var parts = this.lockDate.split('-');
+          return this.months[parseInt(parts[1])-1].substring(0,3) + ' ' + parseInt(parts[2]) + ', ' + parts[0];
+        },
+        prevMonth() { if (this.viewMonth === 0) { this.viewMonth = 11; this.viewYear--; } else { this.viewMonth--; } },
+        nextMonth() { if (this.viewMonth === 11) { this.viewMonth = 0; this.viewYear++; } else { this.viewMonth++; } },
+        calDays() {
+          var first = new Date(this.viewYear, this.viewMonth, 1).getDay();
+          var count = new Date(this.viewYear, this.viewMonth + 1, 0).getDate();
+          var cells = [];
+          for (var i = 0; i < first; i++) cells.push(null);
+          for (var d = 1; d <= count; d++) cells.push(d);
+          return cells;
+        },
+        pickDay(d) {
+          var m = String(this.viewMonth + 1).padStart(2, '0');
+          var dd = String(d).padStart(2, '0');
+          this.lockDate = this.viewYear + '-' + m + '-' + dd;
+          this.calOpen = false;
+          this.sync();
+        },
+        isSelected(d) {
+          if (!this.lockDate) return false;
+          var m = String(this.viewMonth + 1).padStart(2, '0');
+          var dd = String(d).padStart(2, '0');
+          return this.lockDate === this.viewYear + '-' + m + '-' + dd;
+        },
+        isToday(d) {
+          var t = new Date();
+          return d === t.getDate() && this.viewMonth === t.getMonth() && this.viewYear === t.getFullYear();
+        }
+      }">
+        <label class="block text-sm text-secondary mb-2 font-medium">Locks At</label>
+        <input type="hidden" name="contest[starts_at]" id="contest_starts_at">
+        <input type="hidden" name="contest[locks_at_date_selected]" id="locks_at_date_selected">
+        <input type="hidden" name="contest[locks_at_time_selected]" id="locks_at_time_selected">
+        <input type="hidden" name="contest[locks_at_timezone_selected]" id="locks_at_timezone_selected">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="relative">
+            <label class="block text-xs text-muted mb-1">Date</label>
+            <button type="button" @click="calOpen = !calOpen" class="input-field w-full text-left flex items-center justify-between">
+              <span :class="displayDate ? 'text-heading' : 'text-muted'" x-text="displayDate || 'Select date'"></span>
+              <svg class="text-muted" style="width:1rem;height:1rem" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+              </svg>
+            </button>
+
+            <!-- Calendar dropdown -->
+            <div x-show="calOpen" x-cloak @click.outside="calOpen = false"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100"
+                 class="absolute z-10 mt-1 bg-surface border border-subtle rounded-lg shadow-lg p-3"
+                 style="width: 280px; left: 50%; transform: translateX(-50%);">
+              <!-- Month nav -->
+              <div class="flex items-center justify-between mb-2">
+                <button type="button" @click="prevMonth()" class="p-1 rounded hover:bg-surface-alt text-secondary">
+                  <svg style="width:1rem;height:1rem" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+                </button>
+                <span class="text-sm font-semibold text-heading" x-text="months[viewMonth] + ' ' + viewYear"></span>
+                <button type="button" @click="nextMonth()" class="p-1 rounded hover:bg-surface-alt text-secondary">
+                  <svg style="width:1rem;height:1rem" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                </button>
+              </div>
+              <!-- Day headers -->
+              <div class="grid grid-cols-7 mb-1">
+                <template x-for="dh in days" :key="dh">
+                  <div class="text-center text-xs text-muted font-medium py-1" x-text="dh"></div>
+                </template>
+              </div>
+              <!-- Day cells -->
+              <div class="grid grid-cols-7">
+                <template x-for="(cell, i) in calDays()" :key="i">
+                  <div class="text-center">
+                    <template x-if="cell">
+                      <button type="button" @click="pickDay(cell)"
+                              :class="isSelected(cell) ? 'bg-primary text-white font-bold' : isToday(cell) ? 'text-primary font-bold' : 'text-body hover:bg-surface-alt'"
+                              class="w-8 h-8 rounded-full text-sm transition"
+                              x-text="cell"></button>
+                    </template>
+                    <template x-if="!cell">
+                      <span class="w-8 h-8 inline-block"></span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-muted mb-1">Time <span class="text-secondary" x-text="'(' + tzAbbr + ')'"></span></label>
+            <input type="time" x-model="lockTime" @change="sync()" class="input-field">
+          </div>
+        </div>
+        <p class="text-xs text-muted mt-1">When the contest locks and stops accepting entries.</p>
+      </div>
+
+      <div class="mb-5" x-data="{
+        fileName: '<%= @contest.contest_image.attached? ? @contest.contest_image.filename : '' %>',
+        previewUrl: '<%= @contest.contest_image.attached? ? url_for(@contest.contest_image) : '' %>',
+        dragging: false,
+        pickFile(e) {
+          var file = e.target.files[0];
+          if (file) this.setFile(file);
+        },
+        dropFile(e) {
+          this.dragging = false;
+          var file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+            var input = this.$refs.fileInput;
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            this.setFile(file);
+          }
+        },
+        setFile(file) {
+          this.fileName = file.name;
+          this.previewUrl = URL.createObjectURL(file);
+        },
+        clear() {
+          this.fileName = '';
+          this.previewUrl = '';
+          this.$refs.fileInput.value = '';
+        }
+      }">
+        <label class="block text-sm text-secondary mb-2 font-medium">Contest Image</label>
+
+        <!-- Drop zone (no preview) -->
+        <div x-show="!previewUrl"
+             @click="$refs.fileInput.click()"
+             @dragover.prevent="dragging = true"
+             @dragleave.prevent="dragging = false"
+             @drop.prevent="dropFile($event)"
+             :class="dragging ? 'border-primary bg-primary/10' : 'border-subtle hover:border-strong'"
+             class="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition">
+          <svg class="mx-auto mb-2 text-muted" style="width:2rem;height:2rem" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+          </svg>
+          <p class="text-sm text-secondary">Drop an image here or <span class="text-primary font-medium">browse</span></p>
+          <p class="text-xs text-muted mt-1">PNG, JPG, WebP</p>
+        </div>
+
+        <!-- Preview (has image) -->
+        <div x-show="previewUrl" class="relative rounded-lg overflow-hidden border border-subtle">
+          <img :src="previewUrl" class="w-full h-32 object-cover">
+          <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center">
+            <button type="button" @click="clear()" class="btn btn-sm text-white" style="background:rgba(0,0,0,0.6)">Remove</button>
+          </div>
+          <div class="px-3 py-2 bg-surface-alt text-xs text-secondary truncate" x-text="fileName"></div>
+        </div>
+
+        <%= f.file_field :contest_image, "x-ref": "fileInput", "@change": "pickFile($event)",
+              class: "hidden", accept: "image/*" %>
       </div>
 
       <div class="mb-6">

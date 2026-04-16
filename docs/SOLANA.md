@@ -16,7 +16,7 @@
 
 Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
 
-**Deployment status**: v0.5.0 deployed to devnet. Seeds field on UserAccount (60 per entry). Vault re-initialized. Hard escrow contest creation live.
+**Deployment status**: v0.7.0 deployed to devnet. Seeds field on UserAccount (65 per entry). Vault re-initialized. Hard escrow contest creation live.
 - Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
 - Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
 - Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
@@ -38,11 +38,11 @@ Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAc
 
 ## Hard Escrow Contest Creation (v0.4.0)
 
-Contest creation transfers bonus USDC from creator's Phantom wallet to vault — real hard escrow, not just a number on the PDA. Dual-signer: admin bot pays SOL rent, creator's Phantom signs the USDC transfer.
+Contest creation transfers prizes USDC from creator's Phantom wallet to vault — real hard escrow, not just a number on the PDA. Dual-signer: admin bot pays SOL rent, creator's Phantom signs the USDC transfer.
 
 1. Admin fills form + submits → `POST /contests` (creates DB record)
 2. `POST /contests/:id/prepare_onchain_contest` → server builds + admin partial-signs tx
-3. `phantom.signTransaction(tx)` → creator co-signs the bonus USDC transfer
+3. `phantom.signTransaction(tx)` → creator co-signs the prizes USDC transfer
 4. `connection.sendRawTransaction()` → submit to Solana
 5. `POST /contests/:id/confirm_onchain_contest` → saves onchain_contest_id + tx_signature
 

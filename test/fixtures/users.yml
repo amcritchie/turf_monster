@@ -1,7 +1,7 @@
 alex:
   name: Alex
   username: alex_test
-  email: alex@turf.com
+  email: alex@mcritchie.studio
 
   password_digest: <%= BCrypt::Password.create("password") %>
   role: admin
@@ -9,14 +9,14 @@ alex:
 jordan:
   name: Jordan
   username: jordan_test
-  email: jordan@turf.com
+  email: jordan@mcritchie.studio
 
   password_digest: <%= BCrypt::Password.create("password") %>
 
 sam:
   name: Sam
   username: sam_test
-  email: sam@turf.com
+  email: sam@mcritchie.studio
 
   password_digest: <%= BCrypt::Password.create("password") %>
   web3_solana_address: foUuRyeibadQoGdKXZ9pBGDqmkb1jY1jYsu8dZ29nds

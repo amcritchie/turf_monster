@@ -64,11 +64,11 @@ test("phantom sign-in creates new user", async ({ page }) => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: Standard contest entry (joe, no wallet)
+// Test 3: Standard contest entry (mack, no wallet)
 // ---------------------------------------------------------------------------
 
 test("standard entry with balance deduction", async ({ page }) => {
-  await login(page, "joe@turf.com", "password");
+  await login(page, "mack@mcritchie.studio", "password");
 
   // Navigate to the contest show page (matchup board)
   await page.goto(CONTEST_PATH);
@@ -88,9 +88,9 @@ test("standard entry with balance deduction", async ({ page }) => {
     });
   }, CONTEST_PATH);
 
-  // Reload the contest show page — Joe should be on the leaderboard
+  // Reload the contest show page — Mack should be on the leaderboard
   await page.goto(CONTEST_PATH);
-  await expect(page.locator("body")).toContainText("joe");
+  await expect(page.locator("body")).toContainText("mack");
 });
 
 // ---------------------------------------------------------------------------

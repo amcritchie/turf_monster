@@ -92,6 +92,8 @@ Rails.application.routes.draw do
     end
   end
 
+  get "c/:id/lobby", to: "contests#lobby", as: :contest_lobby
+
   resources :contests, only: [:index, :show, :new, :create, :edit, :update] do
     collection do
       get :my

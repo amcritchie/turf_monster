@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_22_000014) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_16_053338) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -58,10 +58,15 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000014) do
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.string "locks_at_date_selected"
+    t.string "locks_at_time_selected"
+    t.string "locks_at_timezone_selected"
     t.index ["rank"], name: "index_contests_on_rank"
     t.index ["slate_id"], name: "index_contests_on_slate_id"
     t.index ["slug"], name: "index_contests_on_slug", unique: true
     t.index ["status"], name: "index_contests_on_status"
+    t.index ["user_id"], name: "index_contests_on_user_id"
   end
 
   create_table "entries", force: :cascade do |t|
@@ -279,6 +284,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000014) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "contests", "slates"
+  add_foreign_key "contests", "users"
   add_foreign_key "entries", "contests"
   add_foreign_key "entries", "users"
   add_foreign_key "selections", "entries"

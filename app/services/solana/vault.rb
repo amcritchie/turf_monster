@@ -132,8 +132,9 @@ module Solana
       keypair = user.solana_keypair
       raise "No managed wallet key" unless keypair
 
+      admin = Keypair.admin
       from_pubkey = keypair.public_key_bytes
-      to_pubkey = Keypair.admin.public_key_bytes
+      to_pubkey = admin.public_key_bytes
 
       ensure_ata(Keypair.encode_base58(from_pubkey), mint: mint)
       ensure_ata(Keypair.encode_base58(to_pubkey), mint: mint)
@@ -146,7 +147,8 @@ module Solana
         authority: from_pubkey, amount: amount_lamports
       )
 
-      tx = build_tx(keypair)
+      tx = build_tx(admin)    # admin pays SOL fees
+      tx.add_signer(keypair)  # user authorizes the token transfer
       tx.add_instruction(**transfer_ix)
       signature = client.send_and_confirm(tx.serialize_base64)
 
@@ -362,9 +364,9 @@ module Solana
     end
 
     # Build a partially-signed create_contest transaction.
-    # Admin signs (pays PDA rent), creator must sign client-side (authorizes bonus USDC transfer).
+    # Admin signs (pays PDA rent), creator must sign client-side (authorizes prizes USDC transfer).
     # Returns base64-encoded transaction for the creator to co-sign and submit.
-    def build_create_contest(wallet_address, contest_slug, entry_fee:, max_entries:, payout_amounts:, bonus:)
+    def build_create_contest(wallet_address, contest_slug, entry_fee:, max_entries:, payout_amounts:, prizes:)
       admin = Keypair.admin
       wallet_bytes = Keypair.decode_base58(wallet_address)
       contest_id = Digest::SHA256.digest(contest_slug)
@@ -380,7 +382,7 @@ module Solana
              Borsh.encode_u64(entry_fee) +
              Borsh.encode_u32(max_entries) +
              Borsh.encode_vec(payout_amounts) { |amt| Borsh.encode_u64(amt) } +
-             Borsh.encode_u64(bonus)
+             Borsh.encode_u64(prizes)
 
       tx = build_tx(admin)
       tx.add_instruction(
@@ -535,11 +537,11 @@ module Solana
       offset = 8 # skip Anchor discriminator
 
       _contest_id, offset = Borsh.decode_pubkey(data, offset) # [u8; 32] same size as pubkey
+      prizes, offset = Borsh.decode_u64(data, offset)
       entry_fee, offset = Borsh.decode_u64(data, offset)
+      entry_fees, offset = Borsh.decode_u64(data, offset)
       max_entries, offset = Borsh.decode_u32(data, offset)
       current_entries, offset = Borsh.decode_u32(data, offset)
-      prize_pool, offset = Borsh.decode_u64(data, offset)
-      bonus, offset = Borsh.decode_u64(data, offset)
       status_byte, offset = Borsh.decode_u8(data, offset)
       # Vec<u64> payout_amounts
       vec_len, offset = Borsh.decode_u32(data, offset)
@@ -555,10 +557,10 @@ module Solana
         entry_fee_dollars: Config.lamports_to_dollars(entry_fee),
         max_entries: max_entries,
         current_entries: current_entries,
-        prize_pool: prize_pool,
-        prize_pool_dollars: Config.lamports_to_dollars(prize_pool),
-        bonus: bonus,
-        bonus_dollars: Config.lamports_to_dollars(bonus),
+        entry_fees: entry_fees,
+        entry_fees_dollars: Config.lamports_to_dollars(entry_fees),
+        prizes: prizes,
+        prizes_dollars: Config.lamports_to_dollars(prizes),
         status: status_name,
         payout_amounts: payout_amounts.map { |a| Config.lamports_to_dollars(a) },
         admin: Keypair.encode_base58(admin_bytes),

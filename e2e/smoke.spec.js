@@ -33,14 +33,14 @@ test("guest clicking matchup card does not crash the page", async ({ page }) => 
 // ---------------------------------------------------------------------------
 
 test("login with valid credentials", async ({ page }) => {
-  await login(page, "alex@turf.com", "password");
+  await login(page, "alex@mcritchie.studio", "password");
   // Username should appear in header nav
   await expect(page.locator('a[href="/account"]').first()).toContainText("alex");
 });
 
 test("login with invalid credentials shows error", async ({ page }) => {
   await page.goto("/login");
-  await page.fill('input[name="email"]', "alex@turf.com");
+  await page.fill('input[name="email"]', "alex@mcritchie.studio");
   await page.fill('input[name="password"]', "wrong");
   await page.locator('form button.btn-primary[type="submit"]').click();
   // Should stay on login page with error
@@ -52,7 +52,7 @@ test("login with invalid credentials shows error", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test("logged-in user can toggle selection and see cart update", async ({ page }) => {
-  await login(page, "alex@turf.com", "password");
+  await login(page, "alex@mcritchie.studio", "password");
 
   // Clear stale selections from prior tests
   await page.evaluate(async () => {
@@ -82,7 +82,7 @@ test("logged-in user can toggle selection and see cart update", async ({ page })
 // ---------------------------------------------------------------------------
 
 test("selection persists after page reload", async ({ page }) => {
-  await login(page, "sam@turf.com", "password");
+  await login(page, "mason@mcritchie.studio", "password");
 
   // Clear stale selections
   await page.evaluate(async () => {
@@ -116,7 +116,7 @@ test("selection persists after page reload", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test("selecting 6 matchups shows Hold to Confirm button", async ({ page }) => {
-  await login(page, "alex@turf.com", "password");
+  await login(page, "alex@mcritchie.studio", "password");
 
   // Clear stale selections from prior tests
   await page.evaluate(async () => {
@@ -169,8 +169,8 @@ test("selecting 6 matchups shows Hold to Confirm button", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 test("user can start a second entry after confirming the first", async ({ page }) => {
-  // Use joe (clean state — no selections from other tests)
-  await login(page, "joe@turf.com", "password");
+  // Use mack (clean state — no selections from other tests)
+  await login(page, "mack@mcritchie.studio", "password");
 
   // Clear any existing cart first
   const contestPath = "/contests/world-cup-2026";

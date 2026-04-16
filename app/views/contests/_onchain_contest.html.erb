@@ -19,11 +19,11 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
       <div class="bg-surface-alt rounded-lg p-2">
         <p class="label-upper text-xs">Guaranteed Prize</p>
-        <p class="font-mono text-lg text-primary font-bold"><%= dollars(@onchain_contest[:bonus_dollars]) %></p>
+        <p class="font-mono text-lg text-primary font-bold"><%= dollars(@onchain_contest[:prizes_dollars]) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-2">
         <p class="label-upper text-xs">Entry Fees Collected</p>
-        <p class="font-mono text-lg text-heading"><%= dollars(@onchain_contest[:prize_pool_dollars]) %></p>
+        <p class="font-mono text-lg text-heading"><%= dollars(@onchain_contest[:entry_fees_dollars]) %></p>
       </div>
       <div class="bg-surface-alt rounded-lg p-2">
         <p class="label-upper text-xs">Entries</p>

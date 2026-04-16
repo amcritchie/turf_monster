@@ -3,7 +3,7 @@ const { login, loginAdmin } = require("./helpers");
 
 test.describe("Admin Security", () => {
   test("non-admin cannot access admin transactions", async ({ page }) => {
-    await login(page, "sam@turf.com", "password");
+    await login(page, "mason@mcritchie.studio", "password");
     await page.goto("/admin/transactions");
 
     // Should be redirected to root with "Not authorized" alert
@@ -12,7 +12,7 @@ test.describe("Admin Security", () => {
   });
 
   test("non-admin cannot access geo settings", async ({ page }) => {
-    await login(page, "sam@turf.com", "password");
+    await login(page, "mason@mcritchie.studio", "password");
     await page.goto("/admin/geo");
 
     // Should be redirected to root with "Not authorized" alert
@@ -21,7 +21,7 @@ test.describe("Admin Security", () => {
   });
 
   test("non-admin cannot POST add_funds", async ({ page }) => {
-    await login(page, "sam@turf.com", "password");
+    await login(page, "mason@mcritchie.studio", "password");
 
     // Try to POST add_funds via fetch
     const result = await page.evaluate(async () => {
