@@ -424,6 +424,7 @@ module Solana
       admin = Keypair.admin
       contest_id = Digest::SHA256.digest(contest_slug)
       wallet_bytes = Keypair.decode_base58(wallet_address)
+      vault_pda, _ = vault_state_pda
       user_pda, _ = user_account_pda(wallet_address)
       c_pda, _ = contest_pda(contest_slug)
       e_pda, _ = entry_pda(contest_slug, wallet_address, entry_num)
@@ -437,6 +438,7 @@ module Solana
         accounts: [
           { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
           { pubkey: wallet_bytes, is_signer: false, is_writable: false },
+          { pubkey: vault_pda, is_signer: false, is_writable: false },
           { pubkey: user_pda, is_signer: false, is_writable: true },
           { pubkey: c_pda, is_signer: false, is_writable: true },
           { pubkey: e_pda, is_signer: false, is_writable: true },

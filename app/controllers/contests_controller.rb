@@ -91,6 +91,8 @@ class ContestsController < ApplicationController
     rescue_and_log(target: @contest) do
       raise "Already onchain" if @contest.onchain?
 
+      verify_solana_transaction!(params[:tx_signature])
+
       @contest.update!(
         onchain_contest_id: params[:contest_pda],
         onchain_tx_signature: params[:tx_signature]
@@ -265,6 +267,8 @@ class ContestsController < ApplicationController
     return render json: { error: "Entry not found" }, status: :not_found unless entry
 
     rescue_and_log(target: entry, parent: @contest) do
+      verify_solana_transaction!(params[:tx_signature])
+
       entry.confirm_onchain!(
         tx_signature: params[:tx_signature],
         entry_pda: params[:entry_pda]
@@ -420,6 +424,17 @@ class ContestsController < ApplicationController
   end
 
   private
+
+  # Verify a Solana transaction signature exists on-chain and was successful.
+  # Prevents fake TX submissions from marking entries/contests as onchain.
+  def verify_solana_transaction!(signature)
+    raise "Transaction signature required" if signature.blank?
+
+    client = Solana::Vault.new.client
+    tx_info = client.get_transaction(signature)
+    raise "Transaction not found on-chain" unless tx_info
+    raise "Transaction failed on-chain" if tx_info.dig("meta", "err")
+  end
 
   def set_contest
     @contest = Contest.find_by(slug: params[:id])
