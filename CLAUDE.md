@@ -62,7 +62,7 @@ Mobile-first contest preview/info page. Renders inline matchup board or leaderbo
 - **Fill Contest** — generates random entries (6 random matchups each). Cycles through seeded users. Deduplicates against existing entries.
 - **Lock Contest** — transitions open → locked
 - **Jump** — simulates all game results and settles the contest in one click
-- **Grade Contest** — scores entries based on game results, assigns ranks, distributes payouts
+- **Grade Contest** — scores entries based on game results, assigns ranks, distributes payouts. Settlement creates a `PendingTransaction` for 2-of-3 multisig cosigning (see Treasury).
 - **Reset** (navbar) — clears all entries/selections, resets games, sets contest back to open
 
 ### Key Model Methods
@@ -139,6 +139,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 - **Player** — name, position, jersey_number, team via slug FK, slug
 - **Slate** — formula variables (7 nullable floats), 3-tier resolution. See `docs/FORMULAS.md`.
 - **SlateMatchup** — team/opponent/game via slug FKs, rank, multiplier, scoring data. Formula class methods.
+- **PendingTransaction** — multisig treasury TXs awaiting cosign. Fields: tx_type, serialized_tx, status (pending/confirmed/expired/failed), polymorphic target, initiator/cosigner addresses, tx_signature, metadata (JSON), slug.
 - **GeoSetting** — admin geofencing config
 - **TransactionLog** — admin onchain transaction audit
 - **ErrorLog** — polymorphic, from engine
@@ -168,6 +169,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `prepare_entry`, `confirm_onchain_entry` — Phantom onchain entry flow
 - `prepare_onchain_contest`, `confirm_onchain_contest` — admin onchain contest creation
 - `grade`, `fill`, `lock`, `jump`, `reset` — admin actions
+- `payout_entry` — individual entry payout
 
 ### Account & Auth
 - `/account` — profile, password, Google link/unlink. See `docs/AUTH.md`.
@@ -181,6 +183,8 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - `/admin/theme` — theme editor (from engine)
 - `/admin/jobs` — Sidekiq dashboard (admin-only, mounted via route constraint)
 - `/admin/geo` — geo settings
+- `/admin/pending_transactions` — Treasury: multisig cosigning queue (Phantom co-sign via JS)
+- `/admin/transactions` — transaction log browser
 - `/admin/transactions/:slug/complete` — mark approved withdrawal as fiat-sent
 - `/error_logs` — error log browser
 
@@ -236,4 +240,5 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - [x] Contest lobby page (`/c/:id/lobby`) — hero banner, inline board/leaderboard, admin section, contest selector
 - [ ] Deposits & withdrawals — ON ICE. Code written (Stripe, MoonPay, vault withdraw, admin 3-step flow), not committed. See `memory/deposits-withdrawals.md` for resume checklist.
 - [x] TurfVault struct reorder — renamed `bonus` → `prizes`, `prize_pool` → `entry_fees`, reordered fields. Deployed to devnet.
+- [x] 2-of-3 multisig — TurfVault v0.8.0, Treasury admin page, PendingTransaction model. Deployed to devnet.
 - [ ] Update TBD playoff teams once results are in (March 26-31, 2026)

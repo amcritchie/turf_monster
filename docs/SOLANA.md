@@ -14,16 +14,25 @@
 
 ## Anchor Program (`turf_vault/`)
 
-Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault.
+Separate project at `/Users/alex/projects/turf_vault/`. PDAs: VaultState, UserAccount, Contest, ContestEntry. Instructions: initialize, create_user_account, deposit, withdraw, create_contest, enter_contest, settle_contest, close_contest, force_close_vault, update_signers.
 
-**Deployment status**: v0.7.0 deployed to devnet. Seeds field on UserAccount (65 per entry). Vault re-initialized. Hard escrow contest creation live.
+**Deployment status**: v0.8.0 deployed to devnet. 2-of-3 multisig for treasury ops.
 - Program ID: `7Hy8GmJWPMdt6bx3VG4BLFnpNX9TBwkPt87W6bkHgr2J`
 - Vault PDA: `7z313HTVNcxhvCBkkDQv794RpXeRrfCLb5WJ4dFAQQeh`
-- Admin (primary): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
-- Admin (backup): Alex Human — `7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr`
+- Signer 1 (server): Alex Bot — `F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ`
+- Signer 2: Alex — `7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr`
+- Signer 3: Mason — `CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR`
+- Threshold: 2-of-3 (treasury ops only)
 - IDL Account: `DCP2XRu8ZwzsCpXBgu5xa4vTYdYQhKUZRU49iJuFv8Lf`
 - USDC Mint: `222Dcu2RgAXE3T8A4mGSG3kQyXaNjqePx7vva1RdWBN9`
 - USDT Mint: `9mxkN8KaVA8FFgDE2LEsn2UbYLPG8Xg9bf4V9MYYi8Ne`
+
+### Multisig Settlement Flow
+1. `Contest#grade!` scores entries and calls `settle_onchain!`
+2. `settle_onchain!` calls `Vault#build_settle_contest` → creates `PendingTransaction` with partially-signed TX
+3. Admin visits `/admin/pending_transactions` (Treasury page)
+4. Clicks "Co-sign" → Phantom signs as cosigner → TX submitted to Solana
+5. Server records signature, marks contest `onchain_settled: true`
 
 ## Navbar Balance
 
