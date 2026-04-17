@@ -224,7 +224,7 @@ async function selectFirstSlate(page) {
 async function loginViaKeypair(page) {
   await page.goto("/login");
   await page.locator('button:has-text("Connect Wallet")').click();
-  await page.waitForURL("/", { timeout: 30000 });
+  await page.waitForURL(/^(?!.*login)/, { timeout: 30000 });
 }
 
 // ---------------------------------------------------------------------------
