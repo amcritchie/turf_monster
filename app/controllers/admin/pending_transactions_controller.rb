@@ -13,6 +13,8 @@ module Admin
 
     def confirm
       rescue_and_log(target: @tx) do
+        raise "Transaction is #{@tx.status}, not pending" unless @tx.pending?
+
         @tx.update!(
           status: "confirmed",
           cosigner_address: params[:cosigner_address],
@@ -38,6 +40,8 @@ module Admin
 
     def rebuild
       rescue_and_log(target: @tx) do
+        raise "Transaction is #{@tx.status}, cannot rebuild" unless @tx.pending?
+
         settlements = JSON.parse(@tx.metadata)["settlements"].map(&:symbolize_keys)
         vault = Solana::Vault.new
         cosigner = Solana::Config::MULTISIG_COSIGNER

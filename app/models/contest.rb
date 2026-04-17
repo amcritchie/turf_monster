@@ -62,9 +62,8 @@ class Contest < ApplicationRecord
   end
 
   def grade!
-    raise "Contest is already settled" if settled?
-
-    transaction do
+    with_lock do
+      raise "Contest is already settled" if settled?
       score_entries!
 
       ranked = entries.where(status: [:active, :complete]).order(score: :desc).includes(:user).to_a

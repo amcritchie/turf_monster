@@ -91,22 +91,25 @@ class Entry < ApplicationRecord
       raise "#{s.slate_matchup.team.name}'s game has already started" if s.slate_matchup.locked?
     end
 
-    # Per-user entry limit
-    user_active_count = contest.entries.where(user: user, status: [:active, :complete]).count
-    raise "Maximum #{contest.max_entries_per_user} entries per contest" if user_active_count >= contest.max_entries_per_user
+    # Lock user row to prevent concurrent entry limit bypass
+    user.with_lock do
+      # Per-user entry limit
+      user_active_count = contest.entries.where(user: user, status: [:active, :complete]).count
+      raise "Maximum #{contest.max_entries_per_user} entries per contest" if user_active_count >= contest.max_entries_per_user
 
-    # Sybil check
-    my_combo = selections.map(&:slate_matchup_id).sort
-    contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
-      other_combo = other.selections.map(&:slate_matchup_id).sort
-      raise "You already have an entry with this exact selection combination" if other_combo == my_combo
+      # Sybil check
+      my_combo = selections.map(&:slate_matchup_id).sort
+      contest.entries.where(user: user, status: [:active, :complete]).find_each do |other|
+        other_combo = other.selections.map(&:slate_matchup_id).sort
+        raise "You already have an entry with this exact selection combination" if other_combo == my_combo
+      end
+
+      update!(
+        status: :active,
+        onchain_tx_signature: tx_signature,
+        onchain_entry_id: entry_pda
+      )
     end
-
-    update!(
-      status: :active,
-      onchain_tx_signature: tx_signature,
-      onchain_entry_id: entry_pda
-    )
 
     # Seeds (25 per entry) are awarded on-chain by the turf_vault Anchor program
   end

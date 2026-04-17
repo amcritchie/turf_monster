@@ -176,19 +176,21 @@ class ContestsController < ApplicationController
     end
 
     rescue_and_log(target: entry, parent: @contest) do
-      active_count = @contest.entries.where(status: [:active, :complete]).count
-      raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
+      @contest.with_lock do
+        active_count = @contest.entries.where(status: [:active, :complete]).count
+        raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
 
-      tx_signature = nil
-      if @contest.onchain? && @contest.entry_fee_cents > 0 && current_user.managed_wallet? && !current_user.phantom_wallet?
-        vault = Solana::Vault.new
-        usdc_mint = Solana::Config::USDC_MINT
-        amount = @contest.entry_fee_cents * 10_000 # cents → USDC lamports (6 decimals)
-        result = vault.transfer_from_user(current_user, amount, mint: usdc_mint)
-        tx_signature = result[:signature]
+        tx_signature = nil
+        if @contest.onchain? && @contest.entry_fee_cents > 0 && current_user.managed_wallet? && !current_user.phantom_wallet?
+          vault = Solana::Vault.new
+          usdc_mint = Solana::Config::USDC_MINT
+          amount = @contest.entry_fee_cents * 10_000 # cents → USDC lamports (6 decimals)
+          result = vault.transfer_from_user(current_user, amount, mint: usdc_mint)
+          tx_signature = result[:signature]
+        end
+
+        entry.confirm!(tx_signature: tx_signature)
       end
-
-      entry.confirm!(tx_signature: tx_signature)
 
       respond_to do |format|
         format.html { redirect_to @contest, notice: "#{current_user.display_name} entered the contest!" }
@@ -489,6 +491,6 @@ class ContestsController < ApplicationController
   end
 
   def contest_update_params
-    params.require(:contest).permit(:name, :tagline, :status, :rank, :contest_image, :starts_at, :locks_at_date_selected, :locks_at_time_selected, :locks_at_timezone_selected)
+    params.require(:contest).permit(:name, :tagline, :rank, :contest_image, :starts_at, :locks_at_date_selected, :locks_at_time_selected, :locks_at_timezone_selected)
   end
 end

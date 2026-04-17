@@ -308,7 +308,7 @@ namespace :solana do
         puts "  No UserAccount PDA found"
       end
     elsif ENV["ALL"] == "true"
-      users = User.where.not(solana_address: nil)
+      users = User.where.not(web2_solana_address: nil).or(User.where.not(web3_solana_address: nil))
       puts "Checking #{users.count} user(s)...\n\n"
 
       stats = { ok: 0, migrated: 0, not_found: 0, error: 0 }
