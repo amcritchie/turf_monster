@@ -27,16 +27,25 @@ namespace :solana do
     puts "  USDT: #{Solana::Config::USDT_MINT}"
 
     if ENV["INIT"] == "true"
-      admin_backup = ENV["ADMIN_BACKUP"]
-      unless admin_backup
-        puts "\nERROR: ADMIN_BACKUP env var required (base58 backup admin address)"
-        puts "Usage: bin/rails solana:init_vault INIT=true ADMIN_BACKUP=<base58_address>"
+      signers_str = ENV["SIGNERS"]
+      unless signers_str
+        puts "\nERROR: SIGNERS env var required (comma-separated base58 signer addresses)"
+        puts "Usage: bin/rails solana:init_vault INIT=true SIGNERS=addr1,addr2,addr3 THRESHOLD=2"
         exit 1
       end
 
+      signer_list = signers_str.split(",").map(&:strip)
+      unless signer_list.length == 3
+        puts "\nERROR: Exactly 3 signers required, got #{signer_list.length}"
+        exit 1
+      end
+
+      threshold = (ENV["THRESHOLD"] || "2").to_i
+
       puts "\nInitializing vault..."
-      puts "  Admin backup: #{admin_backup}"
-      result = vault.initialize_vault(admin_backup_address: admin_backup)
+      signer_list.each_with_index { |s, i| puts "  Signer #{i + 1}: #{s}" }
+      puts "  Threshold: #{threshold}"
+      result = vault.initialize_vault(signers: signer_list, threshold: threshold)
       puts "Vault initialized!"
       puts "  Signature: #{result[:signature]}"
       puts "  Vault PDA: #{result[:vault_pda]}"
@@ -46,7 +55,7 @@ namespace :solana do
       puts "Vault force-closed!"
       puts "  Signature: #{result[:signature]}"
     else
-      puts "\nTo initialize, run: bin/rails solana:init_vault INIT=true ADMIN_BACKUP=<base58_address>"
+      puts "\nTo initialize, run: bin/rails solana:init_vault INIT=true SIGNERS=addr1,addr2,addr3 THRESHOLD=2"
       puts "To force-close (migration), run: bin/rails solana:init_vault FORCE_CLOSE=true"
     end
   end

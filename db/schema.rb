@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_16_053338) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_17_020217) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -133,6 +133,24 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_16_053338) do
     t.datetime "updated_at", null: false
     t.index ["app_name"], name: "index_geo_settings_on_app_name", unique: true
     t.index ["slug"], name: "index_geo_settings_on_slug", unique: true
+  end
+
+  create_table "pending_transactions", force: :cascade do |t|
+    t.string "tx_type", null: false
+    t.text "serialized_tx", null: false
+    t.string "status", default: "pending", null: false
+    t.string "target_type"
+    t.bigint "target_id"
+    t.string "initiator_address"
+    t.string "cosigner_address"
+    t.string "tx_signature"
+    t.text "metadata"
+    t.string "slug"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_pending_transactions_on_slug", unique: true
+    t.index ["status"], name: "index_pending_transactions_on_status"
+    t.index ["target_type", "target_id"], name: "index_pending_transactions_on_target"
   end
 
   create_table "players", force: :cascade do |t|

@@ -279,9 +279,19 @@ class Contest < ApplicationRecord
 
     return update!(onchain_settled: true) if winners.empty?
 
+    # Build partially-signed TX for multisig cosigning
     vault = Solana::Vault.new
-    result = vault.settle_contest(slug, winners)
-    update!(onchain_settled: true)
+    # Use first non-admin signer as default cosigner placeholder
+    cosigner = Solana::Config::MULTISIG_COSIGNER rescue Solana::Keypair.admin.to_base58
+    result = vault.build_settle_contest(slug, winners, cosigner_pubkey: cosigner)
+
+    PendingTransaction.create!(
+      tx_type: "settle_contest",
+      serialized_tx: result[:serialized_tx],
+      target: self,
+      initiator_address: Solana::Keypair.admin.to_base58,
+      metadata: { settlements: winners }.to_json
+    )
   rescue => e
     ErrorLog.capture!(e)
     # Don't block DB settlement — onchain can be retried

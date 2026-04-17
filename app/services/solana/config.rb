@@ -11,6 +11,15 @@ module Solana
     # Admin keypair path for signing settlement transactions
     ADMIN_KEYPAIR_PATH = ENV.fetch("SOLANA_ADMIN_KEYPAIR", File.expand_path("~/.config/solana/id.json"))
 
+    # Multisig signers (base58 addresses)
+    MULTISIG_SIGNERS = ENV.fetch("SOLANA_MULTISIG_SIGNERS",
+      "F6f8h5yynbnkgWvU5abQx3RJxJpe8EoQmeFBuNKdKzhZ,7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr,CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR"
+    ).split(",")
+    MULTISIG_THRESHOLD = ENV.fetch("SOLANA_MULTISIG_THRESHOLD", "2").to_i
+
+    # Default cosigner for partially-signed treasury TXs (Alex Human — signs via Phantom)
+    MULTISIG_COSIGNER = ENV.fetch("SOLANA_MULTISIG_COSIGNER", "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr")
+
     DECIMALS = 6
 
     def self.devnet?

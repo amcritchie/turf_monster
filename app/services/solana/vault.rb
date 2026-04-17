@@ -158,18 +158,19 @@ module Solana
     # --- High-level operations ---
 
     # Initialize the vault (run once after program deploy)
-    # admin_backup_address: base58 string of the backup admin pubkey
-    def initialize_vault(admin_backup_address:)
+    # signers: array of 3 base58 signer addresses
+    # threshold: number of required signatures for treasury ops
+    def initialize_vault(signers:, threshold:)
       admin = Keypair.admin
       vault_pda, _ = vault_state_pda
       usdc_mint = Keypair.decode_base58(Config::USDC_MINT)
       usdt_mint = Keypair.decode_base58(Config::USDT_MINT)
       vault_usdc, _ = vault_usdc_pda
       vault_usdt, _ = vault_usdt_pda
-      admin_backup_bytes = Keypair.decode_base58(admin_backup_address)
 
       data = Transaction.anchor_discriminator("initialize") +
-             Borsh.encode_pubkey(admin_backup_bytes)
+             signers.map { |s| Borsh.encode_pubkey(Keypair.decode_base58(s)) }.join +
+             Borsh.encode_u8(threshold)
 
       tx = build_tx(admin)
       tx.add_instruction(
@@ -193,19 +194,29 @@ module Solana
     end
 
     # Force-close the vault account (migration only — closes old-schema vault)
-    def force_close_vault
+    # Requires 2-of-3 multisig: cosigner_keypair must be a second signer
+    def force_close_vault(cosigner_keypair: nil)
       admin = Keypair.admin
       vault_pda, _ = vault_state_pda
 
       data = Transaction.anchor_discriminator("force_close_vault")
 
+      accounts = [
+        { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+      ]
+
+      # Add cosigner if provided (multisig vault), otherwise single-admin (legacy)
+      if cosigner_keypair
+        accounts << { pubkey: cosigner_keypair.public_key_bytes, is_signer: true, is_writable: false }
+      end
+
+      accounts << { pubkey: vault_pda, is_signer: false, is_writable: true }
+
       tx = build_tx(admin)
+      tx.add_signer(cosigner_keypair) if cosigner_keypair
       tx.add_instruction(
         program_id: @program_id,
-        accounts: [
-          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
-          { pubkey: vault_pda, is_signer: false, is_writable: true }
-        ],
+        accounts: accounts,
         data: data
       )
 
@@ -482,11 +493,61 @@ module Solana
       { serialized_tx: serialized, entry_pda: entry_pda_b58 }
     end
 
-    # Settle contest — admin distributes payouts
-    def settle_contest(contest_slug, settlements)
+    # Settle contest — requires 2-of-3 multisig (admin + cosigner_keypair)
+    # Used in rake tasks / E2E tests where server has both keys.
+    def settle_contest(contest_slug, settlements, cosigner_keypair: nil)
+      admin = Keypair.admin
+      cosigner = cosigner_keypair || admin  # fallback for tests
+      c_pda, _ = contest_pda(contest_slug)
+      vault_pda, _ = vault_state_pda
+
+      # Build settlement data
+      settlement_data = settlements.map do |s|
+        Borsh.encode_pubkey(Keypair.decode_base58(s[:wallet])) +
+        Borsh.encode_u32(s[:entry_num]) +
+        Borsh.encode_u32(s[:rank]) +
+        Borsh.encode_u64(s[:payout])
+      end
+
+      data = Transaction.anchor_discriminator("settle_contest") +
+             Borsh.encode_u32(settlements.length) +
+             settlement_data.join
+
+      # Build remaining accounts (pairs of user_account + contest_entry)
+      remaining = settlements.flat_map do |s|
+        user_pda, _ = user_account_pda(s[:wallet])
+        e_pda, _ = entry_pda(contest_slug, s[:wallet], s[:entry_num])
+        [
+          { pubkey: user_pda, is_signer: false, is_writable: true },
+          { pubkey: e_pda, is_signer: false, is_writable: true }
+        ]
+      end
+
+      tx = build_tx(admin)
+      tx.add_signer(cosigner) if cosigner != admin
+      tx.add_instruction(
+        program_id: @program_id,
+        accounts: [
+          { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: cosigner.public_key_bytes, is_signer: true, is_writable: false },
+          { pubkey: vault_pda, is_signer: false, is_writable: false },
+          { pubkey: c_pda, is_signer: false, is_writable: true }
+        ] + remaining,
+        data: data
+      )
+
+      signature = client.send_and_confirm(tx.serialize_base64)
+      { signature: signature }
+    end
+
+    # Build a partially-signed settle_contest transaction for multisig cosigning.
+    # Admin signs, cosigner_pubkey slot left empty for client-side signing.
+    # Returns base64-encoded partially-signed TX.
+    def build_settle_contest(contest_slug, settlements, cosigner_pubkey:)
       admin = Keypair.admin
       c_pda, _ = contest_pda(contest_slug)
       vault_pda, _ = vault_state_pda
+      cosigner_bytes = Keypair.decode_base58(cosigner_pubkey)
 
       # Build settlement data
       settlement_data = settlements.map do |s|
@@ -515,14 +576,16 @@ module Solana
         program_id: @program_id,
         accounts: [
           { pubkey: admin.public_key_bytes, is_signer: true, is_writable: true },
+          { pubkey: cosigner_bytes, is_signer: true, is_writable: false },
           { pubkey: vault_pda, is_signer: false, is_writable: false },
           { pubkey: c_pda, is_signer: false, is_writable: true }
         ] + remaining,
         data: data
       )
 
-      signature = client.send_and_confirm(tx.serialize_base64)
-      { signature: signature }
+      # Partial sign: admin signs, cosigner's signature slot left as zeros
+      serialized = tx.serialize_partial_base64(additional_signers: [cosigner_bytes])
+      { serialized_tx: serialized, contest_slug: contest_slug }
     end
 
     # Read onchain Contest account

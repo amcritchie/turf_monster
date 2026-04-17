@@ -136,6 +136,16 @@ Rails.application.routes.draw do
 
   post "add_funds", to: "users#add_funds"
 
+  # Admin: Treasury (pending multisig transactions)
+  namespace :admin do
+    resources :pending_transactions, only: [:index, :show], param: :slug do
+      member do
+        post :confirm
+        post :rebuild
+      end
+    end
+  end
+
   # Admin: Navbar review
   get "admin/navbar", to: "admin#navbar", as: :admin_navbar
 

@@ -1,0 +1,136 @@
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-heading">Treasury</h1>
+    <% if @pending_count > 0 %>
+      <span class="bg-primary text-white text-xs font-bold px-2 py-1 rounded-full"><%= @pending_count %> pending</span>
+    <% end %>
+  </div>
+
+  <% if @pending.empty? %>
+    <div class="empty-state">
+      <p class="text-secondary">No treasury transactions yet.</p>
+      <p class="text-muted text-sm mt-1">Settlement transactions requiring cosigning will appear here.</p>
+    </div>
+  <% else %>
+    <div class="space-y-3">
+      <% @pending.each do |tx| %>
+        <div class="card p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-mono text-xs text-muted"><%= tx.slug %></span>
+                <% case tx.status %>
+                <% when "pending" %>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+                <% when "confirmed" %>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Confirmed</span>
+                <% when "expired" %>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Expired</span>
+                <% when "failed" %>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Failed</span>
+                <% end %>
+              </div>
+
+              <p class="text-heading font-semibold">
+                <%= tx.tx_type.titleize %>
+                <% if tx.target %>
+                  <span class="text-secondary font-normal">- <%= tx.target.try(:name) || tx.target.try(:slug) %></span>
+                <% end %>
+              </p>
+
+              <div class="flex items-center gap-4 mt-1 text-xs text-muted">
+                <span>Created <%= time_ago_in_words(tx.created_at) %> ago</span>
+                <% if tx.cosigner_address.present? %>
+                  <span>Cosigner: <span class="font-mono"><%= tx.cosigner_address[0..7] %>...</span></span>
+                <% end %>
+                <% if tx.tx_signature.present? %>
+                  <span>TX: <a href="https://explorer.solana.com/tx/<%= tx.tx_signature %>?cluster=devnet" target="_blank" class="text-primary hover:text-primary-600 font-mono"><%= tx.tx_signature[0..11] %>...</a></span>
+                <% end %>
+              </div>
+
+              <% if tx.metadata.present? %>
+                <% meta = tx.parsed_metadata %>
+                <% if meta["settlements"] %>
+                  <div class="mt-2 text-xs text-muted">
+                    <%= meta["settlements"].size %> settlement(s),
+                    total payout: $<%= (meta["settlements"].sum { |s| s["payout"].to_i } / 1_000_000.0).round(2) %>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+
+            <div class="flex flex-col gap-2 flex-shrink-0">
+              <% if tx.pending? %>
+                <button onclick="cosignTransaction('<%= tx.slug %>', '<%= tx.serialized_tx %>')"
+                        class="btn btn-primary btn-sm">
+                  Co-sign
+                </button>
+                <%= button_to "Rebuild", rebuild_admin_pending_transaction_path(slug: tx.slug),
+                      method: :post, class: "btn btn-outline btn-sm" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="json-debug mt-8">
+    <pre><%= JSON.pretty_generate(@pending.map { |t| { slug: t.slug, type: t.tx_type, status: t.status, target: t.target_type, created: t.created_at } }) %></pre>
+  </div>
+</div>
+
+<script>
+  const SOLANA_RPC_URL = '<%= Solana::Config::RPC_URL %>';
+  const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content;
+
+  async function cosignTransaction(slug, serializedTx) {
+    const provider = window.solana;
+    if (!provider?.isPhantom) {
+      alert("Phantom wallet is required to co-sign transactions.");
+      return;
+    }
+
+    try {
+      await provider.connect();
+
+      // Decode the partially-signed TX from base64
+      const txBytes = Uint8Array.from(atob(serializedTx), c => c.charCodeAt(0));
+
+      // Import solana web3 for Transaction parsing
+      // Use VersionedTransaction for modern Solana
+      const tx = solanaWeb3.Transaction.from(txBytes);
+
+      // Phantom signs (adds cosigner signature)
+      const signed = await provider.signTransaction(tx);
+
+      // Submit to Solana
+      const connection = new solanaWeb3.Connection(SOLANA_RPC_URL);
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      // Report back to server
+      const resp = await fetch(`/admin/pending_transactions/${slug}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+        body: JSON.stringify({
+          tx_signature: signature,
+          cosigner_address: provider.publicKey.toBase58()
+        })
+      });
+
+      if (resp.ok) {
+        window.location.reload();
+      } else {
+        const data = await resp.json();
+        alert("Server confirmation failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Co-sign failed:", err);
+      alert("Co-signing failed: " + err.message);
+    }
+  }
+</script>
+
+<%# Load solana web3 for transaction parsing %>
+<script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
