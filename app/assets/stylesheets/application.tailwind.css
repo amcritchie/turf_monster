@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .px-1 {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+}
+
 /* Theme CSS custom properties are now engine-generated via studio_theme_css_tag */
 
 @layer components {
