@@ -68,6 +68,19 @@
           }
         };
 
+        // Stub for solanaWalletConnect — enough for Alpine x-data evaluation.
+        // The full wallet_connect.js module overwrites this on import.
+        if (!window.solanaWalletConnect) {
+          window.solanaWalletConnect = function() {
+            return {
+              connecting: false, error: null, statusText: 'Connect Wallet',
+              walletAvailable: window.walletProvider.isAvailable(),
+              isMobile: window.walletProvider.isMobile(),
+              connect: function() {}
+            };
+          };
+        }
+
         // Solana modal store — registered when Alpine starts
         document.addEventListener('alpine:init', function() {
           if (Alpine.store('solanaModal')) return;
