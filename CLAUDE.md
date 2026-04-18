@@ -107,13 +107,13 @@ Mobile-first contest preview/info page. Renders inline matchup board or leaderbo
 - `solana_errors` — Solana error message parser (`parseSolanaError`).
 - `solana_stores` — Alpine.js wallet watcher store (detects wallet switches, silent re-auth).
 - `phantom_deeplink` — Phantom deep link protocol for mobile browsers.
-- `wallet_connect` — `solanaWalletConnect()` Alpine component + `fireSuccessConfetti()`. Extracted from layout inline script.
+- `wallet_connect` — `fireSuccessConfetti()` confetti helper for successful transactions.
 - `cosign` — `cosignTransaction()` for admin treasury co-signing via Phantom. Reads RPC URL from `#cosign-config` data attribute.
-- `turf_board` — `selectionBoard()` Alpine component + `shrinkTeamNames()`. Reads all ERB config from a `<script type="application/json" id="board-config">` tag in the partial. Extracted from `_turf_totals_board.html.erb` (~420 lines).
+- `turf_board` — `shrinkTeamNames()` utility for auto-sizing long team names.
 
 ### JSON Config Pattern (ERB→JS data passing)
 
-When extracting inline scripts that depend on ERB-interpolated values, use a JSON config block:
+When inline scripts depend on ERB-interpolated values, use a JSON config block:
 
 ```erb
 <script type="application/json" id="board-config">
@@ -121,12 +121,16 @@ When extracting inline scripts that depend on ERB-interpolated values, use a JSO
 </script>
 ```
 
-The JS module reads it: `var cfg = JSON.parse(document.getElementById('board-config').textContent);`
+The JS reads it: `var cfg = JSON.parse(document.getElementById('board-config').textContent);`
 
-### Inline JS that stays in layout
+### Inline JS that MUST stay inline (Alpine timing constraint)
 
-- `solanaModal` Alpine store — MUST stay inline because Alpine processes `$store.solanaModal` before importmap modules load
-- `walletProvider` stub — minimal stub for `isAvailable()`/`isMobile()`, overwritten by full module on import
+Alpine's `defer` script evaluates `x-data` attributes BEFORE importmap modules load. Any function referenced in `x-data` must be defined inline (not in a module):
+
+- `solanaWalletConnect()` — full wallet connect component, inline in layout `application.html.erb`
+- `selectionBoard()` — full matchup board component, inline in `_turf_totals_board.html.erb` partial. Reads config from `#board-config` JSON element.
+- `solanaModal` Alpine store — inline in layout, registered on `alpine:init`
+- `walletProvider` stub — minimal stub for `isAvailable()`/`isMobile()`/`detect()`, overwritten by full module on import
 
 ## Studio Engine
 
