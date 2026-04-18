@@ -21,7 +21,7 @@ Load these when working on specific areas:
 - Each selection is scored: **team goals x turf_score**
 - Entry score = sum of all selection scores
 - Entries ranked by score DESC; ties get the same rank
-- **Payouts**: Standard (30 entries, $19 fee): 1st=$300, 2nd-6th=$50 each. Small (3 entries, $19 fee): winner-take-all $50. Ties split evenly.
+- **Payouts**: Small (3 entries, $19 fee): winner-take-all $50. Standard (30 entries, $19 fee): 1st=$300, 2nd-6th=$50. Large (99 entries, $19 fee): 1st=$1,000, 2nd-9th=$100. Ties split evenly.
 - Max 3 entries per user per contest (different selection combos required)
 - Entry fee deducted from user balance on confirm
 
@@ -221,7 +221,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 - **Shared users**: `db/seeds/users.rb` defines 5 core users (Alex, Alex Bot, Mason, Mack, Turf Monster) with `@mcritchie.studio` emails and real wallet addresses. Loaded by both `db/seeds.rb` and `e2e/seed.rb`.
 - 5 seeded users (password: "password"), Alex and Alex Bot are admins
 - 48 teams, 72 group stage matches, 85 players
-- 3 matchday contests with rank 100/200/300, each assigned to admin user (creator)
+- 9 contests (3 per matchday: small/standard/large), ranks staggered (100-102, 200-202, 300-302), each assigned to admin user (creator)
 - Seeds assign ranks idempotently and backfill `user_id` on contests without a creator
 - Seed is idempotent (`find_or_create_by!`) — safe to re-run
 - All emails use `@mcritchie.studio` domain (seeds, fixtures, E2E tests)

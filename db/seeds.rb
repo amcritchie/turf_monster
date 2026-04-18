@@ -510,16 +510,18 @@ def compute_house_score(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
-def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil, user: nil)
+def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil, user: nil, contest_type: "standard")
   slate = Slate.find_or_create_by!(name: slate_name) do |s|
     s.starts_at = starts_at
   end
 
+  format = Contest::FORMATS[contest_type] || Contest::FORMATS["standard"]
+
   contest = Contest.find_or_create_by!(name: contest_name) do |c|
     c.slate = slate
-    c.contest_type = "standard"
-    c.entry_fee_cents = Contest::FORMATS["standard"][:entry_fee_cents]
-    c.max_entries = Contest::FORMATS["standard"][:max_entries]
+    c.contest_type = contest_type
+    c.entry_fee_cents = format[:entry_fee_cents]
+    c.max_entries = format[:max_entries]
     c.status = "open"
     c.starts_at = starts_at
     c.tagline = tagline
@@ -609,43 +611,133 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
 end
 
 # ─── Create Slates + Contests ────────────────────────────────
-contest1 = create_slate_with_contest(
+# 3 contests per matchday (small, standard, large) sharing the same slate
+
+# Matchday 1
+contest1_small = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 1",
-  contest_name: "Turf Totals — World Cup 2026 Group 1",
+  contest_name: "Turf Totals — WC 2026 Group 1 (Small)",
   games: MATCHDAY_1_GAMES,
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 11, 15, 0),
   tagline: "Matchday 1 — World Cup 2026 Group Stage",
-  user: admin
+  user: admin,
+  contest_type: "small"
 )
-contest1.update!(rank: 100) if contest1.rank.nil?
+contest1_small.update!(rank: 100) if contest1_small.rank.nil?
 
-contest2 = create_slate_with_contest(
+contest1_standard = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 1",
+  contest_name: "Turf Totals — WC 2026 Group 1",
+  games: MATCHDAY_1_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 11, 15, 0),
+  tagline: "Matchday 1 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "standard"
+)
+contest1_standard.update!(rank: 101) if contest1_standard.rank.nil?
+
+contest1_large = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 1",
+  contest_name: "Turf Totals — WC 2026 Group 1 (Large)",
+  games: MATCHDAY_1_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 11, 15, 0),
+  tagline: "Matchday 1 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "large"
+)
+contest1_large.update!(rank: 102) if contest1_large.rank.nil?
+
+# Matchday 2
+contest2_small = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 2",
-  contest_name: "Turf Totals — World Cup 2026 Group 2",
+  contest_name: "Turf Totals — WC 2026 Group 2 (Small)",
   games: MATCHDAY_2_GAMES,
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 18, 12, 0),
   general_rankings: true,
   tagline: "Matchday 2 — World Cup 2026 Group Stage",
-  user: admin
+  user: admin,
+  contest_type: "small"
 )
-contest2.update!(rank: 200) if contest2.rank.nil?
+contest2_small.update!(rank: 200) if contest2_small.rank.nil?
 
-contest3 = create_slate_with_contest(
+contest2_standard = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 2",
+  contest_name: "Turf Totals — WC 2026 Group 2",
+  games: MATCHDAY_2_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 18, 12, 0),
+  general_rankings: true,
+  tagline: "Matchday 2 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "standard"
+)
+contest2_standard.update!(rank: 201) if contest2_standard.rank.nil?
+
+contest2_large = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 2",
+  contest_name: "Turf Totals — WC 2026 Group 2 (Large)",
+  games: MATCHDAY_2_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 18, 12, 0),
+  general_rankings: true,
+  tagline: "Matchday 2 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "large"
+)
+contest2_large.update!(rank: 202) if contest2_large.rank.nil?
+
+# Matchday 3
+contest3_small = create_slate_with_contest(
   slate_name: "World Cup 2026 Group 3",
-  contest_name: "Turf Totals — World Cup 2026 Group 3",
+  contest_name: "Turf Totals — WC 2026 Group 3 (Small)",
   games: MATCHDAY_3_GAMES,
   teams: teams,
   dk_odds: dk_odds,
   starts_at: et(2026, 6, 24, 15, 0),
   general_rankings: true,
   tagline: "Matchday 3 — World Cup 2026 Group Stage",
-  user: admin
+  user: admin,
+  contest_type: "small"
 )
-contest3.update!(rank: 300) if contest3.rank.nil?
+contest3_small.update!(rank: 300) if contest3_small.rank.nil?
+
+contest3_standard = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 3",
+  contest_name: "Turf Totals — WC 2026 Group 3",
+  games: MATCHDAY_3_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 24, 15, 0),
+  general_rankings: true,
+  tagline: "Matchday 3 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "standard"
+)
+contest3_standard.update!(rank: 301) if contest3_standard.rank.nil?
+
+contest3_large = create_slate_with_contest(
+  slate_name: "World Cup 2026 Group 3",
+  contest_name: "Turf Totals — WC 2026 Group 3 (Large)",
+  games: MATCHDAY_3_GAMES,
+  teams: teams,
+  dk_odds: dk_odds,
+  starts_at: et(2026, 6, 24, 15, 0),
+  general_rankings: true,
+  tagline: "Matchday 3 — World Cup 2026 Group Stage",
+  user: admin,
+  contest_type: "large"
+)
+contest3_large.update!(rank: 302) if contest3_large.rank.nil?
 
 # Backfill creator on any existing contests without one
 Contest.where(user_id: nil).update_all(user_id: admin.id)

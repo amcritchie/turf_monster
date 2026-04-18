@@ -49,8 +49,9 @@ class Contest < ApplicationRecord
   end
 
   FORMATS = {
-    "small" => { entry_fee_cents: 19_00, max_entries: 3, payouts: { 1 => 50_00 } },
-    "standard" => { entry_fee_cents: 19_00, max_entries: 30, payouts: { 1 => 300_00, 2 => 50_00, 3 => 50_00, 4 => 50_00, 5 => 50_00, 6 => 50_00 } }
+    "small"    => { entry_fee_cents: 19_00, max_entries: 3,  payouts: { 1 => 50_00 } },
+    "standard" => { entry_fee_cents: 19_00, max_entries: 30, payouts: { 1 => 300_00, 2 => 50_00, 3 => 50_00, 4 => 50_00, 5 => 50_00, 6 => 50_00 } },
+    "large"    => { entry_fee_cents: 19_00, max_entries: 99, payouts: { 1 => 1000_00, 2 => 100_00, 3 => 100_00, 4 => 100_00, 5 => 100_00, 6 => 100_00, 7 => 100_00, 8 => 100_00, 9 => 100_00 } }
   }
 
   def format_config
