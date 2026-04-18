@@ -1,6 +1,6 @@
 # Turf Monster (turf_monster)
 
-Peer-to-peer sports pick'em game focused on team matchup selections with multipliers for the World Cup.
+Peer-to-peer sports pick'em game focused on team matchup selections with Turf Scores for the World Cup.
 
 ## Topic Files
 
@@ -16,9 +16,9 @@ Load these when working on specific areas:
 
 ## Game Rules
 
-- Each contest has a set of **matchups** — team/opponent pairs with multipliers based on rank
+- Each contest has a set of **matchups** — team/opponent pairs with Turf Scores based on rank
 - Players select **6 matchups** per entry
-- Each selection is scored: **team goals x multiplier**
+- Each selection is scored: **team goals x turf_score**
 - Entry score = sum of all selection scores
 - Entries ranked by score DESC; ties get the same rank
 - **Payouts**: Standard (30 entries, $19 fee): 1st=$300, 2nd-6th=$50 each. Small (3 entries, $19 fee): winner-take-all $50. Ties split evenly.
@@ -94,7 +94,6 @@ Mobile-first contest preview/info page. Renders inline matchup board or leaderbo
 - Tailwind CSS via `tailwindcss-rails` gem (compiled, not CDN)
 - Alpine.js via CDN for interactivity
 - ERB views, import maps, no JS frameworks
-- Stimulus infrastructure ready (pinned, eager-loaded, no controllers yet)
 - bcrypt + Google OAuth + Solana wallet auth (Phantom)
 - **Sidekiq** + Redis for background jobs (web UI at `/admin/jobs`, admin-only)
 - **Studio engine gem** — `gem "studio", git: "https://github.com/amcritchie/studio.git"`
@@ -102,13 +101,38 @@ Mobile-first contest preview/info page. Renders inline matchup board or leaderbo
 
 ## JS Modules (importmap)
 
-- `solana_utils` — shared Solana/crypto utilities: `encodeBase58`, `lockedFetch`, `refreshBalance`, `refreshBalanceDelayed`, `CONFETTI_COLORS`. All attached to `window` for backward compatibility with inline scripts/onclick handlers. Single source of truth — do not duplicate these functions in views.
+- `base58` — canonical Base58 encoder/decoder (`encodeBase58`, `decodeBase58`). Single source of truth — all Solana modules use this. Loaded before other Solana modules. Attached to `window` for backward compatibility.
+- `wallet_provider` — wallet abstraction layer (PhantomProvider, KeypairProvider, registry). Uses `window.encodeBase58` from base58.js.
+- `solana_utils` — shared Solana/crypto utilities: `lockedFetch`, `refreshBalance`, `refreshBalanceDelayed`, `CONFETTI_COLORS`. Attached to `window` for backward compatibility.
+- `solana_errors` — Solana error message parser (`parseSolanaError`).
+- `solana_stores` — Alpine.js wallet watcher store (detects wallet switches, silent re-auth).
+- `phantom_deeplink` — Phantom deep link protocol for mobile browsers.
+- `wallet_connect` — `solanaWalletConnect()` Alpine component + `fireSuccessConfetti()`. Extracted from layout inline script.
+- `cosign` — `cosignTransaction()` for admin treasury co-signing via Phantom. Reads RPC URL from `#cosign-config` data attribute.
+- `turf_board` — `selectionBoard()` Alpine component + `shrinkTeamNames()`. Reads all ERB config from a `<script type="application/json" id="board-config">` tag in the partial. Extracted from `_turf_totals_board.html.erb` (~420 lines).
+
+### JSON Config Pattern (ERB→JS data passing)
+
+When extracting inline scripts that depend on ERB-interpolated values, use a JSON config block:
+
+```erb
+<script type="application/json" id="board-config">
+<%= { key: @value, nested: { a: 1 } }.to_json.html_safe %>
+</script>
+```
+
+The JS module reads it: `var cfg = JSON.parse(document.getElementById('board-config').textContent);`
+
+### Inline JS that stays in layout
+
+- `solanaModal` Alpine store — MUST stay inline because Alpine processes `$store.solanaModal` before importmap modules load
+- `walletProvider` stub — minimal stub for `isAvailable()`/`isMobile()`, overwritten by full module on import
 
 ## Studio Engine
 
 Shared code from [studio engine](https://github.com/amcritchie/studio). Configured in `config/initializers/studio.rb`.
 
-**From the engine:** `Studio::ErrorHandling`, `ErrorLog` model, `Sluggable` concern, auth controllers, error log views, theme system.
+**From the engine:** `Studio::ErrorHandling`, `ErrorLog` model, `Sluggable` concern, auth controllers, error log views, theme system, `_theme_toggle_morph` partial (spinner/toggle swap), `showNavSpinner`/`hideNavSpinner` globals.
 
 **Overridden locally:** `sessions/new.html.erb`, `registrations/new.html.erb`, `sessions/_sso_continue.html.erb`, `omniauth_callbacks_controller.rb` (merge support), `layouts/_navbar.html.erb` (app-specific nav links, mobile sub-navbar with duplicate gear+moon fix).
 
@@ -122,7 +146,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 - **6 selections per entry** — `Contest#picks_required` returns 6. All views use this dynamically. Max 3 entries per user per contest (`Contest#max_entries_per_user`).
 - **Balance system**: On-chain USDC is the single source of truth. DB columns `balance_cents`/`promotional_cents` are deprecated (kept for migration safety). All balance reads come from on-chain wallet via `display_balance` helper. Entry fees transfer USDC on-chain via `Vault#transfer_from_user`.
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as FKs (e.g. `team_slug`, `home_team_slug`). Associations use `foreign_key: :*_slug, primary_key: :slug`.
-- **Multiplier formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — x1.0 at rank 1 to x4.0 at rank N. Centralized on `SlateMatchup.multiplier_for(rank, n)`.
+- **Turf Score formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — x1.0 at rank 1 to x4.0 at rank N. Centralized on `SlateMatchup.turf_score_for(rank, n)`.
 - **Seeds system**: 65 seeds per entry on-chain. No DB columns. See `docs/SOLANA.md`.
 - Entry slug includes `id` — requires `after_create` callback
 - Every page shows JSON debug block of its primary record
@@ -131,14 +155,14 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 - **User** — name, username, email (nullable), solana_address, wallet_type, role, slug. Balance is on-chain USDC (DB `balance_cents`/`promotional_cents` deprecated). See `docs/AUTH.md`.
 - **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank, slate association, onchain fields, slug. `belongs_to :user` (creator, optional). `has_one_attached :contest_image` (Active Storage). Helpers: `lock_time_display`, `active_entry_count`, `locks_at` (alias for `starts_at`).
-- **ContestMatchup** — team_slug, opponent_team_slug, rank, multiplier, status. Belongs to contest + teams via slug FKs.
+- **ContestMatchup** — team_slug, opponent_team_slug, rank, turf_score, status. Belongs to contest + teams via slug FKs.
 - **Entry** — user + contest, score, status (cart/active/complete/abandoned), rank, payout_cents, onchain fields, slug (includes id)
 - **Selection** — joins entry + contest_matchup (unique pair)
 - **Team** — name, short_name, emoji, color_primary/secondary, slug
 - **Game** — home_team + away_team via slug FKs, kickoff_at, status, scores, slug
 - **Player** — name, position, jersey_number, team via slug FK, slug
 - **Slate** — formula variables (7 nullable floats), 3-tier resolution. See `docs/FORMULAS.md`.
-- **SlateMatchup** — team/opponent/game via slug FKs, rank, multiplier, scoring data. Formula class methods.
+- **SlateMatchup** — team/opponent/game via slug FKs, rank, turf_score, scoring data (house_score, dk_goals_expectation). Formula class methods.
 - **PendingTransaction** — multisig treasury TXs awaiting cosign. Fields: tx_type, serialized_tx, status (pending/confirmed/expired/failed), polymorphic target, initiator/cosigner addresses, tx_signature, metadata (JSON), slug.
 - **GeoSetting** — admin geofencing config
 - **TransactionLog** — admin onchain transaction audit
@@ -156,7 +180,7 @@ Every write action MUST use `rescue_and_log` with target/parent context. See top
 ### Public
 - `/` — contests#world_cup (redirects to most recent contest lobby)
 - `/c/:id/lobby` — contests#lobby (mobile-first contest preview, inline board/leaderboard)
-- `/contests` — contests#index (all contests card grid)
+- `/contests` — contests#index (card grid, newest first, banner images, "My Contests" + "New Contest" buttons)
 - `/contests/:id` — contest show (full leaderboard + admin actions)
 - `/contests/:id/edit` — admin contest editor (name, tagline, status, rank, image, locks_at)
 - `/teams`, `/teams/:slug` — team index/show
