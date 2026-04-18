@@ -7,7 +7,7 @@ GIT
 
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: f379a4ecda17bffeb17fe8b38de7fc10b5975036
+  revision: 8393e126ce1c1f69d858eba6efcc6d5b00d80cb1
   specs:
     studio (0.2.4)
       faker (>= 2.0)
@@ -116,7 +116,7 @@ GEM
     base64 (0.3.0)
     bcrypt (3.1.22)
     benchmark (0.5.0)
-    bigdecimal (4.1.1)
+    bigdecimal (4.1.2)
     bindex (0.8.1)
     bootsnap (1.23.0)
       msgpack (~> 1.2)

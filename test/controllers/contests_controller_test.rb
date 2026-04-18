@@ -101,7 +101,77 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     post enter_contest_path(@contest)
 
     assert_response :redirect
-    assert_redirected_to contest_path(@contest)
+    assert_redirected_to contest_lobby_path(@contest)
+  end
+
+  # --- onchain session entry tests ---
+
+  test "enter rejects onchain session without signature" do
+    key = log_in_as_onchain(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    post enter_contest_path(@contest),
+      headers: { "Accept" => "application/json" }
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match(/Wallet signature required/, json["error"])
+    assert entry.reload.cart?
+  end
+
+  test "enter accepts onchain session with valid signature" do
+    key = log_in_as_onchain(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    signed_params = sign_entry_message(key, @user, @contest.name)
+
+    post enter_contest_path(@contest),
+      params: signed_params,
+      as: :json
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert json["success"]
+    assert entry.reload.active?
+  end
+
+  test "enter rejects onchain session with wrong wallet" do
+    key = log_in_as_onchain(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    # Sign with correct key but then change the user's wallet to something else
+    signed_params = sign_entry_message(key, @user, @contest.name)
+    @user.update!(web3_solana_address: "DifferentWalletAddress1111111111111111111111111")
+
+    post enter_contest_path(@contest),
+      params: signed_params,
+      as: :json
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_match(/Wallet mismatch/, json["error"])
+    assert entry.reload.cart?
+  end
+
+  test "enter works for offchain session" do
+    log_in_as(@user)
+
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    post enter_contest_path(@contest),
+      headers: { "Accept" => "application/json" }
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert json["success"]
+    assert entry.reload.active?
   end
 
   # --- page load tests ---

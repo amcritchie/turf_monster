@@ -170,18 +170,18 @@ class ContestsController < ApplicationController
     entry = @contest.entries.cart.find_by(user: current_user)
     return redirect_to root_path, alert: "No cart entry found" unless entry
 
-    # Verify Phantom wallet signature for Web3 users entering onchain contests
-    if @contest.onchain? && current_user.phantom_wallet?
-      if params[:signature].present?
-        verify_solana_signature!(
-          message: params[:message],
-          signature_b58: params[:signature],
-          pubkey_b58: params[:pubkey],
-          session: session
-        )
-      else
-        raise "Wallet signature required to enter contest"
-      end
+    # Onchain sessions MUST provide a wallet signature proof
+    if onchain_session?
+      raise "Wallet signature required" unless params[:signature].present?
+
+      verify_solana_signature!(
+        message: params[:message],
+        signature_b58: params[:signature],
+        pubkey_b58: params[:pubkey],
+        session: session
+      )
+
+      raise "Wallet mismatch" unless params[:pubkey] == current_user.web3_solana_address
     end
 
     rescue_and_log(target: entry, parent: @contest) do
@@ -190,23 +190,36 @@ class ContestsController < ApplicationController
         raise "Contest is full" if @contest.max_entries && active_count >= @contest.max_entries
 
         tx_signature = nil
+        onchain_entry_id = nil
+
         if @contest.onchain? && @contest.entry_fee_cents > 0 && current_user.managed_wallet? && !current_user.phantom_wallet?
+          # Managed wallet: server-side transfer (blocking)
           vault = Solana::Vault.new
           usdc_mint = Solana::Config::USDC_MINT
           amount = @contest.entry_fee_cents * 10_000 # cents → USDC lamports (6 decimals)
           result = vault.transfer_from_user(current_user, amount, mint: usdc_mint)
           tx_signature = result[:signature]
+        elsif @contest.onchain? && !onchain_session?
+          # Offchain session entering onchain contest: blocking vault entry
+          entry.entry_number ||= @contest.entries.where(user: current_user).where.not(entry_number: nil).count
+          entry.save! if entry.entry_number_changed?
+
+          vault = Solana::Vault.new
+          vault.ensure_user_account(current_user.solana_address) if current_user.solana_connected?
+          result = vault.enter_contest(current_user.solana_address, @contest.slug, entry.entry_number)
+          tx_signature = result[:signature]
+          onchain_entry_id = result[:entry_pda]
         end
 
-        entry.confirm!(tx_signature: tx_signature)
+        entry.confirm!(tx_signature: tx_signature, onchain_entry_id: onchain_entry_id)
       end
 
       respond_to do |format|
-        format.html { redirect_to @contest, notice: "#{current_user.display_name} entered the contest!" }
+        format.html { redirect_to contest_lobby_path(@contest), notice: "#{current_user.display_name} entered the contest!" }
         format.json {
           render json: {
             success: true,
-            redirect: contest_path(@contest),
+            redirect: contest_lobby_path(@contest),
             tx_signature: entry.onchain_tx_signature
           }
         }
@@ -279,6 +292,7 @@ class ContestsController < ApplicationController
 
     rescue_and_log(target: entry, parent: @contest) do
       verify_solana_transaction!(params[:tx_signature])
+      raise "Wallet not linked" unless current_user.web3_solana_address.present?
 
       entry.confirm_onchain!(
         tx_signature: params[:tx_signature],
@@ -298,7 +312,7 @@ class ContestsController < ApplicationController
 
       render json: {
         success: true,
-        redirect: contest_path(@contest),
+        redirect: contest_lobby_path(@contest),
         tx_signature: params[:tx_signature],
         seeds_earned: seeds_earned,
         seeds_total: seeds_total,
