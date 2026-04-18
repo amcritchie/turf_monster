@@ -219,7 +219,7 @@
                       int_part = score.to_i.to_s
                       dec_part = score == score.to_i ? nil : ".#{((score % 1) * 10).round}"
                     else
-                      mult = selection.slate_matchup.multiplier
+                      mult = selection.slate_matchup.turf_score
                       int_part = mult == mult.to_i ? "x#{mult.to_i}" : "x#{mult.to_i}"
                       dec_part = mult == mult.to_i ? nil : ".#{((mult % 1) * 10).round}"
                     end

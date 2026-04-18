@@ -7,8 +7,8 @@
 - **Admin theme page**: `/admin/theme` — color editor + styleguide (from engine)
 - **Primary**: `#4BAF50` Green — brand text, CTAs, buttons, nav hovers, money displays, balances, checkmarks, hold button idle state
 - **Mint**: `#06D6A0` — win badges, contest status (open), hold button success glow. Reserved for game mechanics (win), not general selection UI.
-- **Accent**: `#8E82FE` Violet — scores, draft badges, `.btn-secondary`, Phantom wallet badge. NOT for CTA-intent elements (use `primary` instead). NOT for multipliers (use `primary`).
-- **Primary for selection UI**: Selection count badges, cart slot borders, matchup selection rings/tints, multiplier values, links, sort toggle active state, and FAB buttons all use `primary` (green), not mint or violet.
+- **Accent**: `#8E82FE` Violet — scores, draft badges, `.btn-secondary`, Phantom wallet badge. NOT for CTA-intent elements (use `primary` instead). NOT for turf scores (use `primary`).
+- **Primary for selection UI**: Selection count badges, cart slot borders, matchup selection rings/tints, turf score values, links, sort toggle active state, and FAB buttons all use `primary` (green), not mint or violet.
 - **Warning**: `#FF7C47` Orange — warning states, `.btn-warning`
 - **Negative**: Red (Tailwind default) — losses
 - **Font**: Montserrat (all weights 400-900)
@@ -39,19 +39,19 @@ CSS component classes in `application.tailwind.css`:
 
 `_turf_totals_board.html.erb` — two sort modes toggled via Alpine (`sortMode`/`sortDir`):
 
-- **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest multiplier. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `outline` + `box-shadow` glow in primary, "vs" div gets primary tint.
-- **Multiplier view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by multiplier. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Multiplier" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
+- **Game view** (default): Paired cards with "vs" divider (`color-mix` background), sorted by lowest turf score. Uses `_matchup_game_pair.html.erb` partial (locals: `left`, `right`, `locked`). Both-selected: outer `outline` + `box-shadow` glow in primary, "vs" div gets primary tint.
+- **Turf Score view**: Flat grid (`grid-cols-2 md:grid-cols-4`) of individual cards sorted by turf score. Uses `_matchup_card.html.erb` partial (local: `matchup`). Double-click "Turf Score" toggles asc/desc (arrow indicator). Two server-rendered orderings toggled via `x-show` (no JS re-sorting).
 - Both views share the same Alpine `selections` state — selections persist across view switches.
 - **Filter input**: Text input in the sort toolbar filters matchup cards by team name (both teams). Uses `matchesFilter()` Alpine method with `x-show` on wrapper divs. Clear X button appears when text is entered.
 
 ### Matchup Card Layout
-Flag emoji (3xl) → Team name (bold, lg/xl) → Multiplier number (primary, 2xl/3xl, no prefix, integers without decimal) → "Points / Goal" label (singular "Point" when multiplier is 1) → Game info line (tiny, both teams' emojis + short names, e.g. "🇪🇸 ESP vs CPV 🇨🇻"). Cards use `rounded-2xl`. Standalone cards have `w-full` to fill grid cells. Auto-shrink JS for long team names.
+Flag emoji (3xl) → Team name (bold, lg/xl) → Turf Score number (primary, 2xl/3xl, no prefix, integers without decimal) → "Points / Goal" label (singular "Point" when turf score is 1) → Game info line (tiny, both teams' emojis + short names, e.g. "🇪🇸 ESP vs CPV 🇨🇻"). Cards use `rounded-2xl`. Standalone cards have `w-full` to fill grid cells. Auto-shrink JS for long team names.
 
 ### `.matchup-selected` class
 Uses `outline` (not border) for selection highlight — avoids layout shift. Dynamic primary color via `rgb(var(--color-primary-rgb))`. Includes `box-shadow` glow. Double-selected game pairs use inline `outline` + `box-shadow` on the wrapper div.
 
 ## Cart
-- **Cart slot cards** (`_turf_totals_cart_slots.html.erb`): Emoji + Team Name + "vs OPP" on first line, "Goals" + multiplier on second line.
+- **Cart slot cards** (`_turf_totals_cart_slots.html.erb`): Emoji + Team Name + "vs OPP" on first line, "Goals" + turf score on second line.
 - `pickOrder` array in Alpine state controls display order (insertion order)
 - "Clear All" button clears selections locally + abandons entry server-side
 - Blur overlay fires once per page load (`blurUsed` flag)
@@ -110,10 +110,10 @@ Scrolled state on mobile (via `.is-scrolled` ancestor):
 | **400–767px** | 1rem | 1.15rem | 2.5rem (w-10) |
 
 ### Left side
-Logo (`.nav-logo`) + "Turf Totals" brand title (`.nav-title` with two `<span>`s), desktop nav links (`hidden md:flex`: Join Contest, Rules, geo badge).
+Logo (`.nav-logo`) + "Turf Totals" brand title (`.nav-title` with two `<span>`s), desktop nav links (`hidden md:flex`: Contests, Rules, geo badge).
 
 ### Mobile sub-navbar
-`flex md:hidden` compact row below main nav with `bg-surface-alt border-t border-subtle`. Contains: Join Contest, Rules, geo badge. Theme toggle + admin dropdown pushed right via `ml-auto`.
+`flex md:hidden` compact row below main nav with `bg-surface-alt border-t border-subtle`. Contains: Contests, Rules, geo badge. Admin dropdown + theme toggle morph pushed right via `ml-auto`.
 
 ### Environment banner
 Lives in `application.html.erb`, **not** in the navbar partial. Conditional on `Solana::Config.devnet?`. Full-width yellow bar (`bg-yellow-500 text-black`) above the sticky header. Contains: centered "X Environment" label, right-aligned DEV MODE toggle + DEVNET badge. Not sticky — scrolls away naturally. The DEV MODE toggle uses `$store.devMode` (see Dev Mode section).
@@ -122,7 +122,7 @@ Lives in `application.html.erb`, **not** in the navbar partial. Conditional on `
 Extracted to `_geo_badge.html.erb` partial — shared by desktop nav and mobile sub-navbar. State flag image uses inline styles for reliable sizing (`height: 12px; width: 16px; object-fit: cover`). Badge shape is `rounded-lg`.
 
 ### Right side — logged in: two-row block + avatar
-- **Row 1 (Div 1)**: balance, refresh button, username. Theme toggle + gear hidden on mobile (`hidden md:flex`/`hidden md:block`), shown in sub-navbar instead. `padding-right: 6px` via inline style.
+- **Row 1 (Div 1)**: balance, gear + theme toggle morph (left of username, `hidden md:flex`), username. On mobile, gear + morph shown in sub-navbar instead. `padding-right: 6px` via inline style.
 - **Row 2 (Div 2)**: Seeds progress bar with clip-path text color technique. CSS classes: `.seeds-bar` (container sizing), `.seeds-fill` (gradient + transition), `.seeds-text` (10px font). Wallet address (left) + Level X (right). Green fill bar animates via Alpine reading `seedsNavbar` localStorage. Text layers: muted underneath, white on top with `clip-path` reveal. Level-up: bar fills 100% → Level bounces (`.nav-level-pop` class, `navLevelPop` keyframe in `application.tailwind.css`) → resets. Listens for `navbar-replay-level` and `navbar-seeds-update` window events.
 - **Avatar**: `_avatar.html.erb` partial (size "nav" = `w-8 h-8`), outside the two-row block. Links to `/account`.
 - Balance shows whole dollars only (no cents) — JS `refreshBalance` uses `Math.floor`, ERB uses `.to_i`.
@@ -131,10 +131,22 @@ Extracted to `_geo_badge.html.erb` partial — shared by desktop nav and mobile 
 - User nav column has `pl-0 pr-4 md:px-4` — no left padding on mobile.
 
 ### Right side — logged out
-- Theme toggle (`hidden md:flex`) + green "Log in" button, right-aligned. Theme toggle appears in mobile sub-navbar instead.
+- Theme toggle morph (`hidden md:flex`) + green "Log in" button, right-aligned. Theme toggle morph appears in mobile sub-navbar instead.
+
+## Theme Toggle Morph (Spinner Swap)
+
+`components/_theme_toggle_morph.html.erb` (engine partial) — dark mode toggle and loading spinner share the same 16x16 space. Two absolutely-positioned elements with `transition-all duration-300` cross-fade via `transform: scale() rotate()` + `opacity`.
+
+- **Default state**: Toggle visible (`scale(1) rotate(0deg) opacity(1)`), spinner hidden (`scale(0) rotate(-90deg) opacity(0)`)
+- **Loading state**: Toggle hidden, spinner visible — triggered by `showNavSpinner()` global function
+- **After loading**: Spinner hides, toggle returns — triggered by `hideNavSpinner()` with 2.5s minimum display time
+
+**Global JS** (in engine `_head.html.erb`): `showNavSpinner()` records `Date.now()`, `hideNavSpinner()` calculates remaining time from the 2.5s minimum and uses `setTimeout` to delay the hide. Both target `.nav-toggle-icon` and `.nav-spinner-icon` class elements.
+
+**Usage**: Gear dropdown "Refresh Balance" calls `showNavSpinner(); refreshBalance().finally(function() { hideNavSpinner(); })`. Auto-refresh on devnet uses the same pattern.
 
 ## Leaderboard (Contest Show)
-Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing multiplier (e.g., `x4`) before game completes and points (goals x multiplier) after. Badges float right with score rightmost (`min-width: 4.5rem`). Non-integer values show decimal portion in smaller font. Payout label (`$40.00`) appears on left (after player name) only before settling. Admin payout button says "Payout $X". After settling — paid rows get primary ring, divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
+Selection badges are fixed-width (`w-28`), sorted by game kickoff time, showing turf score (e.g., `x4`) before game completes and points (goals x turf score) after. Badges float right with score rightmost (`min-width: 4.5rem`). Non-integer values show decimal portion in smaller font. Payout label (`$40.00`) appears on left (after player name) only before settling. Admin payout button says "Payout $X". After settling — paid rows get primary ring, divider line after last paid position, unpaid rows dimmed. Rank column shows actual rank (from entry.rank) when settled.
 
 ## Faucet Page (`/faucet`)
 Public marketing page with hero, "How It Works" cards, and USDC claim form. Mints SPL USDC tokens directly to user's Phantom wallet via `Vault#mint_spl(to: wallet)`. Three view states: wallet connected (amount picker + claim), logged in no wallet (connect CTA), logged out (login/signup CTAs). Preset amounts $10/$50/$100/$500, custom input $1-$500.
@@ -144,7 +156,7 @@ Public marketing page with hero, "How It Works" cards, and USDC claim form. Mint
 
 ## Admin Dropdowns
 - **Soccer dropdown** (`components/_soccer_dropdown.html.erb`): Soccer ball emoji trigger, links to Teams and Games pages.
-- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon, links to Theme, Navbar, Schema, Slates, Formula, Formula Defaults, Transactions, Error Logs, Geo Settings, Jobs, Replay Level (dispatches `navbar-replay-level` event), Reset Contest.
+- **Admin dropdown** (`components/_admin_dropdown.html.erb`): Gear icon. Links: Faucet (non-prod only), Refresh Balance (triggers spinner morph), Slates, Slate Manager, Teams, Games, Formula, Formula Defaults, Treasury, Transactions, Navbar, Theme, Toast Test, Schema, Geo Settings, Error Logs, Jobs, Simulate WA, Replay Level (dispatches `navbar-replay-level` event), Reset Contest.
 
 ## Dev Mode
 - **Toggle**: DEV MODE button in the environment banner (top of page, devnet only). Highlights `bg-primary text-white` when active, subtle `bg-black/20` when off.
@@ -167,7 +179,7 @@ Reusable CSS classes in `application.tailwind.css` that show colored backgrounds
 
 **Current assignments** (navbar only):
 - `_navbar.html.erb`: "Turf"=`dm-salmon`, "Totals"=`dm-yellow`, desktop nav=`dm-teal`, user-nav-col=`dm-purple`, mobile sub-nav=`dm-coral`, balance=`dm-blue`
-- `_user_nav.html.erb`: icons (moon/gear/spin)=`dm-teal`, username=`dm-coral`, seeds bar container=`dm-orange`, avatar link=`dm-green`
+- `_user_nav.html.erb`: gear+morph=`dm-teal`, username=`dm-coral`, seeds bar container=`dm-orange`, avatar link=`dm-green`
 - `_navbar_seeds_bar.html.erb`: seeds bar wrapper=`dm-orange`
 
 - **Current uses**:

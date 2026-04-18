@@ -9,9 +9,9 @@
     <h2 class="text-heading font-bold text-lg mb-3">30-Second Summary</h2>
     <ol class="list-decimal list-inside space-y-2 text-body">
       <li><strong>Pick 6 team matchups</strong> from the available slate.</li>
-      <li>Each matchup has a <strong>multiplier</strong> based on team ranking &mdash; lower-ranked teams have higher multipliers.</li>
+      <li>Each matchup has a <strong>Turf Score</strong> based on team ranking &mdash; lower-ranked teams have higher Turf Scores.</li>
       <li><strong>Hold to confirm</strong> your entry (entry fee is deducted from your balance).</li>
-      <li>When games are played, your score = <strong>goals scored &times; multiplier</strong> for each pick.</li>
+      <li>When games are played, your score = <strong>goals scored &times; Turf Score</strong> for each pick.</li>
       <li><strong>Highest total score wins</strong> the prize pool.</li>
     </ol>
   </div>
@@ -29,16 +29,16 @@
     </div>
 
     <div class="card overflow-hidden">
-      <button @click="open = open === 'multipliers' ? null : 'multipliers'" class="w-full flex items-center justify-between p-4 text-left">
-        <span class="text-heading font-bold">Multipliers</span>
-        <svg class="w-5 h-5 text-secondary transition-transform" :class="open === 'multipliers' && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      <button @click="open = open === 'turfScores' ? null : 'turfScores'" class="w-full flex items-center justify-between p-4 text-left">
+        <span class="text-heading font-bold">Turf Scores</span>
+        <svg class="w-5 h-5 text-secondary transition-transform" :class="open === 'turfScores' && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
-      <div x-show="open === 'multipliers'" x-collapse class="px-4 pb-4 text-body">
-        <p>Every team gets a multiplier based on their world ranking. The formula: <code class="bg-surface-alt px-1.5 py-0.5 rounded text-sm">1.0 + 3.0 &times; ln(rank) / ln(N)</code></p>
+      <div x-show="open === 'turfScores'" x-collapse class="px-4 pb-4 text-body">
+        <p>Every team gets a Turf Score based on their world ranking. The formula: <code class="bg-surface-alt px-1.5 py-0.5 rounded text-sm">1.0 + 3.0 &times; ln(rank) / ln(N)</code></p>
         <ul class="list-disc list-inside mt-2 space-y-1">
-          <li><strong>Rank 1</strong> (best team) &rarr; x1.0 multiplier</li>
-          <li><strong>Middle ranks</strong> &rarr; x2.0&ndash;x3.0 multipliers</li>
-          <li><strong>Rank N</strong> (lowest team) &rarr; x4.0 multiplier</li>
+          <li><strong>Rank 1</strong> (best team) &rarr; x1.0 Turf Score</li>
+          <li><strong>Middle ranks</strong> &rarr; x2.0&ndash;x3.0 Turf Scores</li>
+          <li><strong>Rank N</strong> (lowest team) &rarr; x4.0 Turf Score</li>
         </ul>
         <p class="mt-2">Picking underdogs is riskier but scores much higher if they score goals.</p>
       </div>
@@ -51,7 +51,7 @@
       </button>
       <div x-show="open === 'scoring'" x-collapse class="px-4 pb-4 text-body">
         <p>For each of your 6 picks:</p>
-        <p class="my-2 text-heading font-mono font-bold text-center">Points = Goals Scored &times; Multiplier</p>
+        <p class="my-2 text-heading font-mono font-bold text-center">Points = Goals Scored &times; Turf Score</p>
         <p>Your entry score is the sum of all 6 selection scores. Entries are ranked by total score, highest first. Ties receive the same rank.</p>
       </div>
     </div>

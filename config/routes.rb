@@ -82,7 +82,7 @@ Rails.application.routes.draw do
   resources :slates, only: [:index, :show] do
     member do
       patch :update_rankings
-      patch :update_multipliers
+      patch :update_turf_scores
       patch :update_formula
     end
     collection do
@@ -93,6 +93,7 @@ Rails.application.routes.draw do
   end
 
   get "c/:id/lobby", to: "contests#lobby", as: :contest_lobby
+  get "c/:id/leaderboard_poll", to: "contests#leaderboard_poll", as: :contest_leaderboard_poll
 
   resources :contests, only: [:index, :show, :new, :create, :edit, :update] do
     collection do
@@ -144,6 +145,18 @@ Rails.application.routes.draw do
         post :rebuild
       end
     end
+
+    resources :slates, only: [], param: :slug do
+      member { get :manage }
+    end
+
+    resources :games, only: [], param: :slug do
+      member do
+        post :record_goal, path: "goals"
+        delete :remove_goal, path: "goals/:id"
+        post :complete_game, path: "complete"
+      end
+    end
   end
 
   # Admin: Navbar review
@@ -154,7 +167,6 @@ Rails.application.routes.draw do
   get "admin/usdc_balance", to: "admin#usdc_balance", as: :admin_usdc_balance
 
   # Admin: Contests
-  get "admin/contests", to: "contests#admin_index", as: :admin_contests
 
   # Admin: Transaction Logs
   get "admin/transactions", to: "transaction_logs#index", as: :admin_transactions

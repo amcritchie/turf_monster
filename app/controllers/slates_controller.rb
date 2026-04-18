@@ -1,6 +1,6 @@
 class SlatesController < ApplicationController
   before_action :require_admin
-  before_action :set_slate, only: [:show, :update_rankings, :update_multipliers, :update_formula]
+  before_action :set_slate, only: [:show, :update_rankings, :update_turf_scores, :update_formula]
 
   def index
     real_slates = Slate.where.not(name: "Default")
@@ -18,9 +18,9 @@ class SlatesController < ApplicationController
     matchups = @slate&.slate_matchups&.includes(:team) || []
 
     @sample_matchups = matchups.filter_map do |m|
-      next unless m.expected_team_total && m.team_total_over_odds
+      next unless m.dk_goals_expectation && m.team_total_over_odds
       odds = m.team_total_over_odds
-      line = m.expected_team_total.to_f
+      line = m.dk_goals_expectation.to_f
       prob = if odds < 0
         odds.abs.to_f / (odds.abs + 100)
       else
@@ -36,7 +36,7 @@ class SlatesController < ApplicationController
         prob: prob,
         v1: (line + (prob - 0.5)).round(2),
         v2: (line + (prob - 0.5) * 3).round(2),
-        v3: SlateMatchup.dk_score_for(line, odds)
+        v3: SlateMatchup.house_score_for(line, odds)
       }
     end
   end
@@ -54,7 +54,7 @@ class SlatesController < ApplicationController
           matchup = @slate.slate_matchups.find_by(id: id)
           next unless matchup
           rank = index + 1
-          matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
+          matchup.update!(rank: rank, turf_score: SlateMatchup.turf_score_for(rank, n))
         end
       end
       redirect_to slate_path(@slate), notice: "Rankings saved! Multipliers recalculated."
@@ -63,16 +63,16 @@ class SlatesController < ApplicationController
     redirect_to @slate ? slate_path(@slate) : root_path, alert: e.message
   end
 
-  def update_multipliers
+  def update_turf_scores
     rescue_and_log(target: @slate) do
-      if params[:multipliers].present?
-        params[:multipliers].each do |entry|
+      if params[:turf_scores].present?
+        params[:turf_scores].each do |entry|
           matchup = @slate.slate_matchups.find_by(id: entry[:id])
           next unless matchup
-          matchup.update!(multiplier: entry[:multiplier].to_f.round(1))
+          matchup.update!(turf_score: entry[:turf_score].to_f.round(1))
         end
       end
-      redirect_to slate_path(@slate), notice: "Multipliers saved!"
+      redirect_to slate_path(@slate), notice: "Turf Scores saved!"
     end
   rescue StandardError => e
     redirect_to @slate ? slate_path(@slate) : root_path, alert: e.message

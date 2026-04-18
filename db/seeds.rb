@@ -505,8 +505,8 @@ def american_to_decimal(american_odds)
   end
 end
 
-def compute_dk_score(line, over_odds)
-  SlateMatchup.dk_score_for(line, over_odds)
+def compute_house_score(line, over_odds)
+  SlateMatchup.house_score_for(line, over_odds)
 end
 
 # ─── Slate + Contest Helper ──────────────────────────────────
@@ -575,19 +575,19 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
       under_odds = dk["under_odds"]&.to_i
 
       m.update!(
-        expected_team_total: line,
+        dk_goals_expectation: line,
         team_total_over_odds: over_odds,
         team_total_under_odds: under_odds,
         over_decimal_odds: american_to_decimal(over_odds),
         under_decimal_odds: american_to_decimal(under_odds),
-        dk_score: compute_dk_score(line, over_odds)
+        house_score: compute_house_score(line, over_odds)
       )
     end
 
     # Rank by dk_score DESC. Teams without DK data sort to end alphabetically.
     sorted = matchups.sort_by do |m|
-      if m.dk_score.present?
-        [0, -m.dk_score.to_f, m.team.name]
+      if m.house_score.present?
+        [0, -m.house_score.to_f, m.team.name]
       else
         [1, 0, m.team.name]
       end
@@ -599,7 +599,7 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
   n = sorted.size
   sorted.each_with_index do |matchup, i|
     rank = i + 1
-    matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
+    matchup.update!(rank: rank, turf_score: SlateMatchup.turf_score_for(rank, n))
   end
 
   matchup_count = slate.slate_matchups.count

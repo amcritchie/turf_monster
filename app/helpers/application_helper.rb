@@ -14,7 +14,7 @@ module ApplicationHelper
     "$#{sprintf('%.2f', amount)}"
   end
 
-  def format_multiplier(value)
+  def format_turf_score(value)
     return "—" unless value
     value == value.to_i ? value.to_i.to_s : sprintf('%.1f', value)
   end

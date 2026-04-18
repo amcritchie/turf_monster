@@ -28,8 +28,8 @@
       team: m.team.name,
       short: m.team.short_name,
       opponent: m.opponent_team&.short_name,
-      multiplier: m.multiplier&.to_f,
-      team_total: m.expected_team_total&.to_f,
+      turf_score: m.turf_score&.to_f,
+      team_total: m.dk_goals_expectation&.to_f,
       over_dec: m.over_decimal_odds&.to_f
     }
   }.to_json %>;
@@ -70,7 +70,7 @@
         labels: data.map(function(d) { return d.emoji; }),
         datasets: [
           {
-            label: 'Multiplier',
+            label: 'Turf Score',
             data: data.map(function(d) { return d.mult; }),
             borderColor: FC.mult,
             backgroundColor: FC.mult + '14',
@@ -124,7 +124,7 @@
               },
               afterTitle: function(items) {
                 var d = _fcLastData[items[0].dataIndex];
-                return 'Rank #' + d.rank + '  ·  Multiplier x' + d.mult.toFixed(1);
+                return 'Rank #' + d.rank + '  ·  Turf Score x' + d.mult.toFixed(1);
               },
               label: function(ctx) {
                 var val = ctx.parsed.y;
@@ -136,7 +136,7 @@
         },
         scales: {
           x: { ticks: { color: textColor, font: { size: 14 }, maxRotation: 0, minRotation: 0, autoSkip: true, maxTicksLimit: 48 }, grid: { color: gridColor } },
-          y: { position: 'left', title: { display: true, text: 'Multiplier', color: textColor, font: { size: 11 } }, ticks: { color: textColor }, grid: { color: gridColor }, min: 0, max: 5 },
+          y: { position: 'left', title: { display: true, text: 'Turf Score', color: textColor, font: { size: 11 } }, ticks: { color: textColor }, grid: { color: gridColor }, min: 0, max: 5 },
           y2: { position: 'right', title: { display: true, text: 'DK Total', color: textColor, font: { size: 11 } }, ticks: { color: textColor }, grid: { drawOnChartArea: false }, min: 0, max: 5 }
         }
       }
@@ -198,7 +198,7 @@
       var line = parseFloat(item.dataset.teamTotal);
       var overDec = parseFloat(item.dataset.overDec);
       var mult = (multBase + multScale * Math.log(rank) / lnN);
-      item.querySelector('.multiplier-display').textContent = mult.toFixed(1) + 'x';
+      item.querySelector('.turf-score-display').textContent = mult.toFixed(1) + 'x';
       if (line && overDec) {
         var prob = 1 / overDec;
         var score = A * Math.pow(line, lineExp) * Math.pow(prob, probExp);
@@ -207,7 +207,8 @@
     });
   }
 
-  document.addEventListener('alpine:init', function() {
+  // Alpine component — register on alpine:init (deferred Alpine hasn't loaded yet)
+  function _fcRegisterAlpine() {
     Alpine.data('formulaCurves', function() {
       return {
         A: _fcSliders.A, lineExp: _fcSliders.lineExp, probExp: _fcSliders.probExp,
@@ -217,23 +218,30 @@
           _fcUpdate(this.A, this.lineExp, this.probExp, this.multBase, this.multScale, this.goalBase, this.goalScale);
         },
         init() {
+          _fcChart = null;
           _fcLastData = _fcCompute(this.A, this.lineExp, this.probExp, this.multBase, this.multScale, this.goalBase, this.goalScale);
           _fcBuildChart(_fcLastData);
         }
       };
     });
-  });
+  }
+
+  // Initial load: Alpine hasn't loaded yet (defer), register via alpine:init
+  document.addEventListener('alpine:init', _fcRegisterAlpine);
+
+  // Turbo navigation: Alpine is already loaded, register immediately + build chart
+  if (typeof Alpine !== 'undefined') {
+    _fcRegisterAlpine();
+    _fcChart = null;
+    _fcLastData = _fcCompute(_fcSliders.A, _fcSliders.lineExp, _fcSliders.probExp, _fcSliders.multBase, _fcSliders.multScale, _fcSliders.goalBase, _fcSliders.goalScale);
+    // Build after DOM settles
+    setTimeout(function() { _fcBuildChart(_fcLastData); }, 50);
+  }
 
   // Rebuild chart on theme toggle so colors update
   new MutationObserver(function() {
     if (_fcLastData && _fcLastData.length) { _fcBuildChart(_fcLastData); }
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-  document.addEventListener('turbo:load', function() {
-    _fcChart = null;
-    var el = document.querySelector('[x-data="formulaCurves()"]');
-    if (el && el.__x) el.__x.$data.refresh();
-  });
 </script>
 
 <div class="max-w-3xl mx-auto py-8 px-2">
@@ -259,7 +267,7 @@
 
   <!-- Formula Curves Chart + Controls -->
   <div x-data="formulaCurves()" x-cloak class="mb-10">
-    <h2 class="text-lg font-bold text-heading mb-4">Multiplier Formula</h2>
+    <h2 class="text-lg font-bold text-heading mb-4">Turf Score Formula</h2>
     <div class="bg-surface border border-subtle rounded-lg p-4" style="position: relative; height: 360px;">
       <canvas id="formulaCurvesChart"></canvas>
     </div>
@@ -270,7 +278,7 @@
       <!-- Multiplier -->
       <div class="bg-surface border border-subtle rounded-lg p-4" style="border-left: 3px solid var(--fc-mult);">
         <div class="mb-3">
-          <span class="text-sm font-bold text-heading">Multiplier</span>
+          <span class="text-sm font-bold text-heading">Turf Score</span>
           <span class="text-muted text-sm"> = </span>
           <span class="font-mono text-sm" style="color: var(--fc-mult)" x-text="multBase.toFixed(1)"></span>
           <span class="text-muted text-sm"> + </span>
@@ -339,8 +347,8 @@
   </div>
 
   <p class="text-secondary text-sm mb-6">
-    Drag teams to set offensive rankings. Rank 1 = best offense (lowest multiplier x1). Rank 48 = weakest (highest multiplier x4).
-    Higher multiplier = more points when that team scores. Formula: 1.0 + 3.0 &times; ln(rank) / ln(N)
+    Drag teams to set offensive rankings. Rank 1 = best offense (lowest Turf Score x1). Rank 48 = weakest (highest Turf Score x4).
+    Higher Turf Score = more points when that team scores. Formula: 1.0 + 3.0 &times; ln(rank) / ln(N)
   </p>
 
   <div x-data="rankManager()" x-cloak>
@@ -366,14 +374,14 @@
         <span class="text-lg invisible">🏳️</span>
         <span class="flex-1">Team</span>
         <span class="w-12 text-right">Score</span>
-        <span class="w-12 text-right">Multi</span>
+        <span class="w-12 text-right">Turf</span>
       </div>
 
       <div class="space-y-1" x-ref="sortableList">
         <% @matchups.each_with_index do |matchup, i| %>
           <div class="flex items-center gap-3 bg-surface rounded-lg px-4 py-3 border border-subtle cursor-grab active:cursor-grabbing sortable-item"
                data-matchup-id="<%= matchup.id %>"
-               data-team-total="<%= matchup.expected_team_total&.to_f %>"
+               data-team-total="<%= matchup.dk_goals_expectation&.to_f %>"
                data-over-dec="<%= matchup.over_decimal_odds&.to_f %>">
             <span class="font-mono text-muted text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
             <span class="text-lg"><%= matchup.team.emoji %></span>
@@ -382,12 +390,12 @@
               <% if matchup.opponent_team %>
                 <span class="text-muted text-xs">vs <%= matchup.opponent_team.short_name %></span>
               <% end %>
-              <% if matchup.expected_team_total %>
-                <span class="text-muted text-xs">O/U <%= sprintf('%.1f', matchup.expected_team_total) %> (<%= matchup.team_total_over_odds && matchup.team_total_over_odds > 0 ? "+#{matchup.team_total_over_odds}" : matchup.team_total_over_odds %>)</span>
+              <% if matchup.dk_goals_expectation %>
+                <span class="text-muted text-xs">O/U <%= sprintf('%.1f', matchup.dk_goals_expectation) %> (<%= matchup.team_total_over_odds && matchup.team_total_over_odds > 0 ? "+#{matchup.team_total_over_odds}" : matchup.team_total_over_odds %>)</span>
               <% end %>
             </div>
-            <span class="font-mono text-violet text-sm w-12 text-right score-display"><%= matchup.dk_score ? sprintf('%.2f', matchup.dk_score) : '—' %></span>
-            <span class="font-mono text-primary text-sm w-12 text-right multiplier-display"><%= matchup.multiplier ? sprintf('%.1f', matchup.multiplier) : '—' %>x</span>
+            <span class="font-mono text-violet text-sm w-12 text-right score-display"><%= matchup.house_score ? sprintf('%.2f', matchup.house_score) : '—' %></span>
+            <span class="font-mono text-primary text-sm w-12 text-right turf-score-display"><%= matchup.turf_score ? sprintf('%.1f', matchup.turf_score) : '—' %>x</span>
           </div>
         <% end %>
       </div>
@@ -518,7 +526,7 @@
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `/slates/${this.slateSlug}/update_multipliers`;
+        form.action = `/slates/${this.slateSlug}/update_turf_scores`;
 
         const methodInput = document.createElement('input');
         methodInput.type = 'hidden';
@@ -534,19 +542,19 @@
 
         items.forEach((item, i) => {
           const id = item.dataset.matchupId;
-          const mult = item.querySelector('.multiplier-display').textContent.replace('x', '');
+          const turfScore = item.querySelector('.turf-score-display').textContent.replace('x', '');
 
           const idInput = document.createElement('input');
           idInput.type = 'hidden';
-          idInput.name = `multipliers[][id]`;
+          idInput.name = `turf_scores[][id]`;
           idInput.value = id;
           form.appendChild(idInput);
 
-          const multInput = document.createElement('input');
-          multInput.type = 'hidden';
-          multInput.name = `multipliers[][multiplier]`;
-          multInput.value = mult;
-          form.appendChild(multInput);
+          const turfScoreInput = document.createElement('input');
+          turfScoreInput.type = 'hidden';
+          turfScoreInput.name = `turf_scores[][turf_score]`;
+          turfScoreInput.value = turfScore;
+          form.appendChild(turfScoreInput);
         });
 
         document.body.appendChild(form);

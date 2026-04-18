@@ -3,7 +3,7 @@ m1:
   team_slug: team-a
   opponent_team_slug: team-b
   rank: 1
-  multiplier: 1.0
+  turf_score: 1.0
   status: pending
 
 m2:
@@ -11,7 +11,7 @@ m2:
   team_slug: team-b
   opponent_team_slug: team-a
   rank: 2
-  multiplier: 1.2
+  turf_score: 1.2
   status: pending
 
 m3:
@@ -19,7 +19,7 @@ m3:
   team_slug: team-c
   opponent_team_slug: team-d
   rank: 3
-  multiplier: 1.4
+  turf_score: 1.4
   status: pending
 
 m4:
@@ -27,7 +27,7 @@ m4:
   team_slug: team-d
   opponent_team_slug: team-c
   rank: 4
-  multiplier: 1.5
+  turf_score: 1.5
   status: pending
 
 m5:
@@ -35,7 +35,7 @@ m5:
   team_slug: team-e
   opponent_team_slug: team-f
   rank: 5
-  multiplier: 1.6
+  turf_score: 1.6
   status: pending
 
 m6:
@@ -43,5 +43,5 @@ m6:
   team_slug: team-f
   opponent_team_slug: team-e
   rank: 6
-  multiplier: 1.7
+  turf_score: 1.7
   status: pending

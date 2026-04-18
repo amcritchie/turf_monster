@@ -11,7 +11,7 @@
       n = sorted.size
       sorted.each_with_index do |m, i|
         rank = i + 1
-        mult = SlateMatchup.multiplier_for(rank, n)
+        mult = SlateMatchup.turf_score_for(rank, n)
         m[:"#{key}_mult"] = mult
         m[:"#{key}_pts1g"] = (1 * mult).round(1)
       end

@@ -7,17 +7,20 @@
   </button>
 
   <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="absolute right-0 mt-2 w-44 bg-surface border border-subtle rounded-lg shadow-lg z-50 py-1" style="display: none;">
-    <%= link_to "My Contests", my_contests_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
-    <% if Solana::Config.devnet? %>
+    <% unless Rails.env.production? %>
       <%= link_to "Faucet", faucet_path, class: "block px-4 py-2 text-sm text-yellow-400 hover:text-yellow-300 hover:bg-surface-alt transition" %>
     <% end %>
-    <%= link_to "Help Center", help_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
-    <div class="border-t border-subtle my-1"></div>
-    <%= link_to "Contests", admin_contests_path, class: "block px-4 py-2 text-sm text-primary hover:text-primary-300 hover:bg-surface-alt transition font-medium" %>
-    <%= link_to "Teams", teams_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
-    <%= link_to "Games", games_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
+    <button @click="open = false; showNavSpinner(); refreshBalance().finally(function() { hideNavSpinner(); })"
+            class="block w-full text-left px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition">Refresh Balance</button>
     <div class="border-t border-subtle my-1"></div>
     <%= link_to "Slates", slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
+    <% active_slate = Slate.joins(:slate_matchups).distinct.order(created_at: :desc).first %>
+    <% if active_slate %>
+      <%= link_to "Slate Manager", manage_admin_slate_path(active_slate), class: "block px-4 py-2 text-sm text-primary hover:text-primary-300 hover:bg-surface-alt transition font-medium" %>
+    <% end %>
+    <div class="border-t border-subtle my-1"></div>
+    <%= link_to "Teams", teams_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
+    <%= link_to "Games", games_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Formula", formula_report_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Formula Defaults", admin_formula_slates_path, class: "block px-4 py-2 text-sm text-body hover:text-heading hover:bg-surface-alt transition" %>
     <%= link_to "Treasury", admin_pending_transactions_path, class: "block px-4 py-2 text-sm text-primary hover:text-primary-300 hover:bg-surface-alt transition font-medium" %>

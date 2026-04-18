@@ -154,7 +154,7 @@ matchups = slate.slate_matchups.includes(:team).to_a.sort_by { |m| m.team.name }
 n = matchups.size
 matchups.each_with_index do |matchup, i|
   rank = i + 1
-  matchup.update!(rank: rank, multiplier: SlateMatchup.multiplier_for(rank, n))
+  matchup.update!(rank: rank, turf_score: SlateMatchup.turf_score_for(rank, n))
 end
 
 # Test-specific wallet overrides:

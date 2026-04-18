@@ -1,0 +1,364 @@
+<script>
+window.gameCard = function(data) {
+  return {
+    gameData: data,
+    homeScore: data.homeScore,
+    awayScore: data.awayScore,
+    goals: data.goals,
+    gameStatus: data.status,
+    selectedTeam: data.home.slug,
+    selectedPlayer: '',
+    goalMinute: null,
+    submitting: false,
+    simulating: false,
+    simTick: 0,
+    simProgress: 0,
+    simTotalTicks: 10,
+    simCancel: null,
+
+    init() {
+      this.$nextTick(() => this.autoSelectPlayer());
+      this.$watch('selectedTeam', () => this.$nextTick(() => this.autoSelectPlayer()));
+    },
+
+    autoSelectPlayer() {
+      const players = this.filteredPlayers;
+      this.selectedPlayer = players.length ? players[0].slug : '';
+    },
+
+    get filteredPlayers() {
+      const team = this.selectedTeam === this.gameData.home.slug ? this.gameData.home : this.gameData.away;
+      return team.players || [];
+    },
+
+    applyGameState(json) {
+      this.goals = json.game.goals;
+      this.homeScore = json.game.homeScore;
+      this.awayScore = json.game.awayScore;
+    },
+
+    async addGoal() {
+      if (!this.selectedTeam || this.submitting) return;
+      this.submitting = true;
+      try {
+        const resp = await fetch('/admin/games/' + this.gameData.slug + '/goals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name=csrf-token]')?.content || '',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            team_slug: this.selectedTeam,
+            player_slug: this.selectedPlayer || null,
+            minute: this.goalMinute || null
+          })
+        });
+        const json = await resp.json();
+        if (json.success) {
+          this.applyGameState(json);
+          this.goalMinute = null;
+          this.autoSelectPlayer();
+          this.fireToast('goal', json.goal);
+        }
+      } finally {
+        this.submitting = false;
+      }
+    },
+
+    async removeGoal(goalId) {
+      const resp = await fetch('/admin/games/' + this.gameData.slug + '/goals/' + goalId, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name=csrf-token]')?.content || '',
+          'Accept': 'application/json'
+        }
+      });
+      const json = await resp.json();
+      if (json.success) this.applyGameState(json);
+    },
+
+    async markComplete() {
+      const resp = await fetch('/admin/games/' + this.gameData.slug + '/complete', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': document.querySelector('meta[name=csrf-token]')?.content || '',
+          'Accept': 'application/json'
+        }
+      });
+      const json = await resp.json();
+      if (json.success) {
+        this.gameStatus = json.game.status;
+        this.fireToast('complete', null);
+      }
+    },
+
+    simulateGame(tickInterval = 3000) {
+      if (this.simulating || this.gameStatus === 'completed') return;
+      this.simulating = true;
+      this.simTick = 0;
+      this.simProgress = 0;
+
+      const TICKS = this.simTotalTicks;
+      const TICK_INTERVAL = tickInterval;
+      const SIM_DURATION = TICKS * TICK_INTERVAL;
+
+      // Smooth progress bar — independent of ticks
+      const startTime = Date.now();
+      const progressFrame = () => {
+        if (!this.simulating) return;
+        const elapsed = Date.now() - startTime;
+        this.simProgress = Math.min(elapsed / SIM_DURATION * 100, 100);
+        if (elapsed < SIM_DURATION) requestAnimationFrame(progressFrame);
+      };
+      requestAnimationFrame(progressFrame);
+
+      const homeET = this.gameData.home.dkGoalsExpectation || 1.5;
+      const awayET = this.gameData.away.dkGoalsExpectation || 1.5;
+      const homeProb = homeET / TICKS;
+      const awayProb = awayET / TICKS;
+      const allHomePlayers = this.gameData.home.players || [];
+      const allAwayPlayers = this.gameData.away.players || [];
+
+      let tick = 0;
+      const self = this;
+
+      return new Promise((resolve) => {
+        const interval = setInterval(async () => {
+          tick++;
+          self.simTick = tick;
+
+          if (Math.random() < homeProb) {
+            const player = allHomePlayers.length ? allHomePlayers[Math.floor(Math.random() * allHomePlayers.length)] : null;
+            const minute = (tick - 1) * 9 + Math.floor(Math.random() * 9) + 1;
+            await self.postGoal(self.gameData.home.slug, player?.slug, minute);
+          }
+
+          if (Math.random() < awayProb) {
+            const player = allAwayPlayers.length ? allAwayPlayers[Math.floor(Math.random() * allAwayPlayers.length)] : null;
+            const minute = (tick - 1) * 9 + Math.floor(Math.random() * 9) + 1;
+            await self.postGoal(self.gameData.away.slug, player?.slug, minute);
+          }
+
+          if (tick >= TICKS) {
+            clearInterval(interval);
+            self.simProgress = 100;
+            await self.markComplete();
+            self.simulating = false;
+            resolve();
+          }
+        }, TICK_INTERVAL);
+
+        self.simCancel = () => { clearInterval(interval); self.simulating = false; resolve(); };
+      });
+    },
+
+    async postGoal(teamSlug, playerSlug, minute) {
+      try {
+        const resp = await fetch('/admin/games/' + this.gameData.slug + '/goals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name=csrf-token]')?.content || '',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ team_slug: teamSlug, player_slug: playerSlug, minute: minute })
+        });
+        const json = await resp.json();
+        if (json.success) {
+          this.applyGameState(json);
+          this.fireToast('goal', json.goal);
+        }
+      } catch (e) { console.error('Goal post failed:', e); }
+    },
+
+    fireToast(type, goal) {
+      if (type === 'goal' && goal) {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: {
+            type: 'success',
+            title: 'Goal!',
+            message: (goal.teamEmoji || '') + ' ' + (goal.playerName || 'Goal') + ' ' + (goal.minute ? goal.minute + "'" : ''),
+            duration: 3000
+          }
+        }));
+      } else if (type === 'complete') {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: {
+            type: 'info',
+            title: 'Full Time',
+            message: this.gameData.home.emoji + ' ' + this.homeScore + ' - ' + this.awayScore + ' ' + this.gameData.away.emoji,
+            duration: 4000
+          }
+        }));
+      }
+    }
+  };
+};
+</script>
+
+<div class="max-w-4xl mx-auto px-4 py-6" x-data="{ simAllRunning: false, simAllCurrent: 0, simAllTotal: 0 }">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-extrabold text-heading">Slate Manager</h1>
+      <p class="text-sm text-muted mt-1"><%= @slate.name %></p>
+    </div>
+    <div class="flex items-center gap-2">
+      <template x-if="simAllRunning">
+        <span class="text-sm font-semibold text-yellow-400">Game <span x-text="simAllCurrent"></span>/<span x-text="simAllTotal"></span></span>
+      </template>
+      <button @click="if (simAllRunning) return;
+        const items = [...$el.closest('[x-data]').querySelectorAll('[data-game]')].map(el => ({ el, data: Alpine.$data(el) })).filter(c => c.data.gameStatus !== 'completed');
+        if (!items.length) return;
+        simAllRunning = true; simAllTotal = items.length; simAllCurrent = 0;
+        (async () => { for (const item of items) { simAllCurrent++; item.el.scrollIntoView({ behavior: 'smooth', block: 'center' }); await new Promise(r => setTimeout(r, 500)); await item.data.simulateGame(1000); } simAllRunning = false; })()"
+        class="btn btn-primary btn-sm" :disabled="simAllRunning">
+        <span x-show="!simAllRunning">Simulate All (10s each)</span>
+        <span x-show="simAllRunning">Simulating...</span>
+      </button>
+      <%= link_to "Back to Slate", slate_path(@slate), class: "btn btn-outline btn-sm" %>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <% @games.each do |game| %>
+      <div class="card p-4" x-data="gameCard(JSON.parse($el.dataset.game))" data-game="<%= game_card_data(game) %>">
+        <!-- Score Header -->
+        <div class="flex items-center justify-between mb-3">
+          <table class="text-sm" style="min-width: 16rem;">
+            <thead>
+              <tr class="text-xs text-muted uppercase tracking-wide">
+                <th class="text-left font-semibold pr-4 pb-1">Team</th>
+                <th class="text-center font-semibold px-2 pb-1">Goals</th>
+                <th class="text-center font-semibold px-2 pb-1">Turf</th>
+                <th class="text-center font-semibold pl-2 pb-1">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="pr-4 py-0.5">
+                  <span x-text="gameData.home.emoji"></span>
+                  <span class="font-semibold text-heading ml-1" x-text="gameData.home.shortName"></span>
+                </td>
+                <td class="text-center px-2 py-0.5 font-mono font-bold text-heading" x-text="homeScore"></td>
+                <td class="text-center px-2 py-0.5 font-mono text-muted" x-text="gameData.home.turfScore ? 'x' + gameData.home.turfScore : '—'"></td>
+                <td class="text-center pl-2 py-0.5 font-mono font-bold text-primary" x-text="gameData.home.turfScore ? (homeScore * gameData.home.turfScore).toFixed(1) : '—'"></td>
+              </tr>
+              <tr>
+                <td class="pr-4 py-0.5">
+                  <span x-text="gameData.away.emoji"></span>
+                  <span class="font-semibold text-heading ml-1" x-text="gameData.away.shortName"></span>
+                </td>
+                <td class="text-center px-2 py-0.5 font-mono font-bold text-heading" x-text="awayScore"></td>
+                <td class="text-center px-2 py-0.5 font-mono text-muted" x-text="gameData.away.turfScore ? 'x' + gameData.away.turfScore : '—'"></td>
+                <td class="text-center pl-2 py-0.5 font-mono font-bold text-primary" x-text="gameData.away.turfScore ? (awayScore * gameData.away.turfScore).toFixed(1) : '—'"></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="flex items-center gap-2">
+            <template x-if="simulating">
+              <span class="text-xs font-semibold text-yellow-400">
+                Simulating <span x-text="simTick"></span>/<span x-text="simTotalTicks"></span>
+              </span>
+            </template>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                  :class="gameStatus === 'completed' ? 'bg-primary/20 text-primary' : 'bg-surface-alt text-muted'"
+                  x-text="gameStatus === 'completed' ? 'FT' : gameStatus === 'scheduled' ? 'Scheduled' : 'Live'">
+            </span>
+          </div>
+        </div>
+
+        <!-- Sim Progress Bar -->
+        <template x-if="simulating">
+          <div class="mb-3">
+            <div class="w-full bg-surface-alt rounded-full h-1.5 overflow-hidden">
+              <div class="bg-primary h-1.5 rounded-full" :style="'width:' + simProgress + '%'"></div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Goal Timeline -->
+        <template x-if="goals.length > 0">
+          <div class="mb-3 space-y-1">
+            <template x-for="goal in goals" :key="goal.id">
+              <div class="flex items-center justify-between text-sm px-2 py-1 rounded bg-surface-alt">
+                <span>
+                  <span class="text-muted font-mono" x-show="goal.minute" x-text="goal.minute + '\''"></span>
+                  <span x-text="goal.teamEmoji" class="mx-1"></span>
+                  <span class="text-heading font-medium" x-text="goal.playerName || 'Unknown'"></span>
+                </span>
+                <button @click="removeGoal(goal.id)" class="text-red-400 hover:text-red-300 text-xs" title="Remove goal"
+                        :disabled="gameStatus === 'completed'">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Add Goal Form -->
+        <template x-if="gameStatus !== 'completed'">
+          <div class="border-t border-subtle pt-3">
+            <div class="flex flex-wrap items-end gap-2">
+              <!-- Team Selector -->
+              <div class="flex gap-1">
+                <button @click="selectedTeam = gameData.home.slug"
+                        class="px-3 py-1.5 rounded text-xs font-semibold transition"
+                        :class="selectedTeam === gameData.home.slug ? 'bg-primary text-white' : 'bg-surface-alt text-body hover:text-heading'">
+                  <span x-text="gameData.home.emoji"></span> <span x-text="gameData.home.shortName"></span>
+                </button>
+                <button @click="selectedTeam = gameData.away.slug"
+                        class="px-3 py-1.5 rounded text-xs font-semibold transition"
+                        :class="selectedTeam === gameData.away.slug ? 'bg-primary text-white' : 'bg-surface-alt text-body hover:text-heading'">
+                  <span x-text="gameData.away.emoji"></span> <span x-text="gameData.away.shortName"></span>
+                </button>
+              </div>
+
+              <!-- Player Dropdown -->
+              <select x-model="selectedPlayer" class="input-field text-sm py-1.5 flex-1" style="min-width: 10rem;">
+                <option value="">Player (optional)</option>
+                <template x-for="p in filteredPlayers" :key="p.slug">
+                  <option :value="p.slug" x-text="p.name"></option>
+                </template>
+              </select>
+
+              <!-- Minute -->
+              <input type="number" x-model.number="goalMinute" placeholder="Min" min="1" max="120"
+                     class="input-field text-sm py-1.5" style="width: 4.5rem;">
+
+              <!-- Submit -->
+              <button @click="addGoal()" class="btn btn-primary btn-sm" :disabled="!selectedTeam || submitting">
+                <span x-show="!submitting">+ Goal</span>
+                <span x-show="submitting">...</span>
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Actions -->
+        <div class="border-t border-subtle pt-3 mt-3 flex flex-wrap gap-2">
+          <template x-if="gameStatus !== 'completed'">
+            <span class="flex gap-1">
+              <button @click="simulateGame(1000)" class="btn btn-outline btn-sm" :disabled="simulating">
+                <span x-show="!simulating">Sim 10s</span>
+                <span x-show="simulating">Simulating...</span>
+              </button>
+              <button @click="simulateGame(3000)" class="btn btn-outline btn-sm" :disabled="simulating" x-show="!simulating">30s</button>
+            </span>
+          </template>
+          <template x-if="gameStatus !== 'completed'">
+            <button @click="markComplete()" class="btn btn-sm bg-yellow-600 hover:bg-yellow-500 text-white">
+              Mark Complete
+            </button>
+          </template>
+          <template x-if="gameStatus === 'completed'">
+            <span class="text-xs text-muted flex items-center gap-1">
+              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              Full Time
+            </span>
+          </template>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

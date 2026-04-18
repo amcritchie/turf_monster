@@ -19,7 +19,7 @@
     </h1>
     <p class="text-2xl md:text-3xl font-bold text-body mt-4 mb-3">Pick. Multiply. Get Paid.</p>
     <p class="text-secondary text-lg max-w-xl mx-auto mb-8">
-      Pick 5 team offensive matchups from the World Cup. Each team has a multiplier based on how good their offense is — weaker teams = higher multiplier = bigger payoff when they score.
+      Pick 5 team offensive matchups from the World Cup. Each team has a Turf Score based on how good their offense is — weaker teams = higher Turf Score = bigger payoff when they score.
     </p>
     <%= link_to "Start Playing", root_path, class: "btn btn-primary btn-lg shadow-lg shadow-primary/20 text-lg" %>
   </section>
@@ -44,7 +44,7 @@
         <p class="font-bold text-heading text-lg mb-1">United States</p>
         <p class="text-xs text-muted mb-2">vs Brazil</p>
         <p class="font-mono text-3xl text-violet mb-1">4.2x</p>
-        <p class="text-xs text-muted">multiplier</p>
+        <p class="text-xs text-muted">Turf Score</p>
       </div>
       <p class="text-center text-muted text-xs mt-3 italic">Example matchup card — not a live pick</p>
     </div>
@@ -102,12 +102,12 @@
 
   <hr class="border-subtle my-10">
 
-  <!-- ========== 03 — MULTIPLIER SCORING ========== -->
+  <!-- ========== 03 — TURF SCORE SCORING ========== -->
   <section class="mb-12 md:mb-16">
     <p class="text-primary font-mono text-sm mb-2">03</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Multiplier Scoring</h2>
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Turf Score Scoring</h2>
     <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
-      Every team is ranked 1–48 by offensive strength. The multiplier is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5 + 0.5</span>. Better offenses get lower multipliers, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-heading font-semibold">goals scored &times; multiplier</span>.
+      Every team is ranked 1–48 by offensive strength. The Turf Score is <span class="text-violet font-mono font-bold">&radic;rank &times; 0.5 + 0.5</span>. Better offenses get lower Turf Scores, underdogs get higher ones — but the curve is compressed so top teams are still worth picking. Your points = <span class="text-heading font-semibold">goals scored &times; Turf Score</span>.
     </p>
 
     <!-- Three example cards -->
@@ -120,7 +120,7 @@
       <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
         <p class="text-sm text-muted mb-1">Rank #24 (mid-tier)</p>
         <p class="text-3xl font-mono font-bold text-violet mb-1">x3</p>
-        <p class="text-secondary text-xs">Balanced risk/reward</p>
+        <p class="text-secondary text-xs">Balanced risk & reward</p>
       </div>
       <div class="rounded-xl p-5 text-center bg-surface-alt border border-subtle">
         <p class="text-sm text-muted mb-1">Rank #48 (weakest offense)</p>
@@ -147,7 +147,7 @@
           <tr class="border-b border-subtle">
             <th class="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Team</th>
             <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Match</th>
-            <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Multi</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Turf</th>
             <th class="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Goals</th>
             <th class="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">Points</th>
           </tr>
@@ -290,12 +290,12 @@
         <div class="font-mono text-heading text-right">5 teams</div>
 
         <div class="text-secondary">Scoring</div>
-        <div class="text-right text-heading">Goals &times; Multiplier</div>
+        <div class="text-right text-heading">Goals &times; Turf Score</div>
 
-        <div class="text-secondary">Multiplier range</div>
+        <div class="text-secondary">Turf Score range</div>
         <div class="font-mono text-violet text-right">x1 – x4</div>
 
-        <div class="text-secondary">Multiplier formula</div>
+        <div class="text-secondary">Turf Score formula</div>
         <div class="font-mono text-violet text-right">&radic;Rank &times; 0.5 + 0.5</div>
 
         <div class="col-span-2 border-t border-subtle my-1"></div>

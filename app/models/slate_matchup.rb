@@ -17,11 +17,11 @@ class SlateMatchup < ApplicationRecord
   # ─── Centralized Formulas ───────────────────────────────────
   # JS mirrors live in show.html.erb and formula_report.html.erb
 
-  def self.multiplier_for(rank, n)
+  def self.turf_score_for(rank, n)
     (1.0 + 3.0 * Math.log(rank) / Math.log(n)).round(1)
   end
 
-  def self.dk_score_for(line, over_odds)
+  def self.house_score_for(line, over_odds)
     return nil unless line && over_odds
     prob = if over_odds < 0
       over_odds.abs.to_f / (over_odds.abs + 100)
@@ -41,10 +41,10 @@ class SlateMatchup < ApplicationRecord
     game&.kickoff_at.present? && game.kickoff_at <= Time.current
   end
 
-  def compute_multiplier!(n = nil)
+  def compute_turf_score!(n = nil)
     return unless rank.present?
     n ||= slate.slate_matchups.count
-    update!(multiplier: self.class.multiplier_for(rank, n))
+    update!(turf_score: self.class.turf_score_for(rank, n))
   end
 
   def name_slug

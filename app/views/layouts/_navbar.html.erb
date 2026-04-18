@@ -43,7 +43,7 @@
               <%= "x-bind:class=\"scrolled ? 'text-xl' : 'text-3xl'\"".html_safe unless is_preview %>><span class="dm-salmon">Turf</span><span class="dm-yellow text-primary">Totals</span></h1>
         <% end %>
         <nav class="dm-teal hidden md:flex items-center gap-4">
-          <%= link_to "Join Contest", contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
+          <%= link_to "Contests", contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <%= render "components/geo_badge" %>
         </nav>
@@ -53,34 +53,25 @@
     <% balance_html = capture do %>
       <%= link_to wallet_path, class: "dm-blue font-mono text-primary hover:text-primary-600 transition-all duration-300 font-bold leading-none mr-1", "x-bind:class": "scrolled ? 'text-lg' : 'text-xl'", data: { balance_display: true } do %>$<%= display_balance.to_i %><% end %>
     <% end if show_user %>
-    <% extra_icons_html = capture do %>
-      <button data-balance-refresh onclick="this.querySelector('svg').classList.add('animate-spin'); refreshBalance(); setTimeout(() => this.querySelector('svg').classList.remove('animate-spin'), 1000)"
-              class="text-secondary hover:text-primary transition" title="Refresh balance">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      </button>
-    <% end if show_user %>
     <div class="user-nav-col dm-purple flex-shrink-0 pl-0 pr-4 md:px-4">
       <% if show_user %>
-        <%= render "components/user_nav", balance_html: balance_html, extra_icons_html: extra_icons_html %>
+        <%= render "components/user_nav", balance_html: balance_html %>
       <% else %>
         <div class="flex items-center justify-end gap-3">
-          <span class="hidden md:flex"><%= render "components/theme_toggle" %></span>
+          <span class="hidden md:flex"><%= render "components/theme_toggle_morph" %></span>
           <%= link_to "Log in", login_path, class: "btn btn-primary" %>
         </div>
       <% end %>
     </div>
   </div>
   <%# Mobile sub-navbar: compact row of links hidden on desktop %>
-  <div class="dm-coral flex md:hidden items-center gap-3 px-4 py-1.5 overflow-x-auto border-t border-subtle bg-surface-alt">
-    <%= link_to "Join Contest", contests_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
+  <div class="dm-coral flex md:hidden items-center gap-3 px-4 py-1.5 border-t border-subtle bg-surface-alt">
+    <%= link_to "Contests", contests_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= render "components/geo_badge" %>
-    <% unless show_user %>
-      <%# Only show gear+moon here when logged out — when logged in, _user_nav already has them %>
-      <span class="ml-auto flex items-center gap-3">
-        <%= render "components/admin_dropdown" %>
-        <%= render "components/theme_toggle" %>
-      </span>
-    <% end %>
+    <span class="ml-auto flex items-center gap-3">
+      <%= render "components/admin_dropdown" %>
+      <%= render "components/theme_toggle_morph" %>
+    </span>
   </div>
 </header>

@@ -4,8 +4,8 @@
 
 All scoring/ranking formulas live as class methods on `SlateMatchup` — single source of truth. JS mirrors in `slates/show.html.erb` and `slates/formula_report.html.erb` with comments noting the model as authoritative.
 
-- **Multiplier**: `SlateMatchup.multiplier_for(rank, n)` — `1.0 + 3.0 * Math.log(rank) / Math.log(n)`. Logarithmic curve, x1.0 at rank 1 to x4.0 at rank N.
-- **DK Score**: `SlateMatchup.dk_score_for(line, over_odds)` — `max(0, (line - 0.5) + (prob - 0.5) * 3)` where prob is derived from American odds.
+- **Turf Score**: `SlateMatchup.turf_score_for(rank, n)` — `1.0 + 3.0 * Math.log(rank) / Math.log(n)`. Logarithmic curve, x1.0 at rank 1 to x4.0 at rank N.
+- **House Score**: `SlateMatchup.house_score_for(line, over_odds)` — `max(0, (line - 0.5) + (prob - 0.5) * 3)` where prob is derived from American odds.
 - **Goals Distribution**: `SlateMatchup.goals_distribution_for(rank, n)` — `0.2 + 4.3 * Math.log(n / rank) / Math.log(n)`.
 - **Interactive DK Score** (show page sliders): `A * line^lineExp * prob^probExp` with defaults A=1.65, lineExp=1.24, probExp=1.18, where prob = 1/OverDecimalOdds.
 
@@ -14,17 +14,17 @@ All scoring/ranking formulas live as class methods on `SlateMatchup` — single 
 Chart/formula visualization colors are defined once at the top of `slates/show.html.erb`:
 - **CSS custom properties** (`--fc-mult`, `--fc-goals`, `--fc-dk-score`, `--fc-dk-total`, `--fc-dk-odds`) for inline styles
 - **JS `FC` object** (`FC.mult`, `FC.goals`, `FC.dkScore`, `FC.dkTotal`, `FC.dkOdds`) for Chart.js datasets
-- Colors: Multiplier = violet `#8E82FE`, Goals Distribution = light violet `#B8B0FF`, DK Score = dark green `#15803D`, DK Total = green `#4BAF50`, DK Odds = faint green `rgba`
+- Colors: Turf Score = violet `#8E82FE`, Goals Distribution = light violet `#B8B0FF`, DK Score = dark green `#15803D`, DK Total = green `#4BAF50`, DK Odds = faint green `rgba`
 
 ## Slate Show Page (`/slates/:id`)
 
 Admin-only interactive page for tuning multiplier formulas. Key sections:
 
 1. **Slate tabs** — navigate between slates (shown when multiple exist)
-2. **Multiplier Formula chart** — Chart.js line chart with 5 datasets (Multiplier, Goals Distribution, DK Total Score, DK Total, DK Total Odds). Updates live as sliders change.
+2. **Turf Score Formula chart** — Chart.js line chart with 5 datasets (Turf Score, Goals Distribution, DK Total Score, DK Total, DK Total Odds). Updates live as sliders change.
 3. **Formula variable sliders** — 7 interactive Alpine.js sliders (A, lineExp, probExp, multBase, multScale, goalBase, goalScale) grouped into formula variable cards with colored left accent bars and math notation.
-4. **Ranking list** — sortable table of all slate matchups. Score/Multiplier columns update dynamically when sliders change. Drag-to-reorder via SortableJS library.
-5. **Save buttons** — "Save Rankings" (persists rank order + computed multipliers), "Save Multipliers" (persists arbitrary slider-computed values), and "Save Formula" (persists current slider values to this slate's DB columns). All appear at top and bottom of the rank list.
+4. **Ranking list** — sortable table of all slate matchups. Score/Turf Score columns update dynamically when sliders change. Drag-to-reorder via SortableJS library.
+5. **Save buttons** — "Save Rankings" (persists rank order + computed turf scores), "Save Turf Scores" (persists arbitrary slider-computed values), and "Save Formula" (persists current slider values to this slate's DB columns). All appear at top and bottom of the rank list.
 
 ### Chart.js + Alpine.js Proxy Avoidance Pattern (Critical)
 
@@ -59,12 +59,26 @@ This avoids Alpine `$dispatch`/`$store` complexity for components that need to s
 
 **Admin Formula Defaults page** (`/slates/admin_formula`) — number inputs for editing the Default slate's formula variables. Linked from admin dropdown.
 
+## Slate Manager (`/admin/slates/:id/manage`)
+
+Admin page for managing game results within a slate. Each game renders as a card with score table, goal timeline, add goal form, and simulation controls.
+
+### Game Simulation
+- **10 ticks** per game, each tick gives both teams a goal chance: `P(goal) = dkGoalsExpectation / 10`
+- Goals POST to the server as real Goal records, assigned to a random player with a random minute (90 min / 10 ticks = 9-minute windows)
+- Progress bar animates smoothly via `requestAnimationFrame`
+- Toast notifications fire for each goal and at full time
+- Two speed options per game card: **Sim 10s** (1s ticks) and **30s** (3s ticks)
+- **Simulate All** button at the top: runs all unplayed games sequentially using 10s mode, auto-scrolls to each game card with a 500ms pause before starting
+- `simulateGame()` returns a Promise for sequential chaining
+- DOM element references kept outside Alpine's Proxy to ensure `scrollIntoView` works correctly
+
 ## Slate Routes
 
 - `/slates` — redirects to next upcoming slate (or most recent)
 - `/slates/:id` — show (chart + sliders + rank list)
 - `/slates/:id/update_rankings` — PATCH, save drag-reordered ranks + recalculated multipliers
-- `/slates/:id/update_multipliers` — PATCH, save slider-computed multiplier values
+- `/slates/:id/update_turf_scores` — PATCH, save slider-computed turf score values
 - `/slates/:id/update_formula` — PATCH, save formula slider values to this slate
 - `/slates/formula_report` — DK Score formula iterations page with comparison charts + playground
 - `/slates/admin_formula` — GET, admin page for editing Default slate formula variables

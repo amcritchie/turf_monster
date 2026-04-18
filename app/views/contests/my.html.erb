@@ -59,7 +59,7 @@
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border bg-surface text-body border-strong">
                       <span><%= sel.slate_matchup.team.emoji %></span>
                       <span class="text-heading font-semibold"><%= sel.slate_matchup.team.short_name %></span>
-                      <span class="text-primary font-bold"><%= format_multiplier(sel.slate_matchup.multiplier) %></span>
+                      <span class="text-primary font-bold"><%= format_turf_score(sel.slate_matchup.turf_score) %></span>
                     </span>
                   <% end %>
                 </div>

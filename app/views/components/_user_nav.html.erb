@@ -31,13 +31,12 @@
         <% if balance_html.present? %>
           <%= raw balance_html %>
         <% end %>
-        <div class="dm-teal flex items-center gap-2 self-center">
-          <%= raw extra_icons_html %>
-          <span class="hidden md:flex"><%= render "components/theme_toggle" %></span>
-          <span class="hidden md:block"><%= render "components/admin_dropdown" %></span>
-        </div>
         <% account_link = defined?(account_path) ? account_path : "#" %>
-        <%= link_to account_link, class: "dm-coral username-cap text-heading font-semibold hover:text-primary transition-all duration-300 leading-none ml-auto overflow-hidden whitespace-nowrap",
+        <span class="hidden md:flex items-center gap-2 ml-auto">
+          <span class="hidden md:block"><%= render "components/admin_dropdown" %></span>
+          <%= render "components/theme_toggle_morph" %>
+        </span>
+        <%= link_to account_link, class: "dm-coral username-cap text-heading font-semibold hover:text-primary transition-all duration-300 leading-none md:ml-0 ml-auto overflow-hidden whitespace-nowrap",
               "x-bind:class": "scrolled ? 'text-base' : 'text-lg'",
               data: { username_display: true },
               "x-data": "{ overflows: false, init() { this.overflows = this.$el.scrollWidth > this.$el.clientWidth } }",

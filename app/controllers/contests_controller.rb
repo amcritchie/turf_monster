@@ -1,17 +1,13 @@
 class ContestsController < ApplicationController
   include Solana::AuthVerifier
 
-  skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup, :lobby]
-  before_action :set_contest, only: [:show, :edit, :update, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest, :lobby]
-  before_action :require_admin, only: [:new, :create, :edit, :update, :admin_index, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
+  skip_before_action :require_authentication, only: [:index, :show, :my, :world_cup, :lobby, :leaderboard_poll]
+  before_action :set_contest, only: [:show, :edit, :update, :toggle_selection, :enter, :clear_picks, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_entry, :confirm_onchain_entry, :prepare_onchain_contest, :confirm_onchain_contest, :lobby, :leaderboard_poll]
+  before_action :require_admin, only: [:new, :create, :edit, :update, :grade, :fill, :lock, :jump, :simulate_game, :simulate_batch, :reset, :payout_entry, :prepare_onchain_contest, :confirm_onchain_contest]
   before_action :require_geo_allowed, only: [:toggle_selection, :enter, :prepare_entry]
 
   def index
-    @contests = Contest.where(status: [:open, :locked, :settled]).includes(:slate, :entries).order(created_at: :asc)
-  end
-
-  def admin_index
-    @contests = Contest.order(created_at: :desc).includes(:slate)
+    @contests = Contest.where(status: [:open, :locked, :settled]).includes(:slate, :entries).with_attached_contest_image.order(created_at: :desc)
   end
 
   def my
@@ -155,6 +151,19 @@ class ContestsController < ApplicationController
 
     load_contest_board_data
     @contests = Contest.where(status: [:open, :locked]).ranked.where.not(id: @contest.id).includes(:slate)
+  end
+
+  def leaderboard_poll
+    version = params[:version].to_i
+    current_version = @contest.updated_at.to_i
+
+    if version == current_version
+      render json: { changed: false }
+    else
+      load_contest_board_data
+      html = render_to_string(partial: "contests/turf_totals_leaderboard", locals: { compact: true })
+      render json: { changed: true, version: current_version, html: html }
+    end
   end
 
   def enter
