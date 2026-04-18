@@ -15,6 +15,10 @@ class CreateContests < ActiveRecord::Migration[7.2]
       t.string :onchain_tx_signature
       t.string :slug
       t.timestamps
+      t.references :user, foreign_key: true, null: true
+      t.string :locks_at_date_selected
+      t.string :locks_at_time_selected
+      t.string :locks_at_timezone_selected
     end
 
     add_index :contests, :slug, unique: true

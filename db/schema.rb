@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_04_17_020217) do
+ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -135,6 +135,20 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_17_020217) do
     t.index ["slug"], name: "index_geo_settings_on_slug", unique: true
   end
 
+  create_table "goals", force: :cascade do |t|
+    t.string "game_slug", null: false
+    t.string "team_slug", null: false
+    t.string "player_slug"
+    t.integer "minute"
+    t.string "slug", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_slug"], name: "index_goals_on_game_slug"
+    t.index ["player_slug"], name: "index_goals_on_player_slug"
+    t.index ["slug"], name: "index_goals_on_slug", unique: true
+    t.index ["team_slug"], name: "index_goals_on_team_slug"
+  end
+
   create_table "pending_transactions", force: :cascade do |t|
     t.string "tx_type", null: false
     t.text "serialized_tx", null: false
@@ -184,15 +198,15 @@ ActiveRecord::Schema[7.2].define(version: 2026_04_17_020217) do
     t.string "opponent_team_slug"
     t.string "game_slug"
     t.integer "rank"
-    t.decimal "multiplier", precision: 3, scale: 1
+    t.decimal "turf_score", precision: 3, scale: 1
     t.integer "goals"
     t.string "status", default: "pending", null: false
-    t.decimal "expected_team_total", precision: 3, scale: 1
+    t.decimal "dk_goals_expectation", precision: 3, scale: 1
     t.integer "team_total_over_odds"
     t.integer "team_total_under_odds"
     t.decimal "over_decimal_odds", precision: 4, scale: 2
     t.decimal "under_decimal_odds", precision: 4, scale: 2
-    t.decimal "dk_score", precision: 4, scale: 2
+    t.decimal "house_score", precision: 4, scale: 2
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
