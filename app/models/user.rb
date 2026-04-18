@@ -180,10 +180,6 @@ class User < ApplicationRecord
     computed_level
   end
 
-  # --- Money (on-chain only) ---
-  # All balances are now on-chain USDC. DB balance_cents / promotional_cents columns
-  # are deprecated — kept for migration safety but no longer written to or read from.
-
   private
 
   def has_authentication_method

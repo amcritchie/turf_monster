@@ -148,7 +148,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 - Money stored in cents, displayed in dollars via `dollars()` helper
 - **6 selections per entry** — `Contest#picks_required` returns 6. All views use this dynamically. Max 3 entries per user per contest (`Contest#max_entries_per_user`).
-- **Balance system**: On-chain USDC is the single source of truth. DB columns `balance_cents`/`promotional_cents` are deprecated (kept for migration safety). All balance reads come from on-chain wallet via `display_balance` helper. Entry fees transfer USDC on-chain via `Vault#transfer_from_user`.
+- **Balance system**: On-chain USDC is the single source of truth. All balance reads come from on-chain wallet via `display_balance` helper. Entry fees transfer USDC on-chain via `Vault#transfer_from_user`.
 - **Slug-based foreign keys**: Teams, Games, Players use slug columns as FKs (e.g. `team_slug`, `home_team_slug`). Associations use `foreign_key: :*_slug, primary_key: :slug`.
 - **Turf Score formula**: `1.0 + 3.0 * ln(rank) / ln(N)` — x1.0 at rank 1 to x4.0 at rank N. Centralized on `SlateMatchup.turf_score_for(rank, n)`.
 - **Seeds system**: 65 seeds per entry on-chain. No DB columns. See `docs/SOLANA.md`.
@@ -157,7 +157,7 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 
 ## Models
 
-- **User** — name, username, email (nullable), solana_address, wallet_type, role, slug. Balance is on-chain USDC (DB `balance_cents`/`promotional_cents` deprecated). See `docs/AUTH.md`.
+- **User** — name, username, email (nullable), solana_address, wallet_type, role, slug. Balance is on-chain USDC. See `docs/AUTH.md`.
 - **Contest** — name, tagline, entry_fee_cents, status, max_entries, rank, slate association, onchain fields, slug. `belongs_to :user` (creator, optional). `has_one_attached :contest_image` (Active Storage). Helpers: `lock_time_display`, `active_entry_count`, `locks_at` (alias for `starts_at`).
 - **ContestMatchup** — team_slug, opponent_team_slug, rank, turf_score, status. Belongs to contest + teams via slug FKs.
 - **Entry** — user + contest, score, status (cart/active/complete/abandoned), rank, payout_cents, onchain fields, slug (includes id)
@@ -166,8 +166,8 @@ Shared code from [studio engine](https://github.com/amcritchie/studio). Configur
 - **Game** — home_team + away_team via slug FKs, kickoff_at, status, scores, slug
 - **Player** — name, position, jersey_number, team via slug FK, slug
 - **Slate** — formula variables (7 nullable floats), 3-tier resolution. See `docs/FORMULAS.md`.
-- **SlateMatchup** — team/opponent/game via slug FKs, rank, turf_score, scoring data (house_score, dk_goals_expectation). Formula class methods.
-- **PendingTransaction** — multisig treasury TXs awaiting cosign. Fields: tx_type, serialized_tx, status (pending/confirmed/expired/failed), polymorphic target, initiator/cosigner addresses, tx_signature, metadata (JSON), slug.
+- **SlateMatchup** — team/opponent/game via slug FKs, rank, turf_score, dk_goals_expectation. Formula class methods (`turf_score_for`, `goals_distribution_for`).
+- **PendingTransaction** — multisig treasury TXs awaiting cosign. Fields: tx_type, serialized_tx, status (pending/confirmed/expired/failed), polymorphic target, initiator/cosigner addresses, tx_signature, metadata (jsonb), slug.
 - **GeoSetting** — admin geofencing config
 - **TransactionLog** — admin onchain transaction audit
 - **ErrorLog** — polymorphic, from engine

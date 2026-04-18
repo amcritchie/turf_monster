@@ -57,7 +57,7 @@ Troubleshooting guide for autonomous agents. Format: problem, diagnosis, fix.
 ## Balance Issues
 
 **On-chain USDC balance not showing**
-- All balances are on-chain USDC. DB `balance_cents`/`promotional_cents` columns are deprecated.
+- All balances are on-chain USDC.
 - Use `/wallet` sync button or check: `bin/rails runner "vault = Solana::Vault.new; puts vault.fetch_wallet_balances(User.find_by(slug: '<slug>').solana_address)"`.
 - If ATA doesn't exist: `bin/rails runner "vault = Solana::Vault.new; vault.ensure_ata('<address>', mint: Solana::Config::USDC_MINT)"`.
 

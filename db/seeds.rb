@@ -495,20 +495,6 @@ GENERAL_DK_ODDS = {
   "UZB" => 150000, "JOR" => 150000, "HAI" => 150000, "CUW" => 150000,
 }
 
-# ─── Odds Helpers ─────────────────────────────────────────────
-def american_to_decimal(american_odds)
-  return nil unless american_odds
-  if american_odds < 0
-    (100.0 / american_odds.abs + 1).round(2)
-  else
-    (american_odds / 100.0 + 1).round(2)
-  end
-end
-
-def compute_house_score(line, over_odds)
-  SlateMatchup.house_score_for(line, over_odds)
-end
-
 # ─── Slate + Contest Helper ──────────────────────────────────
 def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odds:, starts_at:, general_rankings: false, tagline: nil, user: nil, contest_type: "standard")
   slate = Slate.find_or_create_by!(name: slate_name) do |s|
@@ -572,24 +558,14 @@ def create_slate_with_contest(slate_name:, contest_name:, games:, teams:, dk_odd
       next unless dk
 
       line = dk["line"]&.to_f
-      over_odds = dk["over_odds"]&.to_i
 
-      under_odds = dk["under_odds"]&.to_i
-
-      m.update!(
-        dk_goals_expectation: line,
-        team_total_over_odds: over_odds,
-        team_total_under_odds: under_odds,
-        over_decimal_odds: american_to_decimal(over_odds),
-        under_decimal_odds: american_to_decimal(under_odds),
-        house_score: compute_house_score(line, over_odds)
-      )
+      m.update!(dk_goals_expectation: line)
     end
 
-    # Rank by dk_score DESC. Teams without DK data sort to end alphabetically.
+    # Rank by dk_goals_expectation DESC. Teams without DK data sort to end alphabetically.
     sorted = matchups.sort_by do |m|
-      if m.house_score.present?
-        [0, -m.house_score.to_f, m.team.name]
+      if m.dk_goals_expectation.present?
+        [0, -m.dk_goals_expectation.to_f, m.team.name]
       else
         [1, 0, m.team.name]
       end

@@ -8,7 +8,7 @@ class CreatePendingTransactions < ActiveRecord::Migration[7.2]
       t.string :initiator_address
       t.string :cosigner_address
       t.string :tx_signature
-      t.text :metadata
+      t.jsonb :metadata, default: {}
       t.string :slug
       t.timestamps
     end

@@ -10,11 +10,6 @@ class CreateSlateMatchups < ActiveRecord::Migration[7.2]
       t.integer :goals
       t.string :status, default: "pending", null: false
       t.decimal :dk_goals_expectation, precision: 3, scale: 1
-      t.integer :team_total_over_odds
-      t.integer :team_total_under_odds
-      t.decimal :over_decimal_odds, precision: 4, scale: 2
-      t.decimal :under_decimal_odds, precision: 4, scale: 2
-      t.decimal :house_score, precision: 4, scale: 2
       t.string :slug
       t.timestamps
     end
@@ -22,5 +17,6 @@ class CreateSlateMatchups < ActiveRecord::Migration[7.2]
     add_index :slate_matchups, :slug, unique: true
     add_index :slate_matchups, [:slate_id, :team_slug], unique: true
     add_index :slate_matchups, :game_slug
+    add_index :slate_matchups, :status
   end
 end

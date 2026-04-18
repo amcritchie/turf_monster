@@ -21,5 +21,7 @@ class CreateTransactionLogs < ActiveRecord::Migration[7.2]
     add_index :transaction_logs, :transaction_type
     add_index :transaction_logs, :status
     add_index :transaction_logs, [:source_type, :source_id]
+    add_index :transaction_logs, [:user_id, :transaction_type], name: "index_transaction_logs_on_user_id_and_type"
+    add_index :transaction_logs, [:user_id, :status], name: "index_transaction_logs_on_user_id_and_status"
   end
 end

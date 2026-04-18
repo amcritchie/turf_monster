@@ -83,6 +83,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["contest_id", "status"], name: "index_entries_on_contest_id_and_status"
     t.index ["contest_id"], name: "index_entries_on_contest_id"
     t.index ["slug"], name: "index_entries_on_slug", unique: true
     t.index ["status"], name: "index_entries_on_status"
@@ -122,6 +123,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.index ["away_team_slug"], name: "index_games_on_away_team_slug"
     t.index ["home_team_slug"], name: "index_games_on_home_team_slug"
     t.index ["slug"], name: "index_games_on_slug", unique: true
+    t.index ["status"], name: "index_games_on_status"
   end
 
   create_table "geo_settings", force: :cascade do |t|
@@ -158,7 +160,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.string "initiator_address"
     t.string "cosigner_address"
     t.string "tx_signature"
-    t.text "metadata"
+    t.jsonb "metadata", default: {}
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -202,11 +204,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.integer "goals"
     t.string "status", default: "pending", null: false
     t.decimal "dk_goals_expectation", precision: 3, scale: 1
-    t.integer "team_total_over_odds"
-    t.integer "team_total_under_odds"
-    t.decimal "over_decimal_odds", precision: 4, scale: 2
-    t.decimal "under_decimal_odds", precision: 4, scale: 2
-    t.decimal "house_score", precision: 4, scale: 2
     t.string "slug"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -214,6 +211,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.index ["slate_id", "team_slug"], name: "index_slate_matchups_on_slate_id_and_team_slug", unique: true
     t.index ["slate_id"], name: "index_slate_matchups_on_slate_id"
     t.index ["slug"], name: "index_slate_matchups_on_slug", unique: true
+    t.index ["status"], name: "index_slate_matchups_on_status"
   end
 
   create_table "slates", force: :cascade do |t|
@@ -280,6 +278,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.index ["source_type", "source_id"], name: "index_transaction_logs_on_source_type_and_source_id"
     t.index ["status"], name: "index_transaction_logs_on_status"
     t.index ["transaction_type"], name: "index_transaction_logs_on_transaction_type"
+    t.index ["user_id", "status"], name: "index_transaction_logs_on_user_id_and_status"
+    t.index ["user_id", "transaction_type"], name: "index_transaction_logs_on_user_id_and_type"
     t.index ["user_id"], name: "index_transaction_logs_on_user_id"
   end
 
@@ -291,8 +291,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.string "last_name"
     t.date "birth_date"
     t.integer "birth_year"
-    t.integer "balance_cents", default: 0, null: false
-    t.integer "promotional_cents", default: 0, null: false
     t.string "password_digest", default: "", null: false
     t.string "provider"
     t.string "uid"
@@ -309,6 +307,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["invited_by_id"], name: "index_users_on_invited_by_id"
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
+    t.index ["slug"], name: "index_users_on_slug", unique: true
     t.index ["web2_solana_address"], name: "index_users_on_web2_solana_address", unique: true, where: "(web2_solana_address IS NOT NULL)"
     t.index ["web3_solana_address"], name: "index_users_on_web3_solana_address", unique: true, where: "(web3_solana_address IS NOT NULL)"
   end

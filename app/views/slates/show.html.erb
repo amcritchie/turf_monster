@@ -6,7 +6,6 @@
     --fc-goals: #B8B0FF;
     --fc-dk-score: #15803D;
     --fc-dk-total: #4BAF50;
-    --fc-dk-odds: rgba(75, 175, 80, 0.5);
   }
 </style>
 
@@ -14,11 +13,9 @@
 <script>
   // Formula curve line colors — single source of truth
   var FC = {
-    mult:    '#8E82FE',            // Multiplier (violet)
+    mult:    '#8E82FE',            // Turf Score (violet)
     goals:   '#B8B0FF',            // Goals Distribution (light violet)
-    dkScore: '#15803D',            // DK Total Score (dark green)
-    dkTotal: '#4BAF50',            // DK Total (green)
-    dkOdds:  'rgba(75,175,80,0.5)' // DK Total Odds (faint green)
+    dkTotal: '#4BAF50'             // DK Expectation (green)
   };
 
   var _fcMatchups = <%== @matchups.ranked.includes(:team, :opponent_team).map { |m|
@@ -29,8 +26,7 @@
       short: m.team.short_name,
       opponent: m.opponent_team&.short_name,
       turf_score: m.turf_score&.to_f,
-      team_total: m.dk_goals_expectation&.to_f,
-      over_dec: m.over_decimal_odds&.to_f
+      team_total: m.dk_goals_expectation&.to_f
     }
   }.to_json %>;
 
@@ -41,15 +37,11 @@
     var lnN = Math.log(N);
     return _fcMatchups.map(function(m, i) {
       var rank = i + 1;
-      var prob = m.over_dec ? (1 / m.over_dec) : null;
-      var dkScore = (m.team_total && prob) ? Math.round(A * Math.pow(m.team_total, lineExp) * Math.pow(prob, probExp) * 100) / 100 : null;
       return {
         emoji: m.emoji, team: m.team, opponent: m.opponent, rank: rank,
         mult: Math.round((multBase + multScale * Math.log(rank) / lnN) * 100) / 100,
         goals: Math.round((goalBase + goalScale * Math.log(N / rank) / lnN) * 100) / 100,
-        teamTotal: m.team_total,
-        overDec: m.over_dec,
-        dkScore: dkScore
+        teamTotal: m.team_total
       };
     });
   }
@@ -84,25 +76,11 @@
             borderWidth: 2, borderDash: [6, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', order: 2
           },
           {
-            label: 'DK Total Score',
-            data: data.map(function(d) { return d.dkScore; }),
-            borderColor: FC.dkScore,
-            backgroundColor: FC.dkScore + '1F',
-            borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: true, yAxisID: 'y', spanGaps: true, order: 3
-          },
-          {
-            label: 'DK Total',
+            label: 'DK Expectation',
             data: data.map(function(d) { return d.teamTotal; }),
             borderColor: FC.dkTotal,
             backgroundColor: FC.dkTotal + '14',
-            borderWidth: 1.5, borderDash: [6, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', spanGaps: true, order: 4
-          },
-          {
-            label: 'DK Total Odds',
-            data: data.map(function(d) { return d.overDec; }),
-            borderColor: FC.dkOdds,
-            backgroundColor: FC.dkTotal + '0A',
-            borderWidth: 1, borderDash: [3, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', spanGaps: true, order: 5
+            borderWidth: 1.5, borderDash: [6, 3], pointRadius: 2, pointHoverRadius: 6, tension: 0.3, fill: false, yAxisID: 'y', spanGaps: true, order: 3
           }
         ]
       },
@@ -165,9 +143,7 @@
     if (!_fcChart) { _fcBuildChart(data); return; }
     _fcChart.data.datasets[0].data = data.map(function(d) { return d.mult; });
     _fcChart.data.datasets[1].data = data.map(function(d) { return d.goals; });
-    _fcChart.data.datasets[2].data = data.map(function(d) { return d.dkScore; });
-    _fcChart.data.datasets[3].data = data.map(function(d) { return d.teamTotal; });
-    _fcChart.data.datasets[4].data = data.map(function(d) { return d.overDec; });
+    _fcChart.data.datasets[2].data = data.map(function(d) { return d.teamTotal; });
     _fcChart.update('none');
     _fcUpdateRankList(A, lineExp, probExp, multBase, multScale);
   }
@@ -196,14 +172,8 @@
     items.forEach(function(item, i) {
       var rank = i + 1;
       var line = parseFloat(item.dataset.teamTotal);
-      var overDec = parseFloat(item.dataset.overDec);
       var mult = (multBase + multScale * Math.log(rank) / lnN);
       item.querySelector('.turf-score-display').textContent = mult.toFixed(1) + 'x';
-      if (line && overDec) {
-        var prob = 1 / overDec;
-        var score = A * Math.pow(line, lineExp) * Math.pow(prob, probExp);
-        item.querySelector('.score-display').textContent = score.toFixed(2);
-      }
     });
   }
 
@@ -373,7 +343,6 @@
         <span class="w-8 text-right">Rank</span>
         <span class="text-lg invisible">🏳️</span>
         <span class="flex-1">Team</span>
-        <span class="w-12 text-right">Score</span>
         <span class="w-12 text-right">Turf</span>
       </div>
 
@@ -381,8 +350,7 @@
         <% @matchups.each_with_index do |matchup, i| %>
           <div class="flex items-center gap-3 bg-surface rounded-lg px-4 py-3 border border-subtle cursor-grab active:cursor-grabbing sortable-item"
                data-matchup-id="<%= matchup.id %>"
-               data-team-total="<%= matchup.dk_goals_expectation&.to_f %>"
-               data-over-dec="<%= matchup.over_decimal_odds&.to_f %>">
+               data-team-total="<%= matchup.dk_goals_expectation&.to_f %>">
             <span class="font-mono text-muted text-sm w-8 text-right rank-number"><%= matchup.rank || i + 1 %></span>
             <span class="text-lg"><%= matchup.team.emoji %></span>
             <div class="flex-1 flex items-center gap-2">
@@ -391,10 +359,9 @@
                 <span class="text-muted text-xs">vs <%= matchup.opponent_team.short_name %></span>
               <% end %>
               <% if matchup.dk_goals_expectation %>
-                <span class="text-muted text-xs">O/U <%= sprintf('%.1f', matchup.dk_goals_expectation) %> (<%= matchup.team_total_over_odds && matchup.team_total_over_odds > 0 ? "+#{matchup.team_total_over_odds}" : matchup.team_total_over_odds %>)</span>
+                <span class="text-muted text-xs">DK <%= sprintf('%.1f', matchup.dk_goals_expectation) %></span>
               <% end %>
             </div>
-            <span class="font-mono text-violet text-sm w-12 text-right score-display"><%= matchup.house_score ? sprintf('%.2f', matchup.house_score) : '—' %></span>
             <span class="font-mono text-primary text-sm w-12 text-right turf-score-display"><%= matchup.turf_score ? sprintf('%.1f', matchup.turf_score) : '—' %>x</span>
           </div>
         <% end %>
@@ -477,15 +444,10 @@
       sortByDkScore() {
         const list = this.$refs.sortableList;
         const items = Array.from(list.querySelectorAll('.sortable-item'));
-        const s = _fcSliders;
-        function dkScore(el) {
-          const line = parseFloat(el.dataset.teamTotal) || 0;
-          const overDec = parseFloat(el.dataset.overDec) || 0;
-          if (!line || !overDec) return -1;
-          const prob = 1 / overDec;
-          return s.A * Math.pow(line, s.lineExp) * Math.pow(prob, s.probExp);
+        function dkExpectation(el) {
+          return parseFloat(el.dataset.teamTotal) || 0;
         }
-        items.sort((a, b) => dkScore(b) - dkScore(a));
+        items.sort((a, b) => dkExpectation(b) - dkExpectation(a));
         items.forEach(item => list.appendChild(item));
         this.updateNumbers();
         _fcSyncOrder();

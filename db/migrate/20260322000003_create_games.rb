@@ -15,5 +15,6 @@ class CreateGames < ActiveRecord::Migration[7.2]
     add_index :games, :slug, unique: true
     add_index :games, :home_team_slug
     add_index :games, :away_team_slug
+    add_index :games, :status
   end
 end

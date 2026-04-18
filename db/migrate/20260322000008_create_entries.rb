@@ -18,5 +18,6 @@ class CreateEntries < ActiveRecord::Migration[7.2]
     add_index :entries, :slug, unique: true
     add_index :entries, :status
     add_index :entries, [:user_id, :contest_id]
+    add_index :entries, [:contest_id, :status], name: "index_entries_on_contest_id_and_status"
   end
 end

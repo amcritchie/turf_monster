@@ -5,16 +5,14 @@
 All scoring/ranking formulas live as class methods on `SlateMatchup` — single source of truth. JS mirrors in `slates/show.html.erb` and `slates/formula_report.html.erb` with comments noting the model as authoritative.
 
 - **Turf Score**: `SlateMatchup.turf_score_for(rank, n)` — `1.0 + 3.0 * Math.log(rank) / Math.log(n)`. Logarithmic curve, x1.0 at rank 1 to x4.0 at rank N.
-- **House Score**: `SlateMatchup.house_score_for(line, over_odds)` — `max(0, (line - 0.5) + (prob - 0.5) * 3)` where prob is derived from American odds.
 - **Goals Distribution**: `SlateMatchup.goals_distribution_for(rank, n)` — `0.2 + 4.3 * Math.log(n / rank) / Math.log(n)`.
-- **Interactive DK Score** (show page sliders): `A * line^lineExp * prob^probExp` with defaults A=1.65, lineExp=1.24, probExp=1.18, where prob = 1/OverDecimalOdds.
 
 ## Formula Color System
 
 Chart/formula visualization colors are defined once at the top of `slates/show.html.erb`:
-- **CSS custom properties** (`--fc-mult`, `--fc-goals`, `--fc-dk-score`, `--fc-dk-total`, `--fc-dk-odds`) for inline styles
-- **JS `FC` object** (`FC.mult`, `FC.goals`, `FC.dkScore`, `FC.dkTotal`, `FC.dkOdds`) for Chart.js datasets
-- Colors: Turf Score = violet `#8E82FE`, Goals Distribution = light violet `#B8B0FF`, DK Score = dark green `#15803D`, DK Total = green `#4BAF50`, DK Odds = faint green `rgba`
+- **CSS custom properties** (`--fc-mult`, `--fc-goals`, `--fc-dk-total`) for inline styles
+- **JS `FC` object** (`FC.mult`, `FC.goals`, `FC.dkTotal`) for Chart.js datasets
+- Colors: Turf Score = violet `#8E82FE`, Goals Distribution = light violet `#B8B0FF`, DK Expectation = green `#4BAF50`
 
 ## Slate Show Page (`/slates/:id`)
 

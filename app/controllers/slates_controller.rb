@@ -18,25 +18,13 @@ class SlatesController < ApplicationController
     matchups = @slate&.slate_matchups&.includes(:team) || []
 
     @sample_matchups = matchups.filter_map do |m|
-      next unless m.dk_goals_expectation && m.team_total_over_odds
-      odds = m.team_total_over_odds
+      next unless m.dk_goals_expectation
       line = m.dk_goals_expectation.to_f
-      prob = if odds < 0
-        odds.abs.to_f / (odds.abs + 100)
-      else
-        100.0 / (odds + 100)
-      end
 
       {
         team: m.team.name,
         emoji: m.team.emoji,
-        line: line,
-        over_odds: odds,
-        over_dec: m.over_decimal_odds&.to_f,
-        prob: prob,
-        v1: (line + (prob - 0.5)).round(2),
-        v2: (line + (prob - 0.5) * 3).round(2),
-        v3: SlateMatchup.house_score_for(line, odds)
+        line: line
       }
     end
   end

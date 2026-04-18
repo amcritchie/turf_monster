@@ -8,8 +8,6 @@ class CreateUsers < ActiveRecord::Migration[7.2]
       t.string :last_name
       t.date :birth_date
       t.integer :birth_year
-      t.integer :balance_cents, default: 0, null: false
-      t.integer :promotional_cents, default: 0, null: false
       t.string :password_digest, default: "", null: false
       t.string :provider
       t.string :uid
@@ -28,6 +26,7 @@ class CreateUsers < ActiveRecord::Migration[7.2]
     add_index :users, [:provider, :uid], unique: true, where: "provider IS NOT NULL"
     add_index :users, :web2_solana_address, unique: true, where: "web2_solana_address IS NOT NULL"
     add_index :users, :web3_solana_address, unique: true, where: "web3_solana_address IS NOT NULL"
+    add_index :users, :slug, unique: true
     add_index :users, :invited_by_id
     add_foreign_key :users, :users, column: :invited_by_id
   end

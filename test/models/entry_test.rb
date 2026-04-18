@@ -49,6 +49,29 @@ class EntryTest < ActiveSupport::TestCase
     assert_equal "fake_tx_sig_123", entry.onchain_tx_signature
   end
 
+  test "confirm! does not call enter_onchain!" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    # confirm! should not attempt any onchain calls
+    entry.confirm!
+
+    assert entry.active?
+    assert_nil entry.onchain_tx_signature
+    assert_nil entry.onchain_entry_id
+  end
+
+  test "confirm! stores onchain_entry_id" do
+    entry = @contest.entries.create!(user: @user, status: :cart)
+    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+
+    entry.confirm!(tx_signature: "tx_123", onchain_entry_id: "pda_addr_456")
+
+    assert entry.active?
+    assert_equal "tx_123", entry.onchain_tx_signature
+    assert_equal "pda_addr_456", entry.onchain_entry_id
+  end
+
   # --- toggle_selection! tests ---
 
   test "toggle_selection! creates a new selection" do
