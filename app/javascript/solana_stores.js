@@ -28,7 +28,7 @@ function registerWalletStore() {
             self._reauth(self.address);
           }
         })
-        .catch(function() {}); // Not previously approved — no action
+        .catch(function() {}); // Intentional: wallet not yet approved by user — no action needed
 
       // Listen for wallet switches (Phantom-specific, no-op for keypair)
       provider.on('accountChanged', function(publicKey) {
@@ -77,7 +77,7 @@ function registerWalletStore() {
             window.location.reload();
           }
         })
-        .catch(function() {});
+        .catch(function(err) { console.warn('Wallet re-auth failed:', err); });
     }
   });
 

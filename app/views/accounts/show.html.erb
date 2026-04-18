@@ -86,6 +86,7 @@
             confirmCrop() {
               var self = this;
               this.cropper.getCroppedCanvas({ width: 256, height: 256 }).toBlob(function(blob) {
+                if (self.croppedUrl) URL.revokeObjectURL(self.croppedUrl);
                 self.croppedUrl = URL.createObjectURL(blob);
                 var dt = new DataTransfer();
                 dt.items.add(new File([blob], 'avatar.png', { type: 'image/png' }));
@@ -99,6 +100,7 @@
               this.showCropModal = false; this.rawImageUrl = null;
             },
             removePhoto() {
+              if (this.croppedUrl) URL.revokeObjectURL(this.croppedUrl);
               this.croppedUrl = null;
               this.$refs.hiddenFileInput.files = new DataTransfer().files;
             }

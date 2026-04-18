@@ -88,6 +88,7 @@
 </div>
 
 <!-- Section 4: Matchup Board or Leaderboard -->
+<div id="leaderboard-container">
 <% if @contest.open? %>
   <% if @has_entry %>
     <%= render "contests/turf_totals_leaderboard", compact: true %>
@@ -100,6 +101,7 @@
     <%= link_to "View Full Results", contest_path(@contest), class: "btn btn-outline btn-lg w-full md:max-w-md md:mx-auto block text-center" %>
   </div>
 <% end %>
+</div>
 
 <!-- Section 5: Admin Actions -->
 <% if current_user&.admin? && !@contest.settled? %>
@@ -137,6 +139,38 @@
       </div>
     </div>
   </div>
+<% end %>
+
+<!-- Leaderboard Polling (locked/entered contests) -->
+<% if @contest.locked? || @has_entry %>
+<script>
+(function() {
+  let version = <%= @contest.updated_at.to_i %>;
+  const contestId = '<%= @contest.slug %>';
+  const pollUrl = '/c/' + contestId + '/leaderboard_poll';
+
+  var pollTimer = setInterval(async function() {
+    try {
+      const resp = await fetch(pollUrl + '?version=' + version);
+      const data = await resp.json();
+      if (data.changed) {
+        const container = document.getElementById('leaderboard-container');
+        if (container && data.html) {
+          container.innerHTML = data.html;
+          version = data.version;
+          window.dispatchEvent(new CustomEvent('toast', {
+            detail: { type: 'info', title: 'Leaderboard Updated', message: 'Scores have changed', duration: 3000 }
+          }));
+        }
+      }
+    } catch (e) { /* silently retry next interval */ }
+  }, 90000);
+
+  document.addEventListener('turbo:before-cache', function() {
+    clearInterval(pollTimer);
+  }, { once: true });
+})();
+</script>
 <% end %>
 
 <!-- Section 6: Contest Selector -->

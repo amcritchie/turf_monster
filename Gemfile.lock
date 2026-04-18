@@ -7,7 +7,7 @@ GIT
 
 GIT
   remote: https://github.com/amcritchie/studio.git
-  revision: be9b618e3ecf1ec677421cc906b391daf1ca9eb5
+  revision: f379a4ecda17bffeb17fe8b38de7fc10b5975036
   specs:
     studio (0.2.4)
       faker (>= 2.0)
@@ -322,7 +322,7 @@ GEM
       tsort (>= 0.2)
       zeitwerk (~> 2.6)
     rainbow (3.1.1)
-    rake (13.3.1)
+    rake (13.4.2)
     rdoc (7.2.0)
       erb
       psych (>= 4.0.0)

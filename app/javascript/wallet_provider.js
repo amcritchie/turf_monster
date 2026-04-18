@@ -95,8 +95,8 @@ var KeypairProvider = {
   _makePublicKey: function(bytes) {
     return {
       toBytes: function() { return bytes; },
-      toBase58: function() { return _b58encode(bytes); },
-      toString: function() { return _b58encode(bytes); }
+      toBase58: function() { return window.encodeBase58(bytes); },
+      toString: function() { return window.encodeBase58(bytes); }
     };
   },
 
@@ -137,21 +137,6 @@ var KeypairProvider = {
     return this._publicKeyObj || null;
   }
 };
-
-
-// --- Base58 encoder (shared) ---
-var _B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function _b58encode(bytes) {
-  var n = BigInt(0);
-  for (var i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
-  var r = '';
-  while (n > 0n) { r = _B58_ALPHABET[Number(n % 58n)] + r; n = n / 58n; }
-  for (var j = 0; j < bytes.length; j++) {
-    if (bytes[j] !== 0) break;
-    r = '1' + r;
-  }
-  return r || '1';
-}
 
 
 // --- Registry ---

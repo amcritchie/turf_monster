@@ -17,7 +17,9 @@
           });
         <% end %>
         <% if logged_in? && Solana::Config.devnet? %>
-          document.addEventListener('DOMContentLoaded', () => { setTimeout(refreshBalance, 1500); });
+          document.addEventListener('turbo:load', () => {
+            setTimeout(function() { showNavSpinner(); refreshBalance().finally(function() { hideNavSpinner(); }); }, 1500);
+          });
         <% end %>
 
         // Invite link: capture ?ref= param into localStorage
@@ -33,7 +35,7 @@
         })();
 
         // Invite link: save inviter on login
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('turbo:load', function() {
           var loggedIn = document.body.getAttribute('data-logged-in') === 'true';
           var inviterSlug = localStorage.getItem('inviter_slug');
           if (loggedIn && inviterSlug) {
@@ -62,8 +64,7 @@
             return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
           },
           detect: function() {
-            if (window.__WALLET_KEYPAIR_SECRET) return null;
-            return (window.phantom && window.phantom.solana && window.phantom.solana.isPhantom) ? window.phantom.solana : null;
+            return null;
           }
         };
 

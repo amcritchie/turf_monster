@@ -113,7 +113,7 @@
     }
 
     // Auto-start nudge for any hold buttons already visible
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('turbo:load', function() {
       document.querySelectorAll('.hold-btn').forEach(function(el) {
         el.addEventListener('animationend', function(e) {
           if (e.animationName === 'hold-nudge' || e.animationName === 'hold-nudge-soft') {
@@ -122,6 +122,11 @@
         });
         startNudgeCycle(el);
       });
+    });
+
+    // Cleanup nudge timers before Turbo caches the page
+    document.addEventListener('turbo:before-cache', function() {
+      Object.keys(nudgeTimers).forEach(function(id) { stopNudgeCycle(id); });
     });
 
     window.holdBtnStart = function(el) {

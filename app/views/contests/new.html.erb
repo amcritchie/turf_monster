@@ -237,6 +237,7 @@
         },
         setFile(file) {
           this.fileName = file.name;
+          if (this.previewUrl) URL.revokeObjectURL(this.previewUrl);
           this.previewUrl = URL.createObjectURL(file);
         },
         clear() {

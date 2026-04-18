@@ -61,7 +61,9 @@
 
             <div class="flex flex-col gap-2 flex-shrink-0">
               <% if tx.pending? %>
-                <button onclick="cosignTransaction('<%= tx.slug %>', '<%= tx.serialized_tx %>')"
+                <button data-tx-slug="<%= tx.slug %>"
+                        data-tx-serialized="<%= tx.serialized_tx %>"
+                        onclick="cosignTransaction(this.dataset.txSlug, this.dataset.txSerialized)"
                         class="btn btn-primary btn-sm">
                   Co-sign
                 </button>
@@ -104,10 +106,13 @@
       // Phantom signs (adds cosigner signature)
       const signed = await provider.signTransaction(tx);
 
-      // Submit to Solana
+      // Submit to Solana with 60s timeout
       const connection = new solanaWeb3.Connection(SOLANA_RPC_URL);
       const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature, 'confirmed');
+      await Promise.race([
+        connection.confirmTransaction(signature, 'confirmed'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Transaction confirmation timed out after 60s')), 60000))
+      ]);
 
       // Report back to server
       const resp = await fetch(`/admin/pending_transactions/${slug}/confirm`, {

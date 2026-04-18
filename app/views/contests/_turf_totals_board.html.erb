@@ -19,13 +19,13 @@
       }
     });
   }
-  document.addEventListener('DOMContentLoaded', shrinkTeamNames);
+  document.addEventListener('turbo:load', shrinkTeamNames);
   document.addEventListener('alpine:initialized', () => setTimeout(shrinkTeamNames, 100));
 
   function selectionBoard() {
     const matchupData = {
       <% @matchups.each_with_index do |m, i| %>
-        '<%= m.id %>': { name: '<%= j(m.team.name) %>', emoji: '<%= m.team.emoji %>', opName: '<%= j(m.opponent_team&.short_name.to_s) %>', multiplier: '<%= m.multiplier ? sprintf("%.1f", m.multiplier) : "—" %>', locked: <%= m.locked? %> }<%= i < @matchups.length - 1 ? ',' : '' %>
+        '<%= m.id %>': { name: '<%= j(m.team.name) %>', emoji: '<%= m.team.emoji %>', opName: '<%= j(m.opponent_team&.short_name.to_s) %>', turfScore: '<%= m.turf_score ? sprintf("%.1f", m.turf_score) : "—" %>', locked: <%= m.locked? %> }<%= i < @matchups.length - 1 ? ',' : '' %>
       <% end %>
     };
 
@@ -55,7 +55,7 @@
       redirectInterval: null,
 
       toggleSort(mode) {
-        if (mode === 'multiplier' && this.sortMode === 'multiplier') {
+        if (mode === 'turfScore' && this.sortMode === 'turfScore') {
           this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           this.sortMode = mode;
@@ -79,7 +79,7 @@
           name: matchupData[matchupId]?.name || matchupId,
           emoji: matchupData[matchupId]?.emoji || '',
           opName: matchupData[matchupId]?.opName || '',
-          multiplier: matchupData[matchupId]?.multiplier || ''
+          turfScore: matchupData[matchupId]?.turfScore || ''
         }));
       },
 
@@ -444,13 +444,13 @@
 
   <!-- Sort toggle + Matchup Cards -->
   <%
-    # Game pairs: group by game, sort by lower multiplier
+    # Game pairs: group by game, sort by lower turf_score
     game_pairs = @matchups.group_by(&:game_slug).values.select { |pair| pair.size == 2 }
-    game_pairs.each { |pair| pair.sort_by! { |m| m.multiplier || 999 } }
-    game_pairs.sort_by! { |pair| pair.first.multiplier || 999 }
+    game_pairs.each { |pair| pair.sort_by! { |m| m.turf_score || 999 } }
+    game_pairs.sort_by! { |pair| pair.first.turf_score || 999 }
 
-    # Flat matchups sorted by multiplier (asc and desc)
-    matchups_asc = @matchups.sort_by { |m| m.multiplier || 999 }
+    # Flat matchups sorted by turf_score (asc and desc)
+    matchups_asc = @matchups.sort_by { |m| m.turf_score || 999 }
     matchups_desc = matchups_asc.reverse
   %>
   <section class="mb-8 transition-all" :class="{ 'md:mr-80': cartOpen }">
@@ -468,12 +468,12 @@
                 :aria-pressed="sortMode === 'game'">
           Game
         </button>
-        <button @click="toggleSort('multiplier')"
+        <button @click="toggleSort('turfScore')"
                 class="px-3 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-1"
-                :class="sortMode === 'multiplier' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'"
-                :aria-pressed="sortMode === 'multiplier'">
-          Multiplier
-          <span x-show="sortMode === 'multiplier'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
+                :class="sortMode === 'turfScore' ? 'bg-primary text-white' : 'bg-surface-alt text-secondary hover:text-heading'"
+                :aria-pressed="sortMode === 'turfScore'">
+          Turf Score
+          <span x-show="sortMode === 'turfScore'" x-text="sortDir === 'asc' ? '↑' : '↓'" class="text-xs"></span>
         </button>
       </div>
       <div class="relative">
@@ -495,7 +495,7 @@
     </div>
 
     <!-- Multiplier view: flat grid, ascending -->
-    <div x-show="sortMode === 'multiplier' && sortDir === 'asc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+    <div x-show="sortMode === 'turfScore' && sortDir === 'asc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       <% matchups_asc.each do |matchup| %>
         <div x-show="matchesFilter('<%= j(matchup.team.name) %>', '<%= j(matchup.opponent_team&.name.to_s) %>')">
           <%= render "contests/matchup_card", matchup: matchup %>
@@ -504,7 +504,7 @@
     </div>
 
     <!-- Multiplier view: flat grid, descending -->
-    <div x-show="sortMode === 'multiplier' && sortDir === 'desc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+    <div x-show="sortMode === 'turfScore' && sortDir === 'desc'" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       <% matchups_desc.each do |matchup| %>
         <div x-show="matchesFilter('<%= j(matchup.team.name) %>', '<%= j(matchup.opponent_team&.name.to_s) %>')">
           <%= render "contests/matchup_card", matchup: matchup %>
@@ -698,7 +698,7 @@
           <template x-if="selectionSlots[i-1]">
             <div class="bg-surface-alt rounded-md px-1.5 py-1 border border-primary-700 text-center relative" style="min-height:2.75rem">
               <p class="text-heading font-semibold text-xs truncate" x-text="selectionSlots[i-1].emoji + ' ' + selectionSlots[i-1].name"></p>
-              <p class="text-muted text-[10px] truncate">vs <span x-text="selectionSlots[i-1].opName"></span> <span class="text-primary font-mono" x-text="'x' + selectionSlots[i-1].multiplier"></span></p>
+              <p class="text-muted text-[10px] truncate">vs <span x-text="selectionSlots[i-1].opName"></span> <span class="text-primary font-mono" x-text="'x' + selectionSlots[i-1].turfScore"></span></p>
               <button @click="removeSelection(selectionSlots[i-1].matchupId)"
                       class="absolute -top-1 -right-1 w-4 h-4 bg-surface border border-strong rounded-full text-muted hover:text-red-400 text-[10px] leading-none flex items-center justify-center">&times;</button>
             </div>
