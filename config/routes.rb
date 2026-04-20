@@ -119,6 +119,7 @@ Rails.application.routes.draw do
   end
 
   resources :teams, only: [:index, :show]
+  resources :players, only: [:index]
   resources :games, only: [:index]
 
   resource :wallet, only: [:show] do

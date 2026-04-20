@@ -1,40 +1,63 @@
-<section class="mb-6">
-  <div class="flex items-center justify-between mb-6">
+<section x-data="{
+  search: '',
+  get filtered() {
+    const q = this.search.toLowerCase().trim();
+    const cards = document.querySelectorAll('[data-team-card]');
+    let count = 0;
+    cards.forEach(card => {
+      const name = (card.dataset.name || '').toLowerCase();
+      const match = !q || name.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) count++;
+    });
+    return count;
+  }
+}">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
     <h2 class="text-2xl font-bold text-heading">Teams</h2>
-    <span class="text-sm text-muted"><%= @teams.size %> teams</span>
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <input type="text"
+             x-model.debounce.300ms="search"
+             placeholder="Search teams..."
+             class="input-field text-sm !py-2 !px-3 w-full sm:w-64">
+      <span class="text-sm text-muted whitespace-nowrap" x-text="filtered + ' teams'"></span>
+    </div>
   </div>
 
   <% if @teams.empty? %>
     <%= render "components/empty_state", message: "No teams yet." %>
   <% else %>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       <% @teams.each do |team| %>
-        <%= link_to team_path(team), class: "block card-hover p-4" do %>
-          <div class="flex items-center gap-3">
-            <span class="text-2xl"><%= team.emoji %></span>
-            <div class="flex-1 min-w-0">
-              <p class="text-heading font-semibold truncate"><%= team.name %></p>
-              <div class="flex items-center gap-2 mt-0.5">
-                <% if team.short_name.present? %>
-                  <span class="text-xs text-secondary font-mono"><%= team.short_name %></span>
-                <% end %>
-                <% if team.location.present? %>
-                  <span class="text-xs text-muted"><%= team.location %></span>
-                <% end %>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <% if team.color_primary.present? %>
-                <div class="w-5 h-5 rounded-full border border-white/20" style="background-color: <%= team.color_primary %>"></div>
-              <% end %>
-              <% if team.color_secondary.present? %>
-                <div class="w-5 h-5 rounded-full border border-white/20" style="background-color: <%= team.color_secondary %>"></div>
+        <%= link_to team_path(team),
+              class: "block card-hover p-4",
+              data: {
+                team_card: true,
+                name: "#{team.name} #{team.short_name} #{team.location}".downcase
+              } do %>
+          <div class="flex items-center gap-2 mb-2">
+            <% if team.color_primary.present? %>
+              <div class="w-4 h-4 rounded-full flex-shrink-0 border border-white/20" style="background-color: <%= team.color_primary %>"></div>
+            <% end %>
+            <% if team.color_secondary.present? && team.color_secondary != team.color_primary %>
+              <div class="w-4 h-4 rounded-full flex-shrink-0 border border-white/20" style="background-color: <%= team.color_secondary %>"></div>
+            <% end %>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xl flex-shrink-0"><%= team.emoji %></span>
+            <div class="min-w-0">
+              <p class="text-heading font-semibold text-sm truncate"><%= team.name %></p>
+              <% if team.short_name.present? %>
+                <span class="text-xs text-secondary font-mono"><%= team.short_name %></span>
               <% end %>
             </div>
           </div>
+          <% if team.location.present? %>
+            <p class="text-xs text-muted mt-1 truncate"><%= team.location %></p>
+          <% end %>
           <% if team.players.any? %>
             <div class="mt-2 pt-2 border-t border-subtle">
-              <p class="text-xs text-muted"><%= team.players.count %> players</p>
+              <p class="text-xs text-muted"><%= team.players.size %> players</p>
             </div>
           <% end %>
         <% end %>

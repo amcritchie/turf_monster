@@ -1,0 +1,80 @@
+<% positions = @players.map(&:position).compact.uniq.sort %>
+
+<section x-data="{
+  search: '',
+  posFilter: 'all',
+  get filtered() {
+    const q = this.search.toLowerCase().trim();
+    const pos = this.posFilter;
+    const cards = document.querySelectorAll('[data-player-card]');
+    let count = 0;
+    cards.forEach(card => {
+      const name = (card.dataset.name || '').toLowerCase();
+      const cardPos = card.dataset.position || '';
+      const matchSearch = !q || name.includes(q);
+      const matchPos = pos === 'all' || cardPos === pos;
+      const visible = matchSearch && matchPos;
+      card.style.display = visible ? '' : 'none';
+      if (visible) count++;
+    });
+    return count;
+  }
+}">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+    <h2 class="text-2xl font-bold text-heading">Players</h2>
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <input type="text"
+             x-model.debounce.300ms="search"
+             placeholder="Search players..."
+             class="input-field text-sm !py-2 !px-3 w-full sm:w-64">
+      <span class="text-sm text-muted whitespace-nowrap" x-text="filtered + ' players'"></span>
+    </div>
+  </div>
+
+  <%# Position filter tabs %>
+  <div class="flex flex-wrap gap-2 mb-6">
+    <button class="btn btn-sm" :class="posFilter === 'all' ? 'btn-primary' : 'btn-outline'" @click="posFilter = 'all'">All</button>
+    <% positions.each do |pos| %>
+      <button class="btn btn-sm"
+              :class="posFilter === '<%= pos %>' ? 'btn-primary' : 'btn-outline'"
+              @click="posFilter = '<%= pos %>'">
+        <%= pos %>
+      </button>
+    <% end %>
+  </div>
+
+  <% if @players.empty? %>
+    <%= render "components/empty_state", message: "No players yet." %>
+  <% else %>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <% @players.each do |player| %>
+        <div class="card p-4"
+             data-player-card
+             data-name="<%= "#{player.name} #{player.team&.name}".downcase %>"
+             data-position="<%= player.position %>">
+          <div class="flex items-center gap-3">
+            <% if player.jersey_number.present? %>
+              <span class="text-primary font-bold font-mono text-lg w-8 text-right">#<%= player.jersey_number %></span>
+            <% end %>
+            <div class="flex-1 min-w-0">
+              <p class="text-heading font-semibold truncate"><%= player.name %></p>
+              <div class="flex items-center gap-2 mt-1">
+                <% if player.position.present? %>
+                  <span class="badge bg-primary/10 text-primary border-primary/20 text-xs"><%= player.position %></span>
+                <% end %>
+                <% if player.team.present? %>
+                  <span class="flex items-center gap-1 text-xs text-secondary">
+                    <% if player.team.color_primary.present? %>
+                      <span class="inline-block w-2.5 h-2.5 rounded-full" style="background-color: <%= player.team.color_primary %>"></span>
+                    <% end %>
+                    <span class="truncate"><%= player.team.emoji %> <%= player.team.short_name || player.team.name %></span>
+                  </span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</section>
