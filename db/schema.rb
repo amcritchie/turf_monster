@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
+ActiveRecord::Schema[7.2].define(version: 2026_04_29_224006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -149,6 +149,22 @@ ActiveRecord::Schema[7.2].define(version: 2026_03_22_000016) do
     t.index ["player_slug"], name: "index_goals_on_player_slug"
     t.index ["slug"], name: "index_goals_on_slug", unique: true
     t.index ["team_slug"], name: "index_goals_on_team_slug"
+  end
+
+  create_table "image_caches", force: :cascade do |t|
+    t.string "owner_type", null: false
+    t.bigint "owner_id", null: false
+    t.string "purpose", null: false
+    t.string "variant", null: false
+    t.string "s3_key", null: false
+    t.string "source_url"
+    t.integer "bytes"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_type", "owner_id", "purpose", "variant"], name: "idx_image_caches_owner_purpose_variant", unique: true
+    t.index ["owner_type", "owner_id"], name: "index_image_caches_on_owner"
+    t.index ["s3_key"], name: "index_image_caches_on_s3_key", unique: true
   end
 
   create_table "pending_transactions", force: :cascade do |t|

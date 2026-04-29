@@ -15,4 +15,7 @@ Studio.configure do |config|
   # Theme: green primary, violet as accent2
   config.theme_primary = "#4BAF50"
   config.theme_accent = "#8E82FE"
+
+  # S3 — overrides engine default ("mcritchie-studio") to use this app's bucket
+  config.s3_bucket_prefix = "turf-monster"
 end
