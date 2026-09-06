@@ -1789,7 +1789,7 @@ module Solana
     #
     # NOT idempotent, deliberately. mint collides on `init` and can be retried
     # blind; a re-burn instead fails the program's EntryTokenAlreadyBurned guard
-    # (0x17ad), because silently accepting one would overwrite consumed_at and
+    # (6045 / 0x179d), because silently accepting one would overwrite consumed_at and
     # destroy the record of when the burn happened. Callers that retry must
     # re-read the list and skip tokens already carrying `burned: true`.
     def burn_entry_token(wallet_address:, source_ref:)

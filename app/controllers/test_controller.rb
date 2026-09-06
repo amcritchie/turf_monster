@@ -22,6 +22,22 @@ class TestController < ApplicationController
   def reseed
     cleared = []
 
+    # UNDO #warm_entry_tokens' cache-store swap. That endpoint replaces the test
+    # env's :null_store with a live MemoryStore so a cache-first page can render,
+    # and the swap is PROCESS-WIDE and permanent — the e2e lane runs one shared
+    # server with workers:1, so every spec file ordered after the warming one
+    # would otherwise run against a live cache the test env never intended
+    # (SiteSetting 1h, board data 1h, VAULT_STATE 1m, seasons 60s, Cdp::Catalog
+    # 12h all persist across specs). That is an order-dependent flake, and the
+    # kind that reads as "spec 40 is flaky" rather than "spec 4 changed the
+    # world". reseed already runs in beforeEach across the lane, so restoring the
+    # configured store here bounds the swap to the file that asked for it.
+    configured = Rails.application.config.cache_store
+    unless Rails.cache.class == ActiveSupport::Cache.lookup_store(configured).class
+      Rails.cache = ActiveSupport::Cache.lookup_store(configured)
+      cleared << "cache_store_restored"
+    end
+
     # Rails.cache.delete_matched under the Redis cache store returns the
     # underlying Redis client array (circular ref) — don't render its return
     # value or to_json recurses to SystemStackError. We discard the return
@@ -276,6 +292,21 @@ class TestController < ApplicationController
   #
   # Mints its own keypair rather than calling User#generate_managed_wallet!,
   # which deliberately early-returns while the flag is on.
+
+  def grant_managed_wallet
+    return render json: { error: "not logged in" }, status: :unauthorized unless current_user
+
+    if current_user.web2_solana_address.blank?
+      keypair = Solana::Keypair.generate
+      current_user.update!(web2_solana_address: keypair.to_base58,
+                           encrypted_web2_solana_private_key: keypair.encrypt)
+    end
+
+    render json: { ok: true, slug: current_user.slug,
+                   address: current_user.web2_solana_address,
+                   wallet_kind: current_user.wallet_kind }
+  end
+
   # Warm a user's entry-token cache so /admin/free_entries renders a REAL row
   # without a chain read.
   #
@@ -312,12 +343,19 @@ class TestController < ApplicationController
     # therefore renders "syncing…" forever there, and the free-entries row's
     # buttons are unreachable to any browser spec.
     #
-    # Installing a real store HERE rather than in test.rb is what keeps the blast
-    # radius at zero: this runs only when a spec calls this test-only endpoint,
-    # the route does not exist in production, and the Rails suite never touches
-    # it — so `Rails.cache` stays a NullStore for every existing test, which is
-    # what free_entries_render_no_rpc_test and the navbar tests rely on when they
-    # inject their own MemoryStore.
+    # Installing a real store HERE rather than in test.rb keeps this away from the
+    # RAILS SUITE entirely: the route does not exist in production, minitest never
+    # calls it, so `Rails.cache` stays a NullStore for every existing test — which
+    # is what free_entries_render_no_rpc_test and the navbar tests rely on when
+    # they inject their own MemoryStore.
+    #
+    # It is NOT free for the E2E LANE, and an earlier version of this comment
+    # wrongly claimed it was ("blast radius at zero"). The swap is process-wide
+    # and outlives the request: the lane runs ONE shared server with workers:1, so
+    # every spec file ordered after the warming one would keep running against a
+    # live cache. #reseed therefore restores the configured store, and it runs in
+    # beforeEach across the lane — that restore is what actually bounds this, not
+    # anything in these few lines.
     if Rails.cache.is_a?(ActiveSupport::Cache::NullStore)
       Rails.cache = ActiveSupport::Cache::MemoryStore.new
     end
@@ -335,20 +373,6 @@ class TestController < ApplicationController
 
     render json: { ok: true, slug: user.slug, address: address, store: Rails.cache.class.name,
                    minted: minted, unconsumed: unconsumed }
-  end
-
-  def grant_managed_wallet
-    return render json: { error: "not logged in" }, status: :unauthorized unless current_user
-
-    if current_user.web2_solana_address.blank?
-      keypair = Solana::Keypair.generate
-      current_user.update!(web2_solana_address: keypair.to_base58,
-                           encrypted_web2_solana_private_key: keypair.encrypt)
-    end
-
-    render json: { ok: true, slug: current_user.slug,
-                   address: current_user.web2_solana_address,
-                   wallet_kind: current_user.wallet_kind }
   end
 
   # Stage a user's quest ladder position so Playwright can land on a specific

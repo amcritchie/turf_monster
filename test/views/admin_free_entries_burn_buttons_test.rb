@@ -55,7 +55,42 @@ class AdminFreeEntriesBurnButtonsTest < ActionDispatch::IntegrationTest
       "Burn all must name the count it will destroy — an unlabelled 'Burn all' " \
       "gives the operator nothing to check the confirm dialog against")
     assert_select "form[action=?]", admin_burn_free_entries_path(user_slug: @holder.slug, count: 1)
-    assert_select "form[action=?]", admin_burn_free_entries_path(user_slug: @holder.slug)
+  end
+
+  # ── The confirm attribute, pinned at THIS tier ──────────────────────────
+  #
+  # Deleting the whole `data:` hash from both burn buttons used to leave every
+  # test in this file green: the confirm on the app's only irreversible action
+  # was pinned ONLY by the e2e lane, so a red or skipped lane silently un-pinned
+  # it. The browser still owns whether Turbo INTERCEPTS the submit
+  # (e2e/admin_free_entry_burn_confirm.spec.js); this owns whether the attribute
+  # is rendered at all, which is the half a string can see.
+  test "both burn buttons render a turbo-confirm naming the irreversibility" do
+    render_row(minted: 3, unconsumed: 3)
+
+    confirms = css_select("form[action*='/burn'] button[data-turbo-confirm]")
+      .map { |b| b["data-turbo-confirm"] }
+    assert_equal 2, confirms.length,
+      "Burn 1 and Burn all must EACH carry data-turbo-confirm — one unguarded " \
+      "button is one click from an irreversible burn"
+    assert confirms.all? { |c| c.match?(/cannot be undone/i) },
+      "every burn confirm must say the action cannot be undone: #{confirms.inspect}"
+  end
+
+  test "the Burn all confirm and its submitted count are the SAME number" do
+    render_row(minted: 4, unconsumed: 3)
+
+    # Interpolated, not `?`-substituted: that substitution is an assert_select
+    # feature, and css_select would read a second argument as the ROOT node.
+    path = admin_burn_free_entries_path(user_slug: @holder.slug, count: 3)
+    form = css_select("form[action='#{path}']").first
+    assert form,
+      "Burn all must POST the count it displays — sending none lets the controller " \
+      "fall through to the LIVE count and destroy more than the operator agreed to"
+
+    confirm = form.css("button[data-turbo-confirm]").first["data-turbo-confirm"]
+    assert_match(/ALL 3/, confirm,
+      "the confirmed number and the submitted count must not be able to disagree")
   end
 
   test "a single spendable token gets Burn 1 only" do

@@ -125,7 +125,15 @@ test.describe("Admin free-entry burn confirmation", () => {
     await warmAdminRow(page, { minted: 2, unconsumed: 0 });
 
     await page.goto("/admin/free_entries");
-    await expect(page.locator("#users-tbody tr").first()).toBeVisible();
+
+    // POSITIVE CONTROL FIRST. "the first row is visible" is also true of the
+    // empty-state <tr colspan=7>, so toHaveCount(0) below could pass while the
+    // admin's row never rendered at all — a vacuous green that would survive the
+    // burn controls being deleted outright. Assert the row we are making a claim
+    // about is actually on the page, and that the page is the one we think it is.
+    const row = page.locator("#users-tbody tr", { hasText: "alex" }).first();
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("button", { name: "Act as" })).toHaveCount(0); // admin row
     await expect(page.getByRole("button", { name: /^Burn/ })).toHaveCount(0);
   });
 });

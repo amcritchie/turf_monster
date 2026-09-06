@@ -167,6 +167,64 @@ class Admin::FreeEntriesBurnTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
+  # ── The confirmed number is a CEILING ───────────────────────────────────
+
+  test "Burn all destroys only the count the operator was shown, not the live count" do
+    # THE OVER-DESTRUCTION REGRESSION. The row renders `unconsumed` from a
+    # CACHE-FIRST read (up to 60s stale, and the page never auto-refreshes, so the
+    # window is however long the tab stays open), while the controller re-reads
+    # the chain LIVE. The Burn-all button used to send no count at all, so the
+    # controller fell through to `burnable.length` — the LIVE number — and an
+    # operator who accepted "Burn ALL 3" destroyed however many existed by the
+    # time the POST landed.
+    #
+    # Anything can widen that gap between render and click: a LevelUpTokenMintJob
+    # sweep, a completed TokenPurchaseJob, another admin's "Mint All Owed".
+    # Irreversible, and in the harmful direction.
+    shown = [token(ref: "operator:a:1", created_at: 1_000),
+             token(ref: "operator:b:1", created_at: 2_000),
+             token(ref: "operator:c:1", created_at: 3_000)]
+    vault = vault_holding(*shown)
+
+    # The mint that lands between render and click. The button already carries
+    # count=3 from the render; the vault now holds 4.
+    minted_after_render = token(ref: "operator:late:1", created_at: 9_000)
+    vault.tokens_for(@holder.solana_address) << minted_after_render
+
+    Solana::Vault.stub :new, vault do
+      post admin_burn_free_entries_path(user_slug: @holder.slug, count: 3)
+    end
+
+    assert_equal 3, vault.burn_calls.length,
+      "the operator agreed to burn 3; 4 existed by the time the POST landed, and " \
+      "only the confirmed number may be destroyed"
+    assert_equal 1, vault.list_entry_tokens(@holder.solana_address).count { |t| !t[:consumed] },
+      "exactly one token must survive — the one the operator never agreed to burn"
+
+    # WHICH three is deliberately not asserted beyond the count. Newest-first
+    # means the late mint IS among them and the oldest survives, so the surviving
+    # SET differs from the surviving one the operator pictured. That is
+    # acceptable for an action whose whole intent is "zero this balance": the
+    # safety property is the ceiling on HOW MANY are destroyed, and a burn can
+    # only ever be short, never over.
+  end
+
+  test "a stale HIGH count cannot burn more than actually exists" do
+    # The mirror case: tokens were SPENT between render and click, so the
+    # confirmed number now exceeds reality. The clamp must floor it at what is
+    # actually burnable rather than raising or over-reaching.
+    vault = vault_holding(token(ref: "operator:a:1", created_at: 1_000),
+                          token(ref: "operator:spent:1", created_at: 2_000, consumed: true))
+
+    Solana::Vault.stub :new, vault do
+      post admin_burn_free_entries_path(user_slug: @holder.slug, count: 5)
+    end
+
+    assert_equal ["operator:a:1"], vault.burn_calls,
+      "a count larger than the burnable list must clamp down, not reach past it"
+    assert_match(/burned 1 free entry/i, flash[:notice].to_s)
+  end
+
   # ── The property the whole design exists for ────────────────────────────
 
   test "a burned token still counts as granted, so owed does not re-open" do
