@@ -1158,6 +1158,12 @@ window.selectionBoard = function() {
       // an entry with USDC, so the USDC card would sell them a thing that cannot
       // do the job they came to do. Same reasoning as _wallet_topup's
       // tokenFallback fork, and the same audience.
+      //
+      // WHO 'web2' IS, precisely, because a comment on the card used to get this
+      // wrong: #556 promotes a session at LINK time, not on every later login, so
+      // this branch holds BOTH populations that pay from the managed wallet —
+      // managed-only accounts AND combo accounts (managed + linked Phantom)
+      // signed in with email or Google. Prod 2026-09-06: 24 + 12 = 36.
       if (session.mode === 'web2' && !session.web2UsdcEntry) {
         this.showBuyEntryToken();
       } else {

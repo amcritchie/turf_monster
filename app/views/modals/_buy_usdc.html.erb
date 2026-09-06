@@ -89,11 +89,18 @@
         The Phantom row below cannot: it sends the user to a wallet this entry
         will never touch.
 
-        THAT IS THE WHOLE AUDIENCE HERE NOW. Since #556, linking a wallet
-        promotes the session to :web3, so the web2 branch of showFundsNeeded is
-        exactly the managed-only population — 24 accounts in prod on 2026-09-06,
-        15 of whom have entered a contest. Shipping only the Phantom row told
-        every one of them to spend real money into a wallet that cannot pay.
+        WHO IS ACTUALLY HERE. #556 promotes a session to :web3 when a wallet is
+        LINKED, not on every later login, so the web2 branch is BOTH populations
+        that pay from the managed wallet: managed-only accounts, and combo
+        accounts (managed + linked Phantom) signed in with email or Google.
+        Measured in prod 2026-09-06: 24 managed-only (15 with confirmed entries)
+        plus 12 combo (3 with a started entry) — 36, not 24. An earlier revision
+        of this comment claimed 24 and it was wrong.
+        Shipping only the Phantom row told every one of them to spend real money
+        into a wallet that cannot pay. The Coinbase rail is right for both halves
+        ONLY because Cdp::RampSessionsController#wallet_for now resolves the
+        onramp from the SESSION (task session-aware-coinbase-onramp); before that
+        fix it credited Phantom for the combo half and stranded the money.
 
         Server-gated on the same policy Top Up Wallet uses, so a flagged-off ramp
         never ships a dead button. %>
