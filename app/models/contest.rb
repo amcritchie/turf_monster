@@ -539,6 +539,31 @@ class Contest < ApplicationRecord
     onchain_contest_id.present?
   end
 
+  # `onchain?` ANSWERS A NARROWER QUESTION THAN IT USED TO, and the difference
+  # is a chain write.
+  #
+  # Before the write-ahead reordering (PR #551) `onchain_contest_id` was stamped
+  # only AFTER a create_contest broadcast succeeded, so "the column is set" and
+  # "a Contest PDA exists" were the same fact. #finalize now derives the PDA and
+  # saves it on a `pending` row BEFORE broadcasting, so a stranded row answers
+  # `onchain?` with true while the address it names holds nothing.
+  #
+  # This predicate is the post-#551 version of that question: the row carries a
+  # PDA AND the broadcast that would have created it was verified. Use it to
+  # gate anything that TOUCHES the chain — an instruction aimed at a PDA that
+  # was never initialized fails with AccountNotInitialized, which reads to an
+  # operator like a program bug rather than a contest that never got created.
+  #
+  # `onchain?` is deliberately left alone. It still guards the after_create
+  # server-funded callback (see #skip_onchain_callback_active? and
+  # #create_onchain!'s own `return if onchain?`), and those guards exist to stop
+  # a SECOND create_contest paid from the house wallet. Narrowing `onchain?`
+  # would remove one of the three protections against that double spend to fix
+  # a loud, admin-only, money-free failure — a bad trade in both directions.
+  def onchain_verified?
+    onchain? && !pending?
+  end
+
   # On-chain cancellation (cancel_contest, 2-of-3). A cancelled contest is
   # terminal: no new entry may be submitted.
   #

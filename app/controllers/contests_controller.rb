@@ -311,7 +311,9 @@ class ContestsController < ApplicationController
 
     derived_pda_b58 = Solana::Keypair.encode_base58(Solana::Vault.new.contest_pda(payload[:slug]).first)
     raise "Contest PDA mismatch — slug=#{payload[:slug]}" unless params[:contest_pda] == derived_pda_b58
-    raise "A contest with that slug already exists" if Contest.exists?(slug: payload[:slug])
+    if (taken = slug_taken_message(payload[:slug]))
+      raise taken
+    end
     raise "Missing signed transaction" if params[:signed_tx].blank?
 
     # `draft` is never saved and never leaves this method — it exists only to
@@ -378,11 +380,21 @@ class ContestsController < ApplicationController
     render_create_error("Signed transaction did not match this contest request. Rebuild the transaction and try again.")
   rescue StandardError => e
     Rails.logger.error("[ContestsController#finalize] #{e.class}: #{e.message}")
-    # `target:` is what makes capture_unlogged actually PERSIST the log (see
-    # :1878 — it only saves when given a target or parent). Before the
-    # write-ahead row there was no contest to name here, so this rescue logged
-    # to Rails.logger and nowhere else. Now a strand files an ErrorLog against
-    # the exact row an operator has to repair.
+    # `target:` is what makes this log FINDABLE. It does not decide whether a
+    # log exists — an earlier version of this comment said it did, and that was
+    # wrong. capture_unlogged calls create_error_log, which is
+    # `ErrorLog.capture!` (studio-engine error_handling.rb:180-182), and capture!
+    # ends in `create!`. A row is written unconditionally, target or no target;
+    # the trailing `log.save! if target || parent` only persists the ASSOCIATION
+    # that was just assigned.
+    #
+    # So the old defect was not a missing log. It was an ORPHANED one: written
+    # with target_type and target_id nil, and therefore invisible to
+    # `ErrorLog.where(target_type: "Contest", target_id: …)` — the query an
+    # operator actually runs when a contest goes wrong. It sat in the table
+    # indistinguishable from every other context-free row. Now a strand files
+    # against the exact row an operator has to repair, and
+    # Contests::PendingReconciler is what repairs it.
     capture_unlogged(e, target: contest&.persisted? ? contest : nil)
     render_create_error(e.message)
   end
@@ -395,7 +407,14 @@ class ContestsController < ApplicationController
       @contest.update!(contest_update_params)
       # Mirror an edited lock time onto the chain (on-chain is master for
       # locking). nil starts_at sends 0 = clear the lock.
-      if @contest.saved_change_to_starts_at? && @contest.onchain?
+      #
+      # `onchain_verified?`, NOT `onchain?`: a stranded `pending` row carries a
+      # derived PDA that was never initialized (see Contest#onchain_verified?),
+      # and editing one used to broadcast set_contest_lock_time at that empty
+      # address. Admin-only and no money moves — the instruction fails with
+      # AccountNotInitialized — but it fails as an unexplained program error on
+      # a screen that gave no hint the contest was unverified.
+      if @contest.saved_change_to_starts_at? && @contest.onchain_verified?
         Solana::Vault.new.set_contest_lock_time(@contest.slug, @contest.starts_at&.to_i || 0)
       end
       redirect_to root_path, notice: "Contest updated."
@@ -857,7 +876,7 @@ class ContestsController < ApplicationController
     entry_mint   = currency_idx == 1 ? Solana::Config::USDT_MINT : Solana::Config::USDC_MINT
 
     rescue_and_log(target: entry, parent: @contest) do
-      raise "Contest is not onchain" unless @contest.onchain?
+      raise "Contest is not onchain" unless @contest.onchain_verified?
       raise "Phantom wallet required" unless current_user.phantom_wallet?
 
       active_count = @contest.entries.where(status: [:active, :complete]).count
@@ -1406,7 +1425,9 @@ class ContestsController < ApplicationController
     rescue_and_log(target: @contest) do
       seconds = params[:in_seconds].to_i.clamp(0, 3600)
       lock_at = Time.current + seconds.seconds
-      Solana::Vault.new.set_contest_lock_time(@contest.slug, lock_at.to_i) if @contest.onchain?
+      # `onchain_verified?` for the same reason as #update: a pending row's PDA
+      # was never initialized, so this instruction would target an empty address.
+      Solana::Vault.new.set_contest_lock_time(@contest.slug, lock_at.to_i) if @contest.onchain_verified?
       @contest.update!(starts_at: lock_at)
       notice = seconds.positive? ? "Lock scheduled — entries close in #{seconds}s." : "Contest locked — entries closed."
       redirect_to @contest, notice: notice
@@ -1424,7 +1445,7 @@ class ContestsController < ApplicationController
     return render json: { success: false, error: "Phantom session required" }, status: :forbidden unless onchain_session?
 
     rescue_and_log(target: @contest) do
-      raise "Contest is not onchain" unless @contest.onchain?
+      raise "Contest is not onchain" unless @contest.onchain_verified?
       raise "Phantom wallet required" unless current_user.phantom_wallet?
       raise "Contest already concluded — lock time can't change" if @contest.settled?
 
@@ -1473,7 +1494,7 @@ class ContestsController < ApplicationController
     return render json: { success: false, error: "Phantom session required" }, status: :forbidden unless onchain_session?
 
     rescue_and_log(target: @contest) do
-      raise "Contest is not onchain" unless @contest.onchain?
+      raise "Contest is not onchain" unless @contest.onchain_verified?
       raise "Phantom wallet required" unless current_user.phantom_wallet?
       raise "Contest already concluded — conclusion time can't change" if @contest.concluded?
 
@@ -1917,6 +1938,32 @@ class ContestsController < ApplicationController
 
   # ── Phantom contest-create helpers ─────────────────────────────────────────
 
+  # The slug guard's message, which serves two readers with opposite needs.
+  #
+  # A slug held by a REAL contest is a naming collision, and "pick another" is
+  # the whole answer. A slug held by a `pending` row is a STRAND — a create
+  # whose broadcast never landed — and it CLEARS ITSELF: Contests::PendingReconciler
+  # deletes a pending row whose Contest PDA is absent on its next sweep, which
+  # releases the slug.
+  #
+  # Giving both readers the bare "already exists" is literally true and leaves
+  # the second one stuck: they have just been told their contest failed, and the
+  # app's next sentence says the thing that failed is in the way, with no
+  # indication that waiting fixes it. The phrase is kept in both branches so the
+  # refusal still reads the same to anything matching on it; only the strand
+  # branch adds the way out.
+  #
+  # Returns nil when the slug is free.
+  def slug_taken_message(slug)
+    existing = Contest.find_by(slug: slug)
+    return nil if existing.nil?
+    return "A contest with that slug already exists" unless existing.pending?
+
+    "A contest with that slug already exists, but it never finished being created — " \
+    "no payment was taken. It clears automatically within about 15 minutes; try again " \
+    "then, or use a different slug now."
+  end
+
   def render_create_error(msg)
     render json: { success: false, error: msg }, status: :unprocessable_entity
   end
@@ -2116,7 +2163,9 @@ class ContestsController < ApplicationController
 
     slug = contest.slug
     return "Slug is required" if slug.blank?
-    return "A contest with that slug already exists" if Contest.exists?(slug: slug)
+    if (taken = slug_taken_message(slug))
+      return taken
+    end
 
     vault   = Solana::Vault.new
     pda_b58 = Solana::Keypair.encode_base58(vault.contest_pda(slug).first)
@@ -2361,8 +2410,25 @@ class ContestsController < ApplicationController
     derived_entry_pda
   end
 
+  # THE ONE CHOKE POINT FOR PER-CONTEST VISIBILITY, which is why the `pending`
+  # filter lives here and not on twenty call sites.
+  #
+  # Every per-contest action routes through this before_action — #show and
+  # #enter and #toggle_selection included, and #show skips authentication
+  # entirely. A `pending` row is a contest whose create_contest broadcast has
+  # not been verified: it may have no PDA at all, and Contests::PendingReconciler
+  # may be about to delete it. Served unfiltered it renders as a real contest at
+  # a guessable URL (the slug is derived from the name), offers a board to build
+  # a lineup on, and sends any entry attempt at an address that holds nothing.
+  #
+  # ADMINS STILL SEE IT, deliberately — a stranded row is exactly what an
+  # operator needs to open in order to repair it, and the reconciler's flagged
+  # rows are resolved by hand. So this is a visibility rule, not an existence
+  # rule: to everyone else a pending contest reads as not-found, which is what
+  # it is until the chain says otherwise.
   def set_contest
-    @contest = Contest.find_by(slug: params[:id])
+    scope = admin? ? Contest.all : Contest.where.not(status: :pending)
+    @contest = scope.find_by(slug: params[:id])
     return if @contest
 
     # Diagnostic — every "Contest not found" toast in the wild traces back

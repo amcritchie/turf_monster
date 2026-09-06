@@ -24,7 +24,8 @@ class FakeVault
               :fund_calls, :deposit_calls, :sync_balance_calls, :entry_token_list_calls, :broadcast_calls
 
   def initialize(fail_after: nil, starting_sequence: 0, tokens: [], signature_statuses: {},
-                 usdc_balance: nil, usdc_balance_raises: false, account_infos: {}, signatures: {},
+                 usdc_balance: nil, usdc_balance_raises: false, account_infos: {},
+                 account_info_raises: false, signatures: {},
                  send_raises: nil, season: { season_id: 1 }, season_raises: nil, seasons: nil,
                  broadcast_raises: nil)
     @fail_after = fail_after
@@ -34,6 +35,11 @@ class FakeVault
     @usdc_balance = usdc_balance            # uiAmount dollars to return from get_token_account_balance
     @usdc_balance_raises = usdc_balance_raises
     @account_infos = account_infos          # pda_b58 => {"value" => ...} for get_account_info (PDA-exists check)
+    # An RPC FAULT on the existence check, which is a different fact from
+    # "absent" and must stay distinguishable. Contests::PendingReconciler
+    # DELETES a contest row on absence, so a reader that folds a rate limit
+    # into "absent" would destroy a funded contest. Seeds that fault.
+    @account_info_raises = account_info_raises
     @signatures = signatures                 # pda_b58 => [{ "signature" =>, "err" => }] for getSignaturesForAddress
     @send_raises = send_raises               # send_transaction fault (offramp send tests)
     @broadcast_raises = broadcast_raises     # simulate_and_broadcast fault (cosign broadcast tests)
@@ -73,6 +79,7 @@ class FakeVault
                                      usdc_balance: @usdc_balance,
                                      usdc_balance_raises: @usdc_balance_raises,
                                      account_infos: @account_infos,
+                                     account_info_raises: @account_info_raises,
                                      signatures: @signatures,
                                      send_raises: @send_raises)
   end
@@ -344,6 +351,21 @@ class FakeVault
     end
   end
 
+  # Used by ContestsController#update and #lock — the DIRECT (admin-signed)
+  # lock-time broadcast, as opposed to #build_set_contest_lock_time's
+  # Phantom-signed wire. Recorded rather than no-op'd so a test can assert this
+  # instruction is NOT aimed at an unverified `pending` contest's PDA, which was
+  # never initialized on chain.
+  def set_contest_lock_time(contest_slug, lock_timestamp)
+    @set_lock_time_calls ||= []
+    @set_lock_time_calls << { slug: contest_slug, lock_timestamp: lock_timestamp }
+    "fake-set-lock-time-sig"
+  end
+
+  def set_lock_time_calls
+    @set_lock_time_calls ||= []
+  end
+
   # Used by ContestsController#prepare_lock_time (Phantom-signed lock flow).
   def build_set_contest_lock_time(contest_slug, lock_timestamp, admin_pubkey:)
     @lock_calls ||= []
@@ -609,11 +631,12 @@ end
 # returns {"value" => [nil]} per the JSON-RPC spec.
 class FakeSolanaClient
   def initialize(statuses, usdc_balance: nil, usdc_balance_raises: false, account_infos: {},
-                 signatures: {}, send_raises: nil, transactions: {})
+                 account_info_raises: false, signatures: {}, send_raises: nil, transactions: {})
     @statuses = statuses || {}
     @usdc_balance = usdc_balance
     @usdc_balance_raises = usdc_balance_raises
     @account_infos = account_infos || {}
+    @account_info_raises = account_info_raises
     @signatures = signatures || {}
     @send_raises = send_raises          # exception (or message) raised by send_transaction
     @transactions = transactions || {}  # signature => get_transaction payload
@@ -659,6 +682,8 @@ class FakeSolanaClient
   # ContestsController#onchain_create_precheck reads dig("value") to decide
   # whether the contest PDA already exists on-chain.
   def get_account_info(pda_b58)
+    raise Solana::Client::RpcError, "simulated RPC failure" if @account_info_raises
+
     @account_infos[pda_b58]
   end
 
