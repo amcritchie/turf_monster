@@ -471,13 +471,36 @@ class ApplicationController < ActionController::Base
   end
 
   # True when the current session was authenticated via Solana wallet signature
-  # (not email/password). Set by SolanaSessionsController#verify. Forced false
+  # (not email/password). Set by #promote_to_onchain_session!. Forced false
   # while impersonating (OPSEC-046): an admin can't produce the target's Phantom
   # signature, and this stops the admin's real :onchain flag from leaking into
   # the impersonated view — forcing the web2/managed server-sign path for entries.
   def onchain_session?
     return false if impersonating?
     session[:onchain] == true
+  end
+
+  # The SESSION half of proving wallet ownership — the two writes that turn a
+  # verified signature into a :web3 SessionContext. Call it from EVERY path that
+  # verifies a live wallet signature for the current user.
+  #
+  # It lives here, called by both, because the halves used to drift: the wallet
+  # LOGIN path (SolanaSessionsController#verify) wrote them and the wallet LINK
+  # path (AccountsController#link_solana) did not, so a Google account that
+  # linked Phantom kept a :web2 session. For an account whose ONLY wallet is
+  # self-custody that is a dead end, not a downgrade — web2 entry server-signs
+  # from #web2_solana_address, which such an account does not have — so the
+  # board offered "Buy an Entry Token" to a user holding enough USDC to enter.
+  #
+  # This does NOT loosen the doctrine in SessionContext, it satisfies it: :web3
+  # means "authenticated via a live wallet signature THIS session", and a link
+  # is exactly that (OPSEC-005 binds the signed message to current_user.id).
+  # Impersonation is unaffected — #onchain_session? force-returns false there.
+  def promote_to_onchain_session!(provider: nil)
+    session[:onchain] = true
+    # Which wallet signed, so a later step-up asks the one that can sign NOW.
+    # Untrusted client string — Solana::WalletProvider drops anything unknown.
+    Solana::CurrentWallet.remember(session, provider)
   end
 
   # Canonical auth + wallet state for this request — the single source of truth
