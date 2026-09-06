@@ -276,6 +276,67 @@ class TestController < ApplicationController
   #
   # Mints its own keypair rather than calling User#generate_managed_wallet!,
   # which deliberately early-returns while the flag is on.
+  # Warm a user's entry-token cache so /admin/free_entries renders a REAL row
+  # without a chain read.
+  #
+  # The page is deliberately cache-first: a cold row renders "syncing…" and
+  # offers neither Mint nor Burn, which is correct behaviour and also means the
+  # burn controls are unreachable in a browser unless something has warmed the
+  # exact key the controller reads. Minting real tokens to warm it would put an
+  # irreversible on-chain write in a PR lane; this writes the same cache entry
+  # list_entry_tokens would have written, in the shape decode_entry_token
+  # returns.
+  #
+  # `unconsumed` of the `minted` total stay spendable — that split is the whole
+  # thing the burn controls key off.
+  def warm_entry_tokens
+    user = params[:slug].present? ? User.find_by(slug: params[:slug]) : current_user
+    return render json: { error: "no user" }, status: :unprocessable_entity unless user
+
+    address = user.solana_address
+    return render json: { error: "user has no wallet" }, status: :unprocessable_entity if address.blank?
+
+    minted     = params.fetch(:minted, 3).to_i
+    unconsumed = params.fetch(:unconsumed, minted).to_i.clamp(0, minted)
+
+    tokens = Array.new(minted) do |i|
+      spent = i >= unconsumed
+      { pda: "pda-e2e-#{i}", source_ref: "operator:e2e:#{i}", source: 0,
+        consumed: spent, consumed_at: spent ? 1_700_000_000 : nil,
+        burned: false, created_at: 1_700_000_000 + i }
+    end
+
+    # The e2e lane boots the server with RAILS_ENV=test (playwright.config.js
+    # webServer, and bin/e2e-parallel), and config/environments/test.rb pins
+    # :null_store — every write is a no-op and every read nil. A cache-first page
+    # therefore renders "syncing…" forever there, and the free-entries row's
+    # buttons are unreachable to any browser spec.
+    #
+    # Installing a real store HERE rather than in test.rb is what keeps the blast
+    # radius at zero: this runs only when a spec calls this test-only endpoint,
+    # the route does not exist in production, and the Rails suite never touches
+    # it — so `Rails.cache` stays a NullStore for every existing test, which is
+    # what free_entries_render_no_rpc_test and the navbar tests rely on when they
+    # inject their own MemoryStore.
+    if Rails.cache.is_a?(ActiveSupport::Cache::NullStore)
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    end
+
+    Rails.cache.write(Solana::Vault.entry_tokens_cache_key(address), tokens, expires_in: 5.minutes)
+
+    # Read back through the same accessor the page uses. A store that failed to
+    # install would otherwise hand the spec a cheerful ok:true and then render an
+    # empty row, sending the spec hunting for a bug in the view.
+    warmed = Rails.cache.read(Solana::Vault.entry_tokens_cache_key(address))
+    if warmed.blank?
+      return render json: { error: "cache write did not stick (store: #{Rails.cache.class})" },
+                    status: :unprocessable_entity
+    end
+
+    render json: { ok: true, slug: user.slug, address: address, store: Rails.cache.class.name,
+                   minted: minted, unconsumed: unconsumed }
+  end
+
   def grant_managed_wallet
     return render json: { error: "not logged in" }, status: :unauthorized unless current_user
 
