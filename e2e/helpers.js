@@ -27,7 +27,7 @@ async function login(page, email, _password) {
     await page.waitForURL(leftMagicLink, { timeout: 5000 });
   } catch (_) {
     // Auto-submit didn't fire (no-JS fallback) — click the consume button.
-    await page.locator('button:has-text("Sign in to Turf Totals")').click();
+    await page.locator('button:has-text("Sign in to Turf Monster")').click();
     await page.waitForURL(leftMagicLink);
   }
 }
