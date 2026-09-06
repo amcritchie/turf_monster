@@ -17,22 +17,32 @@ class BuyUsdcHelperTest < ActionView::TestCase
     ENV["BUY_USDC_VIDEO_ID"] = was
   end
 
-  # --- absent is a supported state --------------------------------------------
+  # --- the fallback (operator, 2026-09-06) --------------------------------------
+  #
+  # ABSENT IS NO LONGER A STATE. The card tells a blocked player to buy USDC
+  # inside Phantom; showing them nothing under that instruction is the worse
+  # failure, so an unset id falls back to the Phantom walkthrough the wallet-setup
+  # card already plays until the purpose-made video exists.
 
-  test "no configured video reports absent rather than building a broken embed" do
+  test "an unset id falls back to the wallet card's walkthrough, not to nothing" do
     with_video_id(nil) do
-      refute buy_usdc_video?, "an unset id must read as no video, not as a video"
-      assert_nil buy_usdc_video_embed_url,
-                 "an embed URL with an empty id renders YouTube's own error card " \
-                 "inside the modal — worse than the absence it reports"
-      assert_nil buy_usdc_video_watch_url
+      assert buy_usdc_video?, "the band must always have a player"
+      assert_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id,
+                   "the SAME id, not a second copy of its value — a copy drifts"
     end
   end
 
-  test "a blank id is absent too, not a video with an empty name" do
+  test "a blank id falls back too, rather than building an empty embed" do
     with_video_id("  ") do
-      refute buy_usdc_video?
-      assert_nil buy_usdc_video_embed_url
+      assert buy_usdc_video?
+      assert_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id
+    end
+  end
+
+  test "a configured id wins, which is how the real video lands without a deploy" do
+    with_video_id("abc123XYZ_-") do
+      assert_equal "abc123XYZ_-", buy_usdc_video_id
+      refute_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id
     end
   end
 

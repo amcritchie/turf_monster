@@ -60,8 +60,17 @@ module BuyUsdcHelper
   # no player — the same discipline onramp_rail_visible? applies to a flagged-off
   # rail. The alternative, an embed with an empty id, renders YouTube's own error
   # card inside the modal, which is worse than the absence it is reporting.
+  # Defaults to the Phantom onboarding walkthrough the wallet-setup card already
+  # plays (operator, 2026-09-06: "for now just use the same phantom onboarding
+  # youtube video"). A card that tells someone to buy USDC inside Phantom and
+  # then shows them nothing is the worse failure; a general Phantom walkthrough
+  # is imperfect but honest, and it is the SAME video, not a second copy of the
+  # id — so the two cannot drift.
+  #
+  # BUY_USDC_VIDEO_ID overrides it, which is how the purpose-made video lands
+  # without a deploy when it exists.
   def buy_usdc_video_id
-    ENV["BUY_USDC_VIDEO_ID"].presence
+    ENV["BUY_USDC_VIDEO_ID"].presence || WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID
   end
 
   # The band's player gate. Views ask this, never the id, so "configured" stays

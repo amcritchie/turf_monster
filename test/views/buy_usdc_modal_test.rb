@@ -89,48 +89,37 @@ class BuyUsdcModalTest < ActionView::TestCase
            "host's template x-if drops it and the icon renders empty"
   end
 
-  test "Coinbase leads, because it funds the wallet the entry is paid from" do
+  test "the card offers Phantom and NOTHING resembling a payment rail" do
     html = with_video_id(nil) { render_card }
     doc  = Nokogiri::HTML5.fragment(html)
-    rail = doc.at_css("[data-usdc-rail='coinbase']")
 
-    # THE REGRESSION THIS PINS. A revision of this card shipped the Phantom row
-    # ALONE. A web2 entry is paid from web2_solana_address by the managed keypair,
-    # and since #556 the web2 branch is exactly the managed-only population — so
-    # the card's only control told them to fund a wallet their entry cannot spend
-    # from. The CDP ramp follows User#solana_address, which for those accounts IS
-    # the paying wallet, so this rail must lead.
-    assert rail, "the Coinbase rail must render"
-    assert_includes rail.to_html, "swap('cdp-ramp'"
+    assert doc.at_css("[data-usdc-rail='phantom']"), "Phantom is the route"
 
-    coinbase_at = html.index(%(data-usdc-rail="coinbase"))
-    phantom_at  = html.index(%(data-usdc-rail="phantom"))
-    assert phantom_at, "the Phantom row stays — it is right for a different audience"
-    assert coinbase_at < phantom_at, "Coinbase must render above Phantom"
-  end
-
-  test "Top Up Wallet keeps an entrance from this card" do
-    html = with_video_id(nil) { render_card }
-
-    # showFundsNeeded was showWalletTopup's ONLY caller. Replacing the fork
-    # orphaned it, taking the kill-switch degrade and the Add Funds hub with it.
-    # This control is what un-orphans it, so assert the ROUTE, not the function.
-    assert Nokogiri::HTML5.fragment(html).at_css("[data-usdc-more]"),
-           "the card must carry the onward control into Top Up Wallet"
-    assert_includes html, "$store.modals.swap('wallet-topup', {})"
+    # THE CDP/COINBASE ONRAMP HAS NO LEGAL CLEARANCE (operator, 2026-09-06). A
+    # revision of this card led with that rail. Leading a funds wall with an
+    # uncleared payment path is the one mistake here that is not a layout
+    # problem, so pin its absence — including the indirect routes, since
+    # _wallet_topup and _onramp_hub both still offer it.
+    refute_includes html, "cdp-ramp", "the uncleared onramp must not be reachable"
+    refute_includes html, "wallet-topup", "nor reachable one hop away through Top Up Wallet"
+    refute_includes html, "onramp-hub", "nor through the Add Funds hub"
+    refute_includes html, "Coinbase", "and it must not be named"
   end
 
   # --- the optional player ----------------------------------------------------
 
-  test "no configured video still renders the teaching band and its guide" do
+  test "the teaching band always ships a player, falling back to the wallet walkthrough" do
     html = with_video_id(nil) { render_card }
     doc  = Nokogiri::HTML5.fragment(html)
 
-    assert_nil doc.at_css("iframe"),
-               "an embed with no id renders YouTube's error card inside the modal"
-    assert_includes html, "New to USDC", "the band's heading survives an absent video"
-    assert doc.at_css("[data-usdc-guide]"),
-           "the read-it-instead route is the whole band when there is no player"
+    frame = doc.at_css("iframe")
+    assert frame, "a card that says 'buy USDC in Phantom' and shows nothing is the worse failure"
+    assert_includes frame["src"], WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID,
+                    "unset falls back to the walkthrough the wallet card plays"
+    assert_includes html, "New to USDC"
+    assert doc.at_css("[data-usdc-guide]"), "the read-it-instead route stays"
+    assert doc.at_css("button[aria-label='Unmute the video']"),
+           "a silent autoplaying player needs the tap-for-sound overlay"
   end
 
   test "a configured video mounts the player on the privacy host" do
@@ -143,15 +132,5 @@ class BuyUsdcModalTest < ActionView::TestCase
     assert_includes frame["allow"].to_s, "autoplay",
                     "muted autoplay is the only autoplay a modal that opened " \
                     "without a click is permitted"
-  end
-
-  test "the unmute affordance ships with the player and not without it" do
-    with_player = with_video_id("abc123XYZ_-") { render_card }
-    without     = with_video_id(nil) { render_card }
-
-    assert Nokogiri::HTML5.fragment(with_player).at_css("button[aria-label='Unmute the video']"),
-           "a silent autoplaying player needs the tap-for-sound overlay"
-    assert_nil Nokogiri::HTML5.fragment(without).at_css("button[aria-label='Unmute the video']"),
-               "an unmute control over no player is a button that does nothing"
   end
 end
