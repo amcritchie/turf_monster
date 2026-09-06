@@ -1,5 +1,5 @@
 <% page_title = @landing_page.headline.presence || @landing_page.name %>
-<% content_for :title, "#{page_title} — Turf Totals" %>
+<% content_for :title, "#{page_title} — Turf Monster" %>
 <%# Drive the unfurl metadata through the layout's canonical og/twitter tags
     (title from :title, description from :meta_description, image from the
     default landscape og.png with width/height). Emitting og:title/og:type/
@@ -19,7 +19,7 @@
     <%# Brand %>
     <%= link_to root_path, class: "flex items-center justify-center gap-2 mb-8" do %>
       <%= brand_logo px: 40, classes: "w-10 h-10 shadow-lg" %>
-      <span class="text-xl font-extrabold tracking-tight"><span class="text-heading">Turf</span><span class="text-primary">Totals</span></span>
+      <span class="text-xl font-extrabold tracking-tight"><span class="text-heading">Turf</span><span class="text-primary">Monster</span></span>
     <% end %>
 
     <%# Hero %>
@@ -91,7 +91,7 @@
         New here?
         <%= link_to "Visit the Help Center", help_path, target: "_blank", rel: "noopener", class: "text-primary hover:text-primary-300 underline underline-offset-2" %>
       <% else %>
-        New to Turf Totals?
+        New to Turf Monster?
         <%= link_to "See how it works", turf_totals_v1_path, target: "_blank", rel: "noopener", class: "text-primary hover:text-primary-300 underline underline-offset-2" %>
       <% end %>
     </p>

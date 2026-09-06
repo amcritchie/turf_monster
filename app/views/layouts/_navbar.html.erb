@@ -101,14 +101,12 @@
           <%# No w-*/h-* utility here: .nav-shell .nav-logo sizes it off --nav-p.
               transition-transform, NOT transition-all — the hover lift still
               eases, while width/height follow the finger with no clock. %>
-          <img src="/icon-192.png" alt="Turf Totals" width="48" height="48" class="nav-logo rounded-full shadow-lg <%= "group-hover:scale-105 transition-transform duration-300" unless is_preview %>">
-          <h1 class="nav-title font-extrabold text-heading tracking-tight"><span class="dm-salmon">Turf</span><span class="dm-yellow text-primary">Totals</span></h1>
+          <img src="/icon-192.png" alt="Turf Monster" width="48" height="48" class="nav-logo rounded-full shadow-lg <%= "group-hover:scale-105 transition-transform duration-300" unless is_preview %>">
+          <h1 class="nav-title font-extrabold text-heading tracking-tight"><span class="dm-salmon">Turf</span><span class="dm-yellow text-primary">Monster</span></h1>
         <% end %>
         <nav class="dm-teal hidden md:flex items-center gap-4 min-w-0">
           <%= link_to "Contests", contests_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
-          <%= link_to "NFL Totals", nfl_team_totals_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
-          <%= link_to "Reserves", proof_of_reserves_path, class: "text-secondary hover:text-primary text-sm font-medium transition" %>
           <%= render "components/geo_badge" %>
         </nav>
       </div>
@@ -173,9 +171,7 @@
   <%# Mobile sub-navbar: compact row of links hidden on desktop %>
   <div class="dm-coral flex md:hidden items-center gap-3 px-4 py-1.5 border-t border-subtle bg-surface-alt">
     <%= link_to "Contests", contests_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
-    <%= link_to "NFL Totals", nfl_team_totals_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= link_to "Rules", turf_totals_v1_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
-    <%= link_to "Reserves", proof_of_reserves_path, class: "text-secondary hover:text-primary text-xs font-medium transition whitespace-nowrap" %>
     <%= render "components/geo_badge" %>
     <span class="ml-auto flex items-center gap-3">
       <%= render "components/gear_sidebar_trigger" %>
