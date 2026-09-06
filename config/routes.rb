@@ -504,6 +504,7 @@ Rails.application.routes.draw do
       member do
         post :confirm
         post :rebuild
+        post :broadcast
       end
     end
 

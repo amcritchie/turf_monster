@@ -617,8 +617,22 @@
 # spec that measures this page. Coverage ADDED; `quarantined` is untouched.
 # Re-derived with bin/e2e-lane-derive --write on a tree level with
 # origin/accepted (0 behind at derive time), never hand-incremented.
+
+# 228 -> 229 (server-side-cosign-broadcast): one spec in
+# e2e/cosign_fresh_transaction.spec.js for the treasury cosign flow, which no
+# server-side tier can witness. The response was never wrong — the page rendered
+# a perfectly valid transaction into `data-tx-serialized`. What broke it was
+# TIME: the blockhash inside those bytes aged from page render, so by the first
+# click it was usually dead, and clicking again re-sent the identical dead
+# bytes. Every String assertion passed the whole time, and $140 of alpha-contest
+# payouts sat unsent from June to September while the operator retried something
+# that could never land. The spec asserts what only a live browser produces —
+# the module's global actually installed, the live DOM carries no wire, and
+# invoking the flow POSTs to .../rebuild before anything is signed.
+# Re-derived with bin/e2e-lane-derive --write, never hand-incremented.
+
 #
-# 228 -> 232 on 2026-09-06: e2e/admin_free_entry_burn_confirm.spec.js pins the
+# 229 -> 233 on 2026-09-06: e2e/admin_free_entry_burn_confirm.spec.js pins the
 # CONFIRM DIALOG in front of the new /admin/free_entries burn controls
 # (/tasks/burn-free-entry-tokens). `button_to ... data: { turbo_confirm: }` is a
 # data attribute — server-side every tier can prove is that the string was
@@ -628,7 +642,7 @@
 # property with no undo. Four specs: dismiss sends nothing, accept sends exactly
 # one, "Burn all" names its count, and a holder with nothing spendable is
 # offered no control at all. Coverage ADDED; `quarantined` is untouched.
-total_specs: 232
+total_specs: 233
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -888,7 +902,7 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 211
+executed: 212
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to

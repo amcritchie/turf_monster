@@ -2419,6 +2419,47 @@ module Solana
       client.send_and_confirm(patched_b64)
     end
 
+    # Broadcast a FULLY-signed multisig wire on the operator's behalf: the admin
+    # slot was signed at build time (build_partial_signed), the cosigner's
+    # Phantom filled the remaining slot in the browser, and this sends it.
+    #
+    # THE BROWSER MUST NOT SEND THESE ITSELF. It did until 2026-09-05, and it
+    # failed every time on mainnet for three compounding reasons:
+    #
+    #   1. Config.public_rpc_url deliberately refuses to hand a CREDENTIALED
+    #      endpoint to a browser (it would leak the key), and
+    #      SOLANA_PUBLIC_RPC_URL was unset — so the page fell back to the free
+    #      public cluster RPC, which rate-limits browser traffic hard.
+    #   2. `new solanaWeb3.Connection(url)` takes the `finalized` commitment by
+    #      default, so sendRawTransaction preflighted a fresh blockhash against
+    #      a bank ~32 slots behind and rejected a VALID tx as BlockhashNotFound.
+    #   3. The wire came from a DOM attribute rendered with the page, so
+    #      clicking Co-sign again re-sent the SAME expired bytes forever.
+    #
+    # One catch-all modal blamed the blockhash for all three, which is how $140
+    # of alpha-contest payouts sat unsent from June to September while the
+    # operator retried a transaction that could never land.
+    #
+    # sig_verify:false + replace_recent_blockhash:true are the same settings
+    # #cosign_and_broadcast_entry uses, and for the same reason: we want the
+    # PROGRAM's verdict here, not a re-check of signatures or blockhash age.
+    # The send that follows still enforces both for real.
+    #
+    # Anchored on a plain recent blockhash, NOT the durable nonce — see the
+    # 2026-06-11 note in #build_enter_contest: Phantom injects Lighthouse guard
+    # instructions at positions we do not control, and a nonce tx is only
+    # recognized when advanceNonceAccount is instruction 0.
+    def simulate_and_broadcast(signed_wire_base64)
+      sim = client.simulate_transaction(signed_wire_base64, sig_verify: false,
+                                        replace_recent_blockhash: true)
+      if sim && sim["err"]
+        logs = Array(sim["logs"]).last(6).join("\n")
+        raise "Pre-flight simulation failed: #{sim['err'].inspect}#{logs.empty? ? '' : "\n#{logs}"}"
+      end
+
+      client.send_and_confirm(signed_wire_base64)
+    end
+
     def cosign_and_broadcast_create_contest(signed_wire_base64)
       patched_b64 = Transaction.cosign_wire_base64(signed_wire_base64, signer: Keypair.admin)
 
