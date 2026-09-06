@@ -70,14 +70,22 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
 
   # --- the audience dispatcher: web2 -> buy-entry-token, web3 -> wallet-topup ---
 
-  test "showFundsNeeded splits web2 to the Buy an Entry Token modal and web3 to Top Up Wallet" do
+  test "showFundsNeeded sends the funds wall to Get USDC, keeping only the kill-switch audience on tokens" do
     get contest_path(contests(:one))
     assert_response :success
     body = response.body
     assert_includes body, "showFundsNeeded() {"
-    assert_includes body, "if (Alpine.store('session').mode === 'web2') {"
+    # REBOUND (2026-09-05). The old assertion pinned `mode === 'web2'` as the
+    # whole condition — the fork that sent every web2 player to a modal with no
+    # visible rails in production. What must hold now: the USDC card is the
+    # default answer, and the ONLY audience still routed to tokens is the one
+    # that literally cannot pay with USDC (ENABLE_WEB2_USDC_ENTRY off).
+    assert_includes body, "session.mode === 'web2' && !session.web2UsdcEntry"
     assert_includes body, "this.showBuyEntryToken();"
-    assert_includes body, "this.showWalletTopup();"
+    assert_includes body, "this.showGetUsdc();"
+    # showBuyEntryToken must refuse to open with no rail to show, rather than
+    # painting "pick how to pay" over an empty box.
+    assert_includes body, "if (!Alpine.store('session').entryTokenRailsAvailable) {"
     # showBuyEntryToken opens the buy-entry-token modal (open vs swap, like wallet-topup).
     assert_includes body, "showBuyEntryToken() {"
     assert_includes body, "s.open('buy-entry-token', { enterAnim: 'shake' })"

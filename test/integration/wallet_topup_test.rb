@@ -162,12 +162,18 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
     # Wallet — the web3 branch of the dispatcher is byte-identical to before.
     assert_includes body, "showWalletTopup()"
     assert_includes body, "s.open('wallet-topup', { enterAnim: 'shake' })"
-    # The 'no_funding' eligibility-blocker case (renamed from 'no_tokens' in the
-    # unified-funding refactor) now routes through the audience dispatcher:
-    # web2 → Buy an Entry Token modal, web3 → Top Up Wallet.
+    # The 'no_funding' eligibility-blocker case still routes through the
+    # dispatcher — that part is unchanged.
     assert_match(/case 'no_funding':\s+this\.showFundsNeeded\(\);/, body,
                  "the no_funding entry wall must route through showFundsNeeded")
-    assert_includes body, "if (Alpine.store('session').mode === 'web2') {"
+    # REBOUND (2026-09-05). This pinned `mode === 'web2'` as the WHOLE dispatcher
+    # condition, which is the fork that was the bug: it sent every web2 player to
+    # a modal whose rails were both flagged off in production. The concern is that
+    # the dispatcher FORKS ON FUNDING, not that it forks on mode, so assert the
+    # condition that survives — the USDC kill-switch audience, who cannot pay with
+    # USDC and therefore keep the entry-token path.
+    assert_includes body, "session.mode === 'web2' && !session.web2UsdcEntry",
+                    "only the USDC kill-switch audience may be routed to tokens"
     refute_match(/case 'no_tokens':/, body,
                  "the legacy no_tokens blocker case must be gone (renamed no_funding)")
   end
