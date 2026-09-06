@@ -158,10 +158,14 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
     get contest_path(contests(:one))
     assert_response :success
     body = response.body
-    # web3's showWalletTopup method still exists and still opens the USDC Top Up
-    # Wallet — the web3 branch of the dispatcher is byte-identical to before.
+    # REBOUND. This asserted showWalletTopup's SOURCE TEXT was present, which a
+    # dead function satisfies just as well as a live one — and showFundsNeeded
+    # was its only caller, so for one revision this passed over an orphan. Assert
+    # the ROUTE instead: Get USDC carries the onward control that reaches it.
     assert_includes body, "showWalletTopup()"
     assert_includes body, "s.open('wallet-topup', { enterAnim: 'shake' })"
+    assert_includes body, "$store.modals.swap('wallet-topup', {})",
+                    "Top Up Wallet must have a live entrance, not just a definition"
     # The 'no_funding' eligibility-blocker case still routes through the
     # dispatcher — that part is unchanged.
     assert_match(/case 'no_funding':\s+this\.showFundsNeeded\(\);/, body,

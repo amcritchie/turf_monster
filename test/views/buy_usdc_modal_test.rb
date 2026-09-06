@@ -89,14 +89,35 @@ class BuyUsdcModalTest < ActionView::TestCase
            "host's template x-if drops it and the icon renders empty"
   end
 
-  test "the Coinbase hand-off is gone, deliberately" do
+  test "Coinbase leads, because it funds the wallet the entry is paid from" do
+    html = with_video_id(nil) { render_card }
+    doc  = Nokogiri::HTML5.fragment(html)
+    rail = doc.at_css("[data-usdc-rail='coinbase']")
+
+    # THE REGRESSION THIS PINS. A revision of this card shipped the Phantom row
+    # ALONE. A web2 entry is paid from web2_solana_address by the managed keypair,
+    # and since #556 the web2 branch is exactly the managed-only population — so
+    # the card's only control told them to fund a wallet their entry cannot spend
+    # from. The CDP ramp follows User#solana_address, which for those accounts IS
+    # the paying wallet, so this rail must lead.
+    assert rail, "the Coinbase rail must render"
+    assert_includes rail.to_html, "swap('cdp-ramp'"
+
+    coinbase_at = html.index(%(data-usdc-rail="coinbase"))
+    phantom_at  = html.index(%(data-usdc-rail="phantom"))
+    assert phantom_at, "the Phantom row stays — it is right for a different audience"
+    assert coinbase_at < phantom_at, "Coinbase must render above Phantom"
+  end
+
+  test "Top Up Wallet keeps an entrance from this card" do
     html = with_video_id(nil) { render_card }
 
-    # Operator call: this card points at Phantom. Coinbase is still reachable —
-    # from Top Up Wallet and the Add Funds hub — but no longer from here, and a
-    # silent re-add would put two competing primary CTAs on one card.
-    refute_includes html, "wallet-topup", "the card no longer hands off to Top Up Wallet"
-    refute_includes html, "cdp-ramp", "and never reached past it to the ramp"
+    # showFundsNeeded was showWalletTopup's ONLY caller. Replacing the fork
+    # orphaned it, taking the kill-switch degrade and the Add Funds hub with it.
+    # This control is what un-orphans it, so assert the ROUTE, not the function.
+    assert Nokogiri::HTML5.fragment(html).at_css("[data-usdc-more]"),
+           "the card must carry the onward control into Top Up Wallet"
+    assert_includes html, "$store.modals.swap('wallet-topup', {})"
   end
 
   # --- the optional player ----------------------------------------------------

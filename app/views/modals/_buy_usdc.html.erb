@@ -17,12 +17,14 @@
   because nothing made them share. This composes blocks/_close_x and
   blocks/_rail_row so a change to the house idiom reaches it for free.
 
-  IT TEACHES AND POINTS AT PHANTOM; it does not process a payment. The Coinbase
-  rail, the kill-switch degrade and the Add Funds hub all still live in
-  modals/_wallet_topup — this card no longer links there (operator call), so
-  Coinbase is reached from Top Up Wallet and the Add Funds hub rather than from
-  here. What this card owns is the question a rail cannot answer: what USDC is,
-  and how a person who already has a wallet gets some inside it.
+  TWO RAILS, FOR TWO AUDIENCES, because neither is right for both. Coinbase leads
+  and follows User#solana_address, which for a managed-only account is the web2
+  address the entry is actually paid from; Phantom suits the self-custody holder.
+  An earlier revision shipped the Phantom row ALONE and that was a regression
+  worse than the empty modal this card replaced — it told the managed majority to
+  spend real money into a wallet their entry cannot spend from. The kill-switch
+  degrade and the other cash rails still live in modals/_wallet_topup, reached by
+  the "More ways to add funds" link at the foot of this card.
 
   THE VIDEO IS OPTIONAL. buy_usdc_video? is false until BUY_USDC_VIDEO_ID is set
   and the band then renders heading and guide with no player. See BuyUsdcHelper.
@@ -79,6 +81,40 @@
   <%= render "studio/modals/blocks/wallet_brand_sprite" %>
 
   <div class="space-y-3">
+    <%# COINBASE FIRST, and it is not a preference. A web2 entry is paid from
+        user.web2_solana_address by the MANAGED keypair (Solana::Vault, whose own
+        comment says "NEVER user.solana_address"), and the CDP ramp targets
+        User#solana_address — which for a managed-only account IS the web2
+        address. So this rail funds the wallet the entry actually spends from.
+        The Phantom row below cannot: it sends the user to a wallet this entry
+        will never touch.
+
+        THAT IS THE WHOLE AUDIENCE HERE NOW. Since #556, linking a wallet
+        promotes the session to :web3, so the web2 branch of showFundsNeeded is
+        exactly the managed-only population — 24 accounts in prod on 2026-09-06,
+        15 of whom have entered a contest. Shipping only the Phantom row told
+        every one of them to spend real money into a wallet that cannot pay.
+
+        Server-gated on the same policy Top Up Wallet uses, so a flagged-off ramp
+        never ships a dead button. %>
+    <% if onramp_rail_visible?(:coinbase) %>
+      <%= render "studio/modals/blocks/rail_row",
+            emphasis:   :primary,
+            on_click:   "$store.modals.swap('cdp-ramp', { flow: 'buy', step: 'preflight' })",
+            icon_label: "C",
+            icon_bg:    "#0052FF",
+            title:      "Buy USDC with Coinbase",
+            subtitle:   "Card or bank · funds your entry",
+            data:       { usdc_rail: "coinbase" } %>
+    <% end %>
+
+    <%# Phantom, for the self-custody holder (operator call, 2026-09-05). Right
+        for a different audience than the rail above, and neither is right for
+        both — so both ship. Not blocks/_rail_row: that primitive draws its icon
+        as a letter or emoji in a tinted tile and has no slot for a brand
+        <svg><use> or the ml-auto action label this idiom puts opposite the name.
+        Markup copied verbatim from _wallet_setup's mobile row so the two stay
+        identical until an engine wallet-row primitive exists. %>
     <a href="<%= phantom_buy_url %>" target="_blank" rel="noopener noreferrer"
        class="w-full flex items-center gap-3 p-3 rounded-xl bg-surface-alt border border-strong hover:bg-surface transition text-left no-underline"
        data-usdc-rail="phantom">
@@ -153,8 +189,20 @@
     </a>
   </div>
 
+  <%# The onward route, and the reason Top Up Wallet is not orphaned. Replacing
+      showFundsNeeded's fork left showWalletTopup with ZERO callers, which killed
+      the entrance to the kill-switch degrade and the Add Funds hub along with it.
+      This link restores it: the same "More ways" idiom Top Up Wallet itself uses
+      to reach the hub. %>
+  <button type="button"
+          @click="$store.modals.swap('wallet-topup', {})"
+          class="block mx-auto mt-4 text-sm text-secondary hover:text-heading transition"
+          data-usdc-more>
+    More ways to add funds &rarr;
+  </button>
+
   <button type="button" @click="$store.modals.close()"
-          class="mt-4 w-full text-center text-sm text-secondary hover:text-heading">
+          class="mt-2 w-full text-center text-sm text-secondary hover:text-heading">
     Maybe later
   </button>
 </div>

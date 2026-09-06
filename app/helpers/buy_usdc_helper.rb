@@ -27,16 +27,20 @@ module BuyUsdcHelper
 
   # --- The Phantom rail ----------------------------------------------------
   #
-  # Where the row goes. Phantom exposes NO web API for "open your buy screen",
-  # so a page cannot deep-link into it; the honest destination is Phantom itself,
-  # and its universal link already handles both states on a phone (app installed
-  # opens it, app absent falls through to Phantom's own install page) — the same
-  # property modals/_wallet_setup relies on for its mobile row.
+  # Where the row goes. Phantom exposes NO web API for "open your buy screen", so
+  # a page cannot send anyone straight there; the honest destination is Phantom's
+  # own site.
+  #
+  # THIS IS A MARKETING LANDING PAGE, NOT A UNIVERSAL LINK, and an earlier version
+  # of this comment claimed otherwise while citing modals/_wallet_setup as
+  # precedent. Both were wrong: _wallet_setup uses phantom.com/download, and the
+  # real universal link is the phantom.app/ul/... form solana-studio's deep-link
+  # partial builds. Nothing here opens an installed app — it opens a web page.
   #
   # Overridable so the operator can point it at a specific buy guide without a
-  # deploy, the same way BUY_USDC_VIDEO_ID works. The default is the bare site
-  # rather than a guessed deep path: a 404 in the one CTA on this card is worse
-  # than a general landing page.
+  # deploy, the same way BUY_USDC_VIDEO_ID works. The default stays the bare site
+  # rather than a guessed deep path: a 404 in a CTA on this card is worse than a
+  # general landing page.
   PHANTOM_BUY_URL = "https://phantom.com/".freeze
 
   def phantom_buy_url
@@ -82,13 +86,13 @@ module BuyUsdcHelper
       "playsinline" => "1"     # iOS: play in the modal, not fullscreen takeover
     }.map { |k, v| "#{k}=#{CGI.escape(v)}" }.join("&")
 
-    "#{WalletSetupHelper::PHANTOM_INTRO_VIDEO_HOST}/embed/#{buy_usdc_video_id}?#{query}"
+    "#{WalletSetupHelper::PHANTOM_INTRO_VIDEO_HOST}/embed/#{CGI.escape(buy_usdc_video_id)}?#{query}"
   end
 
   # The watch-on-YouTube destination, for the accessible link behind the facade.
   def buy_usdc_video_watch_url
     return nil unless buy_usdc_video?
 
-    "https://www.youtube.com/watch?v=#{buy_usdc_video_id}"
+    "https://www.youtube.com/watch?v=#{CGI.escape(buy_usdc_video_id)}"
   end
 end
