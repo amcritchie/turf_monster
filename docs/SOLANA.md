@@ -27,6 +27,11 @@ Local (turf-monster) classes:
 - `Solana::Reconciler` — compares **on-chain contest state** (entry counts, slot-0 `entry_fees`) and per-user on-chain account presence against the DB; writes discrepancies to `ErrorLog` only. **No** Slack/Discord webhook. The scheduled cron was **removed 2026-05-19 (OPSEC-040)** — run ad-hoc via the rake tasks below.
 - `Solana::ClientLogger` — prepended onto the RPC client to write `OutboundRequest` audit rows.
 
+Money-path reconcilers live outside `solana/` but read the chain the same way. All three are **read-only on chain** — they resolve an ambiguous Rails row against what the chain already says, and none of them signs, broadcasts, transfers or mints:
+- `Contests::PendingReconciler` — stranded `pending` **Contest** rows (a crash between `#finalize`'s write-ahead save and its promote). Promote / delete / flag, keyed on whether the derived Contest PDA exists. See the contest-creation section below.
+- `Entries::OnchainReconciler` — `cart` **Entry** rows whose on-chain consume already settled (the 2026-06-08 incident, entry #133). Rooted in Contest rows, which is why it could never reach a contest-level strand.
+- `Deposits::OnchainReconciler` — stranded `pending` **TransactionLog** deposit rows (die-after-claim in `StripeDepositJob`). Confirms the recorded signature; never re-transfers.
+
 RPC + serialization primitives come from the **`solana-studio` gem** (`~> 0.5.3`, per `Gemfile`), not local: `Solana::Client` (JSON-RPC over Net::HTTP, retry/blockhash logic), `Solana::Borsh`, `Solana::Transaction` (builder, `find_pda`, `anchor_discriminator`, partial signing), `Solana::SplToken`.
 
 ## Anchor Program (`turf-vault/`)
@@ -168,7 +173,9 @@ Client signing paths run a network-intent guard before wallet requests. The guar
 
 Contest creation transfers the prize-pool USDC from the creator's Phantom wallet into the **per-contest `prize_pool` PDA** `[b"prize_pool", contest_id]` (authority = `VaultState`) — real hard escrow, not just a number on a PDA, and **not** a shared vault balance. Dual-signer: the admin bot pays SOL rent, the creator's Phantom signs the USDC transfer.
 
-The on-chain TX completes **before** the DB row is created, so the database always reflects committed on-chain state.
+**Write ordering (changed 2026-09-05, PR #551 — the old text here said the opposite):** the DB row is written **BEFORE** the broadcast, not after. The row is saved `status: :pending` carrying the slug-derived PDA, the money then moves, and the row is promoted to `open` only once the transaction is verified.
+
+The reason is which failure you would rather have. Broadcasting first meant any raise between the broadcast and the insert — an RPC read-back, an S3 banner upload, a NOT NULL column — left the creator's prize pool in the vault with **no Rails row at all**, and `Entries::OnchainReconciler` is rooted in Contest rows, so that state was not merely unreconciled but unreachable. Writing first inverts it: a crash leaves a **row with no money**, which is sweepable. So the database no longer "always reflects committed on-chain state" — a `pending` row means *written, not yet verified*, and that is the point.
 
 1. Admin fills form + submits → `POST /contests` (`ContestsController#create`)
    - Click-time prechecks: on-chain `Contest` PDA must not exist; creator's USDC must cover the prize pool. Insufficient-USDC modal includes a "Mint $500 Test USDC" recovery button.
@@ -176,8 +183,29 @@ The on-chain TX completes **before** the DB row is created, so the database alwa
 2. Client: `phantom.signTransaction(tx)` only. The browser serializes the Phantom-signed wire with the admin slot still empty and posts it back; it does not simulate, broadcast, or poll.
 3. `POST /contests/finalize` (`ContestsController#finalize`) — collection route, no `:id`.
    - `Vault#assert_create_contest_cosign_safe!` semantically validates the signed wire against the server-issued payload (fee schedule, payouts, prize pool, lock timestamp, slug-derived PDA, expected accounts) before the admin key signs anything.
-   - Rails admin-cosigns, simulates, broadcasts, waits for confirmation, then verifies via `verify_solana_transaction!` (OPSEC-010 — matches the `create_contest` discriminator + expected accounts).
-   - Creates the DB row with `skip_onchain_callback = true` so the legacy `Contest#create_onchain!` after_create callback doesn't double-spend.
+   - **Step 1 — the write-ahead row.** Saves the Contest as `status: :pending` with the derived PDA and `skip_onchain_callback = true`, before a single lamport moves. The flag (plus `onchain?` being true once the PDA is set, plus `create_onchain!`'s own `return if onchain?`) is what stops the legacy `Contest#create_onchain!` after_create callback from broadcasting a SECOND, house-funded `create_contest`. Saving here also moves the column-level failures ahead of the money.
+   - **Step 2 — the broadcast.** Rails admin-cosigns, simulates, broadcasts, waits for confirmation. Past this line the money is real.
+   - **Step 3 — stamp the signature immediately**, before any read-back that can raise. The row stays `pending`: a broadcast is not a verification.
+   - **Step 4 — verify** via `verify_solana_transaction!` (OPSEC-010 — matches the `create_contest` discriminator + expected accounts).
+   - **Step 5 — promote** the row to `open`.
+   - **Step 6 — attach the banner** last, logged and never raised: an S3 upload of a user-supplied file is the widest failure window in the method and the least worth losing a contest over.
+
+### Sweeping a stranded `pending` contest
+
+A crash anywhere in steps 1-5 leaves a `pending` row behind. `Contests::PendingReconciler` (service + `PendingContestReconcilerJob`, every 15 minutes in `config/schedule.yml`) resolves them, **read-only on chain** — it never signs, broadcasts or transfers:
+
+| On-chain read of the derived Contest PDA | Verdict |
+|---|---|
+| Account **present** | **Promote** to `open`. `create_contest` `init`s the Contest PDA, `init`s the prize-pool token account and CPIs the creator's USDC transfer in ONE atomic instruction, so the account existing **is** the funding proof. |
+| Account **absent** | **Delete** the row. No broadcast landed, so no money moved, and the row is only squatting on a uniquely-indexed slug its creator cannot reuse. |
+| RPC **fault** | **Leave it.** An unreadable chain is not evidence of absence — folding the error into "absent" would let a rate limit delete a funded contest. |
+| PDA does not match the slug, or the row carries a broadcast signature, or entries/messages/a landing page reference it | **Flag** (`onchain_reconcile_flagged_at` + `ErrorLog`) and never touch it again. A human reads the chain. |
+
+Rows younger than `RECONCILE_AFTER` (10 minutes) are never touched — an in-flight finalize is indistinguishable from a strand by inspection.
+
+**Do not gate the promote on a positive prize pool.** `create_contest` validation #5 accepts `any_fee_set || prize_pool > 0`, so a fee-charging contest with a zero prize pool is legal on chain; requiring a positive pool would delete a real, funded contest.
+
+Until the sweep runs, a retry of the same slug is refused by the DB guard rather than by the chain, and the error message says so — including that no payment was taken and that it clears itself.
 
 ### Legacy server-only fallback
 
