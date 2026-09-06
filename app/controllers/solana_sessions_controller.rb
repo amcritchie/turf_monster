@@ -61,7 +61,6 @@ class SolanaSessionsController < ApplicationController
       user.claim_parked_username!
       cookies.delete(:reference) if is_new
       set_app_session(user)
-      session[:onchain] = true
       # Remember WHICH wallet just signed, so a later web2 login by this same
       # account can be met with one "Continue with Phantom" button instead of
       # the generic picker. Untrusted client string — the model normalises it
@@ -70,9 +69,12 @@ class SolanaSessionsController < ApplicationController
       # The SET bookend, and the one that also covers a wallet SWITCH — a switch
       # re-auths through this same endpoint, so remembering the brand here means
       # the session follows the wallet without a second seam to keep in step.
-      # record_web3_authentication! writes the DURABLE column on the user; this
-      # writes the per-session fact. Both normalise through the same registry.
-      Solana::CurrentWallet.remember(session, params[:wallet_provider])
+      # record_web3_authentication! writes the DURABLE column on the user; the
+      # call below writes the per-session facts. Both normalise through the same
+      # registry. SHARED with AccountsController#link_solana — a wallet LINK is
+      # the same proof as a wallet LOGIN, and keeping the two session writes in
+      # one method is what stops the two paths drifting apart again.
+      promote_to_onchain_session!(provider: params[:wallet_provider])
       # A wallet login IS the wallet setup — drop any nudge a prior email login
       # left in this browser's session.
       clear_wallet_setup_state!

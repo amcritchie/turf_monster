@@ -304,11 +304,58 @@ module Solana
     # hatch), which is exactly the situation in which nobody wants a second
     # silent default.
     #
-    # Dev/test keep the devnet default byte-identical, so nothing local changes.
+    # PRESENT-BUT-EMPTY, closed 2026-09-06 by empty-solana-network-fails-open.
+    # The raise above shipped as `ENV.fetch("SOLANA_NETWORK") { raise ... }`, and
+    # the BLOCK form of `ENV.fetch` fires only when the key is ABSENT. A key
+    # present with an empty value yields "", so a single
+    # `heroku config:set SOLANA_NETWORK=` walked straight past the guard the
+    # paragraphs above describe. `.presence` closes it: nil, "", and
+    # whitespace-only are one case, and all three raise.
+    #
+    # AN EMPTY NETWORK IS NEITHER CLUSTER, and that is a DIFFERENT failure from
+    # the unset one above — do not read the two as the same story. Under the
+    # pre-OPSEC-012 flat default an unset var resolved to the string "devnet", so
+    # `devnet?` went TRUE and the OPSEC-020 fund guards re-armed. "" is not
+    # "devnet" either, so `devnet?` AND `mainnet?` are BOTH false and every
+    # predicate-guarded branch takes its "no" arm. Measured, not assumed:
+    #   - the fund guards (faucet, airdrop, mint, add_funds) all read
+    #     `raise ... unless devnet?`, so they stay CLOSED. Safe direction.
+    #   - `admin/vault_init_controller`'s `mainnet? && creator != INIT_AUTHORITY`
+    #     pre-flight goes UNENFORCED. The on-chain program still rejects, so this
+    #     is a legibility loss, not a money loss.
+    #   - the layouts emit `data-solana-cluster="mainnet-beta"` (the else arm of
+    #     `devnet? ? ... : ...`), telling the browser mainnet while the server
+    #     resolves devnet defaults.
+    #   - `squads_vault_pda` falls to the DEVNET Squad. Neither deployed app sets
+    #     SOLANA_SQUADS_VAULT_PDA, so that default is the live path, and it is
+    #     what `treasury_authority` would be pinned to. This is the one with a
+    #     genuinely wrong VALUE rather than a missing check.
+    #   - IDL_PATH falls to the devnet IDL exactly as in the unset case, so the
+    #     OPSEC-014 hash guard still refuses the boot — opaquely. This raise
+    #     fires at EAGER LOAD, ahead of it, and names the variable.
+    #
+    # LATENT, NOT LIVE — re-verified 2026-09-06. SOLANA_NETWORK is present and
+    # non-empty on both apps ("mainnet-beta" on turf-monster-mainnet, "devnet" on
+    # turf-monster-qa), and neither app has a present-but-empty config var of any
+    # name. This is hardening against one keystroke, not an incident report.
+    #
+    # THE IDIOM IS `squads_vault_pda`'s, deliberately: env wins via `.presence`,
+    # and only the DEFAULT is network-keyed. No third idiom is introduced here.
+    #
+    # STILL A LOAD-TIME CONSTANT, and that is the point — the raise has to fire
+    # during EAGER LOAD to beat the two `after_initialize` guards named above.
+    # `test/services/solana/config_network_required_test.rb` proves the property
+    # by evaluating this real assignment out of the real source under a
+    # controlled Rails.env and ENV, which is why it needs no constant surgery.
+    #
+    # Dev/test keep the devnet default: unset is byte-identical to before, and
+    # empty now resolves to "devnet" instead of "" — so a blank local var gets a
+    # real cluster name rather than a value that answers "no" to every predicate.
     NETWORK = if Rails.env.production?
-      ENV.fetch("SOLANA_NETWORK") { raise "SOLANA_NETWORK required in production (see OPSEC-012)" }
+      ENV["SOLANA_NETWORK"].presence ||
+        raise("SOLANA_NETWORK required in production (see OPSEC-012)")
     else
-      ENV.fetch("SOLANA_NETWORK", "devnet")
+      ENV["SOLANA_NETWORK"].presence || "devnet"
     end
 
     # USDC / USDT mints.

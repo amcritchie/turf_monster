@@ -201,7 +201,7 @@ class ModalHostAdoptionTest < ActionDispatch::IntegrationTest
   # so a partial-render test cannot see it. This runs against a real page for that
   # reason.
   test "the host's block slot does not leak the page into the card" do
-    assert_equal 1, about_page.scan("About Turf Totals").size,
+    assert_equal 1, about_page.scan("About Turf Monster").size,
                  "the page's own content appears twice — the host's yield fell " \
                  "through to view_flow[:layout] and printed the page inside the card"
   end

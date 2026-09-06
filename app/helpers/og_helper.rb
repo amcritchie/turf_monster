@@ -14,9 +14,9 @@ module OgHelper
   # the last resort when SiteSetting has no admin-set default. Skill-contest
   # framing first (underwriting compliance) — blockchain transparency is the
   # secondary note, with /transparency as the deep-dive hub.
-  DEFAULT_OG_TITLE = "Turf Totals — Skill-Based World Cup Pick’em Contests".freeze
+  DEFAULT_OG_TITLE = "Turf Monster — Skill-Based World Cup Pick’em Contests".freeze
   DEFAULT_OG_DESCRIPTION =
-    "Turf Totals: skill-based World Cup pick’em contests. Pick up to 6 matchups, " \
+    "Turf Monster: skill-based World Cup pick’em contests. Pick up to 6 matchups, " \
     "stack Turf Scores, and win cash prizes with transparent, verifiable payouts.".freeze
 
   def og_image_url(landing_page = nil)

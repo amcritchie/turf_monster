@@ -82,7 +82,7 @@ module ApplicationHelper
   # `classes` carry the Tailwind sizing + styling. The navbar logo stays inline
   # — it needs a scroll-responsive x-bind:class the helper can't express.
   def brand_logo(px:, classes: "")
-    tag.img(src: "/icon-192.png", alt: "Turf Totals", width: px, height: px,
+    tag.img(src: "/icon-192.png", alt: "Turf Monster", width: px, height: px,
             class: ["rounded-full", classes].join(" ").strip)
   end
 

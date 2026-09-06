@@ -308,7 +308,7 @@ class WalletPickerAdoptionTest < ActionDispatch::IntegrationTest
     # card. It only fires during the LAYOUT pass, which is exactly how a modal is
     # mounted, so no partial-render test can see it. This runs a real page.
     with_attestation_flag(true) do
-      assert_equal 1, about_page(reload: true).scan("About Turf Totals").size,
+      assert_equal 1, about_page(reload: true).scan("About Turf Monster").size,
         "the page's own content appears twice — the slot fell through to " \
         "view_flow[:layout] and printed the page inside the picker"
     end
