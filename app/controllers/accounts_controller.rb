@@ -266,6 +266,9 @@ class AccountsController < ApplicationController
         # The account now holds a web3 wallet — the wallet-setup nudge is
         # satisfied, so drop it in the same breath as the link.
         clear_wallet_setup_state!
+        # ...and this session just proved that wallet, so it IS an on-chain
+        # session. The merge branch returns early, so it needs its own call.
+        promote_to_onchain_session!(provider: params[:wallet_provider])
         return render json: { success: true, redirect: account_path, notice: "Accounts merged." }
       end
 
@@ -275,6 +278,12 @@ class AccountsController < ApplicationController
       # same one-click step-up as one who logged in with the wallet directly.
       current_user.record_web3_authentication!(provider: params[:wallet_provider])
       clear_wallet_setup_state!
+      # The DURABLE stamps above record that this ACCOUNT holds a wallet; this
+      # records that THIS SESSION can sign with it. Without it the session stays
+      # :web2 and an account whose only wallet is self-custody cannot enter at
+      # all — the board shows the web2 "Buy an Entry Token" wall instead of
+      # asking Phantom to sign. See ApplicationController#promote_to_onchain_session!.
+      promote_to_onchain_session!(provider: params[:wallet_provider])
       # NO on-chain UserAccount is created here, deliberately. Creating one costs
       # ~0.00182 SOL of ADMIN rent and is PERMANENT — nothing in turf-vault closes
       # a UserAccount — while this endpoint is reachable by any signed-in user with
