@@ -33,12 +33,19 @@
 # of one, which is what finds the PDA the released number no longer points at.
 #
 # WHAT THIS SERVICE WILL NOT DO. It only ever PROMOTES a row toward `active`. It
-# never deletes one and never rewrites a status downward. That is the deliberate
-# difference from a contest-level sweeper, which may drop a `pending` contest row
-# it finds unfunded: a write-ahead contest row is an artifact the app authored and
-# owns, while an `abandoned` entry is a record of what a person chose plus, in the
-# strand case, the only surviving pointer to money that moved. Neither is ours to
-# delete.
+# never deletes one and never rewrites a status downward.
+#
+# That is a deliberate divergence from the contest-level sweeper being built for
+# stranded `pending` CONTEST rows (task `sweep-stranded-pending-contests`), which
+# will DELETE a row whose PDA it finds unfunded. No such sweeper exists yet — as
+# of 2026-09-06 app/services holds three reconcilers and not one of them deletes
+# a row — so treat this paragraph as the reason the verbs are allowed to differ,
+# not as a description of code you can go and read.
+#
+# The reason: a write-ahead contest row is an artifact the app authored and owns,
+# so dropping an unfunded one destroys nothing anybody asked for. An `abandoned`
+# entry is a record of what a person chose, plus — in the strand case — the only
+# surviving pointer to money that already moved. Neither is ours to delete.
 #
 # Idempotency: an already-active/complete entry is skipped. The unique partial
 # index on entries.onchain_tx_signature (plus the explicit pre-check here)
