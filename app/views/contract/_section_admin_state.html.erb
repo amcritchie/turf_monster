@@ -27,8 +27,30 @@
     <div class="bg-surface-alt border border-subtle rounded-lg p-4">
       <dt class="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Program ID</dt>
       <dd class="font-mono text-xs sm:text-sm text-heading break-all">
-        <%# Phase 2: read from Solana::Config::PROGRAM_ID at request time. %>
-        <%= (Solana::Config::PROGRAM_ID rescue "(SOLANA_PROGRAM_ID not set)") %>
+        <%# Phase 2: read from Solana::Config::PROGRAM_ID at request time.
+
+            THE FALLBACK IS A LOAD FAILURE, NOT A MISSING VAR. Every value in
+            this card comes from Solana::Config, and none of the three env vars
+            behind them can reach a RENDERED page unset. PROGRAM_ID and NETWORK
+            are load-time constants that raise during eager load in production
+            (OPSEC-012; for NETWORK, unset, empty and whitespace-only alike),
+            so a missing value stops boot instead of showing up here; dev and
+            test resolve both to devnet defaults and cannot raise at all; and
+            squads_vault_pda never raises in any environment. The only trigger
+            left for these rescues is Solana::Config itself failing to resolve.
+
+            AND THE THIRD IS DEAD OUTRIGHT. The application layout reads
+            Solana::Config.devnet? on the body tag of EVERY render, unrescued
+            (layouts/application.html.erb, the data-solana-cluster attribute),
+            and devnet? reads NETWORK. So any state that makes NETWORK
+            unreadable raises there first and the page 500s before this partial
+            renders. The NETWORK rescue below therefore cannot fire, and its
+            message says so rather than inventing a friendlier error string.
+
+            Each message names the state that actually produces it, plus what
+            is true of its own value, so a reader is not sent chasing a
+            variable that is fine. %>
+        <%= (Solana::Config::PROGRAM_ID rescue "(Solana::Config did not load; an unset SOLANA_PROGRAM_ID stops boot instead)") %>
       </dd>
       <p class="text-[11px] text-muted mt-1">Same on devnet + mainnet builds &mdash; pinned via SOLANA_PROGRAM_ID.</p>
     </div>
@@ -38,9 +60,9 @@
       <dd class="font-mono text-xs sm:text-sm text-heading break-all">
         <%# Read from Solana::Config at request time. PER CLUSTER, unlike the program ID above:
             devnet and mainnet are different Squads, so this must never be a literal. %>
-        <%= (Solana::Config.squads_vault_pda rescue "(SOLANA_SQUADS_VAULT_PDA not set)") %>
+        <%= (Solana::Config.squads_vault_pda rescue "(Solana::Config did not load; SOLANA_SQUADS_VAULT_PDA is correctly unset, the cluster default is the live path)") %>
       </dd>
-      <p class="text-[11px] text-muted mt-1">Squads V4 2-of-3 vault PDA on <%= (Solana::Config::NETWORK rescue "this cluster") %> &mdash; each cluster has its own Squad. Only the Squad can ship upgrades.</p>
+      <p class="text-[11px] text-muted mt-1">Squads V4 2-of-3 vault PDA on <%= (Solana::Config::NETWORK rescue "an unresolved cluster (this fallback is unreachable: the layout reads NETWORK first, so an unreadable NETWORK 500s the page before this line renders)") %> &mdash; each cluster has its own Squad. Only the Squad can ship upgrades.</p>
     </div>
 
     <div class="bg-surface-alt border border-subtle rounded-lg p-4">
