@@ -25,12 +25,22 @@
 # stranded payment wearing a different status. Those rows are in reach too, but
 # only on proof: see #reconcilable?.
 #
-# An abandoned strand always takes the PROBE path, and needs no special handling
-# to get there. Its signature was stamped on the PendingTransaction rather than
-# the entry, so Entry#release_slot_if_abandoned — which spares the slot only when
-# the ENTRY carries a signature — nulls its entry_number on the way out. A nil
-# entry_number is exactly what makes #find_onchain_entry scan every slot instead
-# of one, which is what finds the PDA the released number no longer points at.
+# The abandoned strand this ADMITS takes the PROBE path, and needs no special
+# handling to get there. Its signature was stamped on the PendingTransaction
+# rather than the entry, so Entry#release_slot_if_abandoned — which spares the
+# slot only when the ENTRY carries a signature — nulls its entry_number on the
+# way out. A nil entry_number is exactly what makes #find_onchain_entry scan
+# every slot instead of one, which is what finds the PDA the released number no
+# longer points at.
+#
+# NOT EVERY ABANDONED STRAND, THOUGH. The MANAGED-wallet path
+# (ContestsController#enter) stamps the consume signature on the ENTRY itself and
+# writes no PendingTransaction at all, so clear_picks leaves `abandoned` + a
+# signature + the slot SPARED — and #reconcilable? refuses it, because a signed
+# PendingTransaction is its only abandoned admission. That strand is still out of
+# reach; task `reach-managed-abandoned-strand` carries the fix. Measured in review
+# 2026-09-06, not inferred: reconcile_entry returns :skipped on it and
+# #reconcilable_entries does not see it.
 #
 # WHAT THIS SERVICE WILL NOT DO. It only ever PROMOTES a row toward `active`. It
 # never deletes one and never rewrites a status downward.
