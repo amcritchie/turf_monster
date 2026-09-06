@@ -67,6 +67,27 @@ module TurfMonster
       # existing picks OFF and errored, and a third run oscillated. Clearing
       # first is what makes this step re-runnable, which is the whole reason an
       # operator can watch it fail and simply run it again.
+      #
+      # WHAT THE CLEAR CAN STILL ABANDON. The signature exception above is about
+      # the SLOT, and it does not fire for the strand this step is most likely to
+      # meet. If a previous run broadcast an entry and then failed verification,
+      # the cart row it left is paid on-chain with no signature of its own — the
+      # signature is stamped on the PendingTransaction
+      # (ContestsController#confirm_onchain_entry), never on the entry — so the
+      # clear abandons it AND releases its number. Abandoning is not losing it:
+      # Entries::OnchainReconciler admits an abandoned row when a
+      # PendingTransaction targeting it carries a broadcast signature, then
+      # recovers the PDA and the consume signature from the chain. Two limits are
+      # worth knowing before you rely on that. It converges a row only while the
+      # contest is still open and unlocked, because it heals through
+      # Entry#confirm! → #assert_enterable! — so a strand must be reconciled
+      # before Step 4, which locks the contest. And nothing schedules it —
+      # config/schedule.yml does not register Entries::OnchainReconcileJob, which
+      # test/services/entries/onchain_reconciler_test.rb pins so that scheduling
+      # it later cannot leave this paragraph lying. Heal a strand by hand with
+      # `bin/rails entries:reconcile_onchain[<contest-slug>]`, which reaches the
+      # named contest whatever its status.
+      #
       # CHECK THE ANSWER. WalletSession#post_json returns whatever the server
       # said — it does not raise on a 4xx — so a refused clear comes back as
       # `{ "success" => false, "error" => ... }` from a 422 and reads exactly

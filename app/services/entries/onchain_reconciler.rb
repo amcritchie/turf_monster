@@ -18,10 +18,32 @@
 #     Entry PDA at the wallet's slots, recover the consume signature from
 #     getSignaturesForAddress (oldest err:nil), and confirm! with it.
 #
-# Idempotency: only `cart` entries are touched; an already-active/complete entry
-# is skipped. The unique partial index on entries.onchain_tx_signature (plus the
-# explicit pre-check here) guarantees one consume signature can never credit two
-# entries, so re-running this never double-enters or double-charges.
+# A strand does not always stay in `cart`. ContestsController#clear_picks
+# abandons the cart row, and it is the ONLY writer of `abandoned` — so every
+# abandoned row is a former cart row, and a strand the user (or the QA rehearsal
+# driver, whose EntryFlow clears before every run) cleared afterwards is the same
+# stranded payment wearing a different status. Those rows are in reach too, but
+# only on proof: see #reconcilable?.
+#
+# An abandoned strand always takes the PROBE path, and needs no special handling
+# to get there. Its signature was stamped on the PendingTransaction rather than
+# the entry, so Entry#release_slot_if_abandoned — which spares the slot only when
+# the ENTRY carries a signature — nulls its entry_number on the way out. A nil
+# entry_number is exactly what makes #find_onchain_entry scan every slot instead
+# of one, which is what finds the PDA the released number no longer points at.
+#
+# WHAT THIS SERVICE WILL NOT DO. It only ever PROMOTES a row toward `active`. It
+# never deletes one and never rewrites a status downward. That is the deliberate
+# difference from a contest-level sweeper, which may drop a `pending` contest row
+# it finds unfunded: a write-ahead contest row is an artifact the app authored and
+# owns, while an `abandoned` entry is a record of what a person chose plus, in the
+# strand case, the only surviving pointer to money that moved. Neither is ours to
+# delete.
+#
+# Idempotency: an already-active/complete entry is skipped. The unique partial
+# index on entries.onchain_tx_signature (plus the explicit pre-check here)
+# guarantees one consume signature can never credit two entries, so re-running
+# this never double-enters or double-charges.
 module Entries
   class OnchainReconciler
     # Heal a single entry. Returns :reconciled / :skipped / :error.
@@ -43,7 +65,7 @@ module Entries
       stats = Hash.new(0)
       contests.each do |c|
         next unless eligible?(c)
-        c.entries.where(status: :cart).find_each do |entry|
+        reconcilable_entries(c).find_each do |entry|
           stats[reconcile_entry(entry)] += 1
         end
       end
@@ -57,7 +79,7 @@ module Entries
     def reconcile_entry(entry)
       return :skipped if entry.nil?
       entry.reload
-      return :skipped unless entry.cart?
+      return :skipped unless reconcilable?(entry)
 
       contest = entry.contest
       return :skipped unless eligible?(contest)
@@ -108,6 +130,61 @@ module Entries
     end
 
     private
+
+    # WHICH ROWS THIS SERVICE MAY TOUCH.
+    #
+    # `cart` unconditionally — the original strand shape, and the reason this
+    # service exists.
+    #
+    # `abandoned` only on proof of a broadcast. The status alone says nothing:
+    # clear_picks abandons a row every time anyone changes their mind, and
+    # promoting those would enter people who asked not to be entered. The
+    # discriminator is a PendingTransaction targeting this entry that carries a
+    # tx_signature — ContestsController#confirm_onchain_entry stamps it there
+    # IMMEDIATELY after the broadcast and BEFORE verification (A1, the
+    # double-charge guard), so its presence is the durable record that money
+    # moved for THIS row even though the entry itself never got a signature.
+    #
+    # It is an ADMISSION test, not the evidence. Nothing here is credited from
+    # the PendingTransaction: reconcile_entry still recovers the PDA and the
+    # consume signature from the chain, and still runs the full Entry#confirm!
+    # gate. So a signed PendingTransaction only buys the row a look.
+    def reconcilable?(entry)
+      return true if entry.cart?
+      return false unless entry.abandoned?
+
+      broadcast_proof?(entry)
+    end
+
+    # Mirrors the polymorphic lookup in ContestsController#confirm_onchain_entry,
+    # narrowed to rows that actually carry a signature. Deliberately NOT filtered
+    # by PendingTransaction#status: a recovery attempt that failed verification
+    # marks the row "failed" (recover_pending_entry) without unspending anything,
+    # so status is an opinion about the recovery and the signature is the fact
+    # about the broadcast. The chain probe below is what fails this closed.
+    def broadcast_proof?(entry)
+      PendingTransaction.where(target: entry)
+                        .where.not(tx_signature: [nil, ""])
+                        .exists?
+    end
+
+    # The sweep's candidate set: every `cart` row, plus only those `abandoned`
+    # rows a broadcast can be proven for. Resolving the abandoned half through
+    # PendingTransaction first keeps a contest full of ordinary cleared carts to
+    # one indexed lookup instead of a row-by-row walk that would call
+    # #reconcilable? on each.
+    def reconcilable_entries(contest)
+      contest.entries.where(status: :cart)
+             .or(contest.entries.where(status: :abandoned, id: broadcast_strand_ids(contest)))
+    end
+
+    def broadcast_strand_ids(contest)
+      PendingTransaction
+        .where(target_type: "Entry", target_id: contest.entries.where(status: :abandoned).select(:id))
+        .where.not(tx_signature: [nil, ""])
+        .distinct
+        .pluck(:target_id)
+    end
 
     def eligible_contests
       Contest.where(status: :open).select { |c| eligible?(c) }
