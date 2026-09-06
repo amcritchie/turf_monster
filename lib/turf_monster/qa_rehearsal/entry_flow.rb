@@ -81,7 +81,11 @@ module TurfMonster
       # worth knowing before you rely on that. It converges a row only while the
       # contest is still open and unlocked, because it heals through
       # Entry#confirm! → #assert_enterable! — so a strand must be reconciled
-      # before Step 4, which locks the contest. And nothing schedules it —
+      # before Step 3, which is where the lock actually lands (Driver#
+      # play_preseason → #lock_contest: a contest locks at kickoff and THEN the
+      # games play). Step 4's #conclude re-locks only as a backstop for a run
+      # that skipped Step 3, and Driver warns in prose against reading the lock
+      # as living there. And nothing schedules it —
       # config/schedule.yml does not register Entries::OnchainReconcileJob, which
       # test/services/entries/onchain_reconciler_test.rb pins so that scheduling
       # it later cannot leave this paragraph lying. Heal a strand by hand with
