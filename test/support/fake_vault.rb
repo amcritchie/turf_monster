@@ -21,11 +21,12 @@ class FakeVault
   # asserting it went to the right wallet — the gap that hid a ref keyed to a
   # different address than the mint.
   attr_reader :mint_calls, :mint_wallets, :transfer_calls, :enter_calls, :ensure_account_calls,
-              :fund_calls, :deposit_calls, :sync_balance_calls, :entry_token_list_calls
+              :fund_calls, :deposit_calls, :sync_balance_calls, :entry_token_list_calls, :broadcast_calls
 
   def initialize(fail_after: nil, starting_sequence: 0, tokens: [], signature_statuses: {},
                  usdc_balance: nil, usdc_balance_raises: false, account_infos: {}, signatures: {},
-                 send_raises: nil, season: { season_id: 1 }, season_raises: nil, seasons: nil)
+                 send_raises: nil, season: { season_id: 1 }, season_raises: nil, seasons: nil,
+                 broadcast_raises: nil)
     @fail_after = fail_after
     @starting_sequence = starting_sequence
     @tokens = tokens
@@ -35,6 +36,7 @@ class FakeVault
     @account_infos = account_infos          # pda_b58 => {"value" => ...} for get_account_info (PDA-exists check)
     @signatures = signatures                 # pda_b58 => [{ "signature" =>, "err" => }] for getSignaturesForAddress
     @send_raises = send_raises               # send_transaction fault (offramp send tests)
+    @broadcast_raises = broadcast_raises     # simulate_and_broadcast fault (cosign broadcast tests)
     @season = season
     @season_raises = season_raises
     @seasons = seasons || Array(season)
@@ -47,6 +49,17 @@ class FakeVault
     @deposit_calls = []
     @sync_balance_calls = []
     @entry_token_list_calls = []
+    @broadcast_calls = []
+  end
+
+  # Admin::PendingTransactionsController#broadcast — the server-side send that
+  # replaced the browser's own sendRawTransaction. `broadcast_raises:` seeds a
+  # failure so a test can assert the REAL error reaches the operator instead of
+  # the old blanket "blockhash may have expired" guess.
+  def simulate_and_broadcast(signed_wire_base64)
+    @broadcast_calls << signed_wire_base64
+    raise @broadcast_raises if @broadcast_raises
+    "FAKE_SIG_broadcast"
   end
 
   # --- Solana RPC client stub (recovery flow) ---
