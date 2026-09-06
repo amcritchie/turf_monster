@@ -81,6 +81,21 @@ class Cdp::WalletForResolutionTest < ActiveSupport::TestCase
     end
   end
 
+  # The `direction == :onramp` guard on that fallback is the ONE token in this
+  # method whose removal the rest of this file cannot see: dropping it reads like
+  # a simplification (the branch looks redundant) and leaves every other test
+  # green. It is not redundant. An offramp SOURCES funds, so it needs a wallet
+  # this session can SIGN with; a web2 session cannot sign for Phantom. Falling
+  # back there would mint a session token and open a cash-out the user can never
+  # complete, instead of the honest refusal create_session renders from a blank
+  # address. The symmetry property above deliberately skips this shape, so this
+  # is the only test that pins it.
+  test "the onramp-only fallback does NOT leak into the offramp" do
+    address, mode = resolve(:offramp, web3: WEB3, web2: nil, web3_session: false)
+    assert_nil address, "an offramp needs a signer, and this session has none"
+    assert_equal :web2, mode
+  end
+
   test "web3-only account on a web2 session still gets an onramp destination" do
     # Refusing would strand the deposit; a deposit into the account's own only
     # wallet is never unsafe, merely less useful than it could be.
