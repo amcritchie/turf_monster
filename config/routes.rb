@@ -523,6 +523,10 @@ Rails.application.routes.draw do
     get  "free_entries",                       to: "free_entries#index",    as: :free_entries
     post "free_entries/:user_slug/mint",       to: "free_entries#mint",     as: :mint_free_entries
     post "free_entries/mint_all",              to: "free_entries#mint_all", as: :mint_all_free_entries
+    # Claw-back. Scoped to ONE user by design — there is no burn_all counterpart
+    # to mint_all, because "destroy every unspent free entry on the platform" is
+    # a footgun no support workflow needs.
+    post "free_entries/:user_slug/burn",       to: "free_entries#burn",     as: :burn_free_entries
 
     # Vault init (one-time mainnet setup — Phantom cosigns as INIT_AUTHORITY)
     get  "vault_init",                         to: "vault_init#show",       as: :vault_init
@@ -610,5 +614,6 @@ Rails.application.routes.draw do
     post "test/grant_web3_wallet",        to: "test#grant_web3_wallet"
     post "test/magic_link_token",         to: "test#magic_link_token"
     get  "test/user_info/:slug",          to: "test#user_info"
+    post "test/warm_entry_tokens",        to: "test#warm_entry_tokens"
   end
 end

@@ -55,6 +55,9 @@ class FakeVault
     @deposit_calls = []
     @sync_balance_calls = []
     @entry_token_list_calls = []
+    @burn_calls = []
+    @burn_wallets = []
+    @burn_fail_refs = Set.new
     @broadcast_calls = []
   end
 
@@ -167,14 +170,55 @@ class FakeVault
     { signature: "sig_#{seq}_#{SecureRandom.hex(2)}", pda: "pda-seq-#{seq}", sequence: seq }
   end
 
+  # Voids a token the way the program does — and REFUSES the way the program
+  # refuses. A double(-generous) burn that accepted an already-consumed token
+  # would certify a controller that never filters, and the operator would find
+  # out on chain.
+  #
+  # Mutates the seeded `tokens:` list in place so a burn is VISIBLE to the next
+  # #list_entry_tokens, exactly as it is on chain. Without that a test could
+  # "burn all" and then still be handed the same unspent tokens, which is the
+  # one thing this feature must never do.
+  attr_accessor :raise_on_burn
+  attr_reader :burn_calls, :burn_wallets
+
+  def burn_entry_token(wallet_address:, source_ref:)
+    @burn_calls   << source_ref
+    @burn_wallets << wallet_address
+    raise @raise_on_burn if @raise_on_burn
+    raise StandardError, "simulated burn failure" if @burn_fail_refs.include?(source_ref)
+
+    token = tokens_for(wallet_address).find { |t| t[:source_ref] == source_ref }
+    raise StandardError, "entry token not found for ref #{source_ref}" if token.nil?
+    # 6015 / 6045 on chain: already spent, or already burned.
+    raise StandardError, "EntryTokenAlreadyConsumed" if token[:consumed]
+
+    token[:consumed]    = true
+    token[:consumed_at] = Time.current.to_i
+    token[:burned]      = true
+    token[:source]      = token[:source].to_i | Solana::Vault::ENTRY_TOKEN_BURNED_FLAG
+
+    { signature: "burn_sig_#{@burn_calls.length}", pda: token[:pda] }
+  end
+
+  # Refs whose burn should fail, for the partial-failure path.
+  def fail_burn_for(*refs)
+    @burn_fail_refs.merge(refs.flatten)
+  end
+
+  def tokens_for(address)
+    @tokens.is_a?(Hash) ? (@tokens[address] || []) : @tokens
+  end
+
   # `tokens:` is usually an Array applied to EVERY address. Pass a Hash
   # (address => array) instead to model a combo (web2+web3) account whose two
   # wallets hold different tokens — e.g. a web3-owned token the web2 server-sign
   # path must NOT pick. An address missing from the Hash returns [].
   def list_entry_tokens(wallet, **_opts)
     @entry_token_list_calls << wallet
-    return (@tokens[wallet] || []).dup if @tokens.is_a?(Hash)
-    @tokens.dup
+    # A NEW array (callers mutate/sort it) holding the SAME hashes (so a burn
+    # recorded above is visible to the next read, as on chain).
+    tokens_for(wallet).dup
   end
 
   def next_entry_token_sequence(_wallet)
