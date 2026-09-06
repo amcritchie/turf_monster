@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_05_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_06_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -200,6 +200,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_120000) do
     t.boolean "onchain_cancelled", default: false, null: false
     t.boolean "onchain_closed", default: false, null: false
     t.string "onchain_contest_id"
+    t.datetime "onchain_reconcile_flagged_at"
     t.boolean "onchain_settled", default: false, null: false
     t.string "onchain_tx_signature"
     t.integer "rank"
@@ -212,6 +213,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_05_120000) do
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.index ["game_type"], name: "index_contests_on_game_type"
+    t.index ["onchain_contest_id"], name: "index_contests_on_onchain_contest_id_unique", unique: true, where: "(onchain_contest_id IS NOT NULL)"
     t.index ["rank"], name: "index_contests_on_rank"
     t.index ["slate_id"], name: "index_contests_on_slate_id"
     t.index ["slug"], name: "index_contests_on_slug", unique: true

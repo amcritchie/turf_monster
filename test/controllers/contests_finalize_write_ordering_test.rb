@@ -253,9 +253,23 @@ class ContestsFinalizeWriteOrderingTest < ActionDispatch::IntegrationTest
   # write-ahead row makes that guard fail CLOSED and say so in words.
   #
   # This is the slug-squat cost, and it is worth being precise about who caused
-  # it: the on-chain PDA already locked that slug the moment the broadcast
-  # landed. The pending row does not create the lockout — it RECORDS one that
-  # was previously invisible. PR 2's sweeper is what clears it.
+  # it, because an earlier version of this comment credited the chain and the
+  # test below refutes it.
+  #
+  # "The PDA already locked that slug the moment the broadcast landed" is true
+  # only AFTER a broadcast lands. THIS TEST IS THE PRE-BROADCAST CASE: it sets
+  # `create_cosign_broadcast_raises`, so cosign_and_broadcast_create_contest
+  # raises and nothing reaches the chain. (The real Vault behaves the same way —
+  # it simulates and raises before send_and_confirm, so a failed create leaves
+  # no PDA, no signature and no fee.) With no PDA there is nothing on chain
+  # holding the slug, so the pending row does not record a pre-existing lockout:
+  # it CREATES a brand-new one the user did not have before.
+  #
+  # That is still the right trade — a refusal the database can explain beats
+  # `custom program error: 0x0` from a pre-flight simulation — but it is a cost
+  # this change introduces, not one it merely surfaces. Contests::PendingReconciler
+  # is what pays it back: an absent PDA means no money moved, so the sweep
+  # deletes the row and releases the slug.
   test "a retry after a strand is refused by the slug guard, not by the chain" do
     log_in_as(admin_phantom)
     create_json = run_create(slug: "order-retry", name: "Order Retry")
@@ -268,14 +282,31 @@ class ContestsFinalizeWriteOrderingTest < ActionDispatch::IntegrationTest
     run_finalize(create_json, second)
 
     assert_response :unprocessable_entity
-    assert_match(/already exists/i, JSON.parse(response.body)["error"])
+    error = JSON.parse(response.body)["error"]
+    assert_match(/already exists/i, error)
+    # The refusal has to leave the creator somewhere to go. They have just been
+    # told their contest failed; "that slug already exists" on its own reads as a
+    # second, unrelated wall. Because the squatter is a PENDING row, the sweeper
+    # clears it — so the message says so, and says no money was taken.
+    assert_match(/never finished being created/i, error)
+    assert_match(/no payment was taken/i, error)
+    assert_match(/clears automatically/i, error)
     assert_empty second.create_cosign_broadcast_calls,
-      "the retry must be refused BEFORE it can broadcast against the existing PDA"
+      "the retry must be refused by the slug guard before it broadcasts at all — " \
+      "the first attempt never landed, so there is no PDA here to broadcast against"
   end
 
-  # A strand must be diagnosable, not just recoverable. capture_unlogged only
-  # PERSISTS an ErrorLog when it is given a target (contests_controller.rb:1878),
-  # so before the write-ahead row existed this rescue logged nothing at all.
+  # A strand must be diagnosable, not just recoverable — and the thing that was
+  # missing before the write-ahead row was NOT the log. capture_unlogged calls
+  # create_error_log → `ErrorLog.capture!` (studio-engine error_handling.rb:180-182),
+  # which ends in `create!`; a row was always written. Under mutation, deleting
+  # the `target:` argument still leaves ErrorLog.count +1.
+  #
+  # What was missing was the ATTRIBUTION. Without a target the row lands with
+  # target_type and target_id nil — an orphan, invisible to
+  # `ErrorLog.where(target_type: "Contest", target_id: …)`, which is the query
+  # an operator runs. Hence the assertion below is on `target_name`, not on the
+  # count: the count passes on the broken version too.
   test "a failure after the row exists files an ErrorLog against that contest" do
     log_in_as(admin_phantom)
     create_json = run_create(slug: "order-logged", name: "Order Logged")
