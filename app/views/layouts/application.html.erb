@@ -510,6 +510,10 @@
             // web2 eligibility gate ignores USDC and blocks token-only. Static
             // per render — set once from #session-context, never refreshed.
             web2UsdcEntry: true,
+            // Whether the entry-token modal has any rail to show. Defaults
+            // TRUE so a page that never received #session-context behaves as it
+            // always did; the server answer below is what turns it off.
+            entryTokenRailsAvailable: true,
             // Entry-time age gate (ENABLE_AGE_GATE). ageGateRequired = feature
             // on; ageVerified = this user already confirmed DOB. eligibilityBlocker
             // pops the DOB modal at hold-time when required && !verified.
@@ -553,6 +557,7 @@
               if (ctx.usdtCents       !== undefined) this.usdtCents       = (ctx.usdtCents       == null) ? null : (ctx.usdtCents       | 0);
               if (ctx.tokensAvailable !== undefined) this.tokensAvailable = (ctx.tokensAvailable == null) ? 0    : (ctx.tokensAvailable | 0);
               if (ctx.web2UsdcEntry   !== undefined) this.web2UsdcEntry   = !!ctx.web2UsdcEntry;
+              if (ctx.entryTokenRailsAvailable !== undefined) this.entryTokenRailsAvailable = !!ctx.entryTokenRailsAvailable;
               if (ctx.ageGateRequired !== undefined) this.ageGateRequired = !!ctx.ageGateRequired;
               if (ctx.ageVerified     !== undefined) this.ageVerified     = !!ctx.ageVerified;
               if (ctx.walletSetupRequired !== undefined) this.walletSetupRequired = !!ctx.walletSetupRequired;
@@ -1384,6 +1389,15 @@
           onramp_rail_visible?. %>
       <template x-if="$store.modals.current().id === 'buy-entry-token'">
         <%= render "modals/buy_entry_token" %>
+      </template>
+      <%# Get USDC — the teaching card at the funds wall, and the single answer
+          showFundsNeeded now gives whichever funding method came up short. Hands
+          off to wallet-topup for the actual rails rather than duplicating them.
+          Registered ungated alongside wallet-topup / buy-entry-token for the same
+          reason: it can appear right after an in-session signup where the
+          server-rendered logged_in? was still false. %>
+      <template x-if="$store.modals.current().id === 'buy-usdc'">
+        <%= render "modals/buy_usdc" %>
       </template>
       <% if logged_in? %>
         <template x-if="$store.modals.current().id === 'username'">

@@ -235,6 +235,15 @@ class AdminController < ApplicationController
       modal_id: "buy-entry-token", file: "app/views/modals/_buy_entry_token.html.erb",
       props: {} },
 
+    # The teaching card at the same wall, and the one showFundsNeeded now reaches
+    # for first. It hands off to wallet-topup for the rails rather than carrying
+    # its own, so what it previews is the explainer: the USDC line, the band, and
+    # the guide. The player only appears with BUY_USDC_VIDEO_ID set.
+    { group: "Funding",
+      label: "Get USDC (teaching card — video + guide)", key: "buy-usdc",
+      modal_id: "buy-usdc", file: "app/views/modals/_buy_usdc.html.erb",
+      props: {} },
+
     # === CDP ramp (Coinbase buy / cash-out) ================================
     # One modal id ('cdp-ramp'), step machine on props.step + props.flow.
     # The send-step variants use demoCountdownMinutes — cdpRampFlow's

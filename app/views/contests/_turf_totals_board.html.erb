@@ -807,10 +807,10 @@ window.selectionBoard = function() {
         // The dismissible setup modal comes BACK here — this is the "re-opens
         // when it matters" half of letting the user close it after auth.
         case 'wallet_setup_required': this.showWalletSetupModal(); break;
-        // Funds-needed entry wall. Audience split via showFundsNeeded: a web2 /
-        // managed player buys an entry token (the Buy an Entry Token modal —
-        // Coinflow + Stripe rails), a web3 wallet keeps the Coinbase-forward USDC
-        // Top Up Wallet. Every funds-needed reroute funnels through the dispatcher.
+        // Funds-needed entry wall. showFundsNeeded sends BOTH audiences to the
+        // Get USDC card (Coinbase rail + Phantom row); only the USDC kill-switch
+        // audience, who cannot pay with USDC at all, still goes to the entry-token
+        // modal. Every funds-needed reroute funnels through the dispatcher.
         case 'no_funding':           this.showFundsNeeded(); break;
         case 'insufficient_balance': this.showInsufficientBalanceModal(blocker); break;
         default:                     this.resetHoldButtons();
@@ -1140,16 +1140,48 @@ window.selectionBoard = function() {
     },
 
     // Funds-needed dispatcher — a logged-in player tried to enter and lacks
-    // funds. The audience split lives in ONE place: a web2 / managed player buys
-    // an entry token (showBuyEntryToken — the Coinflow + Stripe token rails), a
-    // web3 wallet keeps the USDC Top Up Wallet (showWalletTopup, unchanged).
+    // funds. The answer lives in ONE place, and it is the Get USDC card for
+    // everyone except the USDC kill-switch audience (see the branch below).
     // Every funds-needed reroute (the no_funding blocker, the hold-window check,
     // the chain-layer "no entry token" twin) funnels through here.
     showFundsNeeded() {
-      if (Alpine.store('session').mode === 'web2') {
+      var session = Alpine.store('session');
+      // ONE ANSWER, BOTH CASES (operator call, 2026-09-05). This used to fork on
+      // session.mode: web2 to the entry-token modal, web3 to Top Up Wallet. Mode
+      // is the wrong question — what a blocked player lacks is money for THIS
+      // entry, and whether they signed in with Google or a wallet does not change
+      // what fixes that. It only changed which modal they saw, and in production
+      // it sent every web2 player to a modal whose rails were both flagged off.
+      //
+      // The ONE audience that still keeps the token path is the USDC kill-switch
+      // one: a web2 viewer with ENABLE_WEB2_USDC_ENTRY off literally cannot pay
+      // an entry with USDC, so the USDC card would sell them a thing that cannot
+      // do the job they came to do. Same reasoning as _wallet_topup's
+      // tokenFallback fork, and the same audience.
+      //
+      // WHO 'web2' IS, precisely, because a comment on the card used to get this
+      // wrong: #556 promotes a session at LINK time, not on every later login, so
+      // this branch holds BOTH populations that pay from the managed wallet —
+      // managed-only accounts AND combo accounts (managed + linked Phantom)
+      // signed in with email or Google. Prod 2026-09-06: 24 + 12 = 36.
+      if (session.mode === 'web2' && !session.web2UsdcEntry) {
         this.showBuyEntryToken();
       } else {
-        this.showWalletTopup();
+        this.showGetUsdc();
+      }
+    },
+
+    // Open (or swap into) Get USDC — the teaching card at the funds wall. Mirrors
+    // showWalletTopup's open-vs-swap: its own modal id, so swap() when a modal is
+    // already up, else open() a fresh shake-in.
+    showGetUsdc() {
+      this.profileModal = false;
+      var s   = Alpine.store('modals');
+      var cur = s.current();
+      if (cur && cur.id) {
+        s.swap('buy-usdc', {});
+      } else {
+        s.open('buy-usdc', { enterAnim: 'shake' });
       }
     },
 
@@ -1159,6 +1191,15 @@ window.selectionBoard = function() {
     // its own modal id, so swap() when a modal is already up, else open() a fresh
     // shake-in.
     showBuyEntryToken() {
+      // NEVER OPEN AN EMPTY FUNDS MODAL. Both rails in modals/_buy_entry_token are
+      // server-gated, and with both off the card renders "pick how to pay" over
+      // nothing — which is what the entry wall did in production on 2026-09-05.
+      // entryTokenRailsAvailable carries that server answer; with no rail to show,
+      // fall through to the card that can actually take the player somewhere.
+      if (!Alpine.store('session').entryTokenRailsAvailable) {
+        this.showGetUsdc();
+        return;
+      }
       this.profileModal = false;
       var s   = Alpine.store('modals');
       var cur = s.current();
@@ -1784,7 +1825,7 @@ window.selectionBoard = function() {
             // from the server (the chain-layer twin of the 'no_funding' eligibility
             // blocker). Routes through the same funds-needed dispatcher so the UX
             // is identical whether the wall is caught pre-flight or surfaced from
-            // the server (web2 buys an entry token, web3 keeps Top Up Wallet). Kept
+            // the server (both land on Get USDC; see showFundsNeeded). Kept
             // so a deploy of the controller ahead of the interpreter doesn't lose
             // the funds panel.
             if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
