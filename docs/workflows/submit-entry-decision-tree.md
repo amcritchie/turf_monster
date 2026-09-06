@@ -165,8 +165,11 @@ and every such case except #3/#6 self-heals automatically.
   successful consume/transfer; (b) no-arg sweep over all eligible open
   contests via `rake entries:reconcile_onchain` (operator) or the same job
   with no id. Idempotent — never double-enters or double-charges.
-- **Heals**: `cart` entries carrying `onchain_tx_signature` (the durable
-  capture) → converge to `active`, announce in chat on heal.
+- **Heals**: `cart` entries (signature on the row → fast path; none → chain
+  probe), plus `abandoned` rows a signed `PendingTransaction` proves were
+  broadcast → converge to `active`, announce in chat on heal. An `abandoned` row
+  whose signature sits on the ENTRY (the managed durable capture) is NOT yet
+  admitted — task `reach-managed-abandoned-strand`.
 
 ### 5.3 Page-load stale-PT expiry (web3 hygiene)
 Signatureless pending PTs older than 10 minutes are flipped to `expired`
