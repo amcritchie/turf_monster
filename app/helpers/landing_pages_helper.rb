@@ -1,6 +1,6 @@
 module LandingPagesHelper
   # Funnel "how it works" steps, tailored to the wired contest's game type.
-  # Falls back to Turf Monster when no contest is wired yet (draft preview).
+  # Falls back to Turf Totals when no contest is wired yet (draft preview).
   def funnel_how_it_works(contest)
     if contest&.world_cup_survivor?
       [

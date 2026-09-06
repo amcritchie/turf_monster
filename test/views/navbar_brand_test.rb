@@ -44,6 +44,42 @@ class NavbarBrandTest < ActionView::TestCase
   # "Turf Totals" sails straight past every one of them — the navbar was renamed
   # while the footer, the landing page and the auth card still read TurfTotals,
   # and only a screenshot found it. Sweep the views instead of trusting the pass.
+  # THE SWEEP THAT MISSED THE MANIFEST. The first version of this globbed
+  # app/views/**/*.erb, so no file outside app/views could ever fail it — and
+  # public/site.webmanifest shipped "Turf Totals" as the PWA name and short_name,
+  # which is what a phone puts on the home screen after Add to Home Screen. Sweep
+  # every SHIPPING surface the brand can appear on, not just the one the last
+  # miss happened to be in.
+  BRAND_SURFACES = %w[
+    app/views/**/*.erb
+    app/helpers/**/*.rb
+    app/mailers/**/*.rb
+    config/initializers/studio.rb
+    public/*.webmanifest
+  ].freeze
+
+  # Files whose "Turf Totals" is the GAME MODE (turf_totals vs survivor), not the
+  # brand. Every entry needs a reason, because an allowlist is how a real miss
+  # gets waved through.
+  GAME_MODE_FILES = {
+    "app/views/pages/turf_totals_v1.html.erb" => "the mode's own versioned rules page",
+    "app/views/pages/terms.html.erb"          => "scopes the editing rule to the mode; Survivor is excluded in the same sentence",
+    "app/helpers/landing_pages_helper.rb"     => "comments the else-branch that reads TURF_TOTALS_DEFAULT_PICKS_REQUIRED",
+    "app/views/contests/show.html.erb"        => "section comments naming the mode's board",
+    "app/views/contests/_world_cup_survivor_board.html.erb" => "a comment contrasting this board with the turf_totals flow",
+  }.freeze
+
+  test "no shipping surface still carries the retired brand" do
+    offenders = BRAND_SURFACES.flat_map { |g| Dir[Rails.root.join(g)] }
+      .map { |f| Pathname(f).relative_path_from(Rails.root).to_s }
+      .reject { |rel| GAME_MODE_FILES.key?(rel) }
+      .select { |rel| Rails.root.join(rel).read.include?("Turf Totals") }
+
+    assert_empty offenders,
+                 "these ship the retired brand: #{offenders.join(', ')} — rename them, " \
+                 "or add them to GAME_MODE_FILES WITH a reason if the string is the game mode"
+  end
+
   test "no split wordmark still reads Totals" do
     offenders = Dir[Rails.root.join("app/views/**/*.erb")].reject { |f| f == GAME_MODE_PAGE.to_s }
       .select { |f| File.read(f).match?(/Turf<\/span>\s*<span[^>]*>Totals|Turf <span[^>]*>Totals/) }

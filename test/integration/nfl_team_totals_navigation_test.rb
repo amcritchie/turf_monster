@@ -22,7 +22,10 @@ class NflTeamTotalsNavigationTest < ActionDispatch::IntegrationTest
     get games_path
 
     assert_response :success
-    assert_select "a[href=?]", nfl_team_totals_path, text: /NFL Totals/
+    # SCOPED ON PURPOSE. An unscoped `a[href=?]` is satisfied by the FOOTER link
+    # this same page renders, so this test reported green with the sidebar row
+    # deleted — measured. Name the sidebar, or the assertion is decoration.
+    assert_select "#gear-sidebar a[href=?]", nfl_team_totals_path, text: /NFL Totals/
   end
 
   test "the navbar itself no longer carries it" do
