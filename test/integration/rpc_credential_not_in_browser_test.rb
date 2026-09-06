@@ -147,13 +147,41 @@ class RpcCredentialNotInBrowserTest < ActionDispatch::IntegrationTest
 
   # --- the three admin cosign surfaces ---
 
-  test "the admin pending-transactions cosign config carries no credential" do
+  # This surface no longer hands the browser an RPC URL AT ALL, and that is a
+  # deliberate strengthening rather than a way around assert_browser_rpc_clean.
+  #
+  # Read clause (2) of that helper first: it refuses a surface that emits
+  # nothing, because "deleting the attribute entirely would satisfy (1) while
+  # breaking every client-side transaction." That reasoning is exactly right for
+  # the other five surfaces, which still build and send transactions in the
+  # browser. It stopped applying HERE on 2026-09-05, when the cosign page handed
+  # its broadcast to the server (Admin::PendingTransactionsController#broadcast
+  # → Solana::Vault#simulate_and_broadcast). This page's browser now signs with
+  # Phantom and POSTs the wire back; it never opens a Connection, so there is no
+  # client RPC path left to break.
+  #
+  # So the invariant tightens instead of loosening: a URL that is never emitted
+  # cannot carry a credential. Asserting the ABSENCE is what pins the new
+  # architecture — if someone reintroduces a browser-side broadcast here, they
+  # have to reintroduce the RPC handle, and this test fails and sends them back
+  # to read why it went away.
+  #
+  # The sentinel check is kept verbatim: it is the original security property
+  # and it must hold no matter how the page is built.
+  test "the admin pending-transactions page hands the browser no RPC URL at all" do
     log_in_as(users(:alex))
     with_keyed_rpc_url do
       get admin_pending_transactions_path
       assert_response :success
-      assert_browser_rpc_clean(cosign_config_rpc_url(response.body), response.body,
-                               "admin/pending_transactions #cosign-config")
+
+      assert_no_match(/#{Regexp.escape(SENTINEL)}/, response.body,
+        "admin/pending_transactions: the server's api-keyed RPC URL reached the browser response body")
+
+      assert_nil cosign_config_rpc_url(response.body),
+        "admin/pending_transactions: an RPC URL is back in the page — this surface broadcasts " \
+        "server-side and must not hand the browser an endpoint (see #broadcast)"
+      assert_no_match(/id="cosign-config"/, response.body,
+        "admin/pending_transactions: #cosign-config is back; the server owns this broadcast now")
     end
   end
 
