@@ -362,6 +362,77 @@ module Solana
     # future rotation of either role doesn't silently move the other.
     INIT_AUTHORITY = ENV.fetch("SOLANA_INIT_AUTHORITY", "7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr")
 
+    # The PROGRAM UPGRADE AUTHORITY — the Squads V4 2-of-3 vault PDA that holds
+    # the BPFLoaderUpgradeable authority slot for PROGRAM_ID. Three different
+    # multisigs live in this file and they are easy to confuse:
+    #   MULTISIG_SIGNERS  — VaultState's IN-PROGRAM 2-of-3 (signs vault actions)
+    #   INIT_AUTHORITY    — the one wallet allowed to call `initialize`
+    #   this             — the SQUAD that can redeploy the program itself
+    # (VaultState.treasury_authority is pinned to this same PDA at initialize
+    # time, which is why `solana:init_vault` reads the same env var.)
+    #
+    # PER CLUSTER, and this is the whole point: each cluster has its OWN Squad,
+    # so the addresses differ. Verified on-chain 2026-09-05 —
+    #   solana program show EQGF…bpMJ --url devnet       -> Authority BW13…H6kC
+    #   solana program show DaFv…zxMM --url mainnet-beta -> Authority Bk9s…GdJm
+    #
+    # WHY THIS EXISTS (admin-shows-devnet-authority). The admin deployment-state
+    # card hardcoded the DEVNET literal into markup, so `turf-monster-mainnet`
+    # presented the devnet Squad as the live upgrade authority — a wrong address
+    # stated authoritatively on the page an operator consults before proposing an
+    # upgrade. The view was the only copy of the defect a human ever saw in a
+    # browser, but it was NOT the only copy: the original note here claimed
+    # "every other reader already honoured SOLANA_SQUADS_VAULT_PDA", and that
+    # was wrong. Admin::VaultInitController and `solana:init_vault` each fell
+    # back to the DEVNET literal on every cluster — and because the variable is
+    # ABSENT on both deployed apps, that fallback is what actually ran, so a
+    # mainnet build offered the DEVNET Squad. The controller additionally used
+    # `ENV.fetch`, which does not fall back at all for an EMPTY value; that
+    # second defect was LATENT (one `heroku config:set VAR=` from live), never
+    # the observed production behaviour. Both readers were routed through this
+    # method by vault-pda-readers-diverge; the guard in
+    # test/integration/contract_upgrade_authority_test.rb now covers Ruby and
+    # rake as well as ERB, so a third reader cannot reintroduce a literal.
+    #
+    # WHAT THE DEPLOYED APPS ACTUALLY DO. Neither sets this variable — the key
+    # SOLANA_SQUADS_VAULT_PDA is ABSENT from the config of turf-monster-mainnet
+    # and turf-monster-qa alike, re-verified 2026-09-05 by KEY PRESENCE
+    # (`heroku config --json -a <app>` does not carry the key, and the table
+    # view — which names every key regardless of value — names it zero times).
+    # ABSENT, not set-and-empty. So the NETWORK-keyed DEFAULT below is the
+    # production path on both clusters, SOLANA_NETWORK is what actually selects
+    # the authority (mainnet-beta on the mainnet app, devnet on QA — both
+    # present and non-empty), and the env override is the runbook escape hatch.
+    #
+    # DO NOT VERIFY THIS WITH `heroku config:get`. It prints a bare newline for
+    # an ABSENT key and a bare newline for a PRESENT-BUT-EMPTY one, so it
+    # cannot tell the two apart. Reading its output as "empty" is exactly how
+    # this comment once carried a false production fact into review.
+    #
+    # `.presence` therefore guards a LATENT case rather than the live one: a
+    # single `heroku config:set SOLANA_SQUADS_VAULT_PDA=` would make the key
+    # present-and-empty, which `ENV.fetch(k, default)` would resolve to "".
+    #
+    # A METHOD, not a constant, for exactly the reason `public_rpc_url` is one:
+    # the resolution has to be exercisable across BOTH clusters without constant
+    # surgery. The `network` argument exists for the tests; nothing in app code
+    # passes it.
+    #
+    # Resolution mirrors USDC_MINT / IDL_PATH: the env override always wins, and
+    # only the DEFAULT is network-keyed, so a mainnet app cannot print a devnet
+    # authority by omission. `.presence` (as in `solana:init_vault`) so an empty
+    # `heroku config:set SOLANA_SQUADS_VAULT_PDA=` falls through to the cluster
+    # default instead of rendering a blank authority. An UNRECOGNISED cluster
+    # gets the devnet default — never mainnet's — because the failure that
+    # matters is claiming mainnet authority somewhere it does not apply.
+    DEVNET_SQUADS_VAULT_PDA  = "BW13kgfiG2koFn3WRkte21NW9TFygsD1ge2fNJdjH6kC"
+    MAINNET_SQUADS_VAULT_PDA = "Bk9sS7iiSRL18vuo2KVzkeGw7EekKqxMCjrdoyGGdJm"
+
+    def self.squads_vault_pda(network = NETWORK)
+      ENV["SOLANA_SQUADS_VAULT_PDA"].presence ||
+        (network == "mainnet-beta" ? MAINNET_SQUADS_VAULT_PDA : DEVNET_SQUADS_VAULT_PDA)
+    end
+
     DECIMALS = 6
 
     # IDL hash pinning (audit Tier 3 #22). Catches drift between the Rails

@@ -89,14 +89,34 @@ Separate project at `/Users/alex/projects/turf-vault/`. Current deployment ident
 - **User signature** required for `set_username` and the **user** slot of `enter_contest{,_with_token}` (the user must consent to spending from / consuming their own funds — OPSEC-004).
 - `create_user_account` is permissionless (payer only); `initialize` is gated to `INIT_AUTHORITY` on mainnet builds.
 
-Signers (`VaultState.signers`, threshold 2):
+Signers (`VaultState.signers`, threshold 2) — the same set on **devnet and mainnet**, re-verified on-chain 2026-09-05 in both `VaultState` PDAs:
 - Alex Bot (server) — `8K81w4e6UcB7TiANhM9N8sAgijJvTxxybRi8AENRaRYd`
 - Alex (human Phantom, = `INIT_AUTHORITY`) — `7ZDJp7FUHhuceAqcW9CHe81hCiaMTjgWAXfprBM59Tcr`
 - Mason — `CytJS23p1zCM2wvUUngiDePtbMB484ebD7bK4nDqWjrR`
 
 ### Program Upgrades — Squads multisig (OPSEC-002, 2026-05-19+)
 
-**`anchor deploy` no longer works.** The program upgrade authority is a Squads V4 2-of-3 multisig vault (`BW13kgfiG2koFn3WRkte21NW9TFygsD1ge2fNJdjH6kC`) — distinct from `VaultState`'s in-program multisig — not a single keypair. Every upgrade goes through the Squad. Running `anchor deploy` will fail because the Solana CLI signs as a single keypair that is no longer the upgrade authority.
+**`anchor deploy` no longer works.** The program upgrade authority is a Squads V4 2-of-3 multisig vault — distinct from `VaultState`'s in-program multisig — not a single keypair. **Each cluster has its own vault PDA**: devnet `BW13kgfiG2koFn3WRkte21NW9TFygsD1ge2fNJdjH6kC`, mainnet `Bk9sS7iiSRL18vuo2KVzkeGw7EekKqxMCjrdoyGGdJm`. Every upgrade goes through the Squad. Running `anchor deploy` will fail because the Solana CLI signs as a single keypair that is no longer the upgrade authority.
+
+**In Rails, read the vault PDA from `Solana::Config.squads_vault_pda` — never as a literal.** It resolves `SOLANA_SQUADS_VAULT_PDA` first (via `.presence`, so an EMPTY value falls through rather than resolving to blank), then falls back to a NETWORK-keyed default (mainnet-beta -> `Bk9s…GdJm`, anything else -> `BW13…H6kC`), so a mainnet build cannot present a devnet authority by omission.
+
+**Neither deployed app sets that variable — the key is ABSENT, not empty.** So the NETWORK-keyed default is the production path on both clusters, and the env var is a runbook escape hatch for pointing an app at a fresh Squad. `SOLANA_NETWORK` is therefore what actually selects the authority: `mainnet-beta` on `turf-monster-mainnet`, `devnet` on `turf-monster-qa` (both present and non-empty).
+
+**Check it by KEY PRESENCE — never with `heroku config:get`.** `config:get` prints a bare newline for an absent key *and* for a present-but-empty one, so it cannot tell the two states apart. This doc used to cite it as the verification method, and that is how "absent" got written down as "length 0" in a review. Ask whether the key exists instead:
+
+```bash
+# absent -> false; present -> true (even when its value is the empty string)
+heroku config --json --app turf-monster-mainnet | jq 'has("SOLANA_SQUADS_VAULT_PDA")'
+heroku config --json --app turf-monster-qa      | jq 'has("SOLANA_SQUADS_VAULT_PDA")'
+
+# independent second read: the table view lists every key BY NAME regardless of
+# value, so zero matching lines means the key does not exist.
+heroku config --app turf-monster-mainnet | grep -c SOLANA_SQUADS_VAULT_PDA
+```
+
+Re-verified 2026-09-05: absent on both apps, with `SOLANA_NETWORK` present and non-empty on both (`mainnet-beta` len 12, `devnet` len 6).
+
+Three readers have carried this literal and been corrected. The view (`app/views/contract/_section_admin_state.html.erb`) showed the devnet Squad on `turf-monster-mainnet` — admin-shows-devnet-authority. Then `Admin::VaultInitController` and `solana:init_vault`, whose devnet fallback was not network-keyed; because the variable is absent, that fallback is what ran, so all three readers had the SAME live symptom — the devnet Squad on the mainnet app. The controller carried a second, LATENT defect in the same expression: `ENV.fetch` does not fall back for an empty value, so a single `heroku config:set SOLANA_SQUADS_VAULT_PDA=` would have turned the wrong address into a blank one. Both readers now route through `Solana::Config.squads_vault_pda` — vault-pda-readers-diverge. The guard in `test/integration/contract_upgrade_authority_test.rb` now bans both cluster literals from **every** `app/` and `lib/` source, not just views; `app/services/solana/config.rb` is the single exempted home for them.
 
 Use `turf-vault/scripts/squad-upgrade.js` — it builds a buffer, sets the buffer authority to the Squad vault, then proposes + approves the upgrade tx through the Squad. Treat `turf-vault/docs/CURRENT_DEPLOYMENT.md` as the canonical program identity record; use the McRitchie Studio credential inventory for current 1Password item names instead of copying key refs into this app doc.
 
@@ -183,7 +203,7 @@ The per-season schedule above is authoritative for Turf Monster; update this doc
 
 ## Rake Tasks (`lib/tasks/solana.rake`)
 
-- `solana:init_vault` — initialize the vault on devnet. Args `INIT=true SIGNERS=addr1,addr2,addr3 THRESHOLD=2` (optional `TREASURY=<squads_vault_pda>`, defaults to `SOLANA_SQUADS_VAULT_PDA` then the hardcoded Squads vault). OPSEC-013-gated in production. There is no `force_close` arg — the `force_close_vault` instruction was removed in v0.16; teardown = redeploy the program.
+- `solana:init_vault` — initialize the vault on devnet. Args `INIT=true SIGNERS=addr1,addr2,addr3 THRESHOLD=2` (optional `TREASURY=<squads_vault_pda>`, otherwise `Solana::Config.squads_vault_pda` — `SOLANA_SQUADS_VAULT_PDA`, then the NETWORK-keyed cluster default; it is never a fixed literal, because `treasury_authority` is PINNED at initialize time and a devnet Squad pinned on mainnet cannot be swept to). OPSEC-013-gated in production. There is no `force_close` arg — the `force_close_vault` instruction was removed in v0.16; teardown = redeploy the program.
 - `solana:health` — pre-flight before any cluster flip: genesis-hash match + program-exists-on-RPC + IDL-hash match. Exits non-zero on mismatch. **A check that could not RUN is reported as such, never as a tick** — the program-exists step reads `Solana::Vault.ensure_program_id_live!`'s tri-state return (`:live` / `:cached` / `:unverified`) rather than inferring a pass from the absence of a raise. That guard fails OPEN on purpose (`TokenPurchaseJob` depends on it), so against a rejecting endpoint the task used to print `✓ PROGRAM_ID exists on RPC` one line below `getGenesisHash failed`. It also passes `force: true`, so a ≤5-minute cache entry cannot answer for the CURRENT endpoint, and it builds its `Solana::Client` inside a rescue so a fat-fingered endpoint is diagnosed instead of raising past every check.
 - `solana:idl_hash` — print the committed IDL's SHA256 (the value for `EXPECTED_IDL_HASH`).
 - `solana:verify_idl` — run `verify_idl!` against the committed IDL.
