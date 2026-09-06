@@ -259,10 +259,28 @@ class AccountsController < ApplicationController
       # Check if Solana wallet belongs to another user
       existing = User.from_solana_wallet(pubkey_b58)
       if existing && existing.id != current_user.id
-        merge_users!(survivor: current_user, absorbed: existing)
+        # merge_users! keeps the LOWER id, so the survivor is NOT necessarily
+        # current_user — take the row it returns and write through THAT.
+        survivor = merge_users!(survivor: current_user, absorbed: existing)
+        # The merge copies only email / name / provider+uid across and then
+        # DESTROYS the absorbed row — including, on the no-swap ordering, the row
+        # that held the wallet. Without this the survivor is left with
+        # web3_solana_address nil while still carrying the brand stamp and an
+        # on-chain session: an account CLAIMING a wallet it does not have, which
+        # shuts both entry doors for a survivor that has a managed wallet
+        # (ContestsController#enter refuses, #prepare_entry raises).
+        #
+        # AFTER merge_users! returns, never inside it: the absorbed row still
+        # owns the address until the destroy inside that transaction, so an
+        # earlier write would collide on the uniqueness of the column.
+        survivor.update!(web3_solana_address: pubkey_b58)
         # The survivor now holds the wallet this request just proved, so it earns
-        # the same brand stamp as the non-merge branch below.
-        current_user.record_web3_authentication!(provider: params[:wallet_provider])
+        # the same brand stamp as the non-merge branch below. Through `survivor`
+        # and not `current_user`: on the swap ordering current_user IS the
+        # destroyed row, and record_web3_authentication! bails on it
+        # (`return false unless persisted?`) — so the durable stamp was being
+        # dropped there, silently, on roughly half of all orderings.
+        survivor.record_web3_authentication!(provider: params[:wallet_provider])
         # The account now holds a web3 wallet — the wallet-setup nudge is
         # satisfied, so drop it in the same breath as the link.
         clear_wallet_setup_state!

@@ -81,9 +81,11 @@ class WalletLinkPromotesSessionTest < ActionDispatch::IntegrationTest
                  "that can actually sign — not whichever one the account column happens to name"
   end
 
-  test "linking a wallet that belongs to another account promotes the session too" do
+  test "a merge that KEEPS the caller leaves the survivor holding the wallet" do
     absorbed = users(:sam)
     survivor = users(:jordan)
+    assert_operator survivor.id, :<, absorbed.id,
+                    "precondition: this test only exercises the NO-SWAP ordering while jordan outranks sam"
 
     # Give the absorbed account an address we hold the key for, so the signature
     # verifies and link_solana takes its MERGE branch (a separate early return,
@@ -94,15 +96,60 @@ class WalletLinkPromotesSessionTest < ActionDispatch::IntegrationTest
     log_in_as survivor
     assert_equal "web2", rendered_session_context["mode"], "precondition: web2 before the link"
 
-    link_wallet_as(survivor, key: key)
+    address = link_wallet_as(survivor, key: key)
     assert_response :success
     assert_equal "Accounts merged.", JSON.parse(response.body)["notice"],
                  "precondition: this must be the MERGE branch, not the plain link branch"
+
+    # THE ASSERTION THIS TEST EXISTED WITHOUT, and the reason it certified a bug.
+    # merge_users! copies only email / name / provider+uid and then DESTROYS the
+    # absorbed row — the row that held the wallet. Asserting the session mode
+    # alone passes for a survivor holding nothing, which is strictly worse than
+    # the bug this PR set out to fix: the account then CLAIMS a wallet it does
+    # not have, and a survivor with a managed wallet loses both entry doors.
+    # The invariant is "web3 session AND the account holds the wallet", never
+    # the flag on its own.
+    assert_equal address, survivor.reload.web3_solana_address,
+                 "the survivor must actually HOLD the wallet the merge just proved"
+    assert_not User.exists?(absorbed.id), "precondition: the absorbed row is gone"
 
     context = rendered_session_context
     assert_equal "web3", context["mode"],
                  "the merge branch proved the same signature and returns early — it owes the " \
                  "same promotion, or a merging user is stranded in a web2 session"
     assert_equal "phantom", context["walletBrand"]
+  end
+
+  test "a merge that DESTROYS the caller still stamps the surviving account" do
+    # merge_users! keeps the LOWER id, so signing in as the HIGHER-id account
+    # makes current_user the row that gets destroyed. Nothing covered this
+    # ordering, and it is where the durable brand stamp was silently dropped:
+    # record_web3_authentication! bails on a destroyed object.
+    caller_user = users(:sam)
+    keeper      = users(:jordan)
+    assert_operator caller_user.id, :>, keeper.id,
+                    "precondition: this test only exercises the SWAP ordering while sam outranks jordan"
+
+    key = Ed25519::SigningKey.generate
+    address = Solana::Keypair.encode_base58(key.verify_key.to_bytes)
+    keeper.update!(web3_solana_address: address, web3_wallet_provider: nil, web3_authenticated_at: nil)
+    caller_user.update!(web3_solana_address: nil)
+
+    log_in_as caller_user
+    link_wallet_as(caller_user, key: key)
+    assert_response :success
+    assert_equal "Accounts merged.", JSON.parse(response.body)["notice"]
+
+    assert_not User.exists?(caller_user.id), "precondition: the caller's row is the one destroyed here"
+    keeper.reload
+    assert_equal address, keeper.web3_solana_address, "the keeper must still hold its wallet"
+    assert_equal "phantom", keeper.web3_wallet_provider,
+                 "the DURABLE brand stamp must land on the survivor — writing it through " \
+                 "current_user no-ops here, because that object was just destroyed"
+    assert_not_nil keeper.web3_authenticated_at
+
+    context = rendered_session_context
+    assert_equal "web3", context["mode"]
+    assert_equal keeper.id, context["userId"], "the session must follow the row that survived"
   end
 end
