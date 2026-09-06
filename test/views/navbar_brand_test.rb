@@ -66,7 +66,7 @@ class NavbarBrandTest < ActionView::TestCase
     "app/views/pages/terms.html.erb"          => "scopes the editing rule to the mode; Survivor is excluded in the same sentence",
     "app/helpers/landing_pages_helper.rb"     => "comments the else-branch that reads TURF_TOTALS_DEFAULT_PICKS_REQUIRED",
     "app/views/contests/show.html.erb"        => "section comments naming the mode's board",
-    "app/views/contests/_world_cup_survivor_board.html.erb" => "a comment contrasting this board with the turf_totals flow",
+    "app/views/contests/_world_cup_survivor_board.html.erb" => "a comment contrasting this board with the turf_totals flow"
   }.freeze
 
   test "no shipping surface still carries the retired brand" do
