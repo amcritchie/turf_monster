@@ -343,12 +343,19 @@
       painting an empty icon. %>
   <%= render "studio/modals/blocks/wallet_brand_sprite" %>
 
-  <div class="relative mb-3 -mt-2">
+  <%# Dismissible: closing leaves the user browsing with picks intact.
+
+      ADOPTED THE ENGINE MARK (2026-09-05). This card drew its own × for eight
+      months while blocks/_close_x homed the identical mark for eight other
+      modals — the drift the primitive exists to end. It moves to the CARD's
+      corner here rather than the title row's, which is where the other eight
+      put it and where the primitive's own -mt-2 assumes it is: anchored to this
+      partial's single `relative` root, not to a nested wrapper. The title row
+      keeps its own spacing and loses only the button it should not have owned. %>
+  <%= render "studio/modals/blocks/close_x" %>
+
+  <div class="mb-3 -mt-2">
     <h3 class="text-heading font-bold text-lg leading-tight text-center pt-1">Set up your wallet</h3>
-    <%# Dismissible: closing leaves the user browsing with picks intact. %>
-    <button @click="$store.modals.close()"
-            class="absolute top-0 right-0 -mr-2 text-secondary hover:text-heading text-xl leading-none"
-            aria-label="Close">&times;</button>
   </div>
   <%# Position in the ONBOARDING CHAIN: first name (1) -> age (2) -> wallet (3),
       per the operator's call on 2026-08-19.
