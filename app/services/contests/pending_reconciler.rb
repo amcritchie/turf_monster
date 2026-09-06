@@ -197,11 +197,27 @@ module Contests
                               "#{contest.onchain_tx_signature} — READ the chain before removing anything")
       end
 
-      # A pending contest should have neither. Both associations are
-      # `dependent: :destroy`, so a delete here would take real rows with it.
-      if contest.entries.exists? || contest.messages.exists?
-        return flag!(contest, "no Contest PDA at #{pda_b58}, but the row has dependent entries or messages " \
-                              "that a delete would destroy")
+      # EVERY table that references contests, not only the two that cascade.
+      # `entries` and `messages` are `dependent: :destroy`, so a delete here
+      # takes real rows with it. `landing_pages.contest_id` is
+      # `on_delete: :nullify`, which is quieter and therefore worse for an
+      # AUTOMATIC delete: the landing page survives, silently pointing at
+      # nothing, and an admin can attach one to a pending contest today because
+      # Admin::LandingPagesController#load_contests lists every contest
+      # regardless of status. (`season_configs.main_contest_id` also nullifies
+      # and is deliberately NOT checked here: the admin dropdown that feeds it
+      # offers open contests only — Admin::DashboardController#show — so a
+      # pending contest can reach it only through a hand-forged POST, since
+      # SeasonConfig.set_main_contest! itself validates nothing. If that ever
+      # happened the FK would clear the pointer, which is visible and
+      # recoverable.)
+      #
+      # A pending strand should have none of these. Having one is a mark of
+      # human intent on a row this sweeper was about to remove, so it stops and
+      # asks rather than deciding.
+      if (referencing = dependent_row_summary(contest)).present?
+        return flag!(contest, "no Contest PDA at #{pda_b58}, but the row is referenced by #{referencing} — " \
+                              "a delete would destroy or orphan them")
       end
 
       slug = contest.slug
@@ -211,6 +227,17 @@ module Contests
         "no broadcast landed, slug released"
       )
       :deleted
+    end
+
+    # Names what would be destroyed or orphaned, so the alert says which of the
+    # three it is rather than making an operator go looking.
+    def dependent_row_summary(contest)
+      counts = {
+        "entries"       => contest.entries.count,
+        "messages"      => contest.messages.count,
+        "landing pages" => LandingPage.where(contest_id: contest.id).count
+      }
+      counts.select { |_, n| n.positive? }.map { |label, n| "#{n} #{label}" }.join(", ").presence
     end
 
     # Stamp the row so the next sweep passes it by, THEN page a human. Order

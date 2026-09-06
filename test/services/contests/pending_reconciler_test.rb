@@ -202,6 +202,25 @@ class Contests::PendingReconcilerTest < ActiveSupport::TestCase
     assert_equal 1, stats[:flagged]
   end
 
+  # landing_pages.contest_id is `on_delete: :nullify`, so a delete here would NOT
+  # fail — it would quietly leave the landing page pointing at nothing. That
+  # quietness is the reason to check it: an admin can attach one to a pending
+  # contest today (Admin::LandingPagesController#load_contests lists every
+  # status), and an automatic delete should not silently undo that.
+  test "an absent PDA on a row with a landing page is FLAGGED, never deleted" do
+    contest = pending_contest(slug: "strand-has-landing")
+    LandingPage.create!(name: "Strand Funnel", slug: "strand-funnel", contest: contest)
+
+    stats = with_pda_encoding do
+      Contests::PendingReconciler.run(older_than: 10.minutes, vault: vault_without_pda)
+    end
+
+    assert Contest.exists?(slug: "strand-has-landing")
+    assert_equal 1, stats[:flagged]
+    log = ErrorLog.where(target_type: "Contest", target_id: contest.id).last
+    assert_match(/1 landing pages/, log.message, "the alert must name what would have been orphaned")
+  end
+
   # ───────────────────────────────────────────────────────────────────────────
   # THE AGE GATE — an in-flight finalize is not a strand
   # ───────────────────────────────────────────────────────────────────────────
