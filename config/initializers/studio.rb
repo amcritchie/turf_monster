@@ -42,7 +42,7 @@ Studio.configure do |config|
   # absorb flicker without the spinner lingering after every turbo:load.
   config.nav_spinner_min_ms = 300
   config.session_key = :turf_user_id
-  config.welcome_message = ->(user) { "Welcome to Turf Totals, #{user.display_name}!" }
+  config.welcome_message = ->(user) { "Welcome to Turf Monster, #{user.display_name}!" }
   # Passwordless: email auth is magic-link only. Permit just :email (+ funnel
   # reference) so the engine's POST /signup path can't choke on now-unsupported
   # password params (there is no password= setter anymore).

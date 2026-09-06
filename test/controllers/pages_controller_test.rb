@@ -18,7 +18,7 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
   test "about page renders without auth" do
     get about_path
     assert_response :success
-    assert_select "h1", "About Turf Totals"
+    assert_select "h1", "About Turf Monster"
     assert_select "a[href=?]", contact_path
   end
 
@@ -76,7 +76,7 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_match "MoonPay", response.body
     assert_match(/\$20 of USDC/, response.body)
     # Safety commitments: nobody asks for credentials; funnel into the app.
-    assert_match(/never Turf Totals/i, response.body)
+    assert_match(/never Turf Monster/i, response.body)
     assert_select "a[href=?]", signin_path
     assert_select "a[href=?]", proof_of_reserves_path
     assert_select "a[href=?]", responsible_gaming_path
