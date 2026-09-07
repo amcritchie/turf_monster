@@ -184,6 +184,12 @@ Rails.application.routes.draw do
   # Solana wallet auth
   get  "auth/solana/nonce",  to: "solana_sessions#nonce"
   post "auth/solana/verify", to: "solana_sessions#verify"
+  # Client-side wallet failures (a rejected signature, a Phantom holding no
+  # keypair) are handled entirely in the browser and never reached the server —
+  # so error_logs never held one. This is the only way that surface reports.
+  # Unauthenticated because the failure happens BEFORE sign-in; throttled in
+  # config/initializers/rack_attack.rb. See SolanaSessionsController#report_failure.
+  post "auth/solana/report_failure", to: "solana_sessions#report_failure"
 
   # Wallet-login landing for a Google sign-in that collided with a wallet
   # account — see OmniauthCallbacksController#create.

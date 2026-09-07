@@ -166,10 +166,17 @@ and every such case except #3/#6 self-heals automatically.
   contests via `rake entries:reconcile_onchain` (operator) or the same job
   with no id. Idempotent — never double-enters or double-charges.
 - **Heals**: `cart` entries (signature on the row → fast path; none → chain
-  probe), plus `abandoned` rows a signed `PendingTransaction` proves were
-  broadcast → converge to `active`, announce in chat on heal. An `abandoned` row
-  whose signature sits on the ENTRY (the managed durable capture) is NOT yet
-  admitted — task `reach-managed-abandoned-strand`.
+  probe), plus `abandoned` rows that can prove a broadcast → converge to
+  `active`, announce in chat on heal.
+- **What proves a broadcast for an `abandoned` row** — one rule, two records,
+  because there are two entry paths: the consume signature **on the ENTRY**
+  (§2, the managed durable capture → fast path, slot spared) **or** a signed
+  `PendingTransaction` targeting it (§3c, the Phantom path → chain probe, slot
+  released). The managed half was added by `reach-managed-abandoned-strand`;
+  before it, the shape carrying the strongest proof available was the one
+  refused, and its owner could be issued a fresh slot and pay twice. Note this
+  is the SIGNATURE, never `onchain_entry_id` — a comped
+  `EnterContestWithToken` stamps a PDA and moves no USDC.
 
 ### 5.3 Page-load stale-PT expiry (web3 hygiene)
 Signatureless pending PTs older than 10 minutes are flipped to `expired`
