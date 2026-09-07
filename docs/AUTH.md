@@ -351,11 +351,25 @@ Rules worth knowing:
 - **The showroom is moving.** `/admin/modals` is DEPRECATED as a destination
   (operator direction, 2026-08-21): modal primitive work goes to the engine's
   living style guide at `/admin/style#modals`, where a modal is inherited by
-  every Studio app instead of being turf's alone. The page still stands because
-  8 modal ids have no card in the engine guide yet (`wallet-setup`,
-  `wallet-changed`, `cdp-ramp`, `buy-entry-token`, `cosign-rejected`,
-  `quest-success`, `unsubscribe-confirm`, `unsubscribe-goodbye`) — port first,
-  delete second, so no state loses its review surface on the way out.
+  every Studio app instead of being turf's alone. The rule for the way out is
+  unchanged — **port first, delete second**, so no state loses its review
+  surface.
+  **The 8-id blocker list is CLEARED as of studio-engine 0.69.5** (measured
+  2026-09-06 against the installed gem's `app/views/style/_modals.html.erb`).
+  Every id that once held the page open now has an engine card: `wallet-setup`,
+  `wallet-changed`, `cosign-rejected`, `quest-success`, `unsubscribe-confirm`
+  and `unsubscribe-goodbye` under their own ids, `cdp-ramp` as `ds-cdp-ramp`,
+  and `buy-entry-token` as `ds-buy-entry-token`. So no id is waiting on a port
+  any more; what remains of `/admin/modals` is a retirement decision, not a
+  coverage gap. Re-measure before acting on this — the engine keeps gaining
+  cards, and this list went stale exactly that way.
+  First step of the retirement landed 2026-09-06
+  (/tasks/drop-dead-gallery-cards): the five `Templates` cards (the gem's own
+  `studio/modals/templates/*`, carded by the engine and opened by no app code)
+  and the six `Quest / Newsletter` cards (registered in `layouts/application`
+  but never in `layouts/modal_preview`, so each drew an EMPTY card) came off
+  the gallery. `newsletter-subscribe` is carded on the engine as
+  `join-newsletter` and `newsletter-success` as `ds-newsletter-success`.
   `web3-step-up` came off this list on 2026-08-24: the card had moved out of this
   app, and the engine's style guide shows both of its states — it renders
   solana-studio's real partial there, not a specimen copy — so its cards here were
