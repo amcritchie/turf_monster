@@ -39,9 +39,16 @@ class OnboardingHelperTest < ActionView::TestCase
       # "41-to-80". The off-by-one came from reading the whole-answer rule off
       # a SPLIT answer: 82 characters split 40+1+40 is refused whole-answer, so
       # 80 looked like the top of the refused band. It is not, because a
-      # one-word 81 never reaches the whole-answer rule — it is refused by the
-      # PER-FIELD rule first, and 82 is the first length that trips the other
-      # one. Re-measured 2026-09-07 against the live endpoint on the resolved
+      # one-word 81 PASSES the whole-answer rule and is only then refused
+      # per-field. READ IN ORDER: studio-engine's
+      # Studio::OnboardingController#length_refusal tests the WHOLE-ANSWER cap
+      # FIRST (`value.length > MAX_FULL_NAME`) and the PER-FIELD cap SECOND, so
+      # a one-word 81 DOES reach the first rule and passes it — 81 is not > 81
+      # — before the second catches it, where its single derived half is
+      # 81 > 40. 82 is the first length the FIRST rule stops, which is exactly
+      # why the message changes there and not at 81, and why the band's top is
+      # the whole-answer cap ITSELF rather than one below it.
+      # Re-measured 2026-09-07 against the live endpoint on the resolved
       # engine: one-word 40 accepted; 41 through 81 refused per-field ("Please
       # keep each name to 40 characters or fewer."); 82 and up refused
       # whole-answer ("Please shorten that to 81 characters or fewer.").

@@ -150,13 +150,24 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          last release WITHOUT it.
   #          WHY "EARLIEST" AND "LOWEST" RATHER THAN A LIST — this sentence
   #          learned it by rotting. It used to read "contained by exactly
-  #          the v0.69.5 and v0.70.0 tags", and that was ALREADY FALSE ON
-  #          THE COMMIT THAT WROTE IT: v0.71.0 had been tagged twenty
-  #          minutes earlier, and v0.72.0 followed within the hour.
+  #          the v0.69.5 and v0.70.0 tags", and that was TRUE WHEN IT WAS
+  #          WRITTEN AND FALSE FIVE MINUTES LATER — the sharper version of
+  #          the lesson, because no care at writing time prevents it.
+  #          e68837c3 wrote the sentence at 00:24:22; v0.71.0's TAG OBJECT
+  #          was created at 00:29:14, 4m52s AFTER. The author was still in
+  #          the line: 4f5c3e76 rewrote it at 00:31:55, 2m41s past false,
+  #          and shipped it; it was still false at the #581 merge
+  #          (01:07:18), and v0.72.0 was tagged 01:09:11. All times
+  #          2026-09-07 -0600. THE CLOCK IS THE TAG OBJECT'S OWN DATE
+  #          (`git for-each-ref --format='%(taggerdate:iso-strict)'
+  #          refs/tags/v0.71.0`), NOT the tagged commit's (00:12:26, `git
+  #          log -1 --format=%cI v0.71.0^{}`), because `git tag --contains`
+  #          answers about tags that EXIST — and reading the second as the
+  #          first is what INVERTED the first telling of this story.
   #          Measured 2026-09-07, four tags contain f2c2d1c. An enumeration
   #          of containing tags is a CLOCK, not a fact — every release
   #          falsifies it — so the note whose whole job is to keep a floor
-  #          from rotting rotted in under an hour. The EARLIEST one moves
+  #          from rotting rotted in under five minutes. The EARLIEST one moves
   #          only if a release DELETES the constant, and that is what the
   #          derived guard below catches. The citation is now asserted
   #          rather than trusted: see "the floor note's tag citation names
@@ -735,10 +746,23 @@ class EnginePinContractTest < ActiveSupport::TestCase
   # THE FAILURE THIS EXISTS FOR IS THIS NOTE'S OWN. The floor note dated
   # Studio::FULL_NAME_MAX_LENGTH by naming the gem commit that adds it and the
   # tags containing that commit — and it ENUMERATED them: "contained by exactly
-  # two tags, v0.69.5 and v0.70.0". That sentence was ALREADY FALSE ON THE
-  # COMMIT THAT WROTE IT. v0.71.0 had been tagged twenty minutes earlier;
-  # v0.72.0 followed within the hour. The note whose entire job is to keep a
-  # floor from rotting rotted in under sixty minutes, and nothing was red.
+  # two tags, v0.69.5 and v0.70.0". That sentence was TRUE WHEN IT WAS WRITTEN
+  # AND FALSE FIVE MINUTES LATER. e68837c3 committed it at 00:24:22; v0.71.0's
+  # TAG OBJECT was created at 00:29:14 — 4m52s AFTER. The author had not even
+  # left the line: 4f5c3e76 re-edited it at 00:31:55, 2m41s after it had gone
+  # false, and shipped it; it was still false at the #581 merge (01:07:18), and
+  # v0.72.0 was tagged 01:09:11. All times 2026-09-07 -0600, read off the TAG
+  # OBJECT's own creation date rather than its tagged commit's (00:12:26),
+  # because `git tag --contains` answers about tags that EXIST. The note whose
+  # entire job is to keep a floor from rotting rotted in five minutes, and
+  # nothing was red.
+  #
+  # TRUE-THEN-FALSE IS THE WORSE FAILURE, AND THE WHOLE ARGUMENT FOR COMPUTING
+  # THIS. A claim that is false on arrival is an author's mistake, and one
+  # careful reader catches it. A claim that is true when written and false
+  # before its author stops editing the line cannot be caught by care at all —
+  # the world moved, not the sentence. Only re-deriving it on every run catches
+  # that, which is what this test does.
   #
   # THE FIX IS THE SHAPE OF THE CLAIM, NOT THE NUMBERS IN IT. A list of
   # containing tags is a clock: every release falsifies it, so it is guaranteed

@@ -307,10 +307,10 @@ re-open the gap silently: a re-fork re-creates the shadow, and the studio-engine
 a RANGE, so a resolve inside it can carry a host that predates the fix.
 
 The pin's version is deliberately **not** written here. PR #581 deleted the `~> 0.64` this
-line used to name, and the pin has moved again since — but the argument never turned on
-WHICH release the pin names, only on the fact that it admits a range at all. The current
-floor lives in the `Gemfile` and in `test/lib/engine_pin_contract_test.rb`, which assert
-each other; a third copy here would only be a third statement to go stale.
+line used to name — but the argument never turned on WHICH release the pin names, only on
+the fact that it admits a range at all. The current floor lives in the `Gemfile` and in
+`test/lib/engine_pin_contract_test.rb`, which assert each other; a third copy here would
+only be a third statement to go stale.
 
 **Two consumer seams, so nothing has to fork this file again** (studio-engine 0.65.0):
 

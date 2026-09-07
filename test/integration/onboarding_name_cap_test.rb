@@ -160,8 +160,13 @@ class OnboardingNameCapTest < ActionDispatch::IntegrationTest
   # admit as "a 41-to-80 character placeholder". The top of that range was wrong
   # by one. The reasoning read the whole-answer rule off a SPLIT answer — 82
   # characters split 40+1+40 is refused whole-answer, so 80 looked like the last
-  # refused length — but a ONE-WORD answer of exactly the whole-answer cap never
-  # reaches that rule at all. It is refused by the per-field rule first.
+  # refused length — but a ONE-WORD answer of exactly the whole-answer cap
+  # PASSES that rule and is refused by the per-field one after it.
+  # length_refusal tests the whole-answer cap FIRST and the per-field cap
+  # SECOND, so at exactly the cap the first test (`> MAX_FULL_NAME`) is false,
+  # the answer falls through, and its one derived half is over the per-field
+  # cap. The band's top is 81 because of what the SECOND rule catches, not
+  # because the first was never reached.
   #
   # SAME LENGTH, DIFFERENT SHAPE, DIFFERENT RULE, and that is the whole
   # confusion in one sentence. At exactly Studio::FULL_NAME_MAX_LENGTH the split
