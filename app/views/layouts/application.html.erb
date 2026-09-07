@@ -407,13 +407,33 @@
               // above states. A human who said no keeps reading "Signature
               // rejected"; only a wallet that could not answer gets the setup copy.
               //
-              // THE THREE GUARDS BELOW ARE THE WHOLE OF THIS FIX. Each one names a
+              // THE FOUR GUARDS BELOW ARE THE WHOLE OF THIS FIX. Each one names a
               // failure that is DEMONSTRABLY not "an installed wallet with no
-              // wallet in it", and each rethrows the original error untouched
-              // rather than inventing a second confidently-wrong sentence.
-              // parseSolanaError passes what it does not recognise straight
-              // through, so an untouched rethrow is the honest answer, not a
-              // silent one.
+              // wallet in it". THREE RETHROW THE ORIGINAL UNTOUCHED; ONE CANNOT.
+              //
+              // An untouched rethrow is honest only while parseSolanaError leaves
+              // the string alone, and it does NOT do that universally. Its generic
+              // branch (app/javascript/solana_errors.js) rewrites both
+              // `Unexpected error` and anything matching /^unexpected/i into
+              // "Wallet couldn't process the transaction. Check wallet connection
+              // and USDC balance." Every surface maps before painting -- see
+              // modals/_wallet_setup.html.erb and solana-studio's
+              // _wallet_connect.html.erb -- so rethrowing that particular string
+              // hands balance advice to someone who attempted no transaction.
+              // The `connected` guard below therefore substitutes its own
+              // sentence; the other three rethrow strings that genuinely survive
+              // the mapper, which the e2e spec pins against the page's OWN mapper
+              // rather than a copy.
+              //
+              // STILL EXPOSED, DELIBERATELY UNFIXED HERE: a nonce fetch that
+              // fails with an HTML body makes r.json() reject with "Unexpected
+              // token '<' ... is not valid JSON", which matches that same
+              // /^unexpected/i branch. The nonceFetchFailed guard rethrows it
+              // untouched, so the commonest server-failure shape still lands on
+              // the transaction sentence. Closing it needs either a second
+              // substitution here or a mapper change whose blast radius crosses
+              // the entry paths that legitimately own that wording -- an operator
+              // decision, named here rather than made silently.
 
               // OUR OWN SERVER, FIRST. /auth/solana/nonce failing is an offline
               // moment or a blip on our side. Telling that user to create a
@@ -429,7 +449,19 @@
               // with Phantom's same generic "Unexpected error") is a signing
               // failure, and "create or import one" is flatly false advice for
               // someone whose wallet just identified itself.
-              if (connected) throw e;
+              //
+              // SUBSTITUTED, NOT RETHROWN -- the one guard here that cannot pass
+              // its error through, for the reason stated above: "Unexpected
+              // error" is the string this path carries most often, and it is
+              // exactly what the mapper turns into balance advice. This sentence
+              // survives parseSolanaError untouched and says only what is known
+              // -- the wallet identified itself and then did not sign. The
+              // wallet's own string is generic here and the substitution costs it
+              // from error_logs, the same trade the setup copy above already
+              // makes; docs/AUTH.md carries that consequence into triage.
+              if (connected) {
+                throw new Error('Your wallet connected but could not sign you in. Signing in moves no funds \u2014 try again.');
+              }
 
               // THE WALLET ANSWERED WITH NOTHING. wallet_provider.js tags the
               // Wallet Standard rejections that prove a wallet is there and

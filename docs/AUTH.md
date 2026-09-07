@@ -298,30 +298,47 @@ red-seal the gem's own release.
 
 ### Three limits worth knowing before reading a row
 
-- **The raw string is not always the wallet's — but the exception is now one
-  narrow branch.** On the `connect` + `signMessage` fallback path,
-  `solanaConnectAndVerify` REPLACES the wallet's message with "Finish setting up
-  your wallet in …" before rethrowing (that substitution is itself a 2026-09-06
-  fix). Where the substitution happens, the original Phantom string is already
-  gone by the modal's catch and `raw` is the layout's sentence.
+- **The raw string is not always the wallet's — two branches replace it.** On the
+  `connect` + `signMessage` fallback path, `solanaConnectAndVerify` REPLACES the
+  wallet's message before rethrowing. Where a substitution happens the original
+  Phantom string is already gone by the modal's catch, and `raw` is the layout's
+  sentence.
 
-  It happens for exactly one failure now: a `connect()` that NEVER ANSWERED.
-  Narrowed 2026-09-07 (`/tasks/narrow-wallet-setup-diagnosis`), because the
-  catch used to be wider than its diagnosis and was telling people who
-  demonstrably have a wallet to create one. Four things rethrow the ORIGINAL
-  untouched, so `raw` is genuine for all of them:
+  | Substituted failure | The sentence the user reads |
+  |---|---|
+  | A `connect()` that NEVER ANSWERED (2026-09-06) | "Finish setting up your wallet in … — create or import one, then try again." |
+  | Connected, then could not sign — `connect()` returned a public key and `signMessage` rejected (2026-09-07) | "Your wallet connected but could not sign you in. Signing in moves no funds — try again." |
+
+  The second exists because rethrowing that failure UNTOUCHED was not safe.
+  Phantom's generic "Unexpected error" is the string this path carries most
+  often, and `parseSolanaError`'s generic branch rewrites it into "Wallet
+  couldn't process the transaction. Check wallet connection and USDC balance." —
+  balance advice for a signed-out user who attempted no transaction, which is the
+  very sentence the 2026-09-06 fix existed to remove.
+
+  Three things still rethrow the ORIGINAL untouched, so `raw` is genuine for them:
 
   | Failure | Why it is not a missing wallet |
   |---|---|
   | A decline (`code 4001`, "user rejected/declined") | The human said no |
-  | Anything after `connect()` returned a public key — a `signMessage` rejection above all | The wallet proved it holds a keypair |
   | `/auth/solana/nonce` failing (tagged `nonceFetchFailed`) | Our own server, not the wallet |
   | Wallet Standard rejections tagged `walletAnswered` — "No account authorized" (an empty accounts array: a dismissed account-selection sheet), "Wallet not connected" | The wallet answered and authorized nothing |
 
-  So a `raw` of "Unexpected error" on this path now means the extension holds no
-  keypair, and a `raw` of "Unexpected error" reported at a later stage means a
-  wallet that connected and then could not sign. Before the narrowing both
-  arrived as the same sentence and the two were indistinguishable in triage.
+  **Triage by the SENTENCE, not the wallet string.** Each substituted failure now
+  carries its own, so the two are distinguishable on sight; neither reaches
+  `error_logs` as "Unexpected error" any more. An "Unexpected error" that DOES
+  survive to `error_logs` from this path means no substitution fired — read it as
+  one of the three rethrows above, not as a missing wallet.
+
+  **Known exposure, unfixed as of 2026-09-07.** A nonce fetch that fails with an
+  HTML body — any 500 that renders a page — makes `r.json()` reject with
+  "Unexpected token '<' … is not valid JSON", which matches that SAME
+  `/^unexpected/i` branch. It is tagged `nonceFetchFailed` and rethrown
+  untouched, so the commonest server-failure shape still reaches the user as the
+  transaction sentence. Closing it needs either a second substitution at the
+  guard or a mapper change whose blast radius crosses the entry paths that
+  legitimately own that wording.
+
 - **The report is best-effort by design.** It is dropped on a throttle, a
   closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
   triage surface here, never a count.

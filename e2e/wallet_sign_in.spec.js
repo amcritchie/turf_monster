@@ -283,7 +283,17 @@ test("a signMessage failure after connect() is not read as a missing wallet @smo
     p.signMessage = function () { return Promise.reject(new Error(generic)); };
     const signing = await grab(() => window.solanaConnectAndVerify("keypair", {}));
 
-    return { setup, signing, pubkey, mapped: window.parseSolanaError(setup) };
+    return {
+      setup,
+      signing,
+      pubkey,
+      mapped: window.parseSolanaError(setup),
+      // Both from the page's OWN mapper, never a copy typed into this spec.
+      // `mappedGeneric` is what the raw wallet string BECOMES — the transaction
+      // sentence this guard exists to keep off a sign-in surface.
+      mappedSigning: window.parseSolanaError(signing),
+      mappedGeneric: window.parseSolanaError(generic),
+    };
   }, UNINITIALIZED);
 
   // The wallet ANSWERED. Without this the spec would pass against a connect()
@@ -296,10 +306,27 @@ test("a signMessage failure after connect() is not read as a missing wallet @smo
   // coupling it rests on. Asserted against what the page emitted, not a copy.
   expect(out.mapped).toBe(out.setup);
 
-  // THE REGRESSION. Rethrown verbatim — exact equality, so a rewrite in ANY
-  // vocabulary fails here, not merely this one.
-  expect(out.signing).toBe(UNINITIALIZED);
+  // THE REGRESSION, IN THE VOCABULARY THE USER ACTUALLY READS. Asserting the RAW
+  // rethrow was not enough, and that gap is why this defect survived a green
+  // suite: every surface runs parseSolanaError before painting, so a raw string
+  // that reads fine can still be MAPPED into the wrong sentence. It was —
+  // "Unexpected error" became "…Check wallet connection and USDC balance." for a
+  // signed-out user who attempted no transaction.
+  //
+  // THE PRECONDITION FIRST, or the control below is vacuous. The raw generic
+  // really is rewritten by the mapper; without this, "not that sentence" could
+  // pass by comparing against a string nothing on this page ever produces.
+  expect(out.mappedGeneric).not.toBe(UNINITIALIZED);
+
+  // THE CONTROL. What the signing path emits must not land on the transaction
+  // sentence — compared against the page's own mapper OUTPUT, so rewording the
+  // mapper cannot quietly make this pass.
+  expect(out.mappedSigning).not.toBe(out.mappedGeneric);
+  // ...and it survives the mapper untouched, the same coupling `setup` rests on.
+  expect(out.mappedSigning).toBe(out.signing);
+  // Still its own diagnosis, and no longer the wallet's bare generic.
   expect(out.signing).not.toBe(out.setup);
+  expect(out.signing).not.toBe(UNINITIALIZED);
 });
 
 test("a wallet that authorized no account is not read as a missing wallet @smoke", async ({ page }) => {

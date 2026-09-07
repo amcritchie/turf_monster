@@ -107,7 +107,7 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
            "and it must be set before ANY later await can reject"
   end
 
-  test "each guard rethrows untouched, and all of them precede the setup copy" do
+  test "the guards precede the setup copy, and only two rethrow untouched" do
     src      = LAYOUT.read
     fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
     throw_at = fallback.index(MESSAGE)
@@ -119,7 +119,6 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     # substring assertion and change who gets the sentence.
     [
       "if (e && e.nonceFetchFailed) throw e;",
-      "if (connected) throw e;",
       "if (e && e.walletAnswered) throw e;"
     ].each do |guard|
       at = fallback.index(guard)
@@ -127,6 +126,18 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
       assert at < throw_at,
              "#{guard} must run BEFORE the setup message can be composed"
     end
+
+    # THE CONNECTED GUARD DOES NOT RETHROW, and pinning it here as though it
+    # did is what let the defect through a green file: `throw e` hands the
+    # mapper Phantom's generic "Unexpected error", which its generic branch
+    # rewrites into balance advice. So pin the SUBSTITUTION and its position,
+    # and pin the old form as FORBIDDEN — restoring it must go red here.
+    connected_at = fallback.index("if (connected) {")
+    assert connected_at, "the connected guard must still exist, in braced form"
+    assert connected_at < throw_at,
+           "the connected guard must run BEFORE the setup message can be composed"
+    refute_includes fallback, "if (connected) throw e;",
+                    "rethrowing here gives the mapper the one string it mis-maps"
   end
 
   test "the wallet layer tags the rejections that prove a wallet exists" do
@@ -228,6 +239,30 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
                    "parseSolanaError would rewrite the setup message via /#{body}/#{flags}"
     end
     refute_equal "Unexpected error", message
+  end
+
+  test "the signing message survives parseSolanaError untouched" do
+    # THE SAME COUPLING THE SETUP MESSAGE RESTS ON, and the whole reason this
+    # guard substitutes instead of rethrowing: a sentence the mapper rewrites
+    # would put the transaction copy back onto a sign-in surface. Read what the
+    # code actually throws — a hardcoded copy here could not fail when the
+    # sentence changes, which is the risk being guarded.
+    line = LAYOUT.read[/^\s*throw new Error\('Your wallet connected.*$/]
+    assert line, "the signing message must be THROWN, as a one-line literal"
+    message = line[/'(.*)'\);/, 1].gsub('\\u2014', "\u2014")
+    mapper  = MAPPER.read
+
+    # Every regex literal the mapper tests a message against.
+    mapper.scan(%r{/((?:[^/\\\n]|\\.)+)/([im]*)\.test\(msg\)}).each do |body, flags|
+      re = Regexp.new(body, flags.include?("i") ? Regexp::IGNORECASE : 0)
+      refute_match re, message,
+                   "parseSolanaError would rewrite the signing message via /#{body}/#{flags}"
+    end
+    # The equality branch is not a regex, so the scan above cannot see it.
+    refute_equal "Unexpected error", message
+
+    refute_includes message, "USDC balance",
+                    "the signing message must not repeat the advice it exists to replace"
   end
 
   test "the shared transaction wording is left alone for the paths that own it" do
