@@ -1885,19 +1885,6 @@ class ContestsController < ApplicationController
     end
   end
 
-  # Authoritative funding capability for #check_funding — returns
-  # [fundable_bool, method] where method is "token" | "usdc" | "usdt" | nil.
-  # Mirrors the entry funding priority (#resolve_web2_entry_funding! for web2,
-  # #prepare_entry for web3): entry token first, then USDC, then — web3 only —
-  # USDT. Reads BALANCES FRESH off-chain (Solana::Vault#fetch_wallet_balances is
-  # always a live RPC; the 60s navbar cache is deliberately NOT trusted here),
-  # and the token read is fresh too (the caller busts the entry-tokens cache).
-  #   - SIGNER address: web3 (Phantom) session funds from web3_solana_address;
-  #     web2 / managed funds from web2_solana_address (the SAME address the
-  #     server signs the entry with — see #resolve_web2_entry_funding!).
-  #   - USDC: web3 always; web2 only behind the ENABLE_WEB2_USDC_ENTRY flag.
-  #   - USDT: web3 only, and only on an accepts_usdt contest (web2 never holds
-  #     USDT — payouts are USDC).
   # Does this session owe a WALLET SIGNATURE before a paid on-chain entry can be
   # signed at all? Returns the Web3StepUpPolicy (so a caller can render its
   # payload) or nil.
@@ -1927,6 +1914,25 @@ class ContestsController < ApplicationController
     policy.required? ? policy : nil
   end
 
+  # Authoritative funding capability for #check_funding — returns
+  # [fundable_bool, method] where method is "token" | "usdc" | "usdt" | nil.
+  # Mirrors the entry funding priority (#resolve_web2_entry_funding! for web2,
+  # #prepare_entry for web3): entry token first, then USDC, then — web3 only —
+  # USDT. Reads BALANCES FRESH off-chain (Solana::Vault#fetch_wallet_balances is
+  # always a live RPC; the 60s navbar cache is deliberately NOT trusted here),
+  # and the token read is fresh too (the caller busts the entry-tokens cache).
+  #   - SIGNER address: web3 (Phantom) session funds from web3_solana_address;
+  #     web2 / managed funds from web2_solana_address (the SAME address the
+  #     server signs the entry with — see #resolve_web2_entry_funding!).
+  #   - USDC: web3 always; web2 only behind the ENABLE_WEB2_USDC_ENTRY flag.
+  #   - USDT: web3 only, and only on an accepts_usdt contest (web2 never holds
+  #     USDT — payouts are USDC).
+  # ONE POPULATION NEVER REACHES HERE, and the omission is the point: an account
+  # whose only wallet is self-custody has no web2 address for this method to
+  # price, so it used to fall out at the `address.blank?` guard below as
+  # [false, nil] — a funding verdict reached without reading a balance, which
+  # the board showed as Get USDC. #check_funding now hands that account to
+  # #entry_step_up_refusal instead, because what it owes is a signature.
   def entry_funding_status
     fee_cents = @contest.entry_fee_cents.to_i
     return [true, nil] if fee_cents <= 0 # free contest — nothing to fund
