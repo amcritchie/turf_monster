@@ -70,14 +70,22 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
 
   # --- the audience dispatcher: web2 -> buy-entry-token, web3 -> wallet-topup ---
 
-  test "showFundsNeeded splits web2 to the Buy an Entry Token modal and web3 to Top Up Wallet" do
+  test "showFundsNeeded sends the funds wall to Get USDC, keeping only the kill-switch audience on tokens" do
     get contest_path(contests(:one))
     assert_response :success
     body = response.body
     assert_includes body, "showFundsNeeded() {"
-    assert_includes body, "if (Alpine.store('session').mode === 'web2') {"
+    # REBOUND (2026-09-05). The old assertion pinned `mode === 'web2'` as the
+    # whole condition — the fork that sent every web2 player to a modal with no
+    # visible rails in production. What must hold now: the USDC card is the
+    # default answer, and the ONLY audience still routed to tokens is the one
+    # that literally cannot pay with USDC (ENABLE_WEB2_USDC_ENTRY off).
+    assert_includes body, "session.mode === 'web2' && !session.web2UsdcEntry"
     assert_includes body, "this.showBuyEntryToken();"
-    assert_includes body, "this.showWalletTopup();"
+    assert_includes body, "this.showGetUsdc();"
+    # showBuyEntryToken must refuse to open with no rail to show, rather than
+    # painting "pick how to pay" over an empty box.
+    assert_includes body, "if (!Alpine.store('session').entryTokenRailsAvailable) {"
     # showBuyEntryToken opens the buy-entry-token modal (open vs swap, like wallet-topup).
     assert_includes body, "showBuyEntryToken() {"
     assert_includes body, "s.open('buy-entry-token', { enterAnim: 'shake' })"
@@ -101,13 +109,70 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
 
   # --- web3 unchanged: showWalletTopup + the USDC Top Up Wallet are intact ---
 
-  test "web3's showWalletTopup and the USDC Top Up Wallet modal are unchanged" do
+  test "Top Up Wallet is still REACHABLE, not merely still defined" do
     get contest_path(contests(:one))
     assert_response :success
     body = response.body
+    # REBOUND. "unchanged" was proved by the presence of the function's source
+    # text, which stays true after its last caller disappears — and that is
+    # exactly what happened for one revision. The property worth defending is
+    # that a player can still GET there.
     assert_includes body, "showWalletTopup() {"
-    assert_includes body, "s.open('wallet-topup', { enterAnim: 'shake' })"
     assert_includes body, "$store.modals.current().id === 'wallet-topup'"
+    assert_includes body, "$store.modals.swap('wallet-topup', {})",
+                    "the Get USDC card must carry the onward control into Top Up Wallet"
     assert_includes body, "Buy USDC with Coinbase"
+  end
+
+  # --- the empty-rails guard, with its FALSE branch actually run --------------
+  #
+  # Review found this guard had never executed. entryTokenRailsAvailable mirrors
+  # the only two rails _buy_entry_token renders, but onramp_helper.rb opens
+  # `return true unless Rails.env.production?`, so outside production every rail
+  # is visible and the flag can only ever be true. The assertion that existed was
+  # an assert_includes of the literal `if` line — it proved the branch was WRITTEN,
+  # not that it works.
+  #
+  # Fake production the way the onramp helper's own tests do, turn both rails off,
+  # and read the server's answer out of the payload the board branches on.
+  # (The JS branch itself still wants an e2e; this closes the server half, which
+  # is the half that decides.)
+  def in_production(&block) = Rails.env.stub(:production?, true, &block)
+
+  def session_context_flag(body, key)
+    json = body[/<script type="application\/json" id="session-context">(.*?)<\/script>/m, 1]
+    JSON.parse(json).fetch(key)
+  end
+
+  test "entryTokenRailsAvailable goes FALSE when neither entry-token rail is visible" do
+    with_env("ENABLE_COINFLOW" => nil, "PAYMENT_PROVIDER" => nil) do
+      in_production do
+        get contest_path(contests(:one))
+        assert_response :success
+        refute session_context_flag(response.body, "entryTokenRailsAvailable"),
+               "with Coinflow unset and Stripe not the provider, the entry-token " \
+               "modal has no rail to show — the flag must say so, or showBuyEntryToken " \
+               "opens 'pick how to pay' over an empty box (prod, 2026-09-05)"
+      end
+    end
+  end
+
+  test "and TRUE as soon as one rail comes back" do
+    with_env("ENABLE_COINFLOW" => "true", "PAYMENT_PROVIDER" => nil) do
+      in_production do
+        get contest_path(contests(:one))
+        assert_response :success
+        assert session_context_flag(response.body, "entryTokenRailsAvailable"),
+               "one visible rail is enough to keep the entry-token modal open-able"
+      end
+    end
+  end
+
+  def with_env(pairs)
+    originals = pairs.keys.to_h { |k| [k, ENV[k]] }
+    pairs.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
+    yield
+  ensure
+    originals.each { |k, v| v.nil? ? ENV.delete(k) : ENV[k] = v }
   end
 end

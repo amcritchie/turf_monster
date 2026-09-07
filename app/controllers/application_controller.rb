@@ -534,6 +534,15 @@ class ApplicationController < ActionController::Base
       # then USDC). Static per render (the flag can't change mid-session), so
       # refreshSession/refreshBalance never touch it.
       web2UsdcEntry:   AppFlags.web2_usdc_entry?,
+      # Whether the Buy an Entry Token modal has ANY rail to show. Both of its
+      # rails are server-gated (ENABLE_COINFLOW, and PAYMENT_PROVIDER +
+      # STRIPE_CHECKOUT_DISABLED for Stripe), and in production on 2026-09-05 both
+      # were off — so the modal rendered its "pick how to pay" line over an empty
+      # box and the entry wall became a dead end. The gate lives in ERB, which the
+      # board cannot see, so the answer has to travel: selectionBoard#showBuyEntryToken
+      # falls through to the USDC card when this is false. Static per render.
+      entryTokenRailsAvailable:
+        helpers.onramp_rail_visible?(:coinflow) || helpers.onramp_rail_visible?(:stripe),
       # Entry-time age gate (ENABLE_AGE_GATE). eligibilityBlocker reads these
       # synchronously at hold-time and pops the DOB modal BEFORE the tokens /
       # balance check when the gate is on and this user hasn't verified yet.
