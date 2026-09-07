@@ -20,13 +20,26 @@ class AdminController < ApplicationController
   # work goes to the engine's living style guide at /admin/style#modals from now
   # on; a modal built there is inherited by every Studio app, one built here is
   # turf's alone. This registry is not deleted yet for a measured reason rather
-  # than an unmade decision: 8 of the modal ids below have no card in the engine
+  # than an unmade decision: 5 of the modal ids below have no card in the engine
   # guide (wallet-setup, wallet-changed, cdp-ramp, buy-entry-token,
-  # cosign-rejected, quest-success, unsubscribe-confirm, unsubscribe-goodbye), so
+  # cosign-rejected), so
   # deleting this page today would drop their only review surface instead of
-  # tidying a duplicate. Port first, delete second. web3-step-up came off that
-  # list on 2026-08-24: the engine owns the partial AND shows both of its states,
-  # so its cards here were the duplicate, not the review surface. The page itself carries the
+  # tidying a duplicate. Port first, delete second.
+  #
+  # A NAME LEAVES THIS LIST FOR ONE OF TWO REASONS. Either the engine now OWNS
+  # the partial and shows its states (a true port), or this page was never that
+  # modal's review surface to begin with. An engine SPECIMEN of a card turf
+  # still owns is NEITHER — it does not review turf's partial — so a matching
+  # id in the engine guide is not on its own grounds to strike a name here.
+  # web3-step-up came off on 2026-08-24 by the first route: the engine owns the
+  # partial AND shows both of its states, so its cards here were the duplicate,
+  # not the review surface. quest-success, unsubscribe-confirm and
+  # unsubscribe-goodbye came off on 2026-09-06 by the SECOND
+  # (/tasks/drop-dead-gallery-cards): they were registered in
+  # layouts/application but never in layouts/modal_preview, so each drew an
+  # EMPTY card here and this page was never their showroom.
+  # cosign-rejected STAYS — modals/_host_extras registers it once and the
+  # engine host renders that on every path, so it really does draw here. The page itself carries the
   # same notice at the top, where someone about to build here will actually see
   # it — see app/views/admin/modals.html.erb.
   MODAL_FLOWS = [
