@@ -336,16 +336,6 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
            "brand must be composed before the first guard that reports it"
   end
 
-  test "the connected sentence survives parseSolanaError untouched" do
-    # Same coupling the setup copy rests on. If a future mapper branch ever
-    # matched this wording, `mapped_message` would stop being what the user read
-    # and the reported pair would quietly start lying.
-    mapper = MAPPER.read
-    refute_includes mapper, SIGN_FAIL_MESSAGE,
-                    "the mapper must not rewrite the connected-but-unsigned sentence"
-    refute_match(/connected but could not sign/i, mapper,
-                 "the mapper must leave this sentence to pass through unrecognised")
-  end
 
   # --- the coupling this fix rests on ----------------------------------------
 
@@ -381,11 +371,16 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     # THE SAME COUPLING THE SETUP MESSAGE RESTS ON, and the whole reason this
     # guard substitutes instead of rethrowing: a sentence the mapper rewrites
     # would put the transaction copy back onto a sign-in surface. Read what the
-    # code actually throws — a hardcoded copy here could not fail when the
+    # code actually composes — a hardcoded copy here could not fail when the
     # sentence changes, which is the risk being guarded.
-    line = LAYOUT.read[/^\s*throw new Error\('Your wallet connected.*$/]
-    assert line, "the signing message must be THROWN, as a one-line literal"
-    message = line[/'(.*)'\);/, 1].gsub('\\u2014', "\u2014")
+    #
+    # COMPOSED ONCE, LIKE setupCopy, since 2026-09-07. It used to be thrown as an
+    # inline literal; the guard now REPORTS the wallet's own string before it
+    # substitutes this one, so the sentence has to exist as a value the report
+    # and the Error can both read. Same shape as the setup half above.
+    line = LAYOUT.read[/^\s*var signFailCopy = 'Your wallet connected.*$/]
+    assert line, "the signing message must be composed as a one-line literal"
+    message = line[/'(.*)';/, 1].gsub('\\u2014', "\u2014")
     mapper  = MAPPER.read
 
     # Every regex literal the mapper tests a message against.
