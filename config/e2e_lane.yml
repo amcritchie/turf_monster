@@ -705,7 +705,23 @@
 # only number that describes THIS tree is the one the lister produced after the
 # merge. Re-derived with bin/e2e-lane-derive --write on the MERGED tree. Re-run
 # it, never add.
-total_specs: 247
+# 247 -> 251 (modal-steps-stop-stacking): four specs in
+# e2e/onchain_modal_steps.spec.js for the on-chain progress modal, none of them
+# observable anywhere else. `Alpine.store('modals').open()` is a stack, and
+# solanaModal.show() called it once per step — so a three-step flow left three
+# live entries, success() patched only the top, and dismissing it revealed the
+# "Approve in Phantom" card still underneath. The page markup is byte-identical
+# whether show() pushes or patches, so no String assertion can tell the two
+# apart; the stack lives in the client store and nowhere else.
+# The load-bearing one is "a step fired mid-transition still wins". The obvious
+# repair was $store.modals.advance(), which animates the change — but its guard
+# drops any step arriving inside the ~440ms slide, and these steps are
+# machine-driven and routinely closer than that. Under advance() this spec sees
+# "Preparing" where "Confirming Onchain" belongs: an operator told nothing is
+# happening while Phantom waits on them. Re-derived with bin/e2e-lane-derive
+# --write AFTER merging accepted (a pre-merge derive read 250 against a tree
+# that was 5 commits behind), never hand-incremented.
+total_specs: 251
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
 #
@@ -972,7 +988,7 @@ allowed_skips: 4
 # TREE, not by arithmetic on any of the three conflicts this line has hit.
 # allowed_skips stays 4: both listers agree, which is what proves none of the new
 # specs brought a runtime skip with it.
-executed: 226
+executed: 230
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
 # this EXACT value — so widening the filter to `@devnet|something` is a test failure, not a
