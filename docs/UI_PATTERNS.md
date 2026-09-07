@@ -302,8 +302,15 @@ contains `/gems/`: that encodes how the engine happens to be installed here and 
 pass in studio-engine's own consumer-CI lane, which bundles the engine as a path checkout.
 `test/support/resolved_modal_host.rb` wraps this; `test/views/modal_host_adoption_test.rb`
 pins it, and `test/integration/modal_host_focus_contract_test.rb` reads the RESOLVED host
-so the focus contract stays asserted against whatever a page actually gets — a re-fork or
-an engine downgrade under the `~> 0.64` pin both re-open the gap silently.
+so the focus contract stays asserted against whatever a page actually gets. Two things
+re-open the gap silently: a re-fork re-creates the shadow, and the studio-engine pin admits
+a RANGE, so a resolve inside it can carry a host that predates the fix.
+
+The pin's version is deliberately **not** written here. PR #581 deleted the `~> 0.64` this
+line used to name — but the argument never turned on WHICH release the pin names, only on
+the fact that it admits a range at all. The current floor lives in the `Gemfile` and in
+`test/lib/engine_pin_contract_test.rb`, which assert each other; a third copy here would
+only be a third statement to go stale.
 
 **Two consumer seams, so nothing has to fork this file again** (studio-engine 0.65.0):
 

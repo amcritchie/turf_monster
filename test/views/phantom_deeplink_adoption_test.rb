@@ -60,12 +60,18 @@ require "test_helper"
 # gem's copy reads the helper exactly once, and phantom_callback reads it
 # identically.
 #
-# Historical note, still true of the engine pin: This file used to record that the pin
-# UNDERSTATED that — `~> 0.63` with MINIMUM at 0.63.0 — and point at
-# /tasks/raise-engine-pin-to-0-64 as the change that would close it. That task
-# landed: the Gemfile pins `~> 0.64` and engine_pin_contract_test sets MINIMUM to
-# 0.64.0, which is the MAXIMUM first-appearance across everything this app
-# renders or configures.
+# Historical note: This file used to record that the pin UNDERSTATED that —
+# `~> 0.63` with MINIMUM at 0.63.0 — and point at /tasks/raise-engine-pin-to-0-64
+# as the change that would close it. That task landed, and the pin and MINIMUM
+# have both moved well past 0.64 since.
+#
+# WHAT IS STILL TRUE, and the only part this file rests on, is that 0.64.0 is
+# where the deep-link pair first exists — so it remains a floor for THIS surface,
+# one the app's actual floor now sits above. The CURRENT pin and MINIMUM are
+# deliberately not restated here: this paragraph named `~> 0.64` and MINIMUM
+# 0.64.0 long after PR #581 replaced both, and every restatement is one more copy
+# to go stale. test/lib/engine_pin_contract_test.rb owns them and asserts them
+# against each other and against the Gemfile's floor note.
 #
 # The sharpest consequence is worth keeping in view here, because it is NOT what
 # this file's own tests catch: `config/initializers/studio.rb` SETS
