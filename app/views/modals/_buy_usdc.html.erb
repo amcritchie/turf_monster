@@ -28,8 +28,10 @@
   player tries to enter without USDC and without an entry token — it is the card
   that says what is missing and how to get it, not a payment surface.
 
-  THE VIDEO IS OPTIONAL. buy_usdc_video? is false until BUY_USDC_VIDEO_ID is set
-  and the band then renders heading and guide with no player. See BuyUsdcHelper.
+  THE BAND ALWAYS SHIPS A PLAYER. buy_usdc_video? cannot return false: the id
+  falls back to BuyUsdcHelper::DEFAULT_VIDEO_ID, so BUY_USDC_VIDEO_ID only swaps
+  WHICH video plays, never whether one does. The guard below is the seam that
+  keeps that decision in the helper, not an optional-band switch.
 
   CRITICAL: rendered inside the host template x-if, so a SINGLE root element.
   x-data is a double-quoted attribute, so single-quote everything inside the
@@ -54,8 +56,10 @@
       absolutely-positioned button anchors to. %>
   <%= render "studio/modals/blocks/close_x" %>
 
-  <%# The card's image: USDC, badged with the chain it lives on. It carries the
-      first sentence's meaning before the sentence is read. %>
+  <%# The card's image: the USDC disc badged with Solana. It names the asset at
+      a glance, and it is the only place this card states the CHAIN — the copy
+      below names USDC and digital dollars and never says Solana, so the badge
+      carries that half alone. See blocks/_usdc_solana_mark. %>
   <div class="flex justify-center pt-2 mb-3">
     <%= render "modals/blocks/usdc_solana_mark", size: 64 %>
   </div>

@@ -8,10 +8,11 @@ require "test_helper"
 #    modals/_wallet_setup, hand-rolled its close mark for eight months while
 #    blocks/_close_x homed the identical mark for eight other modals. A copy
 #    reads fine and drifts silently, so pin that this one composes the primitive.
-# 2. THE PLAYER IS OPTIONAL. The operator supplies the video after this ships
-#    (BUY_USDC_VIDEO_ID). With none configured the band must render its heading
-#    and its guide and simply have no player — an embed with an empty id renders
-#    YouTube's own error card inside the modal instead.
+# 2. THE PLAYER IS NEVER ABSENT. buy_usdc_video? cannot return false — the id
+#    falls back to BuyUsdcHelper::DEFAULT_VIDEO_ID, so BUY_USDC_VIDEO_ID only
+#    swaps WHICH video plays. That fallback is the contract worth pinning: it
+#    is what keeps an unset or blank id from mounting an embed with an empty
+#    id, which would render YouTube's own error card inside the modal.
 class BuyUsdcModalTest < ActionView::TestCase
   helper BuyUsdcHelper
 
@@ -112,17 +113,18 @@ class BuyUsdcModalTest < ActionView::TestCase
     mark = doc.at_css("[data-usdc-solana-mark]")
 
     assert mark, "the card's image must render"
-    # COMPOSED, NOT REDRAWN. Both are the shipped brand files; inlining a copy of
-    # either path would be a third copy of a brand that is not ours to restyle.
+    # COMPOSED, NOT REDRAWN. Both point at the shipped brand files. The USDC
+    # path lives only in public/; the Solana path is ALREADY hand-copied inline
+    # in contests/_hero.html.erb, so a copy here would be its THIRD.
     assert_equal "/usdc-mark.svg",   mark.at_css("[data-mark='usdc']")&.[]("src")
     assert_equal "/solana-mark.svg", mark.at_css("[data-mark='solana']")&.[]("src")
     assert_equal "img", mark["role"], "it is an image, and it needs a name"
     assert_equal "USDC on Solana", mark["aria-label"]
   end
 
-  # --- the optional player ----------------------------------------------------
+  # --- the player, and the offset that belongs to it --------------------------
 
-  test "the teaching band always ships a player, falling back to the wallet walkthrough" do
+  test "with no id configured the band plays the default USDC video from 58s" do
     html = with_video_id(nil) { render_card }
     doc  = Nokogiri::HTML5.fragment(html)
 

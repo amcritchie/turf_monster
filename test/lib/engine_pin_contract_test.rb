@@ -2,12 +2,17 @@ require "test_helper"
 
 # Contract for the studio-engine pin.
 #
-# The Gemfile pin is `~> 0.43`, which permits anything below 1.0 — so the pin
-# string alone does NOT tell you what this app runs. That gap has bitten twice.
-# Reading the pin as the version is how "turf is on 0.31" got believed while the
-# lockfile said 0.39; and `~> 0.42` later let the lockfile reach 0.43 with nobody
-# ADOPTING 0.43, which is what installs its migrations — the drift the migration
-# check below now asserts against.
+# The Gemfile pin reads `"~> 0.69", ">= 0.69.5"`. The `~>` half permits anything
+# below 1.0, so a pin string alone does NOT tell you what this app runs. That gap
+# has bitten three times. Reading the pin as the version is how "turf is on 0.31"
+# got believed while the lockfile said 0.39; `~> 0.42` later let the lockfile
+# reach 0.43 with nobody ADOPTING 0.43, which is what installs its migrations —
+# the drift the migration check below now asserts against; and most recently
+# `~> 0.64` said nothing whatever about the 0.69.5 this app had come to require,
+# because a two-segment `~>` CANNOT state a patch-level floor. That is why the
+# pin carries a second requirement, why the guard reads the requirement's
+# effective lower bound at full precision, and why there is now a guard that
+# derives the question from the source instead of from a number.
 # These assert the FLOOR we actually depend on, so a `bundle update` that walked
 # the resolved version backwards fails here instead of at runtime.
 #
@@ -121,7 +126,34 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          it cannot date anything here. Each partial rendered, accessor
   #          configured and symbol named was traced to its FIRST appearance
   #          across the installed 0.4.13-0.65.2 trees; 0.64.0 is the maximum.
-  MINIMUM = Gem::Version.new("0.64.0")
+  #   0.69.5 — Studio::FULL_NAME_MAX_LENGTH, and the FIRST floor in this list
+  #          that is a PATCH rather than a minor. turf-modal-caps-forty
+  #          (PR 573) made the constant a RENDER-TIME dependency on EVERY
+  #          page: layouts/application renders modals/_onboarding
+  #          unconditionally and the <template x-if> wrapper is CLIENT-side,
+  #          so the ERB evaluates on every request and reads the constant for
+  #          the field's maxlength. Below 0.69.5 that is a NameError on every
+  #          page render — a TOTAL outage, the same class as the 0.64 boot
+  #          failure above, not a degraded field.
+  #          DATED TWO WAYS, because the number is the whole point here:
+  #          grepping every installed studio-engine tree (128 of them,
+  #          118 distinct versions across two Ruby gem homes) for the
+  #          ASSIGNMENT `FULL_NAME_MAX_LENGTH =` under lib/ and app/ finds
+  #          it in exactly 0.69.5 and 0.70.0 and in NONE of the 116
+  #          versions below; and
+  #          in the gem repo the commit that adds it (f2c2d1c, 2026-09-06) is
+  #          contained by exactly the v0.69.5 and v0.70.0 tags, while that
+  #          commit's own version.rb still reads 0.69.4 — so 0.69.4 is the
+  #          last release WITHOUT it.
+  #          WHY THE PIN GREW A SECOND REQUIREMENT, and why the guard below
+  #          changed shape with it: `~> 0.69` means `>= 0.69, < 1.0`, so it
+  #          ADMITS 0.69.0 through 0.69.4 — the exact window that raises. A
+  #          two-segment `~>` CANNOT express a patch floor. The pin now reads
+  #          `"~> 0.69", ">= 0.69.5"`, and the pin guard below compares the
+  #          requirement's EFFECTIVE lower bound at full precision instead of
+  #          the `~>` operand's first two segments — which is what let a floor
+  #          five releases too low agree with itself here.
+  MINIMUM = Gem::Version.new("0.69.5")
 
   test "the resolved studio-engine is at or above the floor this app depends on" do
     resolved = Gem::Version.new(Studio::VERSION)
@@ -131,7 +163,180 @@ class EnginePinContractTest < ActiveSupport::TestCase
                     "a host-owned layered banner needs >= 0.43; the adopted first-name onboarding " \
                     "endpoints need >= 0.46; the shared /profile page and its section registry need " \
                     ">= 0.52; the shared date-of-birth field rendered by modals/_birthday needs " \
-                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot)"
+                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot; and Studio::FULL_NAME_MAX_LENGTH needs >= 0.69.5 — modals/_onboarding reads it for the field maxlength and layouts/application renders that partial on EVERY page, so below it every request raises NameError)"
+  end
+
+  # ── THE FLOOR, ASKED OF THE SOURCE INSTEAD OF OF A NUMBER ───────────────
+  #
+  # MINIMUM above is hand-written, and a hand-written floor rots in exactly one
+  # way: the app grows a reference to something NEWER than the number, and
+  # nothing says so. That is not hypothetical here — it is what this test was
+  # written for. turf-modal-caps-forty adopted Studio::FULL_NAME_MAX_LENGTH,
+  # which first exists in 0.69.5, while MINIMUM still read 0.64.0 and the pin
+  # still read `~> 0.64`. Every resolve in [0.64.0, 0.69.4] passed the guard
+  # above — the guard that exists to catch a backwards resolve — and then raised
+  # NameError on every page render. Bumping the number closes that window and
+  # leaves the MECHANISM intact: the next adoption reopens it in silence.
+  #
+  # This asks the question the number was standing in for, and derives both
+  # sides. The app's side is every `Studio::` constant its own source NAMES; the
+  # engine's side is what the RESOLVED gem actually defines. A backwards resolve
+  # fails here without anyone having remembered anything, and so does a constant
+  # the engine REMOVES on the way up — which no floor can ever catch.
+  #
+  # WHY IT DOES NOT DATE CONSTANTS ACROSS GEM VERSIONS, which is the guard that
+  # first suggests itself: "resolve the earliest engine version defining each
+  # reference, and fail when the pin sits below the maximum of those" computes a
+  # better answer — it would tell you the floor IS 0.69.5 rather than merely
+  # that today's resolve is wrong. It needs every historical gem tree to do it.
+  # Locally that is 128 unpacked studio-engine trees at 22 MB each, 1.1 GB. CI
+  # installs from Gemfile.lock (`bundler-cache: true`), so it has exactly ONE
+  # tree — the resolved one — and a guard that can only run on the laptop that
+  # happens to have the other 127 is not a guard. This version needs no history
+  # at all: whatever bundler resolved is on disk by definition, so it runs
+  # everywhere the suite runs, which is the property that makes it bite.
+  #
+  # It is the WEAKER question and the STRONGER guard, and the pair is the point:
+  # the pin refuses the bad resolve, and this catches it if the pin is ever
+  # wrong again.
+  test "every Studio constant this app names is defined by the resolved engine" do
+    scan       = studio_source_scan
+    references = scan.fetch(:references)
+
+    # ── CONTROLS. A source-scanning test is exit-blind: a glob that matches
+    # nothing, a root that moved, or an encoding guard that swallows every file
+    # produces an EMPTY scan, and an empty scan satisfies the real assertion
+    # below perfectly. These prove the scan read the input before its verdict is
+    # allowed to mean anything.
+    assert_operator scan.fetch(:files_read), :>, 500,
+                    "the scan read #{scan.fetch(:files_read)} files — this app has ~1000 under " \
+                    "#{SCANNED_ROOTS.inspect}, so a number this low means the walk is not reaching " \
+                    "them and the verdict below is vacuous, not clean"
+
+    SCANNED_ROOTS.each do |root|
+      assert references.values.flatten.any? { |path| path.start_with?("#{root}/") },
+             "the scan found no Studio constant anywhere under #{root}/ — every one of these roots " \
+             "holds at least one today, so an empty root means that subtree was not walked"
+    end
+
+    # And the SUBTRACTION has to be doing its job, or the verdict swings on
+    # whether an app-defined constant under the engine's namespace happened to
+    # be loaded. If this app stops opening any constant inside Studio::, delete
+    # this control along with STUDIO_CONSTANT_DEFINITION — do not just relax it.
+    assert_includes scan.fetch(:app_defined), "UsernameGeneratorTest",
+                    "the scan collected no definition of Studio::UsernameGeneratorTest, which " \
+                    "test/lib/studio/username_generator_test.rb opens — so app-defined names are " \
+                    "not being subtracted and this verdict depends on test load order"
+
+    # The reference that MOTIVATED this guard, named on purpose. If it ever goes
+    # away this fails, and that is correct: it is the fact holding the floor at
+    # 0.69.5, so its removal is a reason to revisit MINIMUM rather than something
+    # to route around. Re-point the control at another live reference then.
+    assert_includes references.keys, "FULL_NAME_MAX_LENGTH",
+                    "the scan did not see Studio::FULL_NAME_MAX_LENGTH, which modals/_onboarding " \
+                    "reads for the field maxlength — either the scanner stopped reading, or the " \
+                    "reference that holds the 0.69.5 floor is gone and MINIMUM needs revisiting"
+
+    # And the resolver half has to DISCRIMINATE, or the verdict is "nothing is
+    # ever missing". Fed a name the engine does not define, it must say so. The
+    # name is written as a bare symbol and never as a Studio:: token, because
+    # this file is inside the scanned tree and a literal would make the test
+    # report itself.
+    absent = :AConstantTheEngineHasNeverDefined
+    assert_not Studio.const_defined?(absent, false),
+               "the negative control #{absent} is actually defined by the engine — pick a name " \
+               "that is not, or this control proves nothing"
+    assert_equal [absent.to_s], undefined_engine_constants(absent.to_s => ["<negative control>"]).keys,
+                 "the resolver did not report a constant the engine does not define — it cannot " \
+                 "report a real one either"
+
+    missing = undefined_engine_constants(references)
+
+    assert_empty missing,
+                 "this app names #{missing.size} Studio constant(s) the resolved studio-engine " \
+                 "#{Studio::VERSION} does not define: " +
+                 missing.map { |name, paths| "Studio::#{name} (#{paths.uniq.sort.first(3).join(', ')})" }.join("; ") +
+                 ". Either the resolve walked BELOW the floor this app depends on — raise the " \
+                 "Gemfile pin and MINIMUM, and write the floor note — or the engine dropped a " \
+                 "constant on the way UP and these call sites need to move."
+  end
+
+  # The roots this app's own source lives under. Walked whole, including the one
+  # GENERATED tree inside them — app/assets/builds, which is gitignored but on
+  # disk. That is left in deliberately rather than filtered: a compiled artifact
+  # naming a constant the engine does not define is a real inconsistency, not a
+  # false positive, and it holds no `Studio::` token at all today. It does mean
+  # files_read moves a little depending on whether assets have been built, which
+  # is why the control below is a floor rather than an exact count.
+  SCANNED_ROOTS = %w[app lib config test].freeze
+
+  # A NAMED reference: `Studio::` followed by one constant segment. Only the
+  # first segment is captured, deliberately — `Studio::Geo::Lookup` is recorded
+  # as `Geo`, because resolving the parent is the question this guard can answer
+  # honestly and a nested miss would need the parent loaded to even ask.
+  #
+  # A MENTION IN PROSE COUNTS, and that is the intended reading rather than an
+  # accident of scanning whole files. This file's own comments name a dozen
+  # engine constants; so do several others. A comment naming a constant the
+  # engine does not define is wrong in the same way the code would be — it is
+  # documentation describing a surface that is not there — and comments are
+  # exactly where a floor's justification is written down, so they are the last
+  # place worth exempting. The cost is that removing a constant from the engine
+  # means updating the prose that discusses it, not just the call sites. That is
+  # the correct amount of work.
+  STUDIO_CONSTANT_REFERENCE = /\bStudio::([A-Z][A-Za-z0-9_]*)/
+
+  # A DEFINITION, not a reference — this app OPENING a constant inside the
+  # engine's namespace. test/lib/studio/username_generator_test.rb does exactly
+  # that, and such a constant is supplied by this app rather than depended on
+  # from the gem, so it is subtracted from the references before the verdict.
+  #
+  # SUBTRACTED BY NAME, not skipped by line, and the difference is a flake this
+  # guard had while it was being written. Skipping only the definition LINE left
+  # every other mention of the same name — a comment in this very file — reading
+  # as a reference, and whether it resolved then depended on whether that test
+  # file happened to be loaded in the run. It passed a full suite and failed a
+  # two-file one. Collecting the names and subtracting them makes the verdict
+  # independent of load order, which is what a contract test has to be.
+  STUDIO_CONSTANT_DEFINITION = /^\s*(?:class|module)\s+Studio::([A-Z][A-Za-z0-9_]*)/
+
+  def studio_source_scan
+    references  = Hash.new { |hash, key| hash[key] = [] }
+    app_defined = []
+    files_read  = 0
+
+    SCANNED_ROOTS.each do |root|
+      Dir.glob(Rails.root.join(root, "**", "*")).sort.each do |path|
+        next unless File.file?(path)
+
+        # BINARY FILES ARE SKIPPED BY ASKING, not by extension list. An
+        # enumerated list of image suffixes goes stale the first time somebody
+        # commits a .webp; "is this text?" never does.
+        content = File.read(path, mode: "rb", encoding: "UTF-8")
+        next unless content.valid_encoding?
+
+        files_read += 1
+        relative = path.delete_prefix("#{Rails.root}/")
+
+        content.each_line do |line|
+          app_defined.concat(line.scan(STUDIO_CONSTANT_DEFINITION).flatten)
+          line.scan(STUDIO_CONSTANT_REFERENCE) { |(name)| references[name] << relative }
+        end
+      end
+    end
+
+    references.except!(*app_defined)
+
+    { references: references, app_defined: app_defined.uniq.sort, files_read: files_read }
+  end
+
+  # Reads the RESOLVED engine, and only the engine's own namespace — `inherit`
+  # is false so a same-named top-level constant cannot answer for one the engine
+  # does not have. It never triggers an autoload: a pending Zeitwerk autoload
+  # already counts as defined, which is the whole question, and loading a
+  # controller to ask it would drag the database in for nothing.
+  def undefined_engine_constants(references)
+    references.reject { |name, _paths| Studio.const_defined?(name, false) }
   end
 
   # ── The solana-studio floor, which is a DIFFERENT KIND of floor ────────
@@ -360,20 +565,55 @@ class EnginePinContractTest < ActiveSupport::TestCase
       skip "studio-engine is sourced by override (#{declaration.strip}) — no version pin to compare"
     end
 
-    pin = declaration[/["']~>\s*([\d.]+)["']/, 1]
+    requirements = declaration.scan(/["']([^"']+)["']/).flatten.drop(1)
 
-    assert pin, "no `gem \"studio-engine\", \"~> x.y\"` line found in the Gemfile"
-    assert_equal Gem::Version.new(pin).segments.first(2), MINIMUM.segments.first(2),
-                 "the Gemfile pins ~> #{pin} but MINIMUM says #{MINIMUM}. One of them was moved " \
-                 "and the other was not — the version this app actually requires must be stated " \
-                 "the same way in both places."
+    assert requirements.any?,
+           "the studio-engine pin carries no version requirement at all — an unpinned engine " \
+           "resolves to whatever is newest, which is the opposite of a floor"
+
+    floor = requirement_floor(Gem::Requirement.new(requirements))
+
+    assert floor,
+           "the studio-engine pin states no LOWER bound (#{requirements.inspect}) — a `< x.y` " \
+           "ceiling alone permits every version below it, which is what this file exists to refuse"
+
+    # COMPARED AT FULL PRECISION, and that is the fix rather than the style. This
+    # assertion used to read `Gem::Version.new(pin).segments.first(2)` against
+    # `MINIMUM.segments.first(2)` — major and minor only. That truncation is what
+    # let a floor five releases too low agree with itself: `~> 0.64` and MINIMUM
+    # 0.64.0 matched on [0, 64] while the app had already come to depend on
+    # Studio::FULL_NAME_MAX_LENGTH from 0.69.5, and every resolve in
+    # [0.64.0, 0.69.4] passed HERE and then raised on every page render. The two
+    # segments were never enough to state the floor, because a patch-level floor
+    # cannot be written as a two-segment `~>` at all: `~> 0.69` admits 0.69.0.
+    # So the pin now carries a second requirement, and this reads the EFFECTIVE
+    # lower bound of the whole requirement list instead of one operator's operand.
+    assert_equal MINIMUM, floor,
+                 "the Gemfile's studio-engine requirement #{requirements.inspect} has an effective " \
+                 "floor of #{floor}, but MINIMUM says #{MINIMUM}. One of them was moved and the " \
+                 "other was not — the version this app actually requires must be stated the same " \
+                 "way in both places, to the PATCH. A two-segment `~> x.y` cannot state a " \
+                 "patch-level floor (it admits x.y.0); pair it with an explicit `>= x.y.z`."
+  end
+
+  # The lowest version a requirement list actually admits, or nil when it states
+  # no lower bound at all. `~>` and `>=` both pin from below at their own operand,
+  # and the tightest of them wins; `<`, `<=` and `!=` bound from above and say
+  # nothing about the floor. `>` is deliberately absent: `> 0.69.5` admits
+  # everything ABOVE 0.69.5 and not 0.69.5 itself, so it has no least element to
+  # compare, and treating its operand as the floor would be off by an unknowable
+  # amount. It is not used in this Gemfile, and if it ever is, this returns nil
+  # and the assertion above says the pin states no lower bound rather than
+  # quietly guessing one.
+  def requirement_floor(requirement)
+    requirement.requirements.filter_map { |op, version| version if ["~>", ">="].include?(op) }.max
   end
 
   # WHY THE LOCKFILE IS NOT GUARDED HERE, written down because the obvious guard
   # is INERT and was very nearly shipped.
   #
   # The floor is stated in three files, not two: the Gemfile pin, MINIMUM above,
-  # and Gemfile.lock's DEPENDENCIES entry (`studio-engine (~> 0.64)`, which is a
+  # and Gemfile.lock's DEPENDENCIES entry (`studio-engine (~> 0.69, >= 0.69.5)`, a
   # separate fact from the resolved version in the GEM section). A test asserting
   # the third against the first looks like the natural completion of the pair
   # above. It cannot work, in BOTH directions:
@@ -423,9 +663,9 @@ class EnginePinContractTest < ActiveSupport::TestCase
     skip "studio-engine is sourced by override — no version pin to compare" if
       code.match?(/\b(?:path|git|github|branch):/)
 
-    pin = code[/["']~>\s*([\d.]+)["']/, 1]
+    pin = requirement_floor(Gem::Requirement.new(code.scan(/["']([^"']+)["']/).flatten.drop(1)))
 
-    assert pin, "no `gem \"studio-engine\", \"~> x.y\"` line found in the Gemfile"
+    assert pin, "no lower-bounded `gem \"studio-engine\", \"~> x.y\"` requirement found in the Gemfile"
     assert comment, "the studio-engine pin carries no floor note at all — the chain of derivations " \
                     "explaining WHY each floor exists is the point of this pin, not decoration"
 
@@ -436,12 +676,16 @@ class EnginePinContractTest < ActiveSupport::TestCase
            "— that opening is the convention every note in this chain follows, and it is what " \
            "makes the current floor readable without diffing. Note begins: " \
            "#{comment.strip[0, 120].inspect}"
-    assert_equal Gem::Version.new(pin).segments.first(2),
-                 Gem::Version.new(documented).segments.first(2),
-                 "the Gemfile pins ~> #{pin} but its floor note derives #{documented}. The pin moved " \
-                 "and the paragraph explaining WHY did not — write the new note (naming the engine " \
-                 "capability that first appears in #{pin} and what breaks below it) and demote the " \
-                 "old one to `PRIOR FLOOR NOTE, still true:`."
+
+    # ALSO FULL PRECISION NOW, for the same reason the pin guard above is. This
+    # compared the first two segments, so a note reading "0.69.0 is the real
+    # floor" would have documented a pin whose real floor is 0.69.5 — the note
+    # would be off by exactly the five releases this task is about, and green.
+    assert_equal pin, Gem::Version.new(documented),
+                 "the Gemfile's studio-engine floor is #{pin} but its floor note derives " \
+                 "#{documented}. The pin moved and the paragraph explaining WHY did not — write " \
+                 "the new note (naming the engine capability that first appears in #{pin} and what " \
+                 "breaks below it) and demote the old one to `PRIOR FLOOR NOTE, still true:`."
   end
 
   # THE TEST THAT CATCHES A GEM BUMP OUTRUNNING AN ADOPTION.
