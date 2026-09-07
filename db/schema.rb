@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_06_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_07_193251) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -511,6 +511,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_120000) do
     t.jsonb "metadata", default: {}
     t.text "serialized_tx", null: false
     t.string "slug"
+    t.boolean "stale", default: false, null: false
     t.string "status", default: "pending", null: false
     t.bigint "target_id"
     t.string "target_type"
@@ -518,6 +519,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_120000) do
     t.string "tx_type", null: false
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_pending_transactions_on_slug", unique: true
+    t.index ["status", "stale"], name: "index_pending_transactions_on_status_and_stale"
     t.index ["status"], name: "index_pending_transactions_on_status"
     t.index ["target_type", "target_id"], name: "index_pending_transactions_on_target"
     t.index ["tx_signature"], name: "index_pending_transactions_on_tx_signature_unique", unique: true, where: "(tx_signature IS NOT NULL)"

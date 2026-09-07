@@ -2,6 +2,9 @@
 # config/routes.rb with `unless Rails.env.production?` so this controller is
 # reachable in dev (Playwright's default boot) but unreachable in production.
 class TestController < ApplicationController
+  # Namespaced so #set_pending_signatures only ever clears its own rows.
+  E2E_SIGNATURE_TX_TYPE = "e2e_signature_probe".freeze
+
   skip_before_action :require_authentication
   skip_before_action :verify_authenticity_token
 
@@ -274,6 +277,34 @@ class TestController < ApplicationController
     end
 
     render json: { ok: true, slugs: made.map(&:slug) }
+  end
+
+  # Seed / clear treasury signature requests for the Signatures-badge spec.
+  #
+  # The badge's whole point is the difference between "pending" and "actually
+  # waiting on you", so the spec has to be able to create BOTH kinds — a stale
+  # row that must not be counted, and a live one that must. Without this it
+  # could only ever observe whatever the seed happened to leave behind, which
+  # in practice is zero, and the bold branch (the one that matters) would never
+  # be exercised at all.
+  def set_pending_signatures
+    PendingTransaction.where(tx_type: E2E_SIGNATURE_TX_TYPE).delete_all
+
+    live = params[:live].to_i
+    stale = params[:stale].to_i
+    (live + stale).times do |i|
+      PendingTransaction.create!(
+        tx_type: E2E_SIGNATURE_TX_TYPE,
+        serialized_tx: "E2E_WIRE_#{i}",
+        status: "pending",
+        stale: i >= live,
+        initiator_address: "e2e",
+        metadata: {}.to_json
+      )
+    end
+
+    render json: { ok: true, live: live, stale: stale,
+                   awaiting: PendingTransaction.awaiting_signature.count }
   end
 
   def clear_seeded_contests
