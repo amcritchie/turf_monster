@@ -540,7 +540,12 @@ class ContestsController < ApplicationController
         accepts_usdt: true
       )
 
-      invalidate_usdc_cache if logged_in?
+      # BOTH keys, not just USDC: see #invalidate_wallet_balance_cache. The
+      # create tx funds the prize pool from the creator's USDC ATA, so dropping
+      # USDC alone leaves the warm USDT twin rendered as the whole wallet total.
+      # (`accepts_usdt` above is a PRICE flag for future entrants — this
+      # transaction moves no USDT.)
+      invalidate_wallet_balance_cache if logged_in?
 
       render json: { success: true, tx: params[:tx_signature], pda: derived_pda_b58 }
     end
@@ -1765,8 +1770,10 @@ class ContestsController < ApplicationController
   #   1. `Rails.logger.info "[entry][confirmed] path=… seeds_earned=… …"` so
   #      production debugging has a grep-able trail (pair with the
   #      `[state-fanout][seeds]` console line on the client).
-  #   2. invalidate_seeds_cache + invalidate_usdc_cache so the next page
-  #      render sees fresh chain state without waiting for the 60s TTL.
+  #   2. invalidate_seeds_cache + invalidate_wallet_balance_cache so the next
+  #      page render sees fresh chain state without waiting out the 60s TTL.
+  #      The balance drop takes BOTH currency keys because the pill renders
+  #      their SUM — see #invalidate_wallet_balance_cache.
   #
   # Returns `{ seeds_earned:, seeds_total:, seeds_level: }` for splat into
   # the JSON response.
@@ -2046,7 +2053,12 @@ class ContestsController < ApplicationController
 
     if current_user.solana_connected?
       invalidate_seeds_cache
-      invalidate_usdc_cache
+      # BOTH balance keys, not just USDC: see #invalidate_wallet_balance_cache.
+      # #confirm_onchain_entry reaches here after a spend that may have been
+      # USDT (#prepare_entry maps currency "usdt" to currency_idx 1 /
+      # Config::USDT_MINT), in which case the one-key drop cleared the key that
+      # did NOT move and kept the stale pre-spend balance that did.
+      invalidate_wallet_balance_cache
     end
 
     { seeds_earned: seeds_earned, seeds_total: seeds_total, seeds_level: seeds_level }
