@@ -102,4 +102,53 @@ class OnboardingNameCapTest < ActionDispatch::IntegrationTest
                     "past the rendered cap the server must refuse, not rewrite the answer"
     assert_equal at_cap, user.reload.name, "the refused answer must not have overwritten the stored one"
   end
+
+  # THE OTHER GUARD, which the test above deliberately steers around. Its
+  # comment says so: it splits its answer "so both halves clear the per-field
+  # cap — otherwise the endpoint's SECOND guard fires and this would measure the
+  # wrong rule." That second guard was therefore never measured here at all, and
+  # something now depends on it: test/helpers/onboarding_helper_test.rb bounds
+  # every typed placeholder by Studio::FIRST_NAME_MAX_LENGTH, on the grounds
+  # that a ONE-WORD answer derives to one half and can only ever meet the
+  # per-field cap. That is a claim about this endpoint, so this asserts it here
+  # rather than leaving it as reasoning in a comment two files away.
+  #
+  # It is also the assertion that keeps the two caps from being confused again.
+  # An unsplit answer one character past the per-field cap is still far BELOW
+  # the whole-answer cap, so a 422 alone would not say which rule fired — the
+  # message is what distinguishes them, and both are read off the constants so
+  # no number is written down here either.
+  test "a one-word answer is bounded by the per-field cap, not the whole-answer cap" do
+    user = users(:jordan)
+    user.update_columns(first_name: nil, name: nil)
+    log_in_as user
+
+    at_cap = "a" * Studio::FIRST_NAME_MAX_LENGTH
+
+    post onboarding_first_name_path, params: { first_name: at_cap }, as: :json
+    assert_response :success,
+                    "a single word of exactly Studio::FIRST_NAME_MAX_LENGTH must be accepted — " \
+                    "it is the longest one-word answer the endpoint can store"
+    assert_equal at_cap, user.reload.name, "stored in full, not shortened"
+
+    over = "#{at_cap}a"
+    assert_operator over.length, :<, Studio::FULL_NAME_MAX_LENGTH,
+                    "this probe has to sit BELOW the whole-answer cap, or it would be measuring " \
+                    "that guard instead of the per-field one"
+
+    post onboarding_first_name_path, params: { first_name: over }, as: :json
+    assert_response :unprocessable_entity,
+                    "one word past the per-field cap must be refused even though it is well " \
+                    "under the whole-answer cap — that is the whole difference between the two"
+
+    error = response.parsed_body["error"].to_s
+    assert_includes error, Studio::FIRST_NAME_MAX_LENGTH.to_s,
+                    "the refusal must name the PER-FIELD cap (#{Studio::FIRST_NAME_MAX_LENGTH}); " \
+                    "it said #{error.inspect}"
+    assert_not_includes error, Studio::FULL_NAME_MAX_LENGTH.to_s,
+                    "the whole-answer cap (#{Studio::FULL_NAME_MAX_LENGTH}) is NOT the rule that " \
+                    "fired here — if it is, a one-word placeholder bounded at the per-field cap " \
+                    "is bounded by the wrong constant"
+    assert_equal at_cap, user.reload.name, "the refused answer must not have overwritten the stored one"
+  end
 end
