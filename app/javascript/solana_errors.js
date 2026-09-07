@@ -115,6 +115,7 @@ window.parseSolanaError = function(msg) {
 // WALLET composed and it can quote our nonce back at us.
 window.reportWalletFailure = function(stage, provider, raw, mapped) {
   try {
+    return;
     var meta = document.querySelector('meta[name="csrf-token"]');
     var clip = function(value) {
       return String(value === null || value === undefined ? '' : value).slice(0, 500);

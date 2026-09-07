@@ -116,6 +116,40 @@ class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
                  "the controller permits a key the report never reads, or vice versa"
   end
 
+  test "the reporter uses the SAME csrf plumbing as the wallet-auth POST beside it" do
+    # THE PRODUCTION PATH NOTHING ELSE HERE TOUCHES, and the reason is worth
+    # stating plainly: `allow_forgery_protection` is FALSE in the test env, AND
+    # Playwright drives a test-env server, so every other assertion about this
+    # endpoint in this repo is made with CSRF switched OFF. Two attempts to arm
+    # it inside an integration test (2026-09-07, on ActionController::Base and on
+    # ApplicationController) did not engage, and with it off Rails renders no
+    # csrf_meta_tags at all — which is why e2e/phantom-mock.js has to inject a
+    # fake one. A green test that never armed the thing it names is worse than
+    # no test, so this asserts something else, and something checkable.
+    #
+    # MEASURED against a live development stack on :3121, 2026-09-07:
+    #   no token             -> 422, NO report row
+    #   X-CSRF-Token: <token> -> 204, row written
+    #
+    # So the token is genuinely required, and a mismatch on either name refuses
+    # every report silently — no raise, no broken sign-in, this surface dark
+    # again in exactly the way it already was. What IS assertable is that the
+    # reporter uses the identical plumbing to `solanaConnectAndVerify`'s POST to
+    # /auth/solana/verify, three hundred lines up the same page — an endpoint
+    # already proven in production every time somebody signs in with a wallet.
+    # If that pair is ever renamed, both move together or this goes red.
+    reporter = Rails.root.join(REPORTER_JS).read
+    layout = Rails.root.join("app/views/layouts/application.html.erb").read
+
+    assert_includes layout, "'X-CSRF-Token': document.querySelector('meta[name=\"csrf-token\"]')",
+                    "the wallet-auth POST's csrf plumbing moved — re-derive what the reporter should copy"
+
+    assert_includes reporter, %(querySelector('meta[name="csrf-token"]')),
+                    "the reporter reads a meta name the app does not render"
+    assert_includes reporter, "'X-CSRF-Token'",
+                    "the reporter sends a header name Rails does not read"
+  end
+
   test "the reporter never sends a credential-bearing key" do
     # Layer 1 of the PII rule, asserted at the SENDER as well as the receiver.
     # The receiving half is the permit-list/reader PAIR asserted directly above —

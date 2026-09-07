@@ -296,7 +296,7 @@ table above being wrong out loud. It deliberately does **not** assert against
 the gem's source — a consumer test that reddens when the producer ships would
 red-seal the gem's own release.
 
-### Two limits worth knowing before reading a row
+### Three limits worth knowing before reading a row
 
 - **The raw string is not always the wallet's.** On the `connect` +
   `signMessage` fallback path, `solanaConnectAndVerify` REPLACES an unusable
@@ -308,6 +308,17 @@ red-seal the gem's own release.
 - **The report is best-effort by design.** It is dropped on a throttle, a
   closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
   triage surface here, never a count.
+- **CSRF is required, and no automated tier proves it.** Measured against a live
+  dev stack (2026-09-07): a tokenless POST is answered **422** and writes no
+  report row; `X-CSRF-Token: <token>` is answered **204** and writes one. The
+  test env sets `allow_forgery_protection = false` — and Playwright drives a
+  test-env server, which is also why `e2e/phantom-mock.js` has to inject a fake
+  csrf meta tag — so *every* automated assertion about this endpoint is made
+  with CSRF off. What is pinned instead is that the reporter uses the identical
+  meta-tag + header plumbing as `solanaConnectAndVerify`'s POST to
+  `/auth/solana/verify`, which production exercises on every wallet sign-in
+  (`test/controllers/wallet_failure_reporter_wiring_test.rb`). A rename on
+  either side refuses every report **silently**.
 
 ## Web3-only onboarding
 
