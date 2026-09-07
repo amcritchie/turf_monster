@@ -746,8 +746,23 @@ class ApplicationController < ActionController::Base
   # produce "loading". It produces the USDT balance PRESENTED AS THE TOTAL:
   # a confidently wrong number, which is worse than the stale one it replaced.
   #
-  # Use this wherever an action has already moved USDC. #invalidate_usdc_cache
-  # stays for the callers that only ever want the one key.
+  # Use this wherever an action has already moved money — EITHER currency. The
+  # pill renders a SUM, so which mint moved does not narrow the drop: spend USDC
+  # and the warm USDT twin becomes the total; spend USDT and the stale pre-spend
+  # USDT survives as the total while the untouched USDC key is cleared for
+  # nothing. Both are one wrong number.
+  #
+  # SCOPE, so nobody reads more into this than it does: both keys are written
+  # with `expires_in: 60.seconds`, so a missed drop self-heals within a minute.
+  # This closes a sub-minute stale window. It is an optimisation, not a
+  # correctness guarantee, and no caller should be argued for on stronger terms.
+  #
+  # An earlier revision of this comment said #invalidate_usdc_cache "stays for
+  # the callers that only ever want the one key". That was wrong: no caller of a
+  # COMBINED pill ever wants one key. What actually remains on the one-key drop
+  # is the devnet faucet/mint tooling (users#add_funds, faucet#create,
+  # wallets#faucet, admin#mint_usdc) — all `AppFlags.live_production?`-guarded,
+  # so a corrupted total there is a dev-tooling wart, not a money-path defect.
   def invalidate_wallet_balance_cache(user = current_user)
     Rails.cache.delete(usdc_cache_key(user))
     Rails.cache.delete(usdt_cache_key(user))

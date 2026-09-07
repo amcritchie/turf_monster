@@ -250,24 +250,38 @@ class ContestsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/token_consumed=/, log)
   end
 
-  test "enter invalidates seeds and USDC caches on success for solana-connected user" do
-    log_in_as(@user)
-    contest = free_contest
+  # The MemoryStore stub is what makes this test MEAN anything. The test env runs
+  # `config.cache_store = :null_store`, so an unstubbed Rails.cache swallows every
+  # write and answers every read with nil — under which `assert_nil` passes whether
+  # or not the action invalidated a thing. This test asserted exactly that way
+  # until stale-usdt-balance-after-spend, which is how the entry path kept a
+  # one-key drop for as long as it did.
+  test "enter invalidates seeds and BOTH balance caches on success for solana-connected user" do
+    Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
+      log_in_as(@user)
+      contest = free_contest
 
-    entry = contest.entries.create!(user: @user, status: :cart)
-    [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
+      entry = contest.entries.create!(user: @user, status: :cart)
+      [@m1, @m2, @m3, @m4, @m5, @m6].each { |m| entry.selections.create!(slate_matchup: m) }
 
-    # Pre-populate both caches with sentinels so we can verify they got cleared.
-    Rails.cache.write("user_seeds:#{@user.id}", { seeds: 999 })
-    Rails.cache.write("usdc_balance:#{@user.id}", 999.0)
+      # Pre-populate all three caches with sentinels so we can verify they got
+      # cleared. USDT is non-zero on purpose: a zero twin makes the one-key drop
+      # produce a plausible-looking total instead of a visibly wrong one.
+      Rails.cache.write("user_seeds:#{@user.id}", { seeds: 999 })
+      Rails.cache.write("usdc_balance:#{@user.id}", 999.0)
+      Rails.cache.write("usdt_balance:#{@user.id}", 7.0)
 
-    post enter_contest_path(contest), headers: { "Accept" => "application/json" }
+      post enter_contest_path(contest), headers: { "Accept" => "application/json" }
 
-    assert_response :success
-    assert_nil Rails.cache.read("user_seeds:#{@user.id}"),
-               "seeds cache should be cleared after a successful entry"
-    assert_nil Rails.cache.read("usdc_balance:#{@user.id}"),
-               "USDC cache should be cleared after a successful entry"
+      assert_response :success
+      assert_nil Rails.cache.read("user_seeds:#{@user.id}"),
+                 "seeds cache should be cleared after a successful entry"
+      assert_nil Rails.cache.read("usdc_balance:#{@user.id}"),
+                 "USDC cache should be cleared after a successful entry"
+      assert_nil Rails.cache.read("usdt_balance:#{@user.id}"),
+                 "USDT cache should be cleared too — the navbar pill renders the SUM, so a " \
+                 "surviving USDT key is served as the entire wallet total"
+    end
   end
 
   # --- onchain session entry tests ---
