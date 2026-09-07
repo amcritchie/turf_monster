@@ -31,12 +31,44 @@
           screen is not given a fade that lies about more cards to the right. %>
       <div x-ref="viewport"
            data-contest-rail
-           class="tt-contest-rail overflow-x-auto overflow-y-hidden pb-2"
+           <%# `py-5` rather than `pb-2`: `overflow-x-auto` forces overflow-y to
+               a non-visible value, so the rail box CLIPS anything a card throws
+               past its own top or bottom edge — and the fizz's whole point is
+               the bubbles that escape. The padding is the room they escape
+               INTO. Take it away and the carbonation ends at the card's edge,
+               which is the one place it must not. %>
+           class="tt-contest-rail overflow-x-auto overflow-y-hidden py-5"
            @scroll.passive="measure()"
            x-bind:style="canScrollRight ? '-webkit-mask-image: linear-gradient(to right, black 85%, transparent); mask-image: linear-gradient(to right, black 85%, transparent);' : ''">
         <div class="flex gap-4 items-stretch">
+          <%# 320 / 384px, a step up from 288 / 320. THE BANNER IS WHY. It is a
+              5:1 crop shown in a fixed-height `object-cover` box, so the box's
+              WIDTH is the only thing that decides how much of the art survives
+              the crop: at 320px the card kept 2.2 of the image's 5 widths, at
+              384px it keeps 2.7 — a fifth more banner, from the same stored
+              image, with no re-crop. The card grew with it rather than the
+              banner alone, so the proportions the rest of the card was tuned at
+              hold. %>
+          <%# THE FIZZ LIVES OUT HERE, NOT IN THE CARD. The card is
+              `overflow-hidden` — it has to be, that is what clips the sash into
+              a corner ribbon — so bubbles rendered inside it would be cut off
+              at exactly the edges they exist to cross. This wrapper is the
+              engine's `.hold-stack` (studio/_fizz_layer, engine-motion.css):
+              it positions the bubble layer across the card and z-orders it
+              BEHIND, so the carbonation shows only where it escapes.
+
+              Coming-soon cards get no layer at all — the same line the hover
+              lift draws. A contest that is not playable yet should not be the
+              liveliest thing on the page. %>
           <% @featured_contests.each do |contest| %>
-            <div class="w-72 sm:w-80 flex-shrink-0 flex">
+            <div class="w-80 sm:w-96 flex-shrink-0 hold-stack tt-contest-stack"
+                 data-contest-stack="<%= contest.slug %>">
+              <% unless contest.coming_soon? %>
+                <%# Seeded on the slug, so a contest's bubbles are the same
+                    scatter on every render (Turbo restores a cached page into
+                    the same markup) and two cards on one rail differ. %>
+                <%= render "studio/fizz_layer", seed: contest.slug %>
+              <% end %>
               <%= render "contests/contest_card",
                          contest: contest,
                          entry_count: @entry_counts[contest.id] || 0,

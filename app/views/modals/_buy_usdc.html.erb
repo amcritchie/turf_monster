@@ -54,13 +54,18 @@
       absolutely-positioned button anchors to. %>
   <%= render "studio/modals/blocks/close_x" %>
 
-  <div class="text-center pt-1 mb-2">
+  <%# The card's image: USDC, badged with the chain it lives on. It carries the
+      first sentence's meaning before the sentence is read. %>
+  <div class="flex justify-center pt-2 mb-3">
+    <%= render "modals/blocks/usdc_solana_mark", size: 64 %>
+  </div>
+
+  <div class="text-center mb-2">
     <h3 class="text-heading font-bold text-lg leading-tight">Get USDC</h3>
   </div>
   <p class="text-xs text-body mb-4 text-center">
-    You need USDC in your Phantom wallet to enter. USDC is a dollar on the Solana
-    blockchain &mdash; $1 of USDC is $1. Buy some inside Phantom, then come back:
-    your lineup is saved.
+    To enter the contest you will need to fund your wallet with USDC, which is a
+    form of digital dollars.
   </p>
 
   <%# THE PHANTOM ROW (operator call, 2026-09-05 — replaced a Coinbase rail_row).

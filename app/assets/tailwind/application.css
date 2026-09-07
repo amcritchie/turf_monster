@@ -1886,6 +1886,111 @@ html.dark { --rx-fill: 0 0 0; }
 }
 .tt-contest-rail::-webkit-scrollbar { display: none; }
 
+/* ── The contest card's hover response ────────────────────────────────────
+   A LIVE contest's card lifts and pushes into its own banner, and the bubbles
+   below rise around it. A COMING SOON one does none of it — it does not
+   carry this class at all, and contests/_contest_card gives it the inert
+   `.card` where a live contest gets `.card-hover .tt-contest-card`. That pair
+   is the whole point: the rail mixes both bands, the dim layer alone said
+   "later" only once the eye had already reached the card, and a surface that
+   answers the cursor is the fastest way to say which ones are playable now.
+
+   NO COLOURED GLOW HERE — the operator looked at one and said no (2026-09-06).
+   A green drop-shadow under a lifted card pooled on the page background and
+   read as a second light source competing with the bubbles, which are the
+   effect. `.card-hover` (the engine's, studio_engine/engine.css) already tints
+   the border and lays a soft neutral shadow on hover; this class adds MOTION
+   and nothing else, and the carbonation carries the colour. If a glow is ever
+   wanted back, it belongs on `:hover` below and it should be argued for, not
+   restored by reflex.
+
+   The banner push is a scale on the image, clipped by the card's existing
+   `overflow-hidden`. 1.05 is deliberately small: the banner is a 5:1 crop
+   already showing a slice of the art, and a bigger push crops it further at
+   exactly the moment the reader is looking at it. */
+.tt-contest-card {
+  transition: transform 200ms ease;
+}
+.tt-contest-card:hover {
+  transform: translateY(-4px);
+}
+.tt-contest-card-banner {
+  transition: transform 450ms ease;
+}
+.tt-contest-card:hover .tt-contest-card-banner {
+  transform: scale(1.05);
+}
+
+/* Motion off: the lift and the banner push both stop. The card still ANSWERS
+   the cursor — `.card-hover`'s border tint and shadow are not motion and are
+   untouched here — so the affordance survives for the reader who asked for
+   less movement. The engine's own `!important` guard stops the bubbles. */
+@media (prefers-reduced-motion: reduce) {
+  .tt-contest-card,
+  .tt-contest-card-banner { transition: none; }
+  .tt-contest-card:hover { transform: none; }
+  .tt-contest-card:hover .tt-contest-card-banner { transform: none; }
+}
+
+/* ── The card's carbonation ───────────────────────────────────────────────
+   The hold button's fizz (studio/_fizz_layer + engine-motion.css), driven by a
+   contest card's hover instead of a button's. THREE RULES, and everything else
+   — the bubble's size, colour slot, glow, drift keyframes, the whole scatter —
+   is the engine's, unforked. `.hold-stack` on the rail's card wrapper is what
+   brings those in; contests/index renders the layer as its direct child.
+
+   1. DISPLAY. `.hold-stack` sets `display: block`, and this wrapper is a flex
+      box holding the card. Both rules are unlayered, so a Tailwind `flex`
+      utility on the element CANNOT win this — @layer utilities loses to
+      unlayered CSS whatever the source order — and the wrapper would silently
+      go block. Set here, where it is a decision rather than a collision.
+
+   2. AT REST, NOTHING. The engine simmers its bubbles continuously, which is
+      right for one button and wrong for a rail of eight cards: a page that
+      bubbles at nobody is noise, and the operator asked for this ON HOVER.
+      `animation: none` at opacity 0 is the off state.
+
+   3. ON HOVER, A FULL BOIL — the engine's own boil, copied as a value rather
+      than re-derived: fizz-boil at 0.62x the bubble's duration and 0.35x its
+      delay, the same numbers .hold-stack's hover rule uses. The per-bubble
+      delay is what makes the carbonation BUILD over the first half-second
+      instead of switching on all at once.
+
+   REDUCED MOTION IS ALREADY HANDLED, and not by omission: engine-motion.css
+   ends with an `!important` off-switch on `.hold-stack .fizz-bit`, written
+   precisely because a state rule like the hover below outranks any selector
+   that guard could otherwise write. It beats rule 3. Do not add a second one
+   here — a duplicate would drift, and this one is load-bearing. */
+.tt-contest-stack {
+  display: flex;
+}
+
+/* THE LAYER IS BIGGER THAN THE CARD, and that is the whole trick. The engine
+   places its bubbles in a 3x2 grid of ZONES measured in PERCENTAGES of the
+   layer — the top band at 2-14%, the bottom at 86-98%, the side spray in the
+   outer 5% — which lands them just inside the edges of a 48px button. Pinned to
+   `inset: 0` on a ~300px card those same bands sit 6-42px INSIDE an opaque
+   surface, and a bubble that drifts 12-36px never gets out from behind it: the
+   effect renders, runs, and is invisible. Pushing the layer out past the card
+   straddles each band ACROSS the edge it belongs to, so the bands start where
+   they can escape. Measured on a live 384x290 card, counting bubbles whose
+   start or end point falls outside it: 15 of 30 at inset 0, 28 of 30 at this
+   one — and the half that failed was the whole TOP edge, which is why the
+   effect read as bubbles pooling under the card rather than around it.
+   Horizontal is held under the rail's 16px gap, so a card's spray stays nearer
+   its own card than its neighbour's. */
+.tt-contest-stack > .hold-fizz {
+  inset: -20px -22px;
+}
+
+.tt-contest-stack .fizz-bit {
+  animation: none;
+  opacity: 0;
+}
+.tt-contest-stack:hover .fizz-bit {
+  animation: fizz-boil calc(var(--ft, 1.8s) * 0.62) linear calc(var(--fd, 0s) * 0.35) infinite;
+}
+
 /* ── Accessibility guard: small white text on bg-primary ─────────────────────
    The theme primary (#4baf50) paints white text at only 2.78:1 — below WCAG AA
    (4.5:1 for small text) in BOTH themes. PR 249 fixed one instance (the

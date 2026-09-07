@@ -106,6 +106,20 @@ class BuyUsdcModalTest < ActionView::TestCase
     refute_includes html, "Coinbase", "and it must not be named"
   end
 
+  test "the card leads with the USDC-on-Solana mark, composed from the real assets" do
+    html = with_video_id(nil) { render_card }
+    doc  = Nokogiri::HTML5.fragment(html)
+    mark = doc.at_css("[data-usdc-solana-mark]")
+
+    assert mark, "the card's image must render"
+    # COMPOSED, NOT REDRAWN. Both are the shipped brand files; inlining a copy of
+    # either path would be a third copy of a brand that is not ours to restyle.
+    assert_equal "/usdc-mark.svg",   mark.at_css("[data-mark='usdc']")&.[]("src")
+    assert_equal "/solana-mark.svg", mark.at_css("[data-mark='solana']")&.[]("src")
+    assert_equal "img", mark["role"], "it is an image, and it needs a name"
+    assert_equal "USDC on Solana", mark["aria-label"]
+  end
+
   # --- the optional player ----------------------------------------------------
 
   test "the teaching band always ships a player, falling back to the wallet walkthrough" do
@@ -114,8 +128,10 @@ class BuyUsdcModalTest < ActionView::TestCase
 
     frame = doc.at_css("iframe")
     assert frame, "a card that says 'buy USDC in Phantom' and shows nothing is the worse failure"
-    assert_includes frame["src"], WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID,
-                    "unset falls back to the walkthrough the wallet card plays"
+    assert_includes frame["src"], BuyUsdcHelper::DEFAULT_VIDEO_ID,
+                    "the card plays the operator's own USDC video"
+    assert_includes frame["src"], "start=58",
+                    "started where the video gets to the point"
     assert_includes html, "New to USDC"
     assert doc.at_css("[data-usdc-guide]"), "the read-it-instead route stays"
     assert doc.at_css("button[aria-label='Unmute the video']"),
