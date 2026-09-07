@@ -118,9 +118,11 @@ class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
 
   test "the reporter never sends a credential-bearing key" do
     # Layer 1 of the PII rule, asserted at the SENDER as well as the receiver.
-    # The controller's allowlist is what makes a credential unstorable; this is
-    # what makes it un-SENT, so a credential never crosses the wire in the first
-    # place and never lands in an access log or a proxy buffer on the way.
+    # The receiving half is the permit-list/reader PAIR asserted directly above —
+    # NOT the permit list alone, which a mutant proved stores nothing by itself.
+    # This test is the third point on the same rule: a credential is never SENT,
+    # so it never crosses the wire and never lands in an access log or a proxy
+    # buffer on the way to a receiver that would have refused it anyway.
     body = Rails.root.join(REPORTER_JS).read[/JSON\.stringify\(\{(.*?)\}\)/m, 1]
     assert body.present?, "could not find the reporter's request body"
 

@@ -248,9 +248,17 @@ user comes back empty and reads it as "nothing was logged".
 **The PII rule** is the house one, already settled for this domain in
 `app/javascript/debug_logger.js`, and is enforced in two layers:
 
-1. **By key** — `client_failure_params` permits exactly `provider`, `stage`,
-   `raw_message`, `mapped_message`. No key exists for a signature, a nonce or a
-   signed message, so none can be stored.
+1. **By key — and it is a PAIR, not the permit list alone.**
+   `client_failure_params` permits exactly `provider`, `stage`, `raw_message`,
+   `mapped_message`, and `ClientFailureReport.from_params` reads exactly those
+   four **by name**. Measured 2026-09-07 by mutation: widening the permit list
+   to allow `:signature`, `:nonce` and `:message` changed *nothing* and left the
+   suite green — the reader never looks at the rest of the hash. So the **reader**
+   is what makes a credential unstorable; the permit list is the outer layer that
+   keeps it out of the params object and anything that iterates it. The two are
+   asserted as ONE set in
+   `test/controllers/wallet_failure_reporter_wiring_test.rb`, so neither can be
+   widened alone.
 2. **By value** — `Solana::ClientFailureReport.scrub` redacts a labelled
    `Nonce: …`, any base58 run of 64+ characters (an ed25519 signature), any hex
    run of 32+ characters (`SecureRandom.hex(16)` is exactly 32), and any RPC
