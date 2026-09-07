@@ -176,12 +176,19 @@ module Entries
     #
     # Requiring the second alone refused every managed strand — the default
     # onboarding population, since #enter turns away onchain_session? and
-    # self_custodied? users. Those users had paid on-chain, held no entry, and
-    # were not even slot-blocked (assign_onchain_entry_number! probes the chain,
-    # so the abandoned row sits outside the allocator's taken set): they would be
-    # issued the NEXT slot and could pay AGAIN, with the first payment never
-    # credited. Task `reach-managed-abandoned-strand`, measured in review of PR
-    # 560 and re-proven on `accepted` before the fix.
+    # self_custodied? users. Those users had paid on-chain, held no entry, and the
+    # first payment was simply never credited.
+    #
+    # WHERE THE CONTEST ALLOWS MORE THAN ONE ENTRY they could also pay AGAIN, and
+    # the reason is a DB filter rather than the chain: assign_onchain_entry_number!
+    # builds `taken` from cart/active/complete only, so the abandoned row is not in
+    # it, and the chain probe — which skips an index whose PDA exists — simply
+    # moves them on to the NEXT free slot. At max_entries_per_user 1 the probe
+    # finds their own PDA at slot 0, returns no free index, and the allocator
+    # raises instead: locked out of the contest rather than double-charged. Either
+    # way the first payment stays uncredited, which is what this admission fixes.
+    # Task `reach-managed-abandoned-strand`, measured in review of PR 560 and
+    # re-proven on `accepted` before the fix.
     #
     # `onchain_tx_signature` and NOT `onchain_entry_id`: a comped
     # EnterContestWithToken stamps a PDA and moves no USDC, so a PDA says an
