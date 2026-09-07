@@ -642,7 +642,7 @@
 # property with no undo. Four specs: dismiss sends nothing, accept sends exactly
 # one, "Burn all" names its count, and a holder with nothing spendable is
 # offered no control at all. Coverage ADDED; `quarantined` is untouched.
-total_specs: 233
+total_specs: 234
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -902,7 +902,7 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 212
+executed: 213
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
