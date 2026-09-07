@@ -217,18 +217,26 @@ class AdminController < ApplicationController
       modal_id: "wallet-deposit", file: "app/views/modals/_wallet_deposit.html.erb",
       props: { neededCents: 1900, usdcCents: 300, usdtCents: 0 } },
 
-    # The web2 / managed funds modal at the entry blocker — two stacked
-    # entry-token rails (Coinflow buy-1 on top, the Stripe pack picker below).
-    # Its web3 counterpart at the same wall is wallet-topup above.
+    # The funds modal for the ONE audience the entry blocker still sends to
+    # tokens — a web2 viewer with ENABLE_WEB2_USDC_ENTRY off, who cannot pay an
+    # entry with USDC at all. Two stacked entry-token rails (Coinflow buy-1 on
+    # top, the Stripe pack picker below). Everyone else, web2 and web3 alike,
+    # gets the Get USDC card below: showFundsNeeded stopped forking on
+    # session.mode on 2026-09-05. There is no wallet-topup variant in this
+    # registry, and no entry-blocker route to that modal either.
     { group: "Funding",
       label: "Buy an Entry Token (web2 — Coinflow + Stripe)", key: "buy-entry-token",
       modal_id: "buy-entry-token", file: "app/views/modals/_buy_entry_token.html.erb",
       props: {} },
 
-    # The teaching card at the same wall, and the one showFundsNeeded now reaches
-    # for first. It hands off to wallet-topup for the rails rather than carrying
-    # its own, so what it previews is the explainer: the USDC line, the band, and
-    # the guide. The player only appears with BUY_USDC_VIDEO_ID set.
+    # The teaching card at the same wall, and the answer showFundsNeeded gives
+    # everyone but the kill-switch audience. It hands off to NOTHING: one route,
+    # a Phantom row, plus the explainer (the USDC line, the band, and the guide).
+    # A revision that linked onward into wallet-topup was removed because that
+    # modal leads with the uncleared CDP onramp (operator, 2026-09-06), and
+    # test/views/buy_usdc_modal_test.rb pins that absence. The band always ships
+    # a player — the helper's id falls back to BuyUsdcHelper::DEFAULT_VIDEO_ID,
+    # so BUY_USDC_VIDEO_ID only swaps which video plays.
     { group: "Funding",
       label: "Get USDC (teaching card — video + guide)", key: "buy-usdc",
       modal_id: "buy-usdc", file: "app/views/modals/_buy_usdc.html.erb",

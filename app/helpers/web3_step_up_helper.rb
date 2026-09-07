@@ -5,7 +5,16 @@
 # copy until 2026-08-24; then /tasks/turf-rides-gem-modals moved the partial on
 # to solana-studio (solana_studio/modals/_web3_step_up), which is where it lives
 # now. What is left here is only the part the shared card deliberately refuses to
-# own — this app's words and this app's help route.
+# own — this app's help route.
+#
+# AND AS OF 2026-09-06 THAT IS ALL THAT IS LEFT. This app also passed its own
+# `subtext:`, and that override is exactly how a copy change failed to reach a
+# player: solana-studio cut the card's body from four lines to one, and this app
+# went on rendering its four-line fork — so the shared default changed, the
+# player-facing card did not, and the card gained an address line on top of the
+# long copy. MORE words, not fewer. The override is gone. The card's words are
+# the gem's words, and the next copy change arrives here by bumping the lock
+# rather than by editing this file.
 #
 # It is a HELPER rather than two literal render calls because the card is
 # registered TWICE: once in layouts/application (what a player meets) and once in
@@ -13,26 +22,20 @@
 # registration list). Inlining the locals in both is how the two copies drifted
 # the first time.
 module Web3StepUpHelper
-  # The shared default names "on-chain actions", which is accurate and says
-  # nothing. Turf names the two things a player actually loses, because that is
-  # the sentence that decides whether they press the button or bail.
-  STEP_UP_SUBTEXT = "This account is secured by a Solana wallet. You are signed in, but this " \
-                    "session can’t sign on-chain — so entering contests and moving funds " \
-                    "still need your wallet.".freeze
-
   # Locals for `render "solana_studio/modals/web3_step_up"`.
   #
   # Everything NOT set here is a gem default that already matches this app:
-  # picker_modal_id (wallet-connect), modal_id (web3-step-up), modal_store
-  # (modals), dismiss_event (web3-step-up-dismissed), heading, help_label.
-  # Passing them again would only create a second place for them to drift.
+  # subtext, picker_modal_id (wallet-connect), modal_id (web3-step-up),
+  # modal_store (modals), dismiss_event (web3-step-up-dismissed), heading and
+  # help_label. Passing any of them again would only create a second place for
+  # them to drift, which is the failure this file has now had twice.
   #
-  # help_url is passed because the engine takes a STRING and this app has a route
-  # helper. It is not decoration: the engine drops the help line entirely when
+  # help_url is passed because the gem takes a STRING and this app has a route
+  # helper. It is not decoration: the gem drops the help line entirely when
   # help_url is absent, and a self-custody wallet is the one credential this app
   # cannot reset for a user — a card with no way to reach a human strands a
   # legitimate owner who merely cannot get at their wallet right now.
   def web3_step_up_locals
-    { subtext: STEP_UP_SUBTEXT, help_url: help_path }
+    { help_url: help_path }
   end
 end
