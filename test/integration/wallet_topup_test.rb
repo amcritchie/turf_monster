@@ -9,9 +9,13 @@ require "test_helper"
 # assert that it does. showFundsNeeded routes to Get USDC (modals/_buy_usdc) or,
 # for the USDC kill-switch audience, to Buy an Entry Token, and
 # selectionBoard#showWalletTopup has zero callers. What is still true, and is what
-# these tests pin, is that the modal RENDERS and GATES correctly wherever it is
-# opened from — the hub's Back link still returns to it, and the layout still
-# registers it ungated.
+# these tests pin, is that the modal RENDERS and GATES correctly whenever
+# something opens it, and that the layout still registers it ungated. Today
+# nothing does: the hub's Back link swaps here only on props.returnModal ==
+# 'wallet-topup', a prop only modals/_wallet_topup itself writes, so that branch
+# is a return path from itself rather than an entrance. The branch is still
+# pinned below because it is real code that must keep working; what is NOT
+# claimed anywhere here is that something reaches it.
 #
 # Since unified funding (operator 2026-06-13), a web2/managed USDC entry works
 # (server-signed enter_contest) when ENABLE_WEB2_USDC_ENTRY is on, so USDC is the
@@ -224,8 +228,11 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
   #
   # The fix for the fresh-managed-wallet "0x1" sim error: the 2s hold's START
   # kicks off an authoritative server funding check (POST check_funding) that
-  # confirmEntry awaits at hold-COMPLETE, rerouting an unfundable web2 entry to
-  # the Top Up Wallet instead of a doomed on-chain attempt. These assert the
+  # confirmEntry awaits at hold-COMPLETE, rerouting an unfundable web2 entry
+  # through showFundsNeeded — to Buy an Entry Token for the USDC kill-switch
+  # audience, else Get USDC — instead of a doomed on-chain attempt. NOT to this
+  # modal: the reroute test below asserts showFundsNeeded, and the file header
+  # forbids the claim. These assert the
   # client wiring at render level; the live hold-window race is a tracked
   # Playwright e2e gap (same precedent as the on-chain success-modal coverage).
 

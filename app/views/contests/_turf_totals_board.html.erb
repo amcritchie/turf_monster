@@ -1550,11 +1550,14 @@ window.selectionBoard = function() {
       // has no USDC ATA yet, so $store.session.usdcCents reads null (unknown,
       // not 0) and the sync blocker fails OPEN — which previously let a $0 user
       // submit a doomed on-chain entry (cryptic "custom program error: 0x1").
-      // Only a DEFINITIVE { fundable:false } aborts into the Top Up Wallet.
+      // Only a DEFINITIVE { fundable:false } aborts into the funds-needed
+      // dispatcher below (showFundsNeeded) — Get USDC, or Buy an Entry Token for
+      // the USDC kill-switch audience. NOT Top Up Wallet: that modal has had no
+      // opener since showWalletTopup lost its last caller.
       //
       // Fail-OPEN by design — proceed (and rely on the server safety-net
       // resolve_web2_entry_funding!, which pre-checks USDC and returns
-      // no_funding → Top Up Wallet) when the check is: absent (non-hold auto-
+      // no_funding → that same dispatcher) when the check is: absent (non-hold auto-
       // enter, or web3 — beginFundingCheck no-ops there), null (401/flake/non-
       // OK), still unresolved at hold-end, or stale from an earlier flow (the
       // 8s freshness belt covers the release → buy-tokens → in-modal-hold case,
