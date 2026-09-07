@@ -161,6 +161,13 @@ class ContractAdminStateFallbacksTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # WHERE THIS RESCUE LIVES, as of card-claims-program-invariance: HOISTED above
+  # the <dl>, into a `cluster` local, and read by BOTH captions that name the
+  # cluster — Program ID and Upgrade authority. It used to sit inline in the
+  # Upgrade authority caption. The regex below takes the FIRST match in the
+  # file, so one shared rescue is also what keeps this guard pointed at the only
+  # NETWORK fallback there is; a second copy would have captured that one
+  # instead and left this one unread while still passing.
   test "the cluster caption fallback says it is unreachable rather than inventing an error" do
     source = Rails.root.join(PARTIAL).read
 
@@ -185,9 +192,11 @@ class ContractAdminStateFallbacksTest < ActionDispatch::IntegrationTest
   # --- the standing guard: this card's fallbacks may never blame an env var ---
   #
   # The class of defect, kept armed for fallbacks that do not exist yet. All
-  # THREE of this card's current rescues read Solana::Config, and no unset
-  # variable can produce a rendered fallback for any of them, so "not set" is
-  # never the true cause of one today.
+  # THREE of this card's current rescues read Solana::Config -- the NETWORK one
+  # hoisted above the <dl> since card-claims-program-invariance, and shared by
+  # the two captions that name the cluster -- and no unset variable can produce
+  # a rendered fallback for any of them, so "not set" is never the true cause of
+  # one today.
   #
   # That is a claim about the three rescues, NOT about the card. The card has
   # six cells, and four of them (Paused, Registered currencies, Operator

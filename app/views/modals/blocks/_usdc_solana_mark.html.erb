@@ -1,13 +1,17 @@
 <%#
   The USDC-on-Solana mark: the USDC disc with the Solana bars badged on its
   bottom-right corner, the way a chain badge sits on a token everywhere else in
-  crypto. It says in one glance what the card's first sentence says in words —
-  this is USDC, and it lives on Solana.
+  crypto. On the Get USDC card it is the ONLY statement of the chain: that
+  card's copy names USDC and digital dollars and never says Solana, so the
+  badge carries "and it lives on Solana" by itself. The aria-label below is
+  the same fact for a screen reader.
 
   COMPOSED FROM THE SHIPPED ASSETS, NOT REDRAWN. public/usdc-mark.svg and
-  public/solana-mark.svg are the real brand files; inlining a hand-copy of either
-  path would be a third copy to keep in step with a brand that is not ours to
-  restyle. They are <img> so the originals stay the single source.
+  public/solana-mark.svg are the real brand files. The USDC path lives only
+  there; the Solana path is ALREADY hand-copied inline in
+  contests/_hero.html.erb, so a copy here would be its THIRD. Either way it is a
+  copy of a brand that is not ours to restyle, and copies drift. They are <img>
+  so the originals stay the single source.
 
   The badge sits in a ring of the CARD's background rather than a fixed colour,
   so the notch it cuts out of the disc reads as a gap in both themes instead of a
