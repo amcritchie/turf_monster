@@ -20,8 +20,15 @@ class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
   # half-corrected change leaves a contradiction more authoritative than the gap
   # it replaced; the fix is to say which half, out loud, in a place that is
   # checked. Follow-on work is tracked in docs/AUTH.md.
+  #
+  # The LAYOUT is wired too, and it is not a surface. solanaConnectAndVerify
+  # substitutes its own sentence for an unusable wallet's message, so it is the
+  # last place the wallet's words exist — see the STAGES comment in
+  # Solana::ClientFailureReport. Wiring the two gem surfaces later does not
+  # replace it, because by the time they catch, the substitution has happened.
   WIRED_STAGES = {
-    "wallet_setup_connect" => "app/views/modals/_wallet_setup.html.erb"
+    "wallet_setup_connect"     => "app/views/modals/_wallet_setup.html.erb",
+    "connect_verify_fallback"  => "app/views/layouts/application.html.erb"
   }.freeze
 
   # Deliberately NOT asserted against the gem's own source. A turf-monster test

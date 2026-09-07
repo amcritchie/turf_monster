@@ -67,12 +67,21 @@ module Solana
   # therefore starts at 64, so a pubkey passes through it untouched and a
   # signature cannot.
   class ClientFailureReport
-    # The render surfaces that catch a wallet rejection. Two of the three are in
-    # the solana-studio GEM and are not wired yet (see docs/AUTH.md, "Reporting
-    # client-side wallet failures") — they are listed here because the stage is
-    # the operator's filter and the list is what makes an unwired site visible as
-    # a MISSING stage rather than as no failures.
-    STAGES = %w[wallet_setup_connect wallet_connect web3_step_up].freeze
+    # The places a wallet rejection is caught. THREE are render surfaces; two of
+    # those three are in the solana-studio GEM and are not wired yet (see
+    # docs/AUTH.md, "Reporting client-side wallet failures") — they are listed
+    # here because the stage is the operator's filter and the list is what makes
+    # an unwired site visible as a MISSING stage rather than as no failures.
+    #
+    # `connect_verify_fallback` IS NOT A SURFACE, and that is the point of it.
+    # It is the connect + signMessage fallback inside solanaConnectAndVerify
+    # (app/views/layouts/application.html.erb), which REPLACES an unusable
+    # wallet's message with our own setup sentence before rethrowing. Reported
+    # from in there because that is the last moment the wallet's own words exist;
+    # a report from any surface downstream carries our sentence in BOTH halves
+    # and is undiagnosable. A row on this stage therefore means: the wallet could
+    # not answer connect(), and `raw_message` is what it said about it.
+    STAGES = %w[wallet_setup_connect wallet_connect web3_step_up connect_verify_fallback].freeze
 
     # A stage or brand off the list is recorded as this rather than refused. A
     # report we cannot label is still a report; dropping it would put the surface

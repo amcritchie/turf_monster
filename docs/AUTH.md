@@ -235,9 +235,15 @@ seen.
 **It fails open.** The endpoint answers `204` whether it recorded anything or
 not, swallows every fault into the Rails log, and is never awaited on the
 client. A reporting failure must never surface to the user, block sign-in, or
-change what they see. Proven directly rather than by inspection:
-`e2e/wallet_failure_report.spec.js` breaks the endpoint with a 500 and asserts
-the screen is byte-identical.
+change what they see. Proven directly rather than by inspection, by TWO specs in
+`e2e/wallet_failure_report.spec.js` — and it takes both. The 500 spec proves the
+screen is byte-identical when the endpoint refuses; it does **not** prove the
+reporter's `.catch()` runs, because `fetch` RESOLVES on a 500 (an HTTP error is a
+successful round trip) so nothing ever enters that handler. Deleting the
+`.catch()` outright left every other spec in the file green, measured 2026-09-07.
+The **dead-network** spec (`route.abort`) is the one that proves it: only a
+transport failure rejects the promise, and an unhandled rejection is exactly the
+shape a broken fail-open takes here.
 
 **What a row targets.** The **User** when one is signed in (a wallet *link* or a
 step-up); **nothing** for a guest sign-in, which has no user by definition —
@@ -272,16 +278,26 @@ A **pubkey is kept, deliberately**: it is public (already on
 signature rule starts at 64 characters precisely so a 44-character pubkey passes
 through it.
 
-### ⚠️ Only ONE of the three call sites is wired
+### ⚠️ Two of the four call sites are wired
 
-Three render surfaces catch these rejections. Two are in the **solana-studio
-gem**, and wiring them needs a gem release — so today this reports from one:
+Three **render surfaces** catch these rejections; two of the three are in the
+**solana-studio gem**, and wiring them needs a gem release. The fourth site is
+not a surface at all — it is the connect + signMessage fallback inside
+`solanaConnectAndVerify`, which reports before it destroys the evidence:
 
-| Stage | Surface | Status |
+| Stage | Where | Status |
 |---|---|---|
 | `wallet_setup_connect` | `app/views/modals/_wallet_setup.html.erb` | **wired** |
+| `connect_verify_fallback` | `app/views/layouts/application.html.erb`, `solanaConnectAndVerify` | **wired** |
 | `wallet_connect` | solana-studio `solana_studio/modals/_wallet_connect.html.erb` | **not wired** — needs a gem release |
 | `web3_step_up` | solana-studio `solana_studio/modals/_web3_step_up.html.erb` | **not wired** — needs a gem release |
+
+`connect_verify_fallback` is not a substitute for the surfaces and they are not
+substitutes for it. It fires for exactly one thing — the failure whose message
+the layout is about to REPLACE with its own setup sentence — and the surfaces
+still report everything that reaches them intact. The substituted error is
+tagged `walletFailureReported`, and each surface skips a tagged error, so one
+failure produces one row rather than two.
 
 The reporter deliberately lives **here, not in the gem**. The gem's partials
 already call the host-provided `window.parseSolanaError` behind a `typeof`
@@ -298,16 +314,46 @@ red-seal the gem's own release.
 
 ### Three limits worth knowing before reading a row
 
-- **The raw string is not always the wallet's.** On the `connect` +
-  `signMessage` fallback path, `solanaConnectAndVerify` REPLACES an unusable
-  wallet's message with "Finish setting up your wallet in …" before rethrowing
-  (that substitution is itself a 2026-09-06 fix). At the modal's catch the
-  original Phantom string is already gone, so `raw` is the layout's sentence for
-  that one branch. A decline (`code 4001`) rethrows the original untouched, so
-  the common case is genuine.
+- **The raw string is the wallet's — because the report is made before ours
+  replaces it.** On the `connect` + `signMessage` fallback path,
+  `solanaConnectAndVerify` REPLACES an unusable wallet's message with "Finish
+  setting up your wallet in …" before rethrowing (that substitution is itself a
+  2026-09-06 fix), so by the time any surface catches it the original Phantom
+  string is gone.
+
+  This page used to call that "one branch" and say "the common case is genuine".
+  **Both were backwards**, and the correction is worth stating plainly because
+  the feature was materially less useful than it read: a decline (`code 4001`)
+  was the ONLY failure that carried a wallet string, and the entire MALFUNCTION
+  class — the class this endpoint exists for — arrived with `raw_message` and
+  `mapped_message` byte-identical, both of them our sentence. For the 2026-09-06
+  incident itself, the raw half said nothing.
+
+  Fixed 2026-09-07 (`/tasks/raw-message-is-ours`): the fallback reports from
+  INSIDE `solanaConnectAndVerify`, at the last point the wallet's own string
+  exists, on stage `connect_verify_fallback`. So a malfunction now produces a row
+  whose halves differ — `raw_message: "Unexpected error"` beside
+  `mapped_message: "Finish setting up your wallet in Phantom …"` — which is what
+  makes a mis-mapping diagnosable. `mapped` there is what the user actually read,
+  and that rests on `parseSolanaError` passing the substituted sentence through
+  untouched, pinned in `test/views/wallet_connect_error_copy_test.rb`.
 - **The report is best-effort by design.** It is dropped on a throttle, a
   closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
   triage surface here, never a count.
+- **A server REJECTION is not reported from here, on purpose.** When
+  `/auth/solana/verify` or `/account/link_solana` answers `{ success: false }`
+  — an expired nonce, a bad signature, a failed age attestation — the modal
+  paints `result.error` and reports **nothing**. That is deliberate, and the
+  reason is the same one that shapes everything above: this endpoint exists for
+  failures that leave **no server-side trace at all**, because they happen
+  entirely in the browser. A `{ success: false }` already reached the server;
+  the server composed that sentence and answered `401`/`422` with it. Reporting
+  it back would record OUR words as both halves — the byte-identical row the
+  2026-09-07 fix removes — while adding nothing an operator could not read
+  server-side. If those rejections should reach `error_logs`, the place to log
+  them is `SolanaSessionsController#verify`'s own `rescue` clauses, where the
+  cause is in hand; note that `Solana::AuthVerifier::VerificationError` is
+  rescued OUTSIDE the `rescue_and_log` block today and so writes no row.
 - **CSRF is required, and no automated tier proves it.** Measured against a live
   dev stack (2026-09-07): a tokenless POST is answered **422** and writes no
   report row; `X-CSRF-Token: <token>` is answered **204** and writes one. The
