@@ -328,13 +328,42 @@
           }
 
           if (!useSignIn) {
-            var resp = await provider.connect();
-            pubkeyB58 = resp.publicKey.toBase58();
-            var data = await noncePromise;
-            // Byte-identical to the message this flow has always signed.
-            message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\n' + userIdLine + 'Sign in to Turf Monster\n\nNonce: ' + data.nonce;
-            var signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
-            signatureB58 = encodeBase58(signed.signature);
+            try {
+              var resp = await provider.connect();
+              pubkeyB58 = resp.publicKey.toBase58();
+              var data = await noncePromise;
+              // Byte-identical to the message this flow has always signed.
+              message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\n' + userIdLine + 'Sign in to Turf Monster\n\nNonce: ' + data.nonce;
+              var signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
+              signatureB58 = encodeBase58(signed.signature);
+            } catch (e) {
+              // AN INSTALLED WALLET WITH NO WALLET IN IT. Hit on production
+              // 2026-09-06: the Phantom extension is present — so the picker
+              // paints "Installed" and supportsSignIn() is true — but it holds no
+              // keypair, and Phantom is sitting on its own "create a new wallet or
+              // import an existing one" onboarding. With nothing to sign, signIn()
+              // rejects with Phantom's generic "Unexpected error" and this fallback
+              // rejects the same way.
+              //
+              // That string used to travel to parseSolanaError, whose generic
+              // branch reads it as a TRANSACTION failure and answers "Wallet
+              // couldn't process the transaction. Check wallet connection and USDC
+              // balance." — balance advice, in a connect modal, for a user who
+              // attempted no transaction and may hold no wallet at all.
+              //
+              // Rethrow in the vocabulary of the thing that actually failed.
+              // parseSolanaError's final line passes unrecognised messages through
+              // untouched, so this reaches the picker verbatim without changing the
+              // shared mapper, whose transaction wording is correct for the entry
+              // paths that own it.
+              //
+              // A DECLINE IS NOT AN INCAPABILITY — the same rule the signIn guard
+              // above states. A human who said no keeps reading "Signature
+              // rejected"; only a wallet that could not answer gets the setup copy.
+              var em = (e && e.message) ? e.message : String(e);
+              if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;
+              throw new Error('Finish setting up your wallet in ' + ((provider && provider.name) || 'your wallet') + ' \u2014 create or import one, then try again.');
+            }
           }
           var verifyUrl = opts.linkMode ? '/account/link_solana' : '/auth/solana/verify';
           // Legal-age attestation (signup compliance): undefined keys are
