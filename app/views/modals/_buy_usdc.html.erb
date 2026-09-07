@@ -37,7 +37,35 @@
 %>
 <div x-data="{
        videoMuted: true,
+       hint: '',
        get props() { return ($store.modals.current() || {}).props || {} },
+       // OPEN PHANTOM — three cases, because only two of them can be made to work
+       // and the third has to say so rather than look broken.
+       //
+       //  1. MOBILE: the universal link opens the app. Reliable, and the only
+       //     case where 'open the wallet' is literally what happens.
+       //  2. DESKTOP, NOT YET CONNECTED: provider.connect() makes Phantom show
+       //     its own popup — its connect prompt, or its create-a-wallet
+       //     onboarding when the extension holds no keypair.
+       //  3. DESKTOP, ALREADY CONNECTED: Phantom auto-approves a trusted site
+       //     and NOTHING opens. There is no web API to force an extension's
+       //     popup — a page cannot open one, by design. At this wall the user
+       //     usually IS already connected, so a bare connect() would be a button
+       //     that does nothing. Say what to do instead.
+       openPhantom: function(ev) {
+         var prov = window.phantom && window.phantom.solana ? window.phantom.solana : window.solana
+         if (!prov) return   // no Phantom: let the href fall through to the install page
+         ev.preventDefault()
+         this.hint = ''
+         if (prov.isConnected) {
+           this.hint = 'Phantom is already connected \u2014 open it from your browser toolbar to buy USDC.'
+           return
+         }
+         try {
+           var r = prov.connect()
+           if (r && r.catch) r.catch(function () {})
+         } catch (e) {}
+       },
        unmuteVideo: function() {
          this.videoMuted = false
          try {
@@ -54,7 +82,13 @@
       absolutely-positioned button anchors to. %>
   <%= render "studio/modals/blocks/close_x" %>
 
-  <div class="text-center pt-1 mb-2">
+  <%# The card's image: USDC, badged with the chain it lives on. It carries the
+      first sentence's meaning before the sentence is read. %>
+  <div class="flex justify-center pt-2 mb-3">
+    <%= render "modals/blocks/usdc_solana_mark", size: 64 %>
+  </div>
+
+  <div class="text-center mb-2">
     <h3 class="text-heading font-bold text-lg leading-tight">Get USDC</h3>
   </div>
   <p class="text-xs text-body mb-4 text-center">
@@ -102,7 +136,8 @@
         wallet-row primitive exists. %>
     <a href="<%= phantom_buy_url %>" target="_blank" rel="noopener noreferrer"
        class="w-full flex items-center gap-3 p-3 rounded-xl bg-surface-alt border border-strong hover:bg-surface transition text-left no-underline"
-       data-usdc-rail="phantom">
+       data-usdc-rail="phantom"
+       @click="openPhantom($event)">
       <svg class="w-9 h-9" aria-hidden="true"><use href="#se-wallet-phantom"></use></svg>
       <span class="font-semibold text-heading">Phantom</span>
       <span class="ml-auto flex items-center gap-2">
@@ -112,6 +147,9 @@
         </svg>
       </span>
     </a>
+    <%# Case 3 above. It appears only when we KNOW nothing opened, so it never
+        contradicts a Phantom window the user is already looking at. %>
+    <p x-show="hint" x-cloak class="text-[11px] text-muted mt-2 text-center" data-phantom-hint x-text="hint"></p>
   </div>
 
   <%# === NEW TO USDC =========================================================
