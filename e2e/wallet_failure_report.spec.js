@@ -131,6 +131,56 @@ test("a 500 from the reporter leaves the sign-in flow untouched", async ({ page 
   expect(reported).toBe(true);
 });
 
+test("a dead network while reporting leaves the sign-in flow untouched", async ({ page }) => {
+  // THE HALF A 500 CANNOT REACH, and it went unproven until a mutant said so.
+  //
+  // `fetch` RESOLVES for a 500 — an HTTP error status is a successful round trip
+  // — so the spec above never enters the reporter's `.catch()`. Measured
+  // 2026-09-07: deleting `.catch(function() {})` from window.reportWalletFailure
+  // outright left all four of the other specs GREEN. Only a transport failure
+  // rejects the promise, and an unhandled rejection is precisely the shape a
+  // broken fail-open takes on this surface: silent, invisible to the user, and
+  // fatal to any Alpine handler that happened to be awaiting it.
+  //
+  // So this aborts the request instead of answering it.
+  await page.addInitScript(() => {
+    window.__unhandledRejections = [];
+    window.addEventListener("unhandledrejection", (event) => {
+      window.__unhandledRejections.push(
+        String((event.reason && event.reason.message) || event.reason)
+      );
+    });
+  });
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(String(error)));
+
+  await openWalletSetup(page, PHANTOM_DECLINE);
+
+  let aborted = false;
+  await page.route(`**${REPORT_PATH}`, (route) => {
+    aborted = true;
+    return route.abort("failed");
+  });
+
+  await page.getByText("Installed", { exact: true }).click();
+
+  // 1. The user reads exactly the sentence they would have read anyway.
+  await expect(page.locator("p.text-red-400")).toHaveText("Signature rejected");
+
+  // 2. The modal is still theirs to retry with.
+  await expect(page.getByText("Connecting…")).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Set up your wallet" })).toBeVisible();
+
+  // 3. The transport really did fail — without this the assertions above would
+  //    pass just as well if the reporter had never fired.
+  expect(aborted).toBe(true);
+
+  // 4. And the rejection was CAUGHT. This is the assertion the 500 spec cannot
+  //    make: it is empty only because `.catch()` ran.
+  expect(await page.evaluate(() => window.__unhandledRejections)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
 test("a successful connect reports nothing", async ({ page }) => {
   // The over-reporting guard. error_logs is a triage surface: a row per
   // successful sign-in would bury the failures this change exists to surface.
