@@ -296,8 +296,11 @@ not a surface at all — it is the connect + signMessage fallback inside
 substitutes for it. It fires for exactly one thing — the failure whose message
 the layout is about to REPLACE with its own setup sentence — and the surfaces
 still report everything that reaches them intact. The substituted error is
-tagged `walletFailureReported`, and each surface skips a tagged error, so one
-failure produces one row rather than two.
+tagged `walletFailureReported`, and `_wallet_setup.html.erb` skips a tagged
+error, so one failure produces one row rather than two. **The two gem call
+sites owe that same guard when they are wired** — without it they would add a
+second row carrying our sentence in both halves, which is the shape this fix
+removes.
 
 The reporter deliberately lives **here, not in the gem**. The gem's partials
 already call the host-provided `window.parseSolanaError` behind a `typeof`
@@ -312,7 +315,7 @@ table above being wrong out loud. It deliberately does **not** assert against
 the gem's source — a consumer test that reddens when the producer ships would
 red-seal the gem's own release.
 
-### Three limits worth knowing before reading a row
+### Four limits worth knowing before reading a row
 
 - **The raw string is the wallet's — because the report is made before ours
   replaces it.** On the `connect` + `signMessage` fallback path,

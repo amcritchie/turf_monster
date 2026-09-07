@@ -677,7 +677,7 @@
 # conflict hunk, 233+4); 234+4 = 238 was ALSO wrong, because accepted had moved
 # again while the branch sat in review. Only the lister run on the merged tree
 # gives 239. Re-run it, never add.
-total_specs: 239
+total_specs: 241
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -937,7 +937,14 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 218
+#
+# 218 -> 220 (raw-message-is-ours): the two wallet-failure specs described beside
+# total_specs above. Re-derived with bin/e2e-lane-derive --write ON THE MERGED
+# TREE — this branch was cut when the contract read 238/217, found 239/218 by the
+# time it was ready, and no arithmetic on either number describes this tree.
+# allowed_skips stays 4: both listers agree, which is what proves neither of the
+# two brought a runtime skip with it.
+executed: 220
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
