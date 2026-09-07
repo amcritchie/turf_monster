@@ -2,12 +2,17 @@ require "test_helper"
 
 # Contract for the studio-engine pin.
 #
-# The Gemfile pin is `~> 0.43`, which permits anything below 1.0 — so the pin
-# string alone does NOT tell you what this app runs. That gap has bitten twice.
-# Reading the pin as the version is how "turf is on 0.31" got believed while the
-# lockfile said 0.39; and `~> 0.42` later let the lockfile reach 0.43 with nobody
-# ADOPTING 0.43, which is what installs its migrations — the drift the migration
-# check below now asserts against.
+# The Gemfile pin reads `"~> 0.69", ">= 0.69.5"`. The `~>` half permits anything
+# below 1.0, so a pin string alone does NOT tell you what this app runs. That gap
+# has bitten three times. Reading the pin as the version is how "turf is on 0.31"
+# got believed while the lockfile said 0.39; `~> 0.42` later let the lockfile
+# reach 0.43 with nobody ADOPTING 0.43, which is what installs its migrations —
+# the drift the migration check below now asserts against; and most recently
+# `~> 0.64` said nothing whatever about the 0.69.5 this app had come to require,
+# because a two-segment `~>` CANNOT state a patch-level floor. That is why the
+# pin carries a second requirement, why the guard reads the requirement's
+# effective lower bound at full precision, and why there is now a guard that
+# derives the question from the source instead of from a number.
 # These assert the FLOOR we actually depend on, so a `bundle update` that walked
 # the resolved version backwards fails here instead of at runtime.
 #
@@ -593,7 +598,7 @@ class EnginePinContractTest < ActiveSupport::TestCase
   # is INERT and was very nearly shipped.
   #
   # The floor is stated in three files, not two: the Gemfile pin, MINIMUM above,
-  # and Gemfile.lock's DEPENDENCIES entry (`studio-engine (~> 0.64)`, which is a
+  # and Gemfile.lock's DEPENDENCIES entry (`studio-engine (~> 0.69, >= 0.69.5)`, a
   # separate fact from the resolved version in the GEM section). A test asserting
   # the third against the first looks like the natural completion of the pair
   # above. It cannot work, in BOTH directions:
