@@ -227,6 +227,30 @@ class ContestCardStatsTest < ActionDispatch::IntegrationTest
 
   # Same line the hover lift draws: a contest that is not playable yet must not
   # be the liveliest thing on the page.
+  # THE RAIL'S VERTICAL PADDING IS PART OF THE EFFECT, not spacing taste.
+  # `overflow-x-auto` forces overflow-y to a non-visible value, so the rail box
+  # clips whatever a card throws past its own top or bottom edge — and the
+  # bubbles that cross those edges are the effect. The padding is the room they
+  # cross INTO, and a bottom-only padding (what this replaced) leaves the top
+  # half of the fizz clipped away with nothing on screen to say so.
+  #
+  # WHAT THIS DOES AND DOES NOT PROVE: it pins the declaration, not the pixels.
+  # Only a browser can measure a bubble against the clip box, and that
+  # measurement is not collected at this tier.
+  test "[component] the rail keeps room above and below for the fizz to escape" do
+    log_in_as(@alex)
+
+    get contests_path
+
+    assert_response :success
+    rail = css_select("[data-contest-rail]").first
+    assert rail, "the rail must render"
+    classes = rail["class"].split
+    assert_includes classes, "py-5"
+    assert_empty classes.grep(/\Apb-/),
+      "a bottom-only padding clips the top half of every card's fizz"
+  end
+
   test "[component] a coming soon card gets no fizz at all" do
     @contest.update!(coming_soon: true)
     log_in_as(@alex)
