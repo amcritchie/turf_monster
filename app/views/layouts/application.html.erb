@@ -328,10 +328,18 @@
           }
 
           if (!useSignIn) {
+            // OUTSIDE THE TRY, DELIBERATELY. noncePromise is a fetch of OUR OWN
+            // server (/auth/solana/nonce), not a wallet call. Inside the catch it
+            // would make an offline moment or a server blip tell a user whose
+            // wallet is perfectly good "create or import one" — the same
+            // confidently-wrong diagnosis this change exists to remove, just
+            // pointed at a different innocent party. A network failure here must
+            // keep passing through as itself. The useSignIn branch above awaits
+            // this same promise outside its own try, for the same reason.
+            var data = await noncePromise;
             try {
               var resp = await provider.connect();
               pubkeyB58 = resp.publicKey.toBase58();
-              var data = await noncePromise;
               // Byte-identical to the message this flow has always signed.
               message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\n' + userIdLine + 'Sign in to Turf Monster\n\nNonce: ' + data.nonce;
               var signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
@@ -362,7 +370,13 @@
               // rejected"; only a wallet that could not answer gets the setup copy.
               var em = (e && e.message) ? e.message : String(e);
               if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;
-              throw new Error('Finish setting up your wallet in ' + ((provider && provider.name) || 'your wallet') + ' \u2014 create or import one, then try again.');
+              // provider.name is the lowercase SLUG ('phantom'), which reads as
+              // "your wallet in phantom" in prose. Prefer the brand's own
+              // spelling; fall back to a capitalised slug, then to the generic.
+              var brand = (provider && (provider.label || provider.displayName)) ||
+                          (provider && provider.name ? provider.name.charAt(0).toUpperCase() + provider.name.slice(1) : '') ||
+                          'your wallet';
+              throw new Error('Finish setting up your wallet in ' + brand + ' \u2014 create or import one, then try again.');
             }
           }
           var verifyUrl = opts.linkMode ? '/account/link_solana' : '/auth/solana/verify';

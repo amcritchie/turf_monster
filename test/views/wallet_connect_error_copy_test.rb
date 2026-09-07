@@ -39,6 +39,82 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     assert_match(/throw e;/, fallback, "a decline is rethrown unchanged")
   end
 
+  test "a server or network failure is NOT diagnosed as a missing wallet" do
+    src = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+
+    # THE BLOCKER THIS CLOSES. noncePromise fetches OUR OWN server. Inside the
+    # try, an offline moment told a user with a perfectly good wallet to "create
+    # or import one" — the same confidently-wrong diagnosis this change exists to
+    # remove, pointed at a different innocent party.
+    assert fallback, "the fallback block must exist"
+    nonce_at = src.index("var data = await noncePromise;")
+    try_at   = src.index("if (!useSignIn) {")
+    open_try = src.index("try {", try_at)
+
+    assert nonce_at < open_try,
+           "the nonce fetch must be awaited BEFORE the try, not inside it"
+    refute_includes fallback[/try \{.*?\} catch/m].to_s, "noncePromise",
+                    "no fetch of our own server may sit under the wallet catch"
+  end
+
+  test "the wallet is named the way its brand writes it, not by slug" do
+    src = LAYOUT.read
+
+    # provider.name is the lowercase slug, so the sentence read "your wallet in
+    # phantom". This diff is the first place provider identity is rendered as
+    # user-facing PROSE rather than shipped as a normalised server field.
+    assert_includes src, "provider.label || provider.displayName",
+                    "prefer the brand's own spelling"
+    assert_includes src, "toUpperCase()",
+                    "and capitalise the slug rather than printing it raw"
+    refute_match(/in ' \+ \(\(provider && provider\.name\)/, src,
+                 "the raw slug must not reach the sentence")
+  end
+
+  # --- killing the mutants a presence check cannot ---------------------------
+  #
+  # Review mutated this fix 12 ways and EIGHT survived: negating the decline
+  # guard, || -> &&, throw -> console.warn, hoisting the throw above the guard,
+  # commenting the throw out, dropping the /i, and poisoning the copy. Every one
+  # survived because the tests asserted that text was PRESENT, and presence is
+  # blind to form and order. These assert both.
+
+  MESSAGE = "Finish setting up your wallet in "
+
+  test "the decline guard keeps its exact form" do
+    src = LAYOUT.read
+
+    # Pinned verbatim: || -> && silently narrows the guard to declines that
+    # satisfy BOTH patterns, i.e. none, and a presence check cannot see it.
+    assert_includes src,
+                    "if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;",
+                    "negation, || -> &&, or a dropped /i must all fail here"
+  end
+
+  test "the guard runs BEFORE the rethrow, not after it" do
+    src = LAYOUT.read
+    guard_at = src.index("if (/user rejected/i.test(em)")
+    throw_at = src.index(MESSAGE)
+
+    # Hoisting the throw above the guard makes every decline read as a missing
+    # wallet. Both lines still exist, so only their ORDER catches it.
+    assert guard_at, "the guard must exist"
+    assert throw_at, "the rethrow must exist"
+    assert guard_at < throw_at,
+           "a decline must be rethrown before the setup message can be composed"
+  end
+
+  test "the setup case throws rather than merely logging" do
+    src = LAYOUT.read
+    line = src[/^.*#{Regexp.escape(MESSAGE)}.*$/]
+
+    # throw -> console.warn leaves the string on the page and the user with
+    # nothing: the picker renders whatever it caught, and it caught nothing.
+    assert_includes line, "throw new Error(",
+                    "the message must be raised, not logged"
+  end
+
   # --- the coupling this fix rests on ----------------------------------------
 
   test "the new message survives parseSolanaError untouched" do
