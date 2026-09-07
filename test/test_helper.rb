@@ -264,6 +264,40 @@ class ActionDispatch::IntegrationTest
   # otherwise asserting the absence of something that was never there, which is
   # exactly how logout_is_definitive_test's wallet-brand check passed for the
   # wrong reason until 2026-08-27.
+  # The RAW source of every <template> registration for one modal id, straight
+  # out of a response body.
+  #
+  # WHY RAW, AND NOT NOKOGIRI. Some assertions about a modal registration are
+  # about DELIMITERS — the classic one being a double quote inside the
+  # double-quoted x-data attribute, which closes it early and makes Alpine mount
+  # the whole component as a silent no-op that still renders markup. A parser has
+  # already resolved those by the time it hands back a node, and re-serializing a
+  # mangled attribute can hide exactly the damage being looked for.
+  #
+  # WHY IT COUNTS NESTING. A naive `<template ...>.*?</template>` is WRONG here
+  # and fails in the least helpful way: several engine cards contain an inner
+  # `<template x-if="error">`, so the lazy match stops at the INNER closing tag
+  # and silently returns a truncated card. Assertions about anything below that
+  # point — the submit button, the skip link — then fail as "not present" on
+  # markup that is present. Measured while adopting the first-name card, where it
+  # cost three confusing failures before the slice itself was suspected.
+  def modal_registration_sources(body, modal_id)
+    opening = /<template x-if="[^"]*id === '#{Regexp.escape(modal_id)}'/
+    body.to_enum(:scan, opening).map { Regexp.last_match.begin(0) }.map do |start|
+      depth = 0
+      pos = start
+      loop do
+        nxt = body.index(/<template\b|<\/template>/, pos)
+        break body[start..] unless nxt
+
+        tag = body[nxt, 10].start_with?("</template") ? :close : :open
+        pos = nxt + (tag == :close ? "</template>".length : "<template".length)
+        depth += (tag == :open ? 1 : -1)
+        break body[start...pos] if depth.zero?
+      end
+    end
+  end
+
   def log_in_as_onchain(user, wallet_provider: nil)
     key = Ed25519::SigningKey.generate
     pubkey_b58 = Solana::Keypair.encode_base58(key.verify_key.to_bytes)
