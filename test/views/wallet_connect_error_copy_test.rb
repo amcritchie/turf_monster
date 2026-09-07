@@ -29,6 +29,7 @@ require "test_helper"
 class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
   LAYOUT = Rails.root.join("app/views/layouts/application.html.erb")
   MAPPER = Rails.root.join("app/javascript/solana_errors.js")
+  MODAL  = Rails.root.join("app/views/modals/_wallet_setup.html.erb")
   PROVIDER = Rails.root.join("app/javascript/wallet_provider.js")
 
   test "a wallet that cannot answer gets setup copy, not balance advice" do
@@ -203,13 +204,138 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
 
   test "the setup case throws rather than merely logging" do
     src = LAYOUT.read
-    line = src[/^.*#{Regexp.escape(MESSAGE)}.*$/]
 
     # throw -> console.warn leaves the string on the page and the user with
     # nothing: the picker renders whatever it caught, and it caught nothing.
-    assert_includes line, "throw new Error(",
+    #
+    # COMPOSED ONCE, INTO A NAME. The sentence stopped being an inline literal on
+    # 2026-09-07: the report below needs the same string, and this file already
+    # says why a second hardcoded copy is worse than none — a copy cannot fail
+    # when the original changes. So the assertion follows the name instead of the
+    # literal, and still refuses a message that is merely logged.
+    assert_includes src, "var setupCopy = '#{MESSAGE}",
+                    "the message must be composed once, into setupCopy"
+    assert_includes src, "var setupError = new Error(setupCopy);",
+                    "the error must be built from that one composition"
+    assert_includes src, "throw setupError;",
                     "the message must be raised, not logged"
   end
+
+  # --- the raw string, reported before it is destroyed -----------------------
+  #
+  # WHY THIS LIVES HERE. The substitution above is the only place in the app that
+  # deliberately discards a wallet's error string, and until 2026-09-07 that made
+  # report-client-wallet-failures capture our own sentence in BOTH halves for the
+  # entire malfunction class — the class it was built for. What this tier can
+  # prove is form and order. That the pair actually ARRIVES differing is
+  # e2e/wallet_failure_report.spec.js.
+
+  test "the wallet's own message is reported BEFORE the substitution replaces it" do
+    src      = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+    assert fallback, "the fallback block must exist"
+
+    report_at = fallback.index("window.reportWalletFailure('connect_verify_fallback'")
+    throw_at  = fallback.index("throw setupError;")
+
+    assert report_at, "the fallback must report the failure it is about to relabel"
+    assert throw_at, "the fallback must still throw"
+    assert report_at < throw_at,
+           "the report must be made while the wallet's own message still exists"
+  end
+
+  test "the reported raw half is the WALLET's message, not ours" do
+    src = LAYOUT.read
+
+    # THE WHOLE DEFECT, IN ONE ARGUMENT POSITION. `em` is what the wallet said;
+    # `setupCopy` is what we replaced it with. Passing setupCopy as `raw` — or
+    # swapping the pair — reproduces exactly the byte-identical row this change
+    # removes, and every other assertion in this file stays green through it.
+    assert_includes src,
+                    "window.reportWalletFailure('connect_verify_fallback', brand, em, setupCopy);",
+                    "raw must be the wallet's message and mapped must be ours, in that order"
+  end
+
+  test "the substituted error is tagged so no surface reports it a second time" do
+    src = LAYOUT.read
+
+    # Untagged, the wallet-setup modal reports the same failure again from its own
+    # catch — and that second row carries our sentence in both halves, which is
+    # the useless shape an operator would meet first.
+    assert_includes src, "setupError.walletFailureReported = true;",
+                    "the substituted error must carry the already-reported tag"
+    assert_includes MODAL.read, "!(e && e.walletFailureReported)",
+                    "the modal's catch must honour the tag"
+  end
+
+  # --- the SECOND substitution, held to the same three rules -----------------
+  #
+  # WHY THIS TRIO EXISTS SEPARATELY. The three tests above pin the setup-copy
+  # substitution and pass whether or not any OTHER guard reports, which is how
+  # the hole below opened: narrow-wallet-setup-diagnosis (#587) added a second
+  # substituting guard — the `connected` branch — and every assertion above
+  # stayed green while that branch handed a surface our sentence to put in both
+  # halves. A per-site rule needs a per-site test; asserting the file "reports
+  # somewhere" would have been blind to exactly this.
+  #
+  # The `connected` guard sits ABOVE the setup copy and returns first, so on a
+  # wallet that connected and then failed to sign, the setup site never runs.
+
+  SIGN_FAIL_MESSAGE = "Your wallet connected but could not sign you in."
+
+  test "the connected-but-unsigned guard reports BEFORE it substitutes" do
+    src      = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+    assert fallback, "the fallback block must exist"
+
+    report_at = fallback.index("window.reportWalletFailure('connect_verify_signature'")
+    throw_at  = fallback.index("throw signFailError;")
+
+    assert report_at, "the connected guard must report the failure it is about to relabel"
+    assert throw_at, "the connected guard must still throw"
+    assert report_at < throw_at,
+           "the report must be made while the wallet's own message still exists"
+  end
+
+  test "the connected-but-unsigned guard reports the WALLET's message as raw" do
+    src = LAYOUT.read
+
+    # Same argument position, same defect if it is swapped. `em` is the wallet's
+    # string — on this path Phantom's generic "Unexpected error" more often than
+    # not — and `signFailCopy` is the sentence we hand the user instead.
+    assert_includes src,
+                    "window.reportWalletFailure('connect_verify_signature', brand, em, signFailCopy);",
+                    "raw must be the wallet's message and mapped must be ours, in that order"
+    assert_includes src, "var signFailCopy = '#{SIGN_FAIL_MESSAGE}",
+                    "the message must be composed once, into signFailCopy"
+  end
+
+  test "the connected-but-unsigned error is tagged against a second report" do
+    src = LAYOUT.read
+
+    assert_includes src, "signFailError.walletFailureReported = true;",
+                    "the substituted error must carry the already-reported tag"
+  end
+
+  test "brand is in hand before the FIRST guard that substitutes" do
+    # THE ORDERING BUG THIS CATCHES. Both reports name the brand. `brand` used to
+    # be computed below the `connected` guard, so moving a report up without
+    # moving the composition would send `undefined` as the provider — a row that
+    # survives (the server maps an unknown brand rather than refusing it) and
+    # loses the field an operator filters on. Nothing else here would redden.
+    src      = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+    assert fallback, "the fallback block must exist"
+
+    brand_at = fallback.index("var brand = (provider && (provider.label")
+    first_report_at = fallback.index("window.reportWalletFailure('connect_verify_signature'")
+
+    assert brand_at, "the fallback must compose a brand"
+    assert first_report_at, "the connected guard must report"
+    assert brand_at < first_report_at,
+           "brand must be composed before the first guard that reports it"
+  end
+
 
   # --- the coupling this fix rests on ----------------------------------------
 
@@ -222,9 +348,9 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     # fail when the copy changes, and that is the whole risk being guarded here:
     # edit the sentence to contain "insufficient funds" and the mapper rewrites
     # it straight back into the balance advice this task exists to remove.
-    line = LAYOUT.read[/^\s*throw new Error\('Finish setting up.*$/]
-    assert line, "the setup message must be THROWN, as a one-line literal"
-    message = line[/'(.*)'\);/, 1]
+    line = LAYOUT.read[/^\s*var setupCopy = 'Finish setting up.*$/]
+    assert line, "the setup message must be composed as a one-line literal"
+    message = line[/'(.*)';/, 1]
               .gsub("' + brand + '", "Phantom")
               .gsub('\\u2014', "\u2014")
     mapper  = MAPPER.read
@@ -245,11 +371,16 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     # THE SAME COUPLING THE SETUP MESSAGE RESTS ON, and the whole reason this
     # guard substitutes instead of rethrowing: a sentence the mapper rewrites
     # would put the transaction copy back onto a sign-in surface. Read what the
-    # code actually throws — a hardcoded copy here could not fail when the
+    # code actually composes — a hardcoded copy here could not fail when the
     # sentence changes, which is the risk being guarded.
-    line = LAYOUT.read[/^\s*throw new Error\('Your wallet connected.*$/]
-    assert line, "the signing message must be THROWN, as a one-line literal"
-    message = line[/'(.*)'\);/, 1].gsub('\\u2014', "\u2014")
+    #
+    # COMPOSED ONCE, LIKE setupCopy, since 2026-09-07. It used to be thrown as an
+    # inline literal; the guard now REPORTS the wallet's own string before it
+    # substitutes this one, so the sentence has to exist as a value the report
+    # and the Error can both read. Same shape as the setup half above.
+    line = LAYOUT.read[/^\s*var signFailCopy = 'Your wallet connected.*$/]
+    assert line, "the signing message must be composed as a one-line literal"
+    message = line[/'(.*)';/, 1].gsub('\\u2014', "\u2014")
     mapper  = MAPPER.read
 
     # Every regex literal the mapper tests a message against.
