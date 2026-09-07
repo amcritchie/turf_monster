@@ -244,9 +244,9 @@
           var provider = walletName ? window.walletProvider.get(walletName) : window.walletProvider.detect();
           if (!provider) throw new Error('Wallet not available');
           // Fire the nonce fetch IMMEDIATELY. It takes no parameters and does not
-          // depend on the wallet, but used to be awaited AFTER connect() — so its
-          // round trip sat behind a human-gated wallet prompt for no reason. Kicked
-          // off here it resolves during that prompt, on both paths below.
+          // depend on the wallet. Both paths below await it BEFORE they prompt, so
+          // it overlaps the setup here, NOT the wallet sheet — the price of never
+          // diagnosing our own server's failure as a broken wallet.
           //
           // SIDE EFFECT, deliberate and recorded: this also starts the server's
           // NONCE_MAX_AGE (300s) clock BEFORE the wallet sheet opens rather than
@@ -328,13 +328,56 @@
           }
 
           if (!useSignIn) {
-            var resp = await provider.connect();
-            pubkeyB58 = resp.publicKey.toBase58();
+            // OUTSIDE THE TRY, DELIBERATELY. noncePromise is a fetch of OUR OWN
+            // server (/auth/solana/nonce), not a wallet call. Inside the catch it
+            // would make an offline moment or a server blip tell a user whose
+            // wallet is perfectly good "create or import one" — the same
+            // confidently-wrong diagnosis this change exists to remove, just
+            // pointed at a different innocent party. A network failure here must
+            // keep passing through as itself. The useSignIn branch above awaits
+            // this same promise outside its own try, for the same reason.
             var data = await noncePromise;
-            // Byte-identical to the message this flow has always signed.
-            message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\n' + userIdLine + 'Sign in to Turf Monster\n\nNonce: ' + data.nonce;
-            var signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
-            signatureB58 = encodeBase58(signed.signature);
+            try {
+              var resp = await provider.connect();
+              pubkeyB58 = resp.publicKey.toBase58();
+              // Byte-identical to the message this flow has always signed.
+              message = domain + ' wants you to sign in with your Solana account:\n' + pubkeyB58 + '\n\n' + userIdLine + 'Sign in to Turf Monster\n\nNonce: ' + data.nonce;
+              var signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
+              signatureB58 = encodeBase58(signed.signature);
+            } catch (e) {
+              // AN INSTALLED WALLET WITH NO WALLET IN IT. Hit on production
+              // 2026-09-06: the Phantom extension is present — so the picker
+              // paints "Installed" and supportsSignIn() is true — but it holds no
+              // keypair, and Phantom is sitting on its own "create a new wallet or
+              // import an existing one" onboarding. With nothing to sign, signIn()
+              // rejects with Phantom's generic "Unexpected error" and this fallback
+              // rejects the same way.
+              //
+              // That string used to travel to parseSolanaError, whose generic
+              // branch reads it as a TRANSACTION failure and answers "Wallet
+              // couldn't process the transaction. Check wallet connection and USDC
+              // balance." — balance advice, in a connect modal, for a user who
+              // attempted no transaction and may hold no wallet at all.
+              //
+              // Rethrow in the vocabulary of the thing that actually failed.
+              // parseSolanaError's final line passes unrecognised messages through
+              // untouched, so this reaches the picker verbatim without changing the
+              // shared mapper, whose transaction wording is correct for the entry
+              // paths that own it.
+              //
+              // A DECLINE IS NOT AN INCAPABILITY — the same rule the signIn guard
+              // above states. A human who said no keeps reading "Signature
+              // rejected"; only a wallet that could not answer gets the setup copy.
+              var em = (e && e.message) ? e.message : String(e);
+              if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;
+              // provider.name is a lowercase SLUG on the legacy provider ('phantom',
+              // wallet_provider.js:69) but a display name on the Wallet Standard
+              // adapter (:265), so capitalise it. Nothing sets label/displayName.
+              var brand = (provider && (provider.label || provider.displayName)) ||
+                          (provider && provider.name ? provider.name.charAt(0).toUpperCase() + provider.name.slice(1) : '') ||
+                          'your wallet';
+              throw new Error('Finish setting up your wallet in ' + brand + ' \u2014 create or import one, then try again.');
+            }
           }
           var verifyUrl = opts.linkMode ? '/account/link_solana' : '/auth/solana/verify';
           // Legal-age attestation (signup compliance): undefined keys are
