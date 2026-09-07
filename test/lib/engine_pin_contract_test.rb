@@ -993,6 +993,15 @@ class EnginePinContractTest < ActiveSupport::TestCase
     # NON-VERSION TAGS ARE DROPPED, not ordered.
     assert_equal [ "v0.9.0" ], version_tags([ "latest", "v0.9.0", "", "main" ]).map(&:first)
     assert_empty version_tags([ "latest", "main", "" ])
+
+    # AND "STARTS WITH v" IS NOT ENOUGH ON ITS OWN, which is why the parse is
+    # asked as well. `vnext` clears the prefix rule and `Gem::Version.new("next")`
+    # RAISES — so a repo that ever carries such a tag would take this whole file
+    # down with an ArgumentError instead of answering. Measured: without this
+    # fixture, deleting the Gem::Version.correct? guard survives every other
+    # assertion here, because nothing else in the list starts with a `v`.
+    assert_empty version_tags([ "vnext", "v-old", "vlatest" ])
+    assert_equal [ "v0.9.0" ], version_tags([ "vnext", "v0.9.0" ]).map(&:first)
     assert_nil lowest_version_tag([ "latest", "main" ]), "no version tag means no answer, not a crash"
     assert_nil highest_version_tag([])
 
