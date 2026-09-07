@@ -178,6 +178,70 @@ test("with a wallet the link opens the token modal AND its rail works @smoke", a
   expect(body.error || "", "the rail must not refuse a buyer who HAS a wallet").not.toMatch(/connect a wallet/i);
 });
 
+test("the entry resume fires on a save and not on a skip @smoke", async ({ page }) => {
+  // THE BRANCH THIS APP OWNS, driven for real.
+  //
+  // turf's local first-name card used to clear $store.session.firstNameRequired
+  // and dispatch 'first-name-saved' from save() ONLY. That card is deleted; the
+  // engine's card fires ONE 'onboarding-step-done' for both outcomes and reports
+  // which happened in detail.saved (studio-engine 0.72.0). The branch that reads
+  // it lives in the layout's chain driver, and getting it wrong is silent in
+  // both directions:
+  //   fire on a SKIP  -> the board resumes a contest entry for a user who just
+  //                      declined to give a name, waving the entry past the
+  //                      exact validation that stopped it;
+  //   never fire      -> a gated entry never resumes and hold-to-confirm dies
+  //                      with nothing logged.
+  //
+  // ONLY A BROWSER CAN SEE THIS. The branch is inlined JS in a layout, so a
+  // component tier can assert the source text shipped and still pass against a
+  // mutant that negates the condition. This drives the real listener and reads
+  // the real consequences: the store flag, and whether the dependent event fired.
+  await signUpFresh(page, { contest: "world-cup-2026" });
+  await expect(page.getByRole("heading", { name: /What should we call you/i })).toBeVisible();
+
+  // Record every 'first-name-saved' the page emits from here on.
+  await page.evaluate(() => {
+    window.__firstNameSaved = 0;
+    window.addEventListener("first-name-saved", () => { window.__firstNameSaved += 1; });
+  });
+
+  // --- the SKIP path: nothing may resume -------------------------------------
+  // Set the flag first so its survival is observable. A flag that was already
+  // false could not distinguish "the branch correctly did nothing" from "the
+  // branch cleared something that was not set".
+  await page.evaluate(() => { Alpine.store("session").firstNameRequired = true; });
+  await page.getByRole("button", { name: "Skip for now" }).click();
+
+  // Wait for the step to actually finish rather than sampling immediately: the
+  // skip POSTs before it dispatches, so an instant read would pass against a
+  // broken branch simply by looking too early.
+  await expect(page.getByRole("heading", { name: /What should we call you/i })).toBeHidden();
+
+  expect(
+    await page.evaluate(() => window.__firstNameSaved),
+    "a skip must NOT re-dispatch first-name-saved — the board would resume an entry with no name"
+  ).toBe(0);
+  expect(
+    await page.evaluate(() => Alpine.store("session").firstNameRequired),
+    "a skip must leave the entry gate armed; the gate reads the column, and no name was given"
+  ).toBe(true);
+
+  // --- the SAVE path: the resume must fire ------------------------------------
+  await page.keyboard.press("Escape"); // leave the rest of the chain alone
+  await page.evaluate(() => Alpine.store("modals").open("onboarding", { required: true }));
+  await expect(page.getByRole("heading", { name: /What should we call you/i })).toBeVisible();
+
+  await page.fill("#onboarding-first-name", "Alex");
+  await page.getByRole("button", { name: /Save and continue/i }).click();
+
+  await page.waitForFunction(() => window.__firstNameSaved === 1, null, { timeout: 15000 });
+  expect(
+    await page.evaluate(() => Alpine.store("session").firstNameRequired),
+    "a save must clear the gate flag the resumed hold re-reads"
+  ).toBe(false);
+});
+
 test("the first name is the FIRST validation of the hold @smoke", async ({ page }) => {
   // Operator call, 2026-08-15. Only a browser can prove this ordering: the gate
   // lives in eligibilityBlocker (an importmap module) and its blocker is
@@ -219,8 +283,8 @@ test("the first name is the FIRST validation of the hold @smoke", async ({ page 
 test("the first-name placeholder types itself, then yields to the user @smoke", async ({ page }) => {
   // MOTION ON, ON PURPOSE. The lane runs prefers-reduced-motion by default since
   // /tasks/make-reduced-motion-reach-specs, and the modal honors it:
-  // `startPlaceholder()` assigns the whole name and RETURNS
-  // (modals/_onboarding.html.erb:67), because the hint is the point and the
+  // `startPlaceholder()` assigns the whole name and RETURNS early (the engine's
+  // studio/modals/onboarding/_first_name), because the hint is the point and the
   // typing is decoration. This spec asserts the typing ANIMATES — "the
   // placeholder must pass through many states, not one" — so it opts out.
   await allowMotion(page);

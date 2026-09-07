@@ -150,8 +150,20 @@ class AdminController < ApplicationController
     # the welcome step was retired from the chain.)
     { group: "Onboarding",
       label: "First name (skippable)", key: "onboarding-first-name",
-      modal_id: "onboarding", file: "app/views/modals/_onboarding.html.erb",
+      modal_id: "onboarding",
+      file: "studio-engine: app/views/studio/modals/onboarding/_first_name.html.erb",
       props: {} },
+    # The SAME card in its required mode — the entry gate's caller. Listed
+    # separately because the two are different cards on the screen: the gem
+    # OMITS both skip affordances when required, so this state can never be
+    # reached by clicking around the skippable one. The layouts register a
+    # branch per mode keyed on exactly this prop, so the preview draws the real
+    # required card rather than a skippable one with a prop nothing reads.
+    { group: "Onboarding",
+      label: "First name (required, entry gate)", key: "onboarding-first-name-required",
+      modal_id: "onboarding",
+      file: "studio-engine: app/views/studio/modals/onboarding/_first_name.html.erb",
+      props: { required: true } },
     # The DOB gate. Prompted as the first step of Wallet setup since 2026-08-12,
     # and STILL the enforcement point at contest entry — same modal, two callers.
     { group: "Onboarding",
