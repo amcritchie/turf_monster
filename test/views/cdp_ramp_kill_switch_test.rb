@@ -9,17 +9,19 @@ require "test_helper"
 # template, the card renders empty, and nothing raises anywhere. That is the
 # "Buy an Entry Token opened empty" report of 2026-09-06.
 #
-# Two surfaces carry a Coinbase rail: modals/_wallet_topup (the primary CTA at
-# the entry blocker) and modals/_onramp_hub (the Add Funds rail picker one hop
-# behind it). Both are registered UNGATED in the layout so they survive an
-# in-session signup; cdp-ramp is not. So both halves of the predicate are
-# load-bearing, and both are exercised below.
+# THREE view surfaces open it: modals/_wallet_topup (the primary CTA at the entry
+# blocker), modals/_onramp_hub (the Add Funds rail picker one hop behind it), and
+# modals/auth/_usdc_funding (the auth wizard's funding step). All three are
+# reachable from a layout that was rendered logged-out — wallet-topup, onramp-hub
+# and auth are all registered UNGATED, because they must survive an in-session
+# signup, while cdp-ramp is registered under logged_in?. So both halves of the
+# predicate are load-bearing, and both are exercised below.
 #
 # THE FLAG-OFF PATH IS THE POINT. A test that only renders with the flag ON
 # certifies nothing about the kill-switch — that is precisely how this survived.
 #
-# The third surface named in the report, app/views/cdp/returns/show.html.erb,
-# needs no view guard: it is rendered only by Cdp::ReturnsController, whose
+# app/views/cdp/returns/show.html.erb, also named in the report, needs no view
+# guard: it is rendered only by Cdp::ReturnsController, whose
 # Cdp::BaseController prepends `head :not_found unless AppFlags.cdp_ramp?`, so
 # the page cannot render with the flag off. That gate already has its regression
 # at test/controllers/cdp/returns_controller_test.rb ("404s when the flag is
@@ -101,6 +103,39 @@ class CdpRampKillSwitchTest < ActionView::TestCase
                       "or the flag-off assertions above prove only that it is gone"
       assert_includes html, "Coinbase"
     end
+  end
+
+  # --- the auth modal's funding step -------------------------------------------
+  #
+  # modals/auth/_usdc_funding is the third opener, and the session half of the
+  # predicate matters MOST here: the auth modal is registered UNGATED (it is the
+  # signup surface), and this step is reached right after an in-session signup —
+  # on a page whose layout rendered logged-out and emitted no cdp-ramp template.
+  # It is kept out of SURFACES above because it is a <template> fragment with its
+  # own copy fallback rather than a single-root modal card.
+
+  test "the auth funding step reaches no cdp-ramp modal when the flag is off" do
+    html = with_context(flag: false, logged_in: true) { render partial: "modals/auth/usdc_funding" }
+
+    refute_includes html, RAMP_ID, "the funding step still hands a click to an unregistered modal"
+    assert_includes html, "Purchases temporarily offline",
+                    "the flag-off branch must still say something, not render blank"
+  end
+
+  test "the auth funding step reaches no cdp-ramp modal on a logged-out layout" do
+    # Flag ON — production today — but the page registered no cdp-ramp template.
+    html = with_context(flag: true, logged_in: false) { render partial: "modals/auth/usdc_funding" }
+
+    refute_includes html, RAMP_ID,
+                    "the auth modal is registered ungated, so its Buy CTA outlived the modal"
+  end
+
+  test "the auth funding step still offers the buy when the modal is registered" do
+    html = with_context(flag: true, logged_in: true) { render partial: "modals/auth/usdc_funding" }
+
+    assert_includes html, RAMP_ID,
+                    "with the modal registered the CTA must still be reachable"
+    assert_includes html, "Buy USDC with Coinbase"
   end
 
   # --- the host contract, which the guards must not break ---------------------
