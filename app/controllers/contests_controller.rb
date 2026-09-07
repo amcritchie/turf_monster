@@ -351,6 +351,19 @@ class ContestsController < ApplicationController
     # of one UPDATE. The row stays `pending`: broadcast is not verification.
     contest.update!(onchain_tx_signature: tx_signature)
 
+    # STEP 3b — the creator's navbar balance is now WRONG, so drop it here,
+    # immediately after the broadcast rather than beside the render. The pill is
+    # served cache-first on a 60s TTL, and every step below this one can raise:
+    # bust it at the render and a contest that took the money but failed its
+    # read-back leaves the creator looking at their pre-spend balance until the
+    # TTL lapses. That is the bug this fixes, measured on QA 2026-09-07 — a $45
+    # prize pool left the wallet and the navbar held $1284 until a manual
+    # refresh read the true $1239.
+    #
+    # Both keys, not just USDC: see #invalidate_wallet_balance_cache. Guarded
+    # like :505 because #invalidate_* dereferences current_user for the key.
+    invalidate_wallet_balance_cache if logged_in?
+
     # STEP 4 — OPSEC-010: assert the broadcast tx is the create_contest IX
     # targeting THIS PDA, signed by the original creator from the server-issued
     # token.

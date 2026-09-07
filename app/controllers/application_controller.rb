@@ -736,6 +736,23 @@ class ApplicationController < ActionController::Base
     Rails.cache.delete(usdc_cache_key(user))
   end
 
+  # Both halves of the navbar pill, for a path that just MOVED the user's money.
+  #
+  # #display_balance renders usdc + usdt COMBINED, and #combined_balance returns
+  # nil — the "loading" state the client then fills via refreshBalance — only
+  # when BOTH reads are nil; a nil beside a live value counts as zero. So
+  # dropping the USDC key alone, while its USDT twin stays warm (they are
+  # written together at the same 60s TTL, so it nearly always is), does not
+  # produce "loading". It produces the USDT balance PRESENTED AS THE TOTAL:
+  # a confidently wrong number, which is worse than the stale one it replaced.
+  #
+  # Use this wherever an action has already moved USDC. #invalidate_usdc_cache
+  # stays for the callers that only ever want the one key.
+  def invalidate_wallet_balance_cache(user = current_user)
+    Rails.cache.delete(usdc_cache_key(user))
+    Rails.cache.delete(usdt_cache_key(user))
+  end
+
   # Navbar seeds bar — on-chain seed count for the logged-in user.
   # NON-BLOCKING + cache-first, same contract as display_balance:
   #   - preloaded @user_seeds when a page populated it explicitly
