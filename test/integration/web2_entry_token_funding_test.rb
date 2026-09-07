@@ -128,7 +128,15 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
   # NEITHER STRING COMES FROM THE GET USDC CARD. The swap() literal is rendered by
   # modals/_onramp_hub (its Back link) and the Coinbase title by
   # modals/_wallet_topup, and the layout registers BOTH ungated into every contest
-  # page — so these held whatever the card did. It also asserted
+  # page — so these held whatever the card did.
+  #
+  # (Since /tasks/kill-switch-leaves-dead-buttons the Coinbase title is no longer
+  # among them on THIS page: _wallet_topup gates that rail on
+  # cdp_ramp_modal_available?, which reads logged_in? as well as ENABLE_CDP_RAMP,
+  # and the render above is a guest. The layout still registers the modal ungated
+  # — only its Coinbase rail moved behind the guard. That strengthens the case for
+  # deleting this test rather than weakening it: the string was never the card's
+  # to begin with, and now it is not even reliably on the page.) It also asserted
   # `showWalletTopup() {` and the layout's own `current().id === 'wallet-topup'`,
   # which are the board script and the layout answering for a third file again.
   #

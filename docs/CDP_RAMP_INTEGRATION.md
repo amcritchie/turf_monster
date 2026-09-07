@@ -31,6 +31,28 @@ end
 ```
 Gate routes, controllers, and all UI entry points on it (kill-switch = unset the var).
 
+**A UI entry point asks `cdp_ramp_modal_available?`, not `AppFlags.cdp_ramp?`**
+(`app/helpers/onramp_helper.rb`). Every `cdp-ramp` opener is a handoff to a MODAL,
+and the host layout registers that modal behind `logged_in?` AND the flag. An
+opener that asks a WIDER question than the registration ships a button that swaps
+to an unregistered modal id: the host finds no template, the card opens empty, and
+nothing raises. Two ways that happened, both fixed 2026-09-07:
+
+- `onramp_rail_visible?` reveals every rail outside production for design review,
+  so the Coinbase rail rendered in dev and in the whole test suite with the flag
+  off. Coinbase now short-circuits to `cdp_ramp_modal_available?` in every env,
+  because it is the one rail whose destination is a modal rather than a route.
+- `wallet-topup` and `onramp-hub` are registered UNGATED (they must survive an
+  in-session signup, where the server-rendered `logged_in?` was still false) while
+  `cdp-ramp` is registered under `logged_in?`. On that page the rail outlived its
+  destination even with the flag ON.
+
+`app/views/cdp/returns/show.html.erb` needs no view guard: `Cdp::BaseController`
+prepends `head :not_found unless AppFlags.cdp_ramp?`, so the page cannot render
+with the flag off (regression: `test/controllers/cdp/returns_controller_test.rb`).
+
+Kill-switch behaviour is pinned by `test/views/cdp_ramp_kill_switch_test.rb`.
+
 ## 3. `Cdp::Auth` — per-request JWT (`app/services/cdp/auth.rb`)
 
 Exact recipe (Ed25519 / EdDSA) [^2][^3]:
