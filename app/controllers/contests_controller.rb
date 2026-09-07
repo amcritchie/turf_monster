@@ -718,10 +718,12 @@ class ContestsController < ApplicationController
     # Both boards POST here with headers only and no body, so its
     # `params[:signature].present?` was never true. It was not merely dead — it
     # was a fail-CLOSED gate, so deleting it outright would have let a web3
-    # session walk into the server-signing path with no check at all. Today that
-    # still fails, but only incidentally: a phantom-only account has no
-    # web2_solana_address, so resolve_web2_entry_funding! raises "Managed wallet
+    # session walk into the server-signing path with no check at all. It used to
+    # still fail, but only incidentally: a phantom-only account has no
+    # web2_solana_address, so resolve_web2_entry_funding! raised "Managed wallet
     # missing keypair" — an accident of another guard rather than a decision.
+    # THAT ACCIDENT IS NOW A DECISION, and it is the guard directly below this
+    # one; a player reached it before anyone converted it (QA, 2026-09-07).
     #
     # So: refuse explicitly, and name the path the caller should be on. Same
     # shape as the self_custodied? guard above, which already routes rather than
@@ -733,6 +735,54 @@ class ContestsController < ApplicationController
         success: false,
         error: "Wallet sessions enter on-chain — use prepare_entry to build and sign the entry transaction.",
         self_custodied: true
+      }, status: :unprocessable_entity
+    end
+
+    # THE OTHER HALF OF THAT SAME QUESTION, and the half a real player hit
+    # (operator report, QA, 2026-09-07). The guard above turns away a session
+    # that CAN sign. This one turns away a session that CANNOT — a self-custody
+    # account whose current session was established by a WEB2 credential.
+    #
+    # Every earlier gate misses it, and each for its own honest reason:
+    # `onchain_session?` is false (they signed in with Google, not a wallet);
+    # `self_custodied?` is false (that column marks a deliberate EXPORT, not the
+    # mere holding of a wallet); and `wallet_kind` is :phantom, not :none, so the
+    # no-wallet refusal has nothing to say. So the request fell all the way
+    # through to #resolve_web2_entry_funding!, which raised "Managed wallet
+    # missing keypair (cannot sign entry)" — the accident the comment above
+    # already named, now arriving as a red card on a player's screen with the
+    # step-up card sitting underneath it saying the right thing.
+    #
+    # WHY IT ASKS Web3StepUpPolicy INSTEAD OF RE-DERIVING THE POPULATION. That
+    # policy is the one place that answers "does THIS SESSION owe a wallet
+    # signature", and the auth paths already act on its answer. A second copy of
+    # that rule here is how the entry path and the auth path end up disagreeing
+    # about the same account — the card telling a player to sign while the entry
+    # lets them through, or the reverse.
+    #
+    # AND WHY IT IS NOT THE POLICY ALONE. The policy's verdict is ADVISORY by
+    # construction: a COMBO account (managed + linked wallet) owes a step-up and
+    # can still enter, because #resolve_web2_entry_funding! deliberately signs
+    # and spends from the custodial address for exactly that account. What makes
+    # the refusal a REFUSAL here is the second clause — there is no keypair to
+    # sign with — which is the precondition of the raise, stated as a decision.
+    # The fee clauses keep it to entries that are actually signed: a free
+    # contest reaches no keypair at all, and walling one off would strand every
+    # wallet-only player behind a signature nothing was going to ask for.
+    #
+    # ROUTE, DON'T MERELY REFUSE — the standard both guards above already set.
+    # The blocker gives the board a reason to dispatch on (it opens the card in
+    # place), and arm_web3_step_up_for — the same arming the Google collision
+    # uses at the front door — makes the NEXT render open it too, for a player
+    # who reloads rather than reads a modal.
+    step_up = Web3StepUpPolicy.new(current_user, session_mode: wallet_context.mode)
+    if @contest.onchain? && @contest.entry_fee_cents.to_i.positive? &&
+       step_up.required? && !current_user.managed_wallet?
+      arm_web3_step_up_for(current_user)
+      return render json: {
+        success: false,
+        error: "Sign in with your wallet to enter — this account's entries are signed by the wallet itself.",
+        blocker: { reason: "web3_step_up_required", mode: "web3", data: step_up.to_h }
       }, status: :unprocessable_entity
     end
 
