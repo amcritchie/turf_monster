@@ -47,30 +47,29 @@ module BuyUsdcHelper
     ENV["PHANTOM_BUY_URL"].presence || PHANTOM_BUY_URL
   end
 
-  # --- The explainer video -------------------------------------------------
-  #
-  # THE OPERATOR SUPPLIES THIS ONE. WalletSetupHelper pins a third-party video by
-  # id because that video was chosen when the modal was built; this modal ships
-  # BEFORE its video exists (operator ask, 2026-09-05: "so I can provide a video
-  # for how to buy USDC"). So the id is configuration, not a constant to edit:
-  # set BUY_USDC_VIDEO_ID and the band grows a player.
-  #
-  # ABSENT IS A SUPPORTED STATE, not a broken one. With no id configured the
-  # teaching band renders its heading and the Detailed Guide CTA and simply has
-  # no player — the same discipline onramp_rail_visible? applies to a flagged-off
-  # rail. The alternative, an embed with an empty id, renders YouTube's own error
-  # card inside the modal, which is worse than the absence it is reporting.
-  # Defaults to the Phantom onboarding walkthrough the wallet-setup card already
-  # plays (operator, 2026-09-06: "for now just use the same phantom onboarding
-  # youtube video"). A card that tells someone to buy USDC inside Phantom and
-  # then shows them nothing is the worse failure; a general Phantom walkthrough
-  # is imperfect but honest, and it is the SAME video, not a second copy of the
-  # id — so the two cannot drift.
-  #
-  # BUY_USDC_VIDEO_ID overrides it, which is how the purpose-made video lands
-  # without a deploy when it exists.
+  # The operator's chosen walkthrough (2026-09-06). It replaced a stand-in that
+  # borrowed the wallet-setup card's general Phantom video, which was honest but
+  # not about buying USDC.
+  DEFAULT_VIDEO_ID = "yvSwABtqGq4".freeze
+
+  # The useful part starts here — everything before it is preamble the player
+  # would otherwise make a blocked user sit through.
+  DEFAULT_VIDEO_START_SECONDS = 58
+
   def buy_usdc_video_id
-    ENV["BUY_USDC_VIDEO_ID"].presence || WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID
+    ENV["BUY_USDC_VIDEO_ID"].presence || DEFAULT_VIDEO_ID
+  end
+
+  # A START OFFSET BELONGS TO A SPECIFIC VIDEO. 58s is where THIS video gets to
+  # the point; on a replacement it would drop the viewer into the middle of
+  # something else. So the default offset applies only while the default id is
+  # in play — override the id alone and playback starts at 0, which is the only
+  # safe assumption about a video nobody here has watched.
+  def buy_usdc_video_start
+    explicit = ENV["BUY_USDC_VIDEO_START"].presence
+    return explicit.to_i if explicit
+
+    buy_usdc_video_id == DEFAULT_VIDEO_ID ? DEFAULT_VIDEO_START_SECONDS : 0
   end
 
   # The band's player gate. Views ask this, never the id, so "configured" stays
@@ -93,7 +92,11 @@ module BuyUsdcHelper
       "rel" => "0",            # no end-screen grid of unrelated crypto videos
       "modestbranding" => "1",
       "playsinline" => "1"     # iOS: play in the modal, not fullscreen takeover
-    }.map { |k, v| "#{k}=#{CGI.escape(v)}" }.join("&")
+    }
+    # `start` is seconds from the beginning. Omitted entirely at 0 so the URL of
+    # an un-offset video stays exactly what it was.
+    query["start"] = buy_usdc_video_start.to_s if buy_usdc_video_start.positive?
+    query = query.map { |k, v| "#{k}=#{CGI.escape(v)}" }.join("&")
 
     "#{WalletSetupHelper::PHANTOM_INTRO_VIDEO_HOST}/embed/#{CGI.escape(buy_usdc_video_id)}?#{query}"
   end
@@ -102,6 +105,7 @@ module BuyUsdcHelper
   def buy_usdc_video_watch_url
     return nil unless buy_usdc_video?
 
-    "https://www.youtube.com/watch?v=#{CGI.escape(buy_usdc_video_id)}"
+    base = "https://www.youtube.com/watch?v=#{CGI.escape(buy_usdc_video_id)}"
+    buy_usdc_video_start.positive? ? "#{base}&t=#{buy_usdc_video_start}s" : base
   end
 end

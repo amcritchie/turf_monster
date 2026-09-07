@@ -17,32 +17,49 @@ class BuyUsdcHelperTest < ActionView::TestCase
     ENV["BUY_USDC_VIDEO_ID"] = was
   end
 
-  # --- the fallback (operator, 2026-09-06) --------------------------------------
+  # --- the video, and the offset that belongs to it ---------------------------
   #
-  # ABSENT IS NO LONGER A STATE. The card tells a blocked player to buy USDC
-  # inside Phantom; showing them nothing under that instruction is the worse
-  # failure, so an unset id falls back to the Phantom walkthrough the wallet-setup
-  # card already plays until the purpose-made video exists.
+  # The card no longer borrows the wallet-setup walkthrough. It plays the
+  # operator's own USDC video from the point it gets useful.
 
-  test "an unset id falls back to the wallet card's walkthrough, not to nothing" do
+  test "the default is the operator's video, started where it gets to the point" do
     with_video_id(nil) do
-      assert buy_usdc_video?, "the band must always have a player"
-      assert_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id,
-                   "the SAME id, not a second copy of its value — a copy drifts"
+      assert_equal DEFAULT_VIDEO_ID, buy_usdc_video_id
+      assert_equal 58, buy_usdc_video_start
+      assert_includes buy_usdc_video_embed_url, "start=58"
+      assert_includes buy_usdc_video_watch_url, "&t=58s",
+                      "the read-it-elsewhere link must land in the same place"
     end
   end
 
-  test "a blank id falls back too, rather than building an empty embed" do
-    with_video_id("  ") do
-      assert buy_usdc_video?
-      assert_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id
-    end
-  end
-
-  test "a configured id wins, which is how the real video lands without a deploy" do
+  test "an OVERRIDDEN id does not inherit the offset" do
+    # 58s is where THIS video gets to the point. On a replacement it would drop
+    # the viewer into the middle of something else, so the default offset applies
+    # only while the default id is in play. This is the coupling worth pinning.
     with_video_id("abc123XYZ_-") do
       assert_equal "abc123XYZ_-", buy_usdc_video_id
-      refute_equal WalletSetupHelper::PHANTOM_INTRO_VIDEO_ID, buy_usdc_video_id
+      assert_equal 0, buy_usdc_video_start
+      refute_includes buy_usdc_video_embed_url, "start=",
+                      "a start offset from a different video is worse than none"
+      refute_includes buy_usdc_video_watch_url, "&t="
+    end
+  end
+
+  test "an explicit offset wins for any id" do
+    with_video_id("abc123XYZ_-") do
+      was = ENV["BUY_USDC_VIDEO_START"]
+      ENV["BUY_USDC_VIDEO_START"] = "12"
+      assert_equal 12, buy_usdc_video_start
+      assert_includes buy_usdc_video_embed_url, "start=12"
+    ensure
+      was.nil? ? ENV.delete("BUY_USDC_VIDEO_START") : ENV["BUY_USDC_VIDEO_START"] = was
+    end
+  end
+
+  test "a blank id falls back to the default, not to an empty embed" do
+    with_video_id("  ") do
+      assert buy_usdc_video?
+      assert_equal DEFAULT_VIDEO_ID, buy_usdc_video_id
     end
   end
 

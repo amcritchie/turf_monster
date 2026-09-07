@@ -1,0 +1,37 @@
+<%#
+  The USDC-on-Solana mark: the USDC disc with the Solana bars badged on its
+  bottom-right corner, the way a chain badge sits on a token everywhere else in
+  crypto. It says in one glance what the card's first sentence says in words —
+  this is USDC, and it lives on Solana.
+
+  COMPOSED FROM THE SHIPPED ASSETS, NOT REDRAWN. public/usdc-mark.svg and
+  public/solana-mark.svg are the real brand files; inlining a hand-copy of either
+  path would be a third copy to keep in step with a brand that is not ours to
+  restyle. They are <img> so the originals stay the single source.
+
+  The badge sits in a ring of the CARD's background rather than a fixed colour,
+  so the notch it cuts out of the disc reads as a gap in both themes instead of a
+  grey smudge in one of them.
+
+  Locals:
+    size  (Integer, default 64) — px edge of the USDC disc. The badge scales with
+          it at the ratio the operator's reference uses (~0.42).
+%>
+<%
+  size  = local_assigns.fetch(:size, 64)
+  badge = (size * 0.42).round
+  ring  = (badge * 0.13).round
+%>
+<span class="relative inline-block flex-shrink-0"
+      style="width:<%= size %>px;height:<%= size %>px"
+      data-usdc-solana-mark
+      aria-label="USDC on Solana" role="img">
+  <img src="/usdc-mark.svg" alt="" width="<%= size %>" height="<%= size %>"
+       class="block w-full h-full" data-mark="usdc">
+  <span class="absolute rounded-full flex items-center justify-center bg-surface"
+        style="width:<%= badge + ring * 2 %>px;height:<%= badge + ring * 2 %>px;right:<%= -ring %>px;bottom:<%= -ring %>px">
+    <img src="/solana-mark.svg" alt="" width="<%= badge %>" height="<%= badge %>"
+         class="block rounded-full bg-black p-[15%]"
+         style="width:<%= badge %>px;height:<%= badge %>px" data-mark="solana">
+  </span>
+</span>
