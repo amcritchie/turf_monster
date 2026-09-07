@@ -872,13 +872,11 @@
             _recoveryHandler: null,
             _onCloseHandler:  null,
 
-            show: function(title, message) {
-              this._recoveryHandler = null;
-              this._onCloseHandler = null;
-              // dismissible: false suppresses click-outside + escape while
-              // a Phantom signature / RPC confirm is pending — success()/
-              // error() flip it to true.
-              Alpine.store('modals').open('onchain-tx', {
+            // The prop shape one STEP of an on-chain flow resets to. Shared by
+            // the first show() and every step after it, so a step can never
+            // carry a stale errorMessage / txSignature from the previous one.
+            _stepProps: function(title, message) {
+              return {
                 dismissible:     false,
                 state:           'processing',
                 title:           title,
@@ -903,7 +901,53 @@
                 // confetti on success — resolved in success() per variant
                 // (entry: on, generic: off unless opts.confetti:true).
                 confetti:        true
-              });
+              };
+            },
+
+            // ACTION -> LOAD -> RESOLVE, in ONE modal.
+            //
+            // Every on-chain flow calls show() once per step ("Preparing…",
+            // "Approve in Phantom…", "Broadcasting…"). `modals.open()` is a
+            // STACK (studio-engine _host.html.erb:439) and PUSHES unless told
+            // otherwise, so calling it per step used to build a pile: three
+            // steps meant three live entries, success() patched only the top,
+            // and dismissing it revealed the "Approve in Phantom" card still
+            // sitting underneath. Measured on mainnet 2026-09-07 during a
+            // settle cosign, and it applied to all 39 show() call sites —
+            // including contest entry and contest creation, where a redirect
+            // usually hid it.
+            //
+            // So: the FIRST show() opens; every one after it patches the entry
+            // that is already there.
+            //
+            // WHY NOT $store.modals.advance(), which exists for exactly this.
+            // advance() animates the step change, and its guard
+            // (`if (!cur || cur._closing || cur._swappingOut) return`) DROPS any
+            // step that arrives while the ~440ms slide is still running — then
+            // its own pending timer assigns the older step's props on top of
+            // whatever arrived meanwhile. Its steps are user-driven (picker ->
+            // confirm), so they cannot outrun the animation. These steps are
+            // machine-driven and routinely can: "Preparing" -> "Approve in
+            // Phantom" is one fetch apart. A progress modal that silently shows
+            // the WRONG step is worse than one that shows the right step without
+            // a slide — an operator left on "Preparing" has no idea Phantom is
+            // waiting on them. Patching in place cannot drop or reorder.
+            // advance() stays right for user-driven step transitions.
+            show: function(title, message) {
+              this._recoveryHandler = null;
+              this._onCloseHandler = null;
+              var props = this._stepProps(title, message);
+              var current = _onCurrent();
+
+              // A modal that is mid-close is on its way out — its props are
+              // about to stop being rendered, so patching it would show
+              // nothing. Open a fresh one instead.
+              if (current && !current._closing) {
+                Object.assign(current.props, props);
+                return;
+              }
+
+              Alpine.store('modals').open('onchain-tx', props);
             },
             // opts (optional): { variant: 'entry'|'generic', title,
             // subtitle, ctaLabel, ctaHref } for the generic success card.
