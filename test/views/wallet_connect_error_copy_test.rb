@@ -12,9 +12,24 @@ require "test_helper"
 #
 # Balance advice, in a connect modal, to someone who attempted no transaction and
 # may hold no wallet at all.
+#
+# AND THEN THE CATCH TURNED OUT TO BE WIDER THAN ITS DIAGNOSIS. It wrapped the
+# whole fallback, so the same sentence was also handed to a signMessage that
+# failed AFTER connect() returned a public key, to a user who dismissed the
+# account-selection sheet, and to anyone whose only problem was that our own
+# server did not answer. The setup diagnosis now belongs to exactly one case: a
+# connect() that never answered.
+#
+# WHAT THIS TIER CAN AND CANNOT PROVE. Everything below reads SOURCE. It pins
+# form and order — the mutations a substring check is blind to — and it is fast.
+# It cannot say which guard actually answered a real failure. That is
+# e2e/wallet_sign_in.spec.js, which runs the function and compares the sentences
+# the page EMITTED against each other; three of its four specs fail on the code
+# this change replaces. Do not read a green file here as behaviour.
 class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
   LAYOUT = Rails.root.join("app/views/layouts/application.html.erb")
   MAPPER = Rails.root.join("app/javascript/solana_errors.js")
+  PROVIDER = Rails.root.join("app/javascript/wallet_provider.js")
 
   test "a wallet that cannot answer gets setup copy, not balance advice" do
     src = LAYOUT.read
@@ -43,19 +58,91 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     src = LAYOUT.read
     fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
 
-    # THE BLOCKER THIS CLOSES. noncePromise fetches OUR OWN server. Inside the
-    # try, an offline moment told a user with a perfectly good wallet to "create
-    # or import one" — the same confidently-wrong diagnosis this change exists to
-    # remove, pointed at a different innocent party.
+    # OUR OWN SERVER, KEPT OUT OF THE WALLET DIAGNOSIS — BY EVIDENCE, NOT BY
+    # DISTANCE. noncePromise fetches /auth/solana/nonce. An offline moment must
+    # never tell a user with a perfectly good wallet to "create or import one".
+    #
+    # #571 bought that by hoisting the await ABOVE the try, which also put a
+    # server round trip ahead of the wallet sheet for every wallet without
+    # solana:signIn. The rejection now carries a TAG instead, so the await can
+    # sit back below connect() — where the fetch overlaps the human at the
+    # prompt — and the catch can still tell the two apart.
     assert fallback, "the fallback block must exist"
-    nonce_at = src.index("var data = await noncePromise;")
-    try_at   = src.index("if (!useSignIn) {")
-    open_try = src.index("try {", try_at)
 
-    assert nonce_at < open_try,
-           "the nonce fetch must be awaited BEFORE the try, not inside it"
-    refute_includes fallback[/try \{.*?\} catch/m].to_s, "noncePromise",
-                    "no fetch of our own server may sit under the wallet catch"
+    assert_includes src, "nonceFetchFailed = true",
+                    "the nonce fetch's own rejection must be tagged at the source"
+
+    guard_at   = fallback.index("if (e && e.nonceFetchFailed) throw e;")
+    connect_at = fallback.index("var resp = await provider.connect();")
+    nonce_at   = fallback.index("var data = await noncePromise;")
+
+    assert guard_at, "the catch must rethrow a tagged nonce failure untouched"
+    assert connect_at, "the fallback must still connect"
+    assert nonce_at, "the fallback must still await the nonce"
+    assert connect_at < nonce_at,
+           "connect() must run BEFORE the nonce is awaited, so the fetch " \
+           "overlaps the open wallet prompt instead of preceding it"
+    assert guard_at > nonce_at,
+           "the tagged-rejection guard belongs in the catch, after the await"
+  end
+
+  # --- the three guards, and the order they run in --------------------------
+
+  test "the setup diagnosis is reachable only by a connect that never answered" do
+    src      = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+
+    # `connected` flips the instant connect() hands back a publicKey — at that
+    # moment the wallet has PROVEN it holds a keypair. Assigning it any later
+    # (after the nonce await, say) would leave a window in which a wallet that
+    # already identified itself is still told to create one.
+    pubkey_at    = fallback.index("pubkeyB58 = resp.publicKey.toBase58();")
+    connected_at = fallback.index("connected = true;")
+    nonce_at     = fallback.index("var data = await noncePromise;")
+
+    assert pubkey_at && connected_at, "the connected flag must be set on success"
+    assert pubkey_at < connected_at,
+           "the flag records that a public key came back, so it follows it"
+    assert connected_at < nonce_at,
+           "and it must be set before ANY later await can reject"
+  end
+
+  test "each guard rethrows untouched, and all of them precede the setup copy" do
+    src      = LAYOUT.read
+    fallback = src[/if \(!useSignIn\) \{.*?\n          \}/m]
+    throw_at = fallback.index(MESSAGE)
+
+    assert throw_at, "the setup rethrow must exist"
+
+    # Pinned verbatim, the way the decline guard already is: `!connected`,
+    # `&&` for `||`, or a dropped tag check all read as PRESENT to a
+    # substring assertion and change who gets the sentence.
+    [
+      "if (e && e.nonceFetchFailed) throw e;",
+      "if (connected) throw e;",
+      "if (e && e.walletAnswered) throw e;"
+    ].each do |guard|
+      at = fallback.index(guard)
+      assert at, "missing or altered guard: #{guard}"
+      assert at < throw_at,
+             "#{guard} must run BEFORE the setup message can be composed"
+    end
+  end
+
+  test "the wallet layer tags the rejections that prove a wallet exists" do
+    src = PROVIDER.read
+
+    # standard:connect resolving an EMPTY accounts array is a dismissed
+    # account-selection sheet, not a missing wallet. Before this it reached the
+    # fallback untagged and came back as "create or import one" — readable, and
+    # false. Pinned verbatim: dropping the wrapper is invisible to a check that
+    # only asks whether the message is still there.
+    assert_includes src, "err.walletAnswered = true;",
+                    "the tag helper must set the property the catch reads"
+    assert_includes src, "throw _walletAnswered(new Error('No account authorized'));",
+                    "an empty account list must carry the tag"
+    assert_includes src, "Promise.reject(_walletAnswered(new Error('Wallet not connected')))",
+                    "so must signing without a connected account"
   end
 
   test "the wallet is named the way its brand writes it, not by slug" do

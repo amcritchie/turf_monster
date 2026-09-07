@@ -642,7 +642,19 @@
 # property with no undo. Four specs: dismiss sends nothing, accept sends exactly
 # one, "Burn all" names its count, and a holder with nothing spendable is
 # offered no control at all. Coverage ADDED; `quarantined` is untouched.
-total_specs: 233
+#
+# 233 -> 237 on 2026-09-07: four specs in e2e/wallet_sign_in.spec.js pin how
+# NARROW the "Finish setting up your wallet ... create or import one" diagnosis
+# has to be (/tasks/narrow-wallet-setup-diagnosis). The catch that composes it
+# wraps the whole connect + signMessage fallback, so it was also answering a
+# signMessage that failed AFTER connect() returned a public key, a user who
+# dismissed the account-selection sheet, and our own nonce endpoint falling
+# over. Only a run can say WHICH guard answered — the assertions compare
+# sentences the page EMITTED against each other rather than against a copy typed
+# into the spec, which is exactly the coupling a source scan cannot hold. Three
+# of the four fail on the code they replace. Coverage ADDED; `quarantined` is
+# untouched, and none of the four carries a runtime skip.
+total_specs: 237
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -902,7 +914,14 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 212
+#
+# 212 -> 216 (narrow-wallet-setup-diagnosis): the four wallet sign-in specs
+# described beside total_specs above. Re-derived with bin/e2e-lane-derive
+# --write on this tree, not by arithmetic — 237 - 17 - 4 = 216, and the
+# grep-invert lister collects 220, less the same 4 runtime skips. allowed_skips
+# stays 4: the two identities agree, which is what proves none of the four
+# brought a runtime skip with it.
+executed: 216
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
