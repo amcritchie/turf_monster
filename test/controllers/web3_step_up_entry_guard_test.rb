@@ -257,6 +257,31 @@ class Web3StepUpEntryGuardTest < ActionDispatch::IntegrationTest
     assert JSON.parse(response.body)["success"], "a free entry needs no signature and must not be walled off"
   end
 
+  # AND THE SAME, ON CHAIN — the one case that exercises the FEE clause ALONE.
+  # The test above is a free OFF-CHAIN contest, which `onchain?` excludes before
+  # the fee clause is read. Measured in review: without this, dropping
+  # `entry_fee_cents.to_i.positive?` left the whole file green.
+  test "a free ON-CHAIN contest still admits a wallet-only account on web2" do
+    free_onchain = Contest.create!(
+      name: "Free Onchain Contest",
+      slate: slates(:one),
+      contest_type: "standard",
+      entry_fee_cents: 0,
+      max_entries: 31,
+      status: :open,
+      starts_at: 2.weeks.from_now,
+      onchain_contest_id: SecureRandom.hex(8)
+    )
+    assert free_onchain.onchain?, "this case exists to exercise the FEE clause"
+
+    log_in_as(@wallet_user)
+    cart_entry_for(@wallet_user, free_onchain)
+    post enter_contest_path(free_onchain), as: :json
+
+    assert_response :success
+    assert JSON.parse(response.body)["success"], "a free entry signs nothing"
+  end
+
   # The OTHER half still owns its half. A wallet session belongs on
   # prepare_entry, and it must not be re-labelled as owing a step-up — it has
   # already signed THIS session, which is the very thing a step-up asks for.
