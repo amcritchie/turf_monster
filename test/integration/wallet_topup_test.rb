@@ -27,6 +27,28 @@ require "test_helper"
 # modal handoff is a tracked Playwright e2e gap (mirrors the on-chain
 # success-modal coverage-gap precedent).
 class WalletTopupTest < ActionDispatch::IntegrationTest
+  # The Coinbase CTA tracks cdp_ramp_modal_available? — the SAME predicate the
+  # layout registers the cdp-ramp modal behind — in every environment, so a page
+  # that carries the CTA needs BOTH ENABLE_CDP_RAMP and a session. This modal is
+  # registered UNGATED (it must survive an in-session signup) while cdp-ramp is
+  # not, so the guest page below is the one that used to ship the dead button.
+  def with_cdp_ramp
+    was = ENV["ENABLE_CDP_RAMP"]
+    ENV["ENABLE_CDP_RAMP"] = "true"
+    yield
+  ensure
+    was.nil? ? ENV.delete("ENABLE_CDP_RAMP") : ENV["ENABLE_CDP_RAMP"] = was
+  end
+
+  def get_topup_with_coinbase
+    with_cdp_ramp do
+      log_in_as users(:jordan)
+      get contests_path
+    end
+    assert_response :success
+    response.body
+  end
+
   # --- modal registration (ungated, like onramp-hub) ---
 
   test "the wallet-topup modal is registered ungated in the layout for a guest" do
@@ -62,10 +84,24 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
 
   # --- primary CTA: Buy USDC with Coinbase (cdp-ramp buy preflight) ---
 
-  test "the primary CTA buys USDC with Coinbase via the cdp-ramp buy preflight" do
+  test "the modal offers no Coinbase CTA without the flag and a session" do
+    # THE KILL-SWITCH PATH, and the in-session-signup path with it. wallet-topup
+    # is registered ungated, so it renders here; cdp-ramp is not registered on
+    # this page at all. The CTA must therefore be absent rather than dead.
     get contests_path
     assert_response :success
-    body = response.body
+    refute_includes response.body, %(data-topup-rail="coinbase"),
+                    "the modal still draws the Coinbase CTA with no cdp-ramp modal registered"
+    refute_includes response.body, "$store.modals.swap('cdp-ramp'",
+                    "the modal still hands a click to an unregistered cdp-ramp modal"
+    # The modal itself must survive the guard — hiding a rail is not the same as
+    # losing the surface that carries it.
+    assert_includes response.body, "$store.modals.current().id === 'wallet-topup'"
+    assert_includes response.body, "Top Up Wallet"
+  end
+
+  test "the primary CTA buys USDC with Coinbase via the cdp-ramp buy preflight" do
+    body = get_topup_with_coinbase
     # Coinbase-forward: the bordered primary CTA hands off to the existing
     # cdp-ramp buy preflight (the same handoff /wallet Buy USDC + the hub use).
     assert_includes body, %(data-topup-rail="coinbase")
@@ -76,6 +112,8 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
     # pay with USDC.
     assert_match(%r{x-if="!tokenFallback">\s*<button\b[^>]*data-topup-rail="coinbase"}m, body,
                  "the Coinbase CTA must be gated behind !tokenFallback")
+    assert_includes body, "$store.modals.current().id === 'cdp-ramp'",
+                    "the CTA is only legitimate on a page that registered its modal"
   end
 
   # --- flag-aware degrade: web2 + ENABLE_WEB2_USDC_ENTRY off -> token rail ---
