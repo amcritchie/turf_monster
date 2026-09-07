@@ -69,17 +69,19 @@ test.describe("Admin emails manager", () => {
     // while silently asserting against the banner widget instead of the email.
     const frame = page.frameLocator('iframe[src*="/raw"]');
 
-    // The artwork is a CSS/VML background once the email is layered, so the
-    // surviving image is the logo drawn over it — which is what proves the frame
-    // rendered a real email document and loaded its assets.
+    // magic_link went back to a flat banner on 2026-09-07 (July's artwork carries
+    // its own words), so the visible image IS the banner now rather than a logo
+    // drawn over one. Either way this is what proves the frame rendered a real
+    // email document and loaded its assets.
     await expect(frame.locator("img").first()).toBeVisible();
 
-    // ASSERTS THE LAYERING, NOT THE FILENAME. Pinning the committed artwork's
-    // name goes red the moment the upload spec above runs first — an operator
-    // upload REPLACING committed artwork is the inherit-then-own model working,
-    // not a regression. Layering is a property of how the email is registered,
-    // so it survives whichever image is current.
-    await expect(frame.locator('td[style*="background-size:cover"]')).toHaveCount(1);
+    // STILL ASSERTS STRUCTURE, NOT THE FILENAME, and for the reason the previous
+    // version gave: pinning the committed artwork's name goes red the moment the
+    // upload spec above runs first, because an operator upload replacing
+    // committed artwork is the inherit-then-own model working, not a regression.
+    // The direction is what flipped — this entry is registered flat, so the
+    // layered <td> must be ABSENT.
+    await expect(frame.locator('td[style*="background-size:cover"]')).toHaveCount(0);
   });
 
   // SCOPE NOTE — read before "strengthening" this test.
