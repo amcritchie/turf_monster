@@ -255,7 +255,21 @@ window.survivorBoard = function() {
               window.location.href = data.redirect || window.location.pathname;
             }
           } else {
-            modal.error(data.error || 'Something went wrong');
+            // TITLE THE FAILED STATE — error() leaves the title alone when it
+            // is not given one, so this card kept reading 'Submitting Entry'
+            // over a red error body. Same one-line defect, same fix, as the
+            // turf-totals board, where it is covered by a render assertion.
+            //
+            // AND NO BLOCKER ROUTING HERE, deliberately. This board has no
+            // _handleBlockerResponse at all (see the inline tx_rejected case
+            // above), so EVERY structured blocker the entry endpoints return —
+            // no_funding, wallet_setup_required, age_required, and now
+            // web3_step_up_required — lands on this generic card. That gap is
+            // real and wider than any one reason; routing a single reason
+            // through here would only make the rest look deliberate. What the
+            // user gets meanwhile is the server's own actionable sentence,
+            // which for the step-up refusal already names the way out.
+            modal.error(data.error || 'Something went wrong', 'Entry Failed');
             this.submitting = false;
           }
         }

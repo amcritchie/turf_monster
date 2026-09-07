@@ -672,6 +672,12 @@
 # Rules link moved to /turf-monster-v1, so BOTH versioned rules pages are smoked
 # — the new destination, and the old route that must keep answering old links.
 #
+# THIS NUMBER SURVIVED A THREE-WAY CONFLICT and is the reason arithmetic is
+# banned here. Merging accepted put 234 (this branch, 233+1) against 237 (the
+# conflict hunk, 233+4); 234+4 = 238 was ALSO wrong, because accepted had moved
+# again while the branch sat in review. Only the lister run on the merged tree
+# gives 239. Re-run it, never add.
+#
 # 239 -> DERIVED (narrow-wallet-setup-diagnosis, #587): four specs in
 # e2e/wallet_sign_in.spec.js pin how NARROW the "Finish setting up your wallet
 # ... create or import one" diagnosis has to be. The catch that composes it
@@ -699,8 +705,47 @@
 # only number that describes THIS tree is the one the lister produced after the
 # merge. Re-derived with bin/e2e-lane-derive --write on the MERGED tree. Re-run
 # it, never add.
-total_specs: 246
-
+#
+# 246 -> DERIVED (level-up-reveals-stale-modal, #597): two specs in
+# e2e/level_up_stacked_modal.spec.js. One pins that a settled free entry leaves
+# nothing under the level-up celebration; the other that a level-up arriving
+# mid-signature never clobbers the prompt still waiting on the user. Both cover
+# ONE CARD PER FLOW in the layout's show(), where three stacked onchain-tx cards
+# used to make dismissing the celebration pop back to a settled transaction's
+# spinner.
+#
+# AND THIS LINE CONFLICTED A FOURTH TIME, which is the point the paragraph above
+# keeps making. This branch declared 248 (246+2); accepted, moved on by #593,
+# declared 247 (246+1). 248+1 = 249 happened to be right THIS TIME and was still
+# not derived — the lister on the merged tree is what wrote it. The arithmetic
+# agreeing once is not evidence it is the method; the three entries above are
+# three times it disagreed.
+# 247 -> 250 (signatures-nav-pending-badge): three specs in
+# e2e/signatures_nav_badge.spec.js for the admin Signatures badge. Its signal is
+# its WEIGHT — gray at zero, bold when something waits — so it can be caught
+# peripherally without reading the digit, and a rendered-markup assertion can
+# only confirm the class NAME is in the attribute. Tailwind compiles the
+# utilities it can see; a class that never reaches the build emits no rule while
+# every String assertion keeps passing. getComputedStyle is the only witness
+# that the distinction reaches a reader's eye. The specs state their premise
+# through /test/set_pending_signatures rather than hoping the seed leaves a
+# pending row, because it leaves none — the bold branch, which is the one that
+# matters, would otherwise never run.
+# Re-derived with bin/e2e-lane-derive --write AFTER merging accepted (11 behind
+# at the time), never hand-incremented. NOTE: modal-steps-stop-stacking (PR
+# #600) also adds four specs and is still at `submitted` — whichever of the two
+# merges second must re-derive, or the counter silently under-declares.
+#
+# AND A FIFTH TIME — resolved in REVIEW, not by the builder. #602
+# (signatures-nav-pending-badge) merged into accepted while this PR's merge was
+# in flight, moving the line 247 -> 250 and leaving this branch's 249 BELOW the
+# base, which fails e2e_declared_set outright. The branch was NOT bounced for it:
+# the base moved after the review claim, so there was nothing for the builder to
+# answer. Re-derived with bin/e2e-lane-derive --write on the MERGED tree, which
+# is the only thing this file has ever accepted. Note what the arithmetic would
+# have said: 249 + 3 = 252 and 250 + 2 = 252 AGREE here, and agreement still is
+# not derivation — the lister is what wrote the number below.
+total_specs: 252
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
 #
@@ -960,14 +1005,14 @@ allowed_skips: 4
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
 #
+#
 # 218 -> DERIVED (narrow-wallet-setup-diagnosis #587 + raw-message-is-ours #590):
 # the wallet sign-in specs and the wallet-failure specs described beside
 # total_specs above. Re-derived with bin/e2e-lane-derive --write ON THE MERGED
 # TREE, not by arithmetic on any of the three conflicts this line has hit.
 # allowed_skips stays 4: both listers agree, which is what proves none of the new
 # specs brought a runtime skip with it.
-executed: 225
-
+executed: 231
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
 # this EXACT value — so widening the filter to `@devnet|something` is a test failure, not a

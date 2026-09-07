@@ -540,7 +540,12 @@ class ContestsController < ApplicationController
         accepts_usdt: true
       )
 
-      invalidate_usdc_cache if logged_in?
+      # BOTH keys, not just USDC: see #invalidate_wallet_balance_cache. The
+      # create tx funds the prize pool from the creator's USDC ATA, so dropping
+      # USDC alone leaves the warm USDT twin rendered as the whole wallet total.
+      # (`accepts_usdt` above is a PRICE flag for future entrants — this
+      # transaction moves no USDT.)
+      invalidate_wallet_balance_cache if logged_in?
 
       render json: { success: true, tx: params[:tx_signature], pda: derived_pda_b58 }
     end
@@ -718,10 +723,12 @@ class ContestsController < ApplicationController
     # Both boards POST here with headers only and no body, so its
     # `params[:signature].present?` was never true. It was not merely dead — it
     # was a fail-CLOSED gate, so deleting it outright would have let a web3
-    # session walk into the server-signing path with no check at all. Today that
-    # still fails, but only incidentally: a phantom-only account has no
-    # web2_solana_address, so resolve_web2_entry_funding! raises "Managed wallet
+    # session walk into the server-signing path with no check at all. It used to
+    # still fail, but only incidentally: a phantom-only account has no
+    # web2_solana_address, so resolve_web2_entry_funding! raised "Managed wallet
     # missing keypair" — an accident of another guard rather than a decision.
+    # THAT ACCIDENT IS NOW A DECISION, and it is the guard directly below this
+    # one; a player reached it before anyone converted it (QA, 2026-09-07).
     #
     # So: refuse explicitly, and name the path the caller should be on. Same
     # shape as the self_custodied? guard above, which already routes rather than
@@ -733,6 +740,58 @@ class ContestsController < ApplicationController
         success: false,
         error: "Wallet sessions enter on-chain — use prepare_entry to build and sign the entry transaction.",
         self_custodied: true
+      }, status: :unprocessable_entity
+    end
+
+    # THE OTHER HALF OF THAT SAME QUESTION, and the half a real player hit
+    # (operator report, QA, 2026-09-07). The guard above turns away a session
+    # that CAN sign. This one turns away a session that CANNOT — a self-custody
+    # account whose current session was established by a WEB2 credential.
+    #
+    # Every earlier gate misses it, and each for its own honest reason:
+    # `onchain_session?` is false (they signed in with Google, not a wallet);
+    # `self_custodied?` is false (that column marks a deliberate EXPORT, not the
+    # mere holding of a wallet); and `wallet_kind` is :phantom, not :none, so the
+    # no-wallet refusal has nothing to say. So the request fell all the way
+    # through to #resolve_web2_entry_funding!, which raised "Managed wallet
+    # missing keypair (cannot sign entry)" — the accident the comment above
+    # already named, now arriving as a red card on a player's screen with the
+    # step-up card sitting underneath it saying the right thing.
+    #
+    # WHY IT ASKS Web3StepUpPolicy INSTEAD OF RE-DERIVING THE POPULATION. That
+    # policy is the one place that answers "does THIS SESSION owe a wallet
+    # signature", and the auth paths already act on its answer. A second copy of
+    # that rule here is how the entry path and the auth path end up disagreeing
+    # about the same account — the card telling a player to sign while the entry
+    # lets them through, or the reverse.
+    #
+    # AND WHY IT IS NOT THE POLICY ALONE. The policy's verdict is ADVISORY by
+    # construction: a COMBO account (managed + linked wallet) owes a step-up and
+    # can still enter, because #resolve_web2_entry_funding! deliberately signs
+    # and spends from the custodial address for exactly that account. What makes
+    # the refusal a REFUSAL here is the second clause — there is no keypair to
+    # sign with — which is the precondition of the raise, stated as a decision.
+    # The fee clauses keep it to entries that are actually signed: a free
+    # contest reaches no keypair at all, and walling one off would strand every
+    # wallet-only player behind a signature nothing was going to ask for.
+    #
+    # ROUTE, DON'T MERELY REFUSE — the standard both guards above already set.
+    # The blocker gives the board a reason to dispatch on (it opens the card in
+    # place), and arm_web3_step_up_for — the same arming the Google collision
+    # uses at the front door — makes the NEXT render open it too, for a player
+    # who reloads rather than reads a modal.
+    #
+    # THE CONDITION LIVES IN #entry_step_up_refusal, not here, because #enter is
+    # not the first gate this player meets: the hold-to-confirm button asks
+    # #check_funding first and aborts on its verdict, so the two have to agree
+    # about this account or the refusal below is unreachable — which is exactly
+    # how it was (/tasks/funds-gate-ignores-web3-wallet).
+    if (step_up = entry_step_up_refusal)
+      arm_web3_step_up_for(current_user)
+      return render json: {
+        success: false,
+        error: "Sign in with your wallet to enter — this account's entries are signed by the wallet itself.",
+        blocker: { reason: "web3_step_up_required", mode: "web3", data: step_up.to_h }
       }, status: :unprocessable_entity
     end
 
@@ -847,6 +906,11 @@ class ContestsController < ApplicationController
   #                  method: "token"|"usdc"|"usdt"|null }. Fail-CLOSED — any read
   # failure returns { fundable: false, reason: "no_funding" } so the worst case
   # the user ever sees is the Top Up Wallet, never the 0x1 sim error.
+  #
+  # ONE POPULATION IS DELIBERATELY NOT ANSWERED HERE, and it is not an exception
+  # to fail-closed so much as a different question: an account whose only wallet
+  # is self-custody, on a session that never proved it, owes a SIGNATURE rather
+  # than money. See #entry_step_up_refusal at the top of the method body.
   def check_funding
     # Token presence + balances must be authoritative for THIS check, so drop
     # the 60s entry-tokens cache first — a just-consumed token must not read as
@@ -857,6 +921,21 @@ class ContestsController < ApplicationController
     # polling (waits for the token to confirm before returning to the board)
     # largely closes the Helius post-mint index-lag window; the check_funding/ip
     # throttle caps the getProgramAccounts amplification.
+    # NOT A MONEY QUESTION. An account whose ONLY wallet is self-custody, on a
+    # session that never proved it, has no web2 address for #entry_funding_status
+    # to price — so it returned [false, nil] WITHOUT EVER READING A BALANCE and
+    # the board opened Get USDC at a player holding $31 (the operator's report,
+    # qa 2026-09-07). Answering `fundable` here is what makes #enter's step-up
+    # refusal REACHABLE: confirmEntry only aborts the hold on a definitive
+    # { fundable: false }, so proceeding hands the player to the one gate that
+    # knows what to ask for. This does NOT price the web3 wallet — web2 entry
+    # server-signs from web2_solana_address, and funding an entry off a wallet
+    # the server cannot sign with would trade a false refusal for a doomed one.
+    #
+    # FIRST, so the population that owes a signature never pays for the
+    # getProgramAccounts the cache bust below forces.
+    return render json: { fundable: true, reason: nil, method: nil } if entry_step_up_refusal
+
     current_user.bust_entry_tokens_cache!
     fundable, method = entry_funding_status
     render json: { fundable: fundable, reason: (fundable ? nil : "no_funding"), method: method }
@@ -1691,8 +1770,10 @@ class ContestsController < ApplicationController
   #   1. `Rails.logger.info "[entry][confirmed] path=… seeds_earned=… …"` so
   #      production debugging has a grep-able trail (pair with the
   #      `[state-fanout][seeds]` console line on the client).
-  #   2. invalidate_seeds_cache + invalidate_usdc_cache so the next page
-  #      render sees fresh chain state without waiting for the 60s TTL.
+  #   2. invalidate_seeds_cache + invalidate_wallet_balance_cache so the next
+  #      page render sees fresh chain state without waiting out the 60s TTL.
+  #      The balance drop takes BOTH currency keys because the pill renders
+  #      their SUM — see #invalidate_wallet_balance_cache.
   #
   # Returns `{ seeds_earned:, seeds_total:, seeds_level: }` for splat into
   # the JSON response.
@@ -1811,6 +1892,35 @@ class ContestsController < ApplicationController
     end
   end
 
+  # Does this session owe a WALLET SIGNATURE before a paid on-chain entry can be
+  # signed at all? Returns the Web3StepUpPolicy (so a caller can render its
+  # payload) or nil.
+  #
+  # ONE definition, TWO callers, deliberately: #enter refuses on it, and
+  # #check_funding declines to answer on it. They are the same gate a player
+  # walks a second apart — the pre-check fires at hold-START and #enter at
+  # hold-COMPLETE — and when only #enter knew this rule its refusal was
+  # unreachable, because the pre-check aborted the hold into Get USDC first.
+  # Two copies of a rule two gates share is how they end up disagreeing.
+  #
+  # Both narrowing clauses are load-bearing and each has a test that goes red
+  # without it (test/controllers/web3_step_up_entry_guard_test.rb):
+  #   - it ASKS Web3StepUpPolicy rather than re-deriving the population, so the
+  #     entry path and the auth path cannot drift into two answers; and
+  #   - it fires only when there is NO custodial keypair to sign with. A COMBO
+  #     account (managed + linked wallet) owes an advisory step-up and still
+  #     enters — #resolve_web2_entry_funding! deliberately signs and spends from
+  #     the wallet the server holds — and a FREE contest signs nothing at all.
+  # RPC-FREE (Web3StepUpPolicy reads columns and a session flag), so it is safe
+  # to ask on either path and costs nothing to ask twice.
+  def entry_step_up_refusal
+    return nil unless @contest&.onchain? && @contest.entry_fee_cents.to_i.positive?
+    return nil if current_user.blank? || current_user.managed_wallet?
+
+    policy = Web3StepUpPolicy.new(current_user, session_mode: wallet_context.mode)
+    policy.required? ? policy : nil
+  end
+
   # Authoritative funding capability for #check_funding — returns
   # [fundable_bool, method] where method is "token" | "usdc" | "usdt" | nil.
   # Mirrors the entry funding priority (#resolve_web2_entry_funding! for web2,
@@ -1824,6 +1934,12 @@ class ContestsController < ApplicationController
   #   - USDC: web3 always; web2 only behind the ENABLE_WEB2_USDC_ENTRY flag.
   #   - USDT: web3 only, and only on an accepts_usdt contest (web2 never holds
   #     USDT — payouts are USDC).
+  # ONE POPULATION NEVER REACHES HERE, and the omission is the point: an account
+  # whose only wallet is self-custody has no web2 address for this method to
+  # price, so it used to fall out at the `address.blank?` guard below as
+  # [false, nil] — a funding verdict reached without reading a balance, which
+  # the board showed as Get USDC. #check_funding now hands that account to
+  # #entry_step_up_refusal instead, because what it owes is a signature.
   def entry_funding_status
     fee_cents = @contest.entry_fee_cents.to_i
     return [true, nil] if fee_cents <= 0 # free contest — nothing to fund
@@ -1937,7 +2053,12 @@ class ContestsController < ApplicationController
 
     if current_user.solana_connected?
       invalidate_seeds_cache
-      invalidate_usdc_cache
+      # BOTH balance keys, not just USDC: see #invalidate_wallet_balance_cache.
+      # #confirm_onchain_entry reaches here after a spend that may have been
+      # USDT (#prepare_entry maps currency "usdt" to currency_idx 1 /
+      # Config::USDT_MINT), in which case the one-key drop cleared the key that
+      # did NOT move and kept the stale pre-spend balance that did.
+      invalidate_wallet_balance_cache
     end
 
     { seeds_earned: seeds_earned, seeds_total: seeds_total, seeds_level: seeds_level }

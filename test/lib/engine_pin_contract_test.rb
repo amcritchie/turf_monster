@@ -130,10 +130,12 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #   0.69.5 — Studio::FULL_NAME_MAX_LENGTH, and the FIRST floor in this list
   #          that is a PATCH rather than a minor. turf-modal-caps-forty
   #          (PR 573) made the constant a RENDER-TIME dependency on EVERY
-  #          page: layouts/application renders modals/_onboarding
-  #          unconditionally and the <template x-if> wrapper is CLIENT-side,
-  #          so the ERB evaluates on every request and reads the constant for
-  #          the field's maxlength. Below 0.69.5 that is a NameError on every
+  #          page. It still is, but by a different route since
+  #          turf-adopts-first-name: layouts/application renders the ENGINE's
+  #          studio/modals/onboarding/first_name unconditionally and the
+  #          <template x-if> wrapper is CLIENT-side, so the ERB evaluates on
+  #          every request and that partial reads the constant for the field's
+  #          maxlength. Below 0.69.5 that is a NameError on every
   #          page render — a TOTAL outage, the same class as the 0.64 boot
   #          failure above, not a degraded field.
   #          DATED TWO WAYS, because the number is the whole point here,
@@ -180,7 +182,27 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          requirement's EFFECTIVE lower bound at full precision instead of
   #          the `~>` operand's first two segments — which is what let a floor
   #          five releases too low agree with itself here.
-  MINIMUM = Gem::Version.new("0.69.5")
+  #   0.72.0 — the two first-name-card LOCALS this app passes, and the QUIETEST
+  #          floor in this list by some distance. turf-adopts-first-name deleted
+  #          app/views/modals/_onboarding.html.erb and now renders the engine's
+  #          studio/modals/onboarding/first_name from both host registration
+  #          lists. THE PARTIAL IS NOT THE FLOOR — it exists back to 0.66.2 — so
+  #          unlike the 0.54 and 0.57 floors above, nothing here raises.
+  #          DERIVED FROM THE GEM REPO by reading that partial at each tag:
+  #          v0.70.0 and v0.71.0 carry NEITHER local below, v0.72.0 carries
+  #          both, and `required` alone first appears in 0.70.0.
+  #            placeholder_names — the opt-in typed placeholder. Below 0.72.0
+  #              the local is not read and the field silently falls back to a
+  #              static placeholder.
+  #            detail.saved on the done event — the sharp one.
+  #              layouts/application's onboarding-step-done listener BRANCHES on
+  #              it before clearing $store.session.firstNameRequired and
+  #              re-dispatching first-name-saved, which is how
+  #              contests/_turf_totals_board resumes an entry its first-name
+  #              gate interrupted. Below 0.72.0 the key is undefined on every
+  #              path, so the branch never fires and a held entry never resumes
+  #              — a dead hold-to-confirm with nothing logged anywhere.
+  MINIMUM = Gem::Version.new("0.72.0")
 
   test "the resolved studio-engine is at or above the floor this app depends on" do
     resolved = Gem::Version.new(Studio::VERSION)
@@ -190,7 +212,7 @@ class EnginePinContractTest < ActiveSupport::TestCase
                     "a host-owned layered banner needs >= 0.43; the adopted first-name onboarding " \
                     "endpoints need >= 0.46; the shared /profile page and its section registry need " \
                     ">= 0.52; the shared date-of-birth field rendered by modals/_birthday needs " \
-                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot; and Studio::FULL_NAME_MAX_LENGTH needs >= 0.69.5 — modals/_onboarding reads it for the field maxlength and layouts/application renders that partial on EVERY page, so below it every request raises NameError)"
+                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot; and Studio::FULL_NAME_MAX_LENGTH needs >= 0.69.5 — the engine's studio/modals/onboarding/first_name reads it for the field maxlength and layouts/application renders that partial on EVERY page, so below it every request raises NameError; and the first-name card's placeholder_names local and its done-event detail.saved key need >= 0.72.0, both of which fail SILENTLY below it — the typed placeholder goes static, and the entry-gate resume never fires)"
   end
 
   # ── THE FLOOR, ASKED OF THE SOURCE INSTEAD OF OF A NUMBER ───────────────
@@ -260,9 +282,13 @@ class EnginePinContractTest < ActiveSupport::TestCase
     # 0.69.5, so its removal is a reason to revisit MINIMUM rather than something
     # to route around. Re-point the control at another live reference then.
     assert_includes references.keys, "FULL_NAME_MAX_LENGTH",
-                    "the scan did not see Studio::FULL_NAME_MAX_LENGTH, which modals/_onboarding " \
-                    "reads for the field maxlength — either the scanner stopped reading, or the " \
-                    "reference that holds the 0.69.5 floor is gone and MINIMUM needs revisiting"
+                    "the scan did not see Studio::FULL_NAME_MAX_LENGTH, which " \
+                    "test/integration/onboarding_name_cap_test.rb asserts the rendered field against " \
+                    "— either the scanner stopped reading, or the reference that holds the 0.69.5 " \
+                    "entry is gone and that entry needs revisiting. It is no longer this app's " \
+                    "TOP floor (see the 0.72.0 entry), but it is still a live reference: the app " \
+                    "stopped NAMING the constant in a view when turf-adopts-first-name deleted " \
+                    "modals/_onboarding, and the engine's partial reads it instead."
 
     # And the resolver half has to DISCRIMINATE, or the verdict is "nothing is
     # ever missing". Fed a name the engine does not define, it must say so. The
@@ -572,6 +598,15 @@ class EnginePinContractTest < ActiveSupport::TestCase
   # So: skip when the gem is sourced by path/git, and keep biting whenever a real
   # version pin is present. The skip is NARROW — a MISSING studio-engine line, or
   # one pinned some other way, still fails.
+  #
+  # ONE PATTERN, THREE GUARDS. The two pin guards below and the tag-citation
+  # guard further down all answer this same question — "is this declaration a
+  # source override rather than a version pin?" — and each carried its own copy
+  # of the regex. Three copies is three chances to widen one and not the others,
+  # which turns a NARROW skip into a silent pass on exactly the drift these
+  # guards exist to catch. Named once, read three times.
+  SOURCE_OVERRIDE = /\b(?:path|git|github|branch):/
+
   test "the Gemfile pin's lower bound is the floor this file declares" do
     gemfile = Rails.root.join("Gemfile").read
     declaration = gemfile[/^\s*gem\s+["']studio-engine["'].*$/]
@@ -588,7 +623,7 @@ class EnginePinContractTest < ActiveSupport::TestCase
     # accumulate, so the exposure grows every time someone documents a bump.
     declaration = declaration.sub(/#.*/, "")
 
-    if declaration.match?(/\b(?:path|git|github|branch):/)
+    if declaration.match?(SOURCE_OVERRIDE)
       skip "studio-engine is sourced by override (#{declaration.strip}) — no version pin to compare"
     end
 
@@ -713,7 +748,7 @@ class EnginePinContractTest < ActiveSupport::TestCase
     code, comment = declaration.split("#", 2)
 
     skip "studio-engine is sourced by override — no version pin to compare" if
-      code.match?(/\b(?:path|git|github|branch):/)
+      code.match?(SOURCE_OVERRIDE)
 
     pin = requirement_floor(Gem::Requirement.new(code.scan(/["']([^"']+)["']/).flatten.drop(1)))
 
@@ -790,7 +825,44 @@ class EnginePinContractTest < ActiveSupport::TestCase
   TAG_CITATION = /EARLIEST tag containing the commit that adds it \(([0-9a-f]{7,40})[^)]*\) is v(\d+(?:\.\d+)+)/
 
   test "the floor note's tag citation names the EARLIEST tag containing the commit it names" do
-    comment = studio_engine_pin_comment
+    assert_tag_citation_names_earliest_tag(Rails.root.join("Gemfile").read)
+  end
+
+  # A SOURCE OVERRIDE HAS NO FLOOR NOTE, BY CONSTRUCTION — the same exemption the
+  # two pin guards above already take, arriving here late and at the cost of every
+  # studio-engine PR in between. That lane rewrites this app's declaration with
+  # `sed 's|^gem "studio-engine".*|gem "studio-engine", path: "../studio"|'`
+  # (.github/workflows/consumer-ci.yml), and the trailing `.*` eats the whole
+  # line — the floor note with it. MEASURED 2026-09-07: 21,373 characters before
+  # the sed and 0 after, and that CI step's own
+  # `grep -q '^gem "studio-engine", path: "../studio"$'` asserts the emptiness on
+  # purpose, because replacing the declaration WHOLE is the point of the rewrite.
+  #
+  # So the control below fired on a lane where a note cannot exist: from the hour
+  # this guard landed (2026-09-07, 38ce4822) every engine PR went red on
+  # `turf_monster suite vs this engine`, and the engine could neither merge nor
+  # publish. The guard was RIGHT — it detected a genuinely stripped comment; it
+  # had simply never met the rewrite, which is word for word what happened to the
+  # pin guard above on 2026-08-16. A guard that has never met the rewrite is the
+  # recurring shape here, not a one-off, which is why the pattern is now named
+  # once and this file has a regression that drives both outcomes.
+  #
+  # THE CONTROL STAYS, AND IS NOW ITSELF GUARDED. Deleting it would have "fixed"
+  # the lane by making every assertion under it vacuous — an empty comment
+  # contradicts none of them. The regression below drives this method with a note
+  # that is well-formed but SHORT, which nothing here can fail on EXCEPT the
+  # control, so the control cannot be dropped without going red.
+  #
+  # IT TAKES THE GEMFILE'S TEXT rather than reading the file, so that regression
+  # can hand it the consumer-CI rewrite and an emptied note and watch what this
+  # code actually does. A regression asserting its own copy of the rule would go
+  # on passing after the rule changed.
+  def assert_tag_citation_names_earliest_tag(gemfile)
+    code, comment = studio_engine_pin_parts(gemfile)
+
+    skip "studio-engine is sourced by override (#{code.strip}) — the rewrite that produces it " \
+         "replaces the declaration WHOLE, floor note and all, so there is no note here to read" if
+      code.match?(SOURCE_OVERRIDE)
 
     # ── CONTROL: the read actually reached the note. A missing Gemfile, a
     # renamed gem, or a declaration that lost its comment all produce an empty
@@ -868,13 +940,132 @@ class EnginePinContractTest < ActiveSupport::TestCase
                  "pin is what a `bundle update` obeys."
   end
 
-  # The studio-engine declaration's COMMENT, which is where every floor note in
-  # the chain lives. Empty string rather than nil when there is no comment, so a
-  # caller measuring its length gets a number instead of a NoMethodError.
-  def studio_engine_pin_comment
-    gemfile = Rails.root.join("Gemfile").read
+  # ── THE GUARD'S TWO OUTCOMES, BOTH ASSERTED ────────────────────────────
+  #
+  # BOTH, because either alone is a wrong fix. A test that only proved the skip
+  # would pass just as happily against a guard that had been deleted outright —
+  # it would document the lane being switched off. A test that only proved the
+  # failure would leave the consumer-CI lane red, which is the bug. And the two
+  # halves fail INDEPENDENTLY: the skip can be inert while the control bites,
+  # and the suite is green either way, so neither half stands in for the other.
+  #
+  # EVERY FIXTURE IS CUT FROM THE REAL GEMFILE, never typed out here. A
+  # hand-written declaration is a second copy of the thing under test: it would
+  # keep agreeing with itself after the real pin changed shape. The override
+  # fixture is produced by re-running consumer-CI's own sed and is then held to
+  # the `grep -q` that step runs to confirm its work, so a rewrite that changes
+  # moves this fixture with it instead of leaving it testing a lane nobody runs.
+  test "the tag-citation guard skips a source-overridden Gemfile and still bites a pinned one" do
+    real = Rails.root.join("Gemfile").read
+    real_code, real_note = studio_engine_pin_parts(real)
+    sha = real_note[TAG_CITATION, 1]
+
+    # THE FIXTURES ARE CUT FROM THIS FILE, so the one lane that has no floor note
+    # cannot supply them either. consumer-CI rewrites the declaration before the
+    # suite runs, and a regression deriving its fixtures from THAT goes red there
+    # for its own reasons — reintroducing, one test over, the exact red lane this
+    # change exists to clear. MEASURED: without any skip here, a run under the
+    # rewrite came back 1 failure and the failure was this test.
+    #
+    # GATED ON WHETHER THE FIXTURES EXIST, NOT ON THE RULE UNDER TEST, and the
+    # difference is the whole value of the line. This first read `skip … if
+    # real_code.match?(SOURCE_OVERRIDE)` — the very predicate the assertions below
+    # exist to check — which let the test SWITCH ITSELF OFF: mutating
+    # SOURCE_OVERRIDE to /\bgem\b/, so that every declaration reads as an
+    # override, skipped all four guards AND this regression, and the suite came
+    # back 17 runs, 0 failures, 4 skips. Asking instead whether a citation can be
+    # READ from the note cannot be disabled by the thing being tested, and it is
+    # the honest precondition anyway: no citation, no fixture to cut. A note that
+    # exists but has LOST its citation is not swallowed here — the guard above
+    # fails on it directly, which is what that guard is for.
+    skip "the working Gemfile's studio-engine declaration (#{real_code.strip}) carries no floor " \
+         "note with a tag citation, so there is nothing here to cut fixtures from — consumer-CI " \
+         "replaces that declaration whole before the suite runs" unless sha
+
+    # ── HALF ONE: THE CONSUMER-CI LANE. The sed re-run here over the real file
+    # exactly as .github/workflows/consumer-ci.yml runs it over the checkout.
+    overridden = real.sub(/^gem "studio-engine".*/, 'gem "studio-engine", path: "../studio"')
+
+    assert_match %r{^gem "studio-engine", path: "\.\./studio"$}, overridden,
+                 "the rewritten fixture does not satisfy the `grep -q` consumer-CI runs against " \
+                 "its own sed, so it is not the line that lane actually produces"
+    assert_equal "", studio_engine_pin_parts(overridden).last,
+                 "the rewrite left a floor note behind, so this fixture no longer reproduces the " \
+                 "condition the skip exists for and half one proves nothing"
+
+    skipped = assert_raises(Minitest::Skip) { assert_tag_citation_names_earliest_tag(overridden) }
+
+    assert_includes skipped.message, 'path: "../studio"',
+                    "the guard skipped without naming the override it saw, so it is not reading " \
+                    "the declaration it was handed and would skip anything"
+
+    # ── HALF TWO: A REAL VERSION PIN WHOSE NOTE IS EMPTY. Nothing about the
+    # source has changed, so the guard must still bite.
+    emptied = with_floor_note(real, "")
+
+    assert_equal "", studio_engine_pin_parts(emptied).last
+    assert_no_match SOURCE_OVERRIDE, studio_engine_pin_parts(emptied).first,
+                     "the emptied fixture reads as a source override, so half two would prove " \
+                     "nothing that half one does not already"
+
+    emptied_failure = assert_raises(Minitest::Assertion) do
+      assert_tag_citation_names_earliest_tag(emptied)
+    end
+
+    assert_not_kind_of Minitest::Skip, emptied_failure,
+                       "the guard SKIPPED a version-pinned Gemfile whose floor note is empty — " \
+                       "the skip has widened past the source-override lane and is now swallowing " \
+                       "the drift this guard exists to catch"
+
+    # ── HALF TWO, SHARPENED ONTO THE CONTROL. This note is WELL-FORMED — right
+    # citation, right commit, right version — and merely SHORT, so every
+    # assertion in the guard except the >2000 control passes on it. Loosen or
+    # delete that control and this fixture stops failing, which is what makes
+    # this the one assertion standing between the lane being FIXED and the lane
+    # being switched off.
+    short = with_floor_note(real, " #{MINIMUM} is the real floor, and the pin SAYS so. The " \
+                                  "EARLIEST tag containing the commit that adds it (#{sha}, " \
+                                  "2026-09-06) is v#{MINIMUM}.")
+    short_note = studio_engine_pin_parts(short).last
+
+    assert_operator short_note.length, :>, 0
+    assert_operator short_note.length, :<=, 2_000,
+                    "the well-formed fixture grew past the control's own threshold, so it can no " \
+                    "longer tell whether the control is there at all"
+    assert_match TAG_CITATION, short_note,
+                 "the well-formed fixture carries no citation the guard can read, so it would " \
+                 "fail on the citation assertion rather than on the control and prove nothing " \
+                 "about the control"
+
+    control_failure = assert_raises(Minitest::Assertion) do
+      assert_tag_citation_names_earliest_tag(short)
+    end
+
+    assert_not_kind_of Minitest::Skip, control_failure,
+                       "the guard skipped a short but otherwise valid floor note instead of " \
+                       "failing on its length — the >2000 control is gone, and with it every " \
+                       "assertion it makes non-vacuous"
+  end
+
+  # `gemfile` with the studio-engine declaration's floor note replaced by `note`,
+  # leaving the pin itself alone. Fixtures are cut from the real file this way so
+  # they carry a real version pin: a hand-typed declaration drifts from the one
+  # the guards actually read, and then agrees with itself forever.
+  def with_floor_note(gemfile, note)
+    gemfile.sub(/^(\s*gem\s+["']studio-engine["'][^#\n]*)#.*$/) { "#{Regexp.last_match(1)}##{note}" }
+  end
+
+  # The studio-engine declaration split at its `#` into the CODE half — the gem
+  # name and whatever sources or pins it — and the COMMENT, which is where every
+  # floor note in the chain lives. Empty string rather than nil for either half,
+  # so a caller measuring a length gets a number instead of a NoMethodError.
+  #
+  # IT TAKES THE GEMFILE'S TEXT rather than reading the file, so the guard above
+  # can be driven with a synthetic one and asked what it actually does.
+  def studio_engine_pin_parts(gemfile)
     declaration = gemfile[/^\s*gem\s+["']studio-engine["'].*$/].to_s
-    declaration.split("#", 2)[1].to_s
+    code, comment = declaration.split("#", 2)
+    [ code.to_s, comment.to_s ]
   end
 
   # A studio-engine git checkout that carries `tag`. Absent in CI by design, so

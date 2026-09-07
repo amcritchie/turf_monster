@@ -23,7 +23,7 @@ class ApplicationController < ActionController::Base
   before_action :touch_last_seen
   before_action :require_profile_completion
   before_action :preload_navbar_solana_data
-  helper_method :display_balance, :display_seeds_data, :display_entry_token_count, :onchain_session?, :wallet_context, :client_session_payload, :true_user, :impersonating?, :current_wallet
+  helper_method :display_balance, :display_seeds_data, :display_entry_token_count, :onchain_session?, :wallet_context, :client_session_payload, :true_user, :impersonating?, :current_wallet, :pending_signature_count
 
   # OPSEC-045: extend the engine's set_app_session to also bind a per-user
   # session_token in the cookie. The verify_session_token before_action
@@ -524,6 +524,22 @@ class ApplicationController < ActionController::Base
   # actually SIGN the consume), so a cold/null token hint can never mis-fund — it
   # can only mis-label. #display_entry_token_count scopes the hint to the wallet
   # that can sign in this session, matching the authoritative entry path.
+  # How many treasury transactions are actually waiting on a co-signature —
+  # the number behind the Signatures badge in the admin nav.
+  #
+  # `awaiting_signature` and not `pending`: production held 11 pending rows the
+  # day this shipped and 10 were dead `enter_contest` transactions from June and
+  # July. A badge that reads 11 when one thing needs signing teaches the operator
+  # to ignore it, which is worse than having no badge.
+  #
+  # Non-admins never pay for the query, and the result is memoized so rendering
+  # the sidebar twice (desktop + mobile panel) hits the database once.
+  def pending_signature_count
+    return 0 unless current_user&.admin?
+
+    @pending_signature_count ||= PendingTransaction.awaiting_signature.count
+  end
+
   def client_session_payload
     wallet_context.to_h.merge(
       usdcCents:       wallet_field_cents(:usdc),
@@ -746,8 +762,23 @@ class ApplicationController < ActionController::Base
   # produce "loading". It produces the USDT balance PRESENTED AS THE TOTAL:
   # a confidently wrong number, which is worse than the stale one it replaced.
   #
-  # Use this wherever an action has already moved USDC. #invalidate_usdc_cache
-  # stays for the callers that only ever want the one key.
+  # Use this wherever an action has already moved money — EITHER currency. The
+  # pill renders a SUM, so which mint moved does not narrow the drop: spend USDC
+  # and the warm USDT twin becomes the total; spend USDT and the stale pre-spend
+  # USDT survives as the total while the untouched USDC key is cleared for
+  # nothing. Both are one wrong number.
+  #
+  # SCOPE, so nobody reads more into this than it does: both keys are written
+  # with `expires_in: 60.seconds`, so a missed drop self-heals within a minute.
+  # This closes a sub-minute stale window. It is an optimisation, not a
+  # correctness guarantee, and no caller should be argued for on stronger terms.
+  #
+  # An earlier revision of this comment said #invalidate_usdc_cache "stays for
+  # the callers that only ever want the one key". That was wrong: no caller of a
+  # COMBINED pill ever wants one key. What actually remains on the one-key drop
+  # is the devnet faucet/mint tooling (users#add_funds, faucet#create,
+  # wallets#faucet, admin#mint_usdc) — all `AppFlags.live_production?`-guarded,
+  # so a corrupted total there is a dev-tooling wart, not a money-path defect.
   def invalidate_wallet_balance_cache(user = current_user)
     Rails.cache.delete(usdc_cache_key(user))
     Rails.cache.delete(usdt_cache_key(user))

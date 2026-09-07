@@ -621,6 +621,7 @@ Rails.application.routes.draw do
     post "test/create_active_entry",      to: "test#create_active_entry"
     post "test/seed_contests",            to: "test#seed_contests"
     post "test/clear_seeded_contests",    to: "test#clear_seeded_contests"
+    post "test/set_pending_signatures",   to: "test#set_pending_signatures"
     post "test/grant_managed_wallet",     to: "test#grant_managed_wallet"
     post "test/set_quest_state",          to: "test#set_quest_state"
     post "test/grant_web3_wallet",        to: "test#grant_web3_wallet"
