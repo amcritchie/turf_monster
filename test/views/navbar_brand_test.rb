@@ -18,6 +18,7 @@ class NavbarBrandTest < ActionView::TestCase
   SIDEBAR = Rails.root.join("app/views/components/_gear_sidebar.html.erb")
   RULES_PAGE = Rails.root.join("app/views/pages/turf_totals_v1.html.erb")
   NFL_RULES_PAGE = Rails.root.join("app/views/pages/turf_monster_v1.html.erb")
+  ROUTES = Rails.root.join("config/routes.rb")
   # The one page whose "Turf Totals" is the GAME MODE, not the brand.
   GAME_MODE_PAGE = RULES_PAGE
 
@@ -36,11 +37,19 @@ class NavbarBrandTest < ActionView::TestCase
     # World Cup rules page documents. The rename must not have reached it.
     assert_includes RULES_PAGE.read, "Turf Totals v1",
                     "the mode's own rules page is not brand copy and stays"
-    # The route identifier is not copy and never renames. The navbar no longer
-    # carries it (see the season test below), so the FOOTER is what proves the
-    # route survived — and it is also what keeps the page reachable.
-    assert_includes FOOTER.read, "turf_totals_v1_path",
-                    "the route identifier is not copy and never renames"
+    # The route identifier is not copy and never renames. This used to be pinned
+    # through the FOOTER's Rules link, but every Rules link now follows the
+    # season (see the sweep below), so pin the route where it is DECLARED — a
+    # declaration cannot drift the way a reference to it can.
+    # Anchored on a word boundary, NOT assert_includes: "as: :turf_totals_v1"
+    # is a prefix of "as: :turf_totals_v1_legacy", so a plain substring match
+    # is satisfied by the very rename it exists to refuse. (Measured: that
+    # mutant survived until this line became a regex.)
+    assert_match(/as: :turf_totals_v1\b/, ROUTES.read,
+                 "the route identifier is not copy and never renames")
+    # Reachability is proven separately, and by RENDER rather than by source:
+    # pages_controller_test's "the World Cup rules page still answers" GETs the
+    # path and asserts 200. An old link in the wild must never 404.
   end
 
   # --- the season ---------------------------------------------------------------
@@ -64,6 +73,57 @@ class NavbarBrandTest < ActionView::TestCase
                  "desktop AND mobile Rules links must point at the NFL rules page"
     refute_includes src, 'link_to "Rules", turf_totals_v1_path',
                     "no Rules link may still point at the World Cup page"
+  end
+
+  # ONE LABEL, ONE DESTINATION — the sweep that would have caught THIS bug.
+  # Repointing the navbar at the NFL page left the FOOTER and the TRANSPARENCY
+  # hub tile on the World Cup one, so the site shipped two contradictory
+  # rulebooks under a single label: they disagree on the scoring unit (points
+  # vs goals), the multiplier ceiling (x2.0 vs x3.0) and the tie rule. During
+  # NFL season a player clicking footer Rules read the wrong rulebook for the
+  # contest they were entering.
+  #
+  # Pinning each site's literal would rot exactly the way the miss did, so
+  # SWEEP for the LABEL: any Rules link added anywhere tomorrow is covered
+  # without editing this file, and one pointed at the wrong season fails here.
+  RULES_LINK_SURFACES = %w[
+    app/views/**/*.erb
+    app/helpers/**/*.rb
+  ].freeze
+
+  # The two spellings a Rules link is written in: the plain `link_to "Rules",
+  # <path>` and the hub tile's `name: "Rules", url: <path>`. The character class
+  # carries DIGITS deliberately — both rules routes are versioned
+  # (turf_monster_v1_path), and an [a-z_]+ class matches NEITHER, which is a
+  # sweep that reads nothing and reports a clean site.
+  RULES_LINK = /"Rules",\s*(?:url:\s*)?([a-z0-9_]+_path)/
+
+  def rules_links
+    RULES_LINK_SURFACES.flat_map { |glob| Dir[Rails.root.join(glob)] }.flat_map do |file|
+      rel = Pathname(file).relative_path_from(Rails.root).to_s
+      File.read(file).scan(RULES_LINK).map { |(path)| [rel, path] }
+    end
+  end
+
+  test "every link labelled Rules points at the same rulebook" do
+    found = rules_links
+    files = found.map(&:first)
+
+    # A sweep that reads NOTHING passes everything, so prove it reached the
+    # known sites before trusting what it says about them.
+    assert_operator found.size, :>=, 4,
+                    "the sweep found #{found.size} Rules links; it must reach at least " \
+                    "the navbar's two, the footer's and the transparency hub's"
+    assert_equal 2, files.count("app/views/layouts/_navbar.html.erb"),
+                 "the bar draws Rules twice — desktop nav and mobile sub-navbar"
+    assert_includes files, "app/views/shared/_footer.html.erb",
+                    "the footer's Rules link must be in the sweep"
+    assert_includes files, "app/views/transparency/show.html.erb",
+                    "the transparency hub's Rules tile must be in the sweep"
+
+    assert_equal ["turf_monster_v1_path"], found.map(&:last).uniq,
+                 "every Rules link must land on ONE rulebook — the season being played — " \
+                 "or the site documents two different games under one label: #{found.inspect}"
   end
 
   # The page the link now lands on has to exist, and has to be the NFL one. A
