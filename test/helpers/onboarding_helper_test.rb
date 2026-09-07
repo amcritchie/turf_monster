@@ -29,11 +29,35 @@ class OnboardingHelperTest < ActionView::TestCase
       #
       # The space assertion above proves every entry here is ONE WORD, and a
       # one-word answer derives to ONE half — so the per-field cap is the only
-      # one it can ever hit. Measured against the live endpoint on engine
-      # 0.70.0: 41 characters unsplit is refused per-field; 81 characters split
-      # 40+1+40 is accepted; 82 split is refused whole-answer. So bounding these
-      # entries at 81 would pass a 41-to-80 character placeholder the server
-      # would then refuse — a guard weaker than the thing it guards.
+      # one it can ever hit. Bounding these entries at the WHOLE-ANSWER cap
+      # instead would therefore admit every one-word length from
+      # FIRST_NAME_MAX_LENGTH + 1 up to and INCLUDING FULL_NAME_MAX_LENGTH —
+      # 41 to 81 on today's constants — and the server refuses every one of
+      # them. That is a guard weaker than the thing it guards.
+      #
+      # THE RANGE IS INCLUSIVE AT BOTH ENDS, and this comment used to say
+      # "41-to-80". The off-by-one came from reading the whole-answer rule off
+      # a SPLIT answer: 82 characters split 40+1+40 is refused whole-answer, so
+      # 80 looked like the top of the refused band. It is not, because a
+      # one-word 81 PASSES the whole-answer rule and is only then refused
+      # per-field. READ IN ORDER: studio-engine's
+      # Studio::OnboardingController#length_refusal tests the WHOLE-ANSWER cap
+      # FIRST (`value.length > MAX_FULL_NAME`) and the PER-FIELD cap SECOND, so
+      # a one-word 81 DOES reach the first rule and passes it — 81 is not > 81
+      # — before the second catches it, where its single derived half is
+      # 81 > 40. 82 is the first length the FIRST rule stops, which is exactly
+      # why the message changes there and not at 81, and why the band's top is
+      # the whole-answer cap ITSELF rather than one below it.
+      # Re-measured 2026-09-07 against the live endpoint on the resolved
+      # engine: one-word 40 accepted; 41 through 81 refused per-field ("Please
+      # keep each name to 40 characters or fewer."); 82 and up refused
+      # whole-answer ("Please shorten that to 81 characters or fewer.").
+      #
+      # NO NUMBER HERE IS LOAD-BEARING. Both bounds are read off the constants
+      # by the assertion below, and the endpoint's behaviour at both ends of
+      # the band is asserted rather than described, by
+      # test/integration/onboarding_name_cap_test.rb — which is the only reason
+      # a range in prose is safe to write down at all.
       #
       # Hard-coding 40 would be the same mistake in the other direction: the
       # number belongs to the engine and moves with it, and Studio's own comment

@@ -151,4 +151,89 @@ class OnboardingNameCapTest < ActionDispatch::IntegrationTest
                     "is bounded by the wrong constant"
     assert_equal at_cap, user.reload.name, "the refused answer must not have overwritten the stored one"
   end
+
+  # ── [integration] THE TOP OF THE REFUSED BAND ────────────────────────────
+  #
+  # THE OFF-BY-ONE THIS EXISTS FOR. test/helpers/onboarding_helper_test.rb
+  # argues that a typed placeholder must be bounded by the PER-FIELD cap rather
+  # than the whole-answer one, and it described what the looser bound would
+  # admit as "a 41-to-80 character placeholder". The top of that range was wrong
+  # by one. The reasoning read the whole-answer rule off a SPLIT answer — 82
+  # characters split 40+1+40 is refused whole-answer, so 80 looked like the last
+  # refused length — but a ONE-WORD answer of exactly the whole-answer cap
+  # PASSES that rule and is refused by the per-field one after it.
+  # length_refusal tests the whole-answer cap FIRST and the per-field cap
+  # SECOND, so at exactly the cap the first test (`> MAX_FULL_NAME`) is false,
+  # the answer falls through, and its one derived half is over the per-field
+  # cap. The band's top is 81 because of what the SECOND rule catches, not
+  # because the first was never reached.
+  #
+  # SAME LENGTH, DIFFERENT SHAPE, DIFFERENT RULE, and that is the whole
+  # confusion in one sentence. At exactly Studio::FULL_NAME_MAX_LENGTH the split
+  # answer is ACCEPTED and the one-word answer is REFUSED, so a length alone
+  # never says which rule applies. The test above measures the split case; this
+  # measures the unsplit one, and asserts them against each other so the pair
+  # cannot drift apart.
+  #
+  # NO NUMBER IS WRITTEN DOWN, for the same reason as every other test in this
+  # file: both bounds come off the engine constants, so an engine that moves
+  # either cap moves this test with it instead of deadlocking a release.
+  test "a one-word answer at the WHOLE-ANSWER cap is refused by the PER-FIELD rule" do
+    user = users(:jordan)
+    user.update_columns(first_name: nil, name: nil)
+    log_in_as user
+
+    unsplit = "a" * Studio::FULL_NAME_MAX_LENGTH
+    assert_equal Studio::FULL_NAME_MAX_LENGTH, unsplit.length
+    assert_not_includes unsplit, " ", "this probe only means anything while the answer is ONE word"
+
+    post onboarding_first_name_path, params: { first_name: unsplit }, as: :json
+    assert_response :unprocessable_entity,
+                    "a one-word answer of exactly Studio::FULL_NAME_MAX_LENGTH " \
+                    "(#{Studio::FULL_NAME_MAX_LENGTH}) must be refused — it derives to a single " \
+                    "half far past the per-field cap, so the top of the refused band for a " \
+                    "one-word answer is the whole-answer cap ITSELF, not one below it"
+
+    error = response.parsed_body["error"].to_s
+    assert_includes error, Studio::FIRST_NAME_MAX_LENGTH.to_s,
+                    "the refusal must name the PER-FIELD cap — that is the rule that fires, and " \
+                    "the reason this length is refused at all; it said #{error.inspect}"
+    assert_equal unsplit.length, Studio::FULL_NAME_MAX_LENGTH,
+                 "and the length that got refused is the whole-answer cap, which is the fact the " \
+                 "helper test's range depends on"
+    assert_nil user.reload.name, "the refused answer must not have been stored"
+
+    # THE CONTROL, and it is the discriminating one rather than decoration. The
+    # SAME LENGTH, split so both halves clear the per-field cap, is ACCEPTED. So
+    # the refusal above is about the SHAPE of the answer and not about its
+    # length — without this, "81 is refused" and "81 is accepted" look like a
+    # contradiction instead of the two rules they actually are.
+    half  = (Studio::FULL_NAME_MAX_LENGTH - 1) / 2
+    split = "#{'a' * half} #{'b' * (Studio::FULL_NAME_MAX_LENGTH - 1 - half)}"
+    assert_equal unsplit.length, split.length, "the control has to be the SAME length to control anything"
+
+    post onboarding_first_name_path, params: { first_name: split }, as: :json
+    assert_response :success,
+                    "the same length split into two per-field-legal halves must be ACCEPTED — if " \
+                    "it is not, the refusal above is about length after all and this file's whole " \
+                    "two-rule reading is wrong"
+    assert_equal split, user.reload.name
+
+    # AND ONE CHARACTER FURTHER, the OTHER rule takes over. This is the boundary
+    # the old prose mistook for the top of the per-field band.
+    user.update_columns(first_name: nil, name: nil)
+    over = "a" * (Studio::FULL_NAME_MAX_LENGTH + 1)
+
+    post onboarding_first_name_path, params: { first_name: over }, as: :json
+    assert_response :unprocessable_entity
+    over_error = response.parsed_body["error"].to_s
+    assert_includes over_error, Studio::FULL_NAME_MAX_LENGTH.to_s,
+                    "one past the whole-answer cap must be refused by the WHOLE-ANSWER rule — " \
+                    "that is the first length at which it fires for a one-word answer, and it " \
+                    "is the boundary the helper test's range stops below"
+    assert_not_equal error, over_error,
+                     "the two lengths must be refused by DIFFERENT rules with different messages " \
+                     "— identical messages would mean only one rule is reachable and the band " \
+                     "described in the helper test does not exist"
+  end
 end
