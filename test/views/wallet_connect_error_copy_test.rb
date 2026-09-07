@@ -122,7 +122,15 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
     # through. If a future branch ever matches this wording, the picker would
     # silently show something else again — which is exactly the failure being
     # fixed, so pin it rather than assume it.
-    message = "Finish setting up your wallet in Phantom — create or import one, then try again."
+    # READ THE MESSAGE THE CODE ACTUALLY THROWS. A hardcoded copy of it cannot
+    # fail when the copy changes, and that is the whole risk being guarded here:
+    # edit the sentence to contain "insufficient funds" and the mapper rewrites
+    # it straight back into the balance advice this task exists to remove.
+    line = LAYOUT.read[/^\s*throw new Error\('Finish setting up.*$/]
+    assert line, "the setup message must be THROWN, as a one-line literal"
+    message = line[/'(.*)'\);/, 1]
+              .gsub("' + brand + '", "Phantom")
+              .gsub('\\u2014', "\u2014")
     mapper  = MAPPER.read
 
     assert_includes mapper, "return msg;",
