@@ -21,9 +21,16 @@
   <%# === DEPRECATION SIGNPOST ==============================================
       Operator direction, 2026-08-21: modal PRIMITIVE work goes to the engine's
       living style guide from now on. This page is not deleted yet, and the
-      banner says exactly why rather than implying the decision is unmade — 8
+      banner says exactly why rather than implying the decision is unmade — 5
       modals below have no card in the engine guide, so deleting this today
       would drop their only review surface, not tidy a duplicate.
+
+      THIS LIST IS THE THIRD COPY OF A FACT WRITTEN THREE TIMES (the others are
+      admin_controller.rb's registry comment and docs/AUTH.md).
+      test/lib/modal_deprecation_list_agreement_test.rb pins the other two to
+      each other; this copy is UNGUARDED and had already drifted from them —
+      it was missing wallet-changed and still said 7. Re-align all three when
+      a name leaves, and prefer the guarded pair when they disagree.
 
       The banner is deliberately loud and at the TOP: a deprecation nobody sees
       until they have already built here has deprecated nothing. %>
@@ -44,19 +51,23 @@
           This page still exists because it is the ONLY showroom for the modals
           below that the engine guide does not cover yet &mdash;
           <code class="text-xs bg-inset px-1 rounded">wallet-setup</code>,
+          <code class="text-xs bg-inset px-1 rounded">wallet-changed</code>,
           <code class="text-xs bg-inset px-1 rounded">cdp-ramp</code>,
-          <code class="text-xs bg-inset px-1 rounded">buy-entry-token</code>,
-          <code class="text-xs bg-inset px-1 rounded">cosign-rejected</code>,
-          <code class="text-xs bg-inset px-1 rounded">quest-success</code>,
-          <code class="text-xs bg-inset px-1 rounded">unsubscribe-confirm</code> and
-          <code class="text-xs bg-inset px-1 rounded">unsubscribe-goodbye</code>.
+          <code class="text-xs bg-inset px-1 rounded">buy-entry-token</code> and
+          <code class="text-xs bg-inset px-1 rounded">cosign-rejected</code>.
           It is deleted once each of those has a card in the engine guide &mdash;
           port first, delete second, so no state loses its review surface on the
-          way out.
+          way out. An engine SPECIMEN of a card turf still owns does not count:
+          it does not review turf&rsquo;s partial.
         </p>
-        <%# The list shortens as the port lands. Each name that leaves is a modal
-            the engine now owns AND shows, so its card here became the duplicate.
-            2026-08-24: web3-step-up (8 &rarr; 7). %>
+        <%# The list shortens as the port lands, for either of two reasons: the
+            engine now owns AND shows the modal (a true port), or this page was
+            never that modal&rsquo;s review surface at all (it drew a blank card).
+            2026-08-24: web3-step-up ported out.
+            2026-09-06: quest-success, unsubscribe-confirm, unsubscribe-goodbye
+            left by the second route &mdash; unregistered in modal_preview, so
+            they drew empty here &mdash; and this copy was re-aligned with the
+            guarded pair, regaining wallet-changed (now 5). %>
         <p class="text-sm text-muted">
           Ported so far &mdash;
           <code class="text-xs bg-inset px-1 rounded">web3-step-up</code>,
