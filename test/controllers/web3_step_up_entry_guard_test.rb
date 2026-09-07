@@ -297,6 +297,162 @@ class Web3StepUpEntryGuardTest < ActionDispatch::IntegrationTest
     assert_match(/prepare_entry/, body["error"].to_s)
   end
 
+  # ── THE PRE-CHECK HALF (/tasks/funds-gate-ignores-web3-wallet) ────────────
+  #
+  # The guard above is correct and, for the flow a player actually walks, was
+  # UNREACHABLE. #enter is not the first thing the hold-to-confirm button talks
+  # to: beginFundingCheck() fires POST #check_funding the instant the hold
+  # STARTS, and confirmEntry aborts into showFundsNeeded ("Get USDC") on a
+  # definitive { fundable: false } without ever POSTing /enter. So the step-up
+  # sat behind a door the player never got to knock on.
+  #
+  # WHAT THE OPERATOR SAW (qa.turfmonster.media, 2026-09-07): the navbar read
+  # $31 while the entry gate opened Get USDC. Both numbers were honestly
+  # produced — by two readers that resolve the wallet DIFFERENTLY:
+  #
+  #   navbar  User#solana_address        -> web3_solana_address || web2_...  (FALLS BACK)
+  #   gate    #entry_funding_status      -> onchain_session? ? web3_... : web2_...  (NO fallback)
+  #
+  # On a wallet-only account whose session was never promoted (magic link,
+  # email, or the Google collision) the gate resolves web2_solana_address = nil
+  # and returns [false, nil] WITHOUT EVER READING A BALANCE — a money verdict
+  # about an account whose money it never looked at. It is not devnet-specific
+  # and reproduces on mainnet with real USDC.
+  #
+  # THE FIX IS NOT TO READ THE WEB3 WALLET HERE. Web2 entry SERVER-SIGNS from
+  # web2_solana_address; pricing the entry off a wallet the server cannot sign
+  # with would trade a false "Get USDC" for a doomed entry. The account owes a
+  # SIGNATURE, not money — so the pre-check stops answering, and #enter's guard
+  # (which is right, and now shares its predicate) gets to.
+  test "the funding pre-check routes a wallet-only account to the step-up, not Get USDC" do
+    log_in_as(@wallet_user)
+    cart_entry_for(@wallet_user, @paid_contest)
+
+    vault = FakeVault.new(tokens: [])
+    Solana::Vault.stub :new, vault do
+      post check_funding_contest_path(@paid_contest), as: :json
+    end
+
+    assert_response :success
+    precheck = JSON.parse(response.body)
+    # THE SYMPTOM, stated as the thing that must not happen. confirmEntry aborts
+    # the hold into showFundsNeeded on exactly this value — it IS the Get USDC.
+    assert_not_equal "no_funding", precheck["reason"],
+                     "a wallet-only account owes a signature, not money — no_funding is what opens Get USDC"
+    assert precheck["fundable"],
+           "the pre-check must not abort the hold; the refusal that belongs to this account is /enter's step-up"
+
+    # AND THE DESTINATION IS REAL. Not-blocked is only half a fix: the hold now
+    # proceeds to POST /enter, and what the player must land on is the step-up
+    # card. Asserting the pre-check alone would pass for a change that merely
+    # opened the gate and dropped the player somewhere worse.
+    post enter_contest_path(@paid_contest), as: :json
+    assert_response :unprocessable_entity
+    assert_equal "web3_step_up_required", JSON.parse(response.body).dig("blocker", "reason"),
+                 "the pre-check has to hand off to the refusal that knows what to ask for"
+  end
+
+  # THE MONEY HALF, ASSERTED AS MONEY. The bug produced a funding verdict from
+  # no balance read at all, so a suite that only ever asserts the boolean cannot
+  # tell a computed verdict from an invented one. These two pin the NUMBER and
+  # the WALLET it was read from: same account, same session, same fee — only the
+  # balance moves, and the verdict moves with it.
+  test "a promoted session prices the entry off the web3 wallet that holds the funds" do
+    log_in_as_onchain(@wallet_user)
+    address = @wallet_user.reload.web3_solana_address
+
+    vault = FakeVault.new(tokens: [])
+    vault.wallet_balances = { sol: 0.1, usdc: 25.0, usdt: 0.0 } # fee is 500 cents
+    Solana::Vault.stub :new, vault do
+      post check_funding_contest_path(@paid_contest), as: :json
+    end
+
+    body = JSON.parse(response.body)
+    assert_equal [ address ], vault.balance_calls,
+                 "the verdict must be computed from the wallet that actually holds the funds"
+    assert body["fundable"]
+    assert_equal "usdc", body["method"]
+  end
+
+  test "the same promoted session is refused when that same wallet cannot cover the fee" do
+    log_in_as_onchain(@wallet_user)
+    address = @wallet_user.reload.web3_solana_address
+
+    vault = FakeVault.new(tokens: [])
+    vault.wallet_balances = { sol: 0.1, usdc: 4.99, usdt: 0.0 } # one cent short of 500
+    Solana::Vault.stub :new, vault do
+      post check_funding_contest_path(@paid_contest), as: :json
+    end
+
+    body = JSON.parse(response.body)
+    assert_equal [ address ], vault.balance_calls
+    assert_not body["fundable"], "$4.99 does not cover a $5.00 entry — the number is what decides"
+    assert_equal "no_funding", body["reason"]
+  end
+
+  # ── The pre-check's narrowing clauses ─────────────────────────────────────
+
+  # A gate that stops refusing is not a fix. A managed account with a real, empty
+  # custodial wallet is the population #check_funding was BUILT for (a fresh
+  # wallet has no USDC ATA, reads null client-side, and slips past the sync
+  # blocker) — it must still be caught, and caught on a real read.
+  test "a genuinely broke managed wallet is still told to Get USDC" do
+    managed = User.create!(
+      name: "Manny Managed",
+      username: "manny-#{SecureRandom.hex(2)}",
+      email: "manny-#{SecureRandom.hex(2)}@example.test",
+      email_verified_at: Time.current
+    )
+    grant_managed_wallet!(managed)
+    assert managed.managed_wallet? && !managed.phantom_wallet?, "fixture must be custodial-only"
+
+    log_in_as(managed)
+    vault = FakeVault.new(tokens: []) # default balances all 0.0
+    AppFlags.stub :web2_usdc_entry?, true do
+      Solana::Vault.stub :new, vault do
+        post check_funding_contest_path(@paid_contest), as: :json
+      end
+    end
+
+    body = JSON.parse(response.body)
+    assert_not body["fundable"]
+    assert_equal "no_funding", body["reason"]
+    assert_equal [ managed.web2_solana_address ], vault.balance_calls,
+                 "this refusal is a MONEY verdict and must still be computed from a real balance read"
+  end
+
+  # THE SECOND CLAUSE, ON THE PRE-CHECK. A COMBO account owes an advisory
+  # step-up and can still enter — #resolve_web2_entry_funding! deliberately
+  # signs and spends from the custodial wallet — so the short-circuit must not
+  # swallow its balance read. Without the managed_wallet? clause this goes red
+  # on the balance_calls assertion, not merely on the verdict.
+  test "a combo account's pre-check still prices the custodial wallet it signs from" do
+    combo = User.create!(
+      name: "Combo Cody",
+      username: "combo-#{SecureRandom.hex(2)}",
+      email: "combo-#{SecureRandom.hex(2)}@example.test",
+      email_verified_at: Time.current,
+      web3_solana_address: "8LmTuRkQpXvZbNc3WdEyHgJf5AsPqMn7RtVxKzC2BdYw"
+    )
+    grant_managed_wallet!(combo)
+    assert combo.managed_wallet? && combo.phantom_wallet?, "combo = both wallets"
+
+    log_in_as(combo)
+    vault = FakeVault.new(tokens: [])
+    vault.wallet_balances = { sol: 0.1, usdc: 25.0, usdt: 0.0 }
+    AppFlags.stub :web2_usdc_entry?, true do
+      Solana::Vault.stub :new, vault do
+        post check_funding_contest_path(@paid_contest), as: :json
+      end
+    end
+
+    body = JSON.parse(response.body)
+    assert_equal [ combo.web2_solana_address ], vault.balance_calls,
+                 "a combo account signs from the custodial wallet — the step-up short-circuit must not skip that read"
+    assert body["fundable"]
+    assert_equal "usdc", body["method"]
+  end
+
   private
 
   def onchain_paid_contest

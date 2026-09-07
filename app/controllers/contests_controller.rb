@@ -775,9 +775,13 @@ class ContestsController < ApplicationController
     # place), and arm_web3_step_up_for — the same arming the Google collision
     # uses at the front door — makes the NEXT render open it too, for a player
     # who reloads rather than reads a modal.
-    step_up = Web3StepUpPolicy.new(current_user, session_mode: wallet_context.mode)
-    if @contest.onchain? && @contest.entry_fee_cents.to_i.positive? &&
-       step_up.required? && !current_user.managed_wallet?
+    #
+    # THE CONDITION LIVES IN #entry_step_up_refusal, not here, because #enter is
+    # not the first gate this player meets: the hold-to-confirm button asks
+    # #check_funding first and aborts on its verdict, so the two have to agree
+    # about this account or the refusal below is unreachable — which is exactly
+    # how it was (/tasks/funds-gate-ignores-web3-wallet).
+    if (step_up = entry_step_up_refusal)
       arm_web3_step_up_for(current_user)
       return render json: {
         success: false,
@@ -897,6 +901,11 @@ class ContestsController < ApplicationController
   #                  method: "token"|"usdc"|"usdt"|null }. Fail-CLOSED — any read
   # failure returns { fundable: false, reason: "no_funding" } so the worst case
   # the user ever sees is the Top Up Wallet, never the 0x1 sim error.
+  #
+  # ONE POPULATION IS DELIBERATELY NOT ANSWERED HERE, and it is not an exception
+  # to fail-closed so much as a different question: an account whose only wallet
+  # is self-custody, on a session that never proved it, owes a SIGNATURE rather
+  # than money. See #entry_step_up_refusal at the top of the method body.
   def check_funding
     # Token presence + balances must be authoritative for THIS check, so drop
     # the 60s entry-tokens cache first — a just-consumed token must not read as
@@ -907,6 +916,21 @@ class ContestsController < ApplicationController
     # polling (waits for the token to confirm before returning to the board)
     # largely closes the Helius post-mint index-lag window; the check_funding/ip
     # throttle caps the getProgramAccounts amplification.
+    # NOT A MONEY QUESTION. An account whose ONLY wallet is self-custody, on a
+    # session that never proved it, has no web2 address for #entry_funding_status
+    # to price — so it returned [false, nil] WITHOUT EVER READING A BALANCE and
+    # the board opened Get USDC at a player holding $31 (the operator's report,
+    # qa 2026-09-07). Answering `fundable` here is what makes #enter's step-up
+    # refusal REACHABLE: confirmEntry only aborts the hold on a definitive
+    # { fundable: false }, so proceeding hands the player to the one gate that
+    # knows what to ask for. This does NOT price the web3 wallet — web2 entry
+    # server-signs from web2_solana_address, and funding an entry off a wallet
+    # the server cannot sign with would trade a false refusal for a doomed one.
+    #
+    # FIRST, so the population that owes a signature never pays for the
+    # getProgramAccounts the cache bust below forces.
+    return render json: { fundable: true, reason: nil, method: nil } if entry_step_up_refusal
+
     current_user.bust_entry_tokens_cache!
     fundable, method = entry_funding_status
     render json: { fundable: fundable, reason: (fundable ? nil : "no_funding"), method: method }
@@ -1861,6 +1885,35 @@ class ContestsController < ApplicationController
     end
   end
 
+  # Does this session owe a WALLET SIGNATURE before a paid on-chain entry can be
+  # signed at all? Returns the Web3StepUpPolicy (so a caller can render its
+  # payload) or nil.
+  #
+  # ONE definition, TWO callers, deliberately: #enter refuses on it, and
+  # #check_funding declines to answer on it. They are the same gate a player
+  # walks a second apart — the pre-check fires at hold-START and #enter at
+  # hold-COMPLETE — and when only #enter knew this rule its refusal was
+  # unreachable, because the pre-check aborted the hold into Get USDC first.
+  # Two copies of a rule two gates share is how they end up disagreeing.
+  #
+  # Both narrowing clauses are load-bearing and each has a test that goes red
+  # without it (test/controllers/web3_step_up_entry_guard_test.rb):
+  #   - it ASKS Web3StepUpPolicy rather than re-deriving the population, so the
+  #     entry path and the auth path cannot drift into two answers; and
+  #   - it fires only when there is NO custodial keypair to sign with. A COMBO
+  #     account (managed + linked wallet) owes an advisory step-up and still
+  #     enters — #resolve_web2_entry_funding! deliberately signs and spends from
+  #     the wallet the server holds — and a FREE contest signs nothing at all.
+  # RPC-FREE (Web3StepUpPolicy reads columns and a session flag), so it is safe
+  # to ask on either path and costs nothing to ask twice.
+  def entry_step_up_refusal
+    return nil unless @contest&.onchain? && @contest.entry_fee_cents.to_i.positive?
+    return nil if current_user.blank? || current_user.managed_wallet?
+
+    policy = Web3StepUpPolicy.new(current_user, session_mode: wallet_context.mode)
+    policy.required? ? policy : nil
+  end
+
   # Authoritative funding capability for #check_funding — returns
   # [fundable_bool, method] where method is "token" | "usdc" | "usdt" | nil.
   # Mirrors the entry funding priority (#resolve_web2_entry_funding! for web2,
@@ -1874,6 +1927,12 @@ class ContestsController < ApplicationController
   #   - USDC: web3 always; web2 only behind the ENABLE_WEB2_USDC_ENTRY flag.
   #   - USDT: web3 only, and only on an accepts_usdt contest (web2 never holds
   #     USDT — payouts are USDC).
+  # ONE POPULATION NEVER REACHES HERE, and the omission is the point: an account
+  # whose only wallet is self-custody has no web2 address for this method to
+  # price, so it used to fall out at the `address.blank?` guard below as
+  # [false, nil] — a funding verdict reached without reading a balance, which
+  # the board showed as Get USDC. #check_funding now hands that account to
+  # #entry_step_up_refusal instead, because what it owes is a signature.
   def entry_funding_status
     fee_cents = @contest.entry_fee_cents.to_i
     return [true, nil] if fee_cents <= 0 # free contest — nothing to fund
