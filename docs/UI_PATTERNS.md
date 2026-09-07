@@ -189,7 +189,8 @@ one call passes "Location Restricted" → `/`.
 
 `showEligibilityBlockerModal(blocker)` (same partial) switches on
 `blocker.reason`. It has **six arms plus a default, and ZERO of them are redirect
-modals** — every arm opens a modal and stays on the page:
+modals** — no arm navigates: the six named arms each open a modal and stay on
+the page, and the default only resets the hold button:
 
 - `not_logged_in` → `showLoginModal()` — the auth modal, not a redirect to `/signin`
 - `first_name_required` → `showFirstNameModal()` in its required mode (no skip affordance)
@@ -201,9 +202,17 @@ modals** — every arm opens a modal and stays on the page:
 
 There is no `geo_blocked` arm, and `blocker.reason` never carries that value
 anywhere in the app. (`geo_blocked?` does exist, but it is a server-side ERB
-helper read by `_wallet_deposit`, `shared/_buy_usdc_button` and `wallets/show` —
-a different mechanism on a different layer.) The hold button flips to red
-`.error` ("Entry Blocked") on either path.
+helper read by `_wallet_deposit`, `shared/_buy_usdc_geo_note`,
+`shared/_buy_usdc_button` and `wallets/show` — a different mechanism on a
+different layer.)
+
+**The two paths leave the hold button in OPPOSITE states**, so do not read the
+red state as "blocked" in general. `setHoldError()` — the only code that adds
+`.error` ("Entry Blocked") — has exactly one caller, the geo pre-check, so the
+red state belongs to geo alone. The switch path CLEARS it instead: five of the
+six arms and the default call `resetHoldButtons()`, the only remover of
+`.error`, and the `no_funding` arm does not touch the button at all
+(`showFundsNeeded` only opens a card).
 
 ### What this section used to claim, and why both halves were wrong
 
