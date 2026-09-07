@@ -23,9 +23,18 @@ require "test_helper"
 class WalletSetupErrorLiveRegionTest < ActiveSupport::TestCase
   MODAL = Rails.root.join("app/views/modals/_wallet_setup.html.erb")
 
+  # THE MARKUP, WITHOUT THE PROSE. ERB comments are stripped first because this
+  # file explains the very shape being asserted against — the comment above the
+  # paragraph names the `<template x-if="error">` it replaced, and a scan of the
+  # raw source finds that sentence and calls it markup. Measured here on
+  # 2026-09-07: the refutation below failed on its own explanation.
+  def markup
+    MODAL.read.gsub(/<%#.*?%>/m, "")
+  end
+
   # The one element that carries the connect failure to the user.
   def error_tag
-    MODAL.read[/<p[^>]*x-text="error"[^>]*>/]
+    markup[/<p[^>]*x-text="error"[^>]*>/]
   end
 
   test "the error paragraph is announced" do
@@ -52,7 +61,7 @@ class WalletSetupErrorLiveRegionTest < ActiveSupport::TestCase
     assert_includes tag, "x-cloak",
                     "and must not flash empty before Alpine boots"
 
-    refute_includes MODAL.read, '<template x-if="error">',
+    refute_includes markup, '<template x-if="error">',
                     "re-wrapping the paragraph in a template un-announces it silently"
   end
 
@@ -60,7 +69,7 @@ class WalletSetupErrorLiveRegionTest < ActiveSupport::TestCase
     # An announced region that ships with placeholder copy announces the
     # placeholder. x-text replaces the whole subtree, so the element must be
     # empty in the markup.
-    body = MODAL.read[/<p[^>]*x-text="error"[^>]*>(.*?)<\/p>/m, 1]
+    body = markup[/<p[^>]*x-text="error"[^>]*>(.*?)<\/p>/m, 1]
 
     assert_equal "", body.to_s.strip,
                  "the live region must be empty until Alpine writes the failure into it"

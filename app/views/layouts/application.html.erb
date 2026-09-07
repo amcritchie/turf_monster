@@ -322,6 +322,17 @@
               if (/user rejected/i.test(rejMsg) || /user declined/i.test(rejMsg) || (e && e.code === 4001)) {
                 throw e;
               }
+              // SWALLOWED HERE, AND NOT REPORTED HERE — the reasoning, so it is
+              // not re-derived. This rejection is not yet a user-facing failure:
+              // the fallback below either SUCCEEDS, in which case the user signed
+              // in and a row would be noise on a triage surface (see the
+              // over-reporting guard in e2e/wallet_failure_report.spec.js), or it
+              // fails too and reports its own rejection with the wallet's words
+              // intact. An extension holding no keypair fails both calls with the
+              // same generic string, which is the case the reporting exists for.
+              // What is genuinely lost is a signIn rejection that differs from the
+              // fallback's; that stays in the console, deliberately, rather than
+              // buying it with a row per successful two-prompt sign-in.
               console.warn('[siws] signIn unusable, falling back to connect + signMessage:', rejMsg);
               useSignIn = false;
             }
