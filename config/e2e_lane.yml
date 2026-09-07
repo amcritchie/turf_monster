@@ -642,7 +642,31 @@
 # property with no undo. Four specs: dismiss sends nothing, accept sends exactly
 # one, "Burn all" names its count, and a holder with nothing spendable is
 # offered no control at all. Coverage ADDED; `quarantined` is untouched.
-total_specs: 233
+#
+# 233 -> 237 (report-client-wallet-failures): four specs in
+# e2e/wallet_failure_report.spec.js, for a path that exists ONLY in a browser.
+# Wallet sign-in fails entirely client-side — caught, mapped, painted — so no
+# other tier can watch a real rejection end in a POST leaving the page. Two of
+# the four are the ones no server test can express at all: a 500 from the
+# reporting endpoint leaving the rendered error byte-identical (the fail-open
+# contract, proven by breaking it rather than by inspection), and a SUCCESSFUL
+# connect reporting nothing, so error_logs is not buried under the sign-ins it
+# is meant to make findable.
+#
+# One of them was INERT on first write and is worth recording: driven as the
+# admin, "a successful connect reports nothing" passed in 688ms having driven
+# nothing — global-setup.js pins the admin's wallet to the mock's own address,
+# so the `phantomLinked` wait it hangs on was already true before the click. It
+# now signs up a fresh account and ASSERTS the precondition first.
+#
+# 237 -> 238 (report-client-wallet-failures, second pass): a fifth spec, "a dead
+# network while reporting leaves the sign-in flow untouched". The four above
+# proved fail-open with a 500, which `fetch` RESOLVES — an HTTP error status is a
+# successful round trip — so the reporter's `.catch()` was never entered by any
+# of them. Measured by mutation 2026-09-07: deleting `.catch(function() {})`
+# outright left all four GREEN. Aborting the request rejects the promise and is
+# the only thing in the lane that exercises that guard.
+total_specs: 238
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -902,7 +926,7 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 212
+executed: 217
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to

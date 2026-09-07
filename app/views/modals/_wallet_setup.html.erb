@@ -298,9 +298,20 @@
              this.connecting = false;
            }
          } catch (e) {
-           var msg = (e && e.code === 4001) ? 'Signature rejected' : ((e && e.message) || 'Connection failed');
+           // The WALLET string, captured before the mapper runs. It rides
+           // alongside what the user is shown because a mis-mapping is invisible
+           // in the mapped half alone -- app/javascript/solana_errors.js.
+           var raw = (e && e.message) || '';
+           var msg = (e && e.code === 4001) ? 'Signature rejected' : (raw || 'Connection failed');
            if (typeof parseSolanaError === 'function') msg = parseSolanaError(msg);
            this.error = msg; this.connecting = false;
+           // AFTER both assignments above, and never awaited. This line is
+           // observation: it may not delay, block or alter the line the user has
+           // just been given. The reporter swallows its own faults; the typeof
+           // guard covers a page where it never loaded.
+           if (typeof window.reportWalletFailure === 'function') {
+             window.reportWalletFailure('wallet_setup_connect', 'Phantom', raw, msg);
+           }
          }
        },
        // Ask the player for sound. Spoken over postMessage rather than through
