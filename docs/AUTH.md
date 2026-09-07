@@ -298,13 +298,30 @@ red-seal the gem's own release.
 
 ### Three limits worth knowing before reading a row
 
-- **The raw string is not always the wallet's.** On the `connect` +
-  `signMessage` fallback path, `solanaConnectAndVerify` REPLACES an unusable
-  wallet's message with "Finish setting up your wallet in …" before rethrowing
-  (that substitution is itself a 2026-09-06 fix). At the modal's catch the
-  original Phantom string is already gone, so `raw` is the layout's sentence for
-  that one branch. A decline (`code 4001`) rethrows the original untouched, so
-  the common case is genuine.
+- **The raw string is not always the wallet's — but the exception is now one
+  narrow branch.** On the `connect` + `signMessage` fallback path,
+  `solanaConnectAndVerify` REPLACES the wallet's message with "Finish setting up
+  your wallet in …" before rethrowing (that substitution is itself a 2026-09-06
+  fix). Where the substitution happens, the original Phantom string is already
+  gone by the modal's catch and `raw` is the layout's sentence.
+
+  It happens for exactly one failure now: a `connect()` that NEVER ANSWERED.
+  Narrowed 2026-09-07 (`/tasks/narrow-wallet-setup-diagnosis`), because the
+  catch used to be wider than its diagnosis and was telling people who
+  demonstrably have a wallet to create one. Four things rethrow the ORIGINAL
+  untouched, so `raw` is genuine for all of them:
+
+  | Failure | Why it is not a missing wallet |
+  |---|---|
+  | A decline (`code 4001`, "user rejected/declined") | The human said no |
+  | Anything after `connect()` returned a public key — a `signMessage` rejection above all | The wallet proved it holds a keypair |
+  | `/auth/solana/nonce` failing (tagged `nonceFetchFailed`) | Our own server, not the wallet |
+  | Wallet Standard rejections tagged `walletAnswered` — "No account authorized" (an empty accounts array: a dismissed account-selection sheet), "Wallet not connected" | The wallet answered and authorized nothing |
+
+  So a `raw` of "Unexpected error" on this path now means the extension holds no
+  keypair, and a `raw` of "Unexpected error" reported at a later stage means a
+  wallet that connected and then could not sign. Before the narrowing both
+  arrived as the same sentence and the two were indistinguishable in triage.
 - **The report is best-effort by design.** It is dropped on a throttle, a
   closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
   triage surface here, never a count.
