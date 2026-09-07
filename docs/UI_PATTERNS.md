@@ -165,11 +165,18 @@ JS-driven, big nudge at 3s then soft nudge every 10s. Resets on hold, soft-only 
 - `pickUrgent` flag set when going from 5→4 selections, cleared when reaching 5 again or clearing all
 
 ## Redirect Modal
-When hold-to-confirm hits a blocker (geo-blocked, not logged in, insufficient funds), a centered modal appears with icon, title, message, progress bar countdown (5s), and CTA button. Hold button flips to red `.error` state ("Entry Blocked").
+When hold-to-confirm hits a blocker, the Alpine component switches on `blocker.reason`. Only ONE of those arms is a redirect modal; the rest open a modal and stay on the page. The hold button flips to red `.error` state ("Entry Blocked") either way.
+
+`showRedirectModal(title, message, icon, url, seconds, cta)` — a centered modal with icon, title, message, a 5s progress-bar countdown, and a CTA that navigates. It has exactly one caller at head:
 - Geo-blocked → "Location Restricted" → `/`
-- Not logged in → "Log In Required" → `/signin`
-- Insufficient funds → "Insufficient Funds" / "Top Up Wallet" → `/wallet`
-- `showRedirectModal(title, message, icon, url, seconds, cta)` method on Alpine component
+
+The other arms of the same switch open a modal instead (`contests/_turf_totals_board`, `showEligibilityBlockerModal`):
+- `not_logged_in` → `showLoginModal()` — the auth modal, not a redirect to `/signin`
+- `first_name_required` / `age_required` / `wallet_setup_required` → the matching onboarding modal
+- `no_funding` → `showFundsNeeded()` — Get USDC (`modals/_buy_usdc`), or Buy an Entry Token (`modals/_buy_entry_token`) for the USDC kill-switch audience (a web2 session with `ENABLE_WEB2_USDC_ENTRY` off)
+- `insufficient_balance` → `showInsufficientBalanceModal(blocker)` — the web3 deposit/currency picker (`modals/_wallet_deposit`, modal id `wallet-deposit`)
+
+This list used to say insufficient funds redirected to "Top Up Wallet" at `/wallet`. Neither half was true: `/wallet` is not a route in this app, and Top Up Wallet (`modals/_wallet_topup`) has no entrance at head — `showWalletTopup` has no caller, and the Add Funds hub's Back link swaps there only on `props.returnModal === 'wallet-topup'`, a prop written only by `_wallet_topup` itself. It regains an entrance the moment either condition changes: something calls `showWalletTopup`, or some other opener passes that prop.
 
 ## Navbar
 
