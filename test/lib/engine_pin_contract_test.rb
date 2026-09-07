@@ -261,14 +261,29 @@ class EnginePinContractTest < ActiveSupport::TestCase
                  "constant on the way UP and these call sites need to move."
   end
 
-  # The roots whose source is this app's own. Everything here runs — vendored and
-  # generated trees do not appear, so a hit is always something this app wrote.
+  # The roots this app's own source lives under. Walked whole, including the one
+  # GENERATED tree inside them — app/assets/builds, which is gitignored but on
+  # disk. That is left in deliberately rather than filtered: a compiled artifact
+  # naming a constant the engine does not define is a real inconsistency, not a
+  # false positive, and it holds no `Studio::` token at all today. It does mean
+  # files_read moves a little depending on whether assets have been built, which
+  # is why the control below is a floor rather than an exact count.
   SCANNED_ROOTS = %w[app lib config test].freeze
 
   # A NAMED reference: `Studio::` followed by one constant segment. Only the
   # first segment is captured, deliberately — `Studio::Geo::Lookup` is recorded
   # as `Geo`, because resolving the parent is the question this guard can answer
   # honestly and a nested miss would need the parent loaded to even ask.
+  #
+  # A MENTION IN PROSE COUNTS, and that is the intended reading rather than an
+  # accident of scanning whole files. This file's own comments name a dozen
+  # engine constants; so do several others. A comment naming a constant the
+  # engine does not define is wrong in the same way the code would be — it is
+  # documentation describing a surface that is not there — and comments are
+  # exactly where a floor's justification is written down, so they are the last
+  # place worth exempting. The cost is that removing a constant from the engine
+  # means updating the prose that discusses it, not just the call sites. That is
+  # the correct amount of work.
   STUDIO_CONSTANT_REFERENCE = /\bStudio::([A-Z][A-Za-z0-9_]*)/
 
   # A DEFINITION, not a reference — this app OPENING a constant inside the
