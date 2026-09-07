@@ -165,18 +165,72 @@ JS-driven, big nudge at 3s then soft nudge every 10s. Resets on hold, soft-only 
 - `pickUrgent` flag set when going from 5→4 selections, cleared when reaching 5 again or clearing all
 
 ## Redirect Modal
-When hold-to-confirm hits a blocker, the Alpine component switches on `blocker.reason`. Only ONE of those arms is a redirect modal; the rest open a modal and stay on the page. The hold button flips to red `.error` state ("Entry Blocked") either way.
 
-`showRedirectModal(title, message, icon, url, seconds, cta)` — a centered modal with icon, title, message, a 5s progress-bar countdown, and a CTA that navigates. It has exactly one caller at head:
-- Geo-blocked → "Location Restricted" → `/`
+Two mechanisms fire in sequence on the hold path, and **geo is not one of the
+blocker arms**. Reading it the other way round is exactly what the old version of
+this section got wrong.
 
-The other arms of the same switch open a modal instead (`contests/_turf_totals_board`, `showEligibilityBlockerModal`):
+### 1. The geo pre-check runs first, and returns
+
+`runHoldValidations()` (`contests/_turf_totals_board`) is the hold's `validate`
+callback. It fetches `GET /geo/check` before anything else; when `geo.blocked` is
+true it sets the hold error, opens the redirect modal, and returns `false` — the
+blocker switch below is never reached. That call is the **only** caller of
+`showRedirectModal` in the app.
+
+`showRedirectModal(title, message, icon, url, seconds, cta)` does not navigate on
+its own. It opens the auth wizard at its `redirect` step (`modals/_auth`), which
+renders `studio/modals/blocks/card_header` + `studio/modals/blocks/cta_redirect`.
+The engine block owns the 5s drain end-to-end and reads `props.url` at fire time
+(pass a null url to suppress the auto-navigation and keep the drain visual). The
+one call passes "Location Restricted" → `/`.
+
+### 2. The blocker switch navigates nowhere
+
+`showEligibilityBlockerModal(blocker)` (same partial) switches on
+`blocker.reason`. It has **six arms plus a default, and ZERO of them are redirect
+modals** — every arm opens a modal and stays on the page:
+
 - `not_logged_in` → `showLoginModal()` — the auth modal, not a redirect to `/signin`
-- `first_name_required` / `age_required` / `wallet_setup_required` → the matching onboarding modal
-- `no_funding` → `showFundsNeeded()` — Get USDC (`modals/_buy_usdc`), or Buy an Entry Token (`modals/_buy_entry_token`) for the USDC kill-switch audience (a web2 session with `ENABLE_WEB2_USDC_ENTRY` off)
+- `first_name_required` → `showFirstNameModal()` in its required mode (no skip affordance)
+- `age_required` → `showAgeVerifyModal()`
+- `wallet_setup_required` → `showWalletSetupModal()`
+- `no_funding` → `showFundsNeeded()` — Get USDC (`modals/_buy_usdc`), or Buy an Entry Token (`modals/_buy_entry_token`) for the USDC kill-switch audience (a web2 session with `ENABLE_WEB2_USDC_ENTRY` off). When that audience's two entry-token rails are both dark, `showBuyEntryToken` falls through to `showGetUsdc` rather than open an empty card — so with no rail to show, every audience lands on Get USDC.
 - `insufficient_balance` → `showInsufficientBalanceModal(blocker)` — the web3 deposit/currency picker (`modals/_wallet_deposit`, modal id `wallet-deposit`)
+- `default` → `resetHoldButtons()`
 
-This list used to say insufficient funds redirected to "Top Up Wallet" at `/wallet`. Neither half was true: `/wallet` is not a route in this app, and Top Up Wallet (`modals/_wallet_topup`) has no entrance at head — `showWalletTopup` has no caller, and the Add Funds hub's Back link swaps there only on `props.returnModal === 'wallet-topup'`, a prop written only by `_wallet_topup` itself. It regains an entrance the moment either condition changes: something calls `showWalletTopup`, or some other opener passes that prop.
+There is no `geo_blocked` arm, and `blocker.reason` never carries that value
+anywhere in the app. (`geo_blocked?` does exist, but it is a server-side ERB
+helper read by `_wallet_deposit`, `shared/_buy_usdc_button` and `wallets/show` —
+a different mechanism on a different layer.) The hold button flips to red
+`.error` ("Entry Blocked") on either path.
+
+### What this section used to claim, and why both halves were wrong
+
+It said insufficient funds redirected to "Top Up Wallet" at `/wallet`.
+
+**On the route.** `/wallet` **is** a route — `resource :wallet, only: [:show]` in
+`config/routes.rb`, served by `WalletsController#show`, and the navbar balance
+links to it (see § Navbar). The narrower true statement is that it was never the
+funds-wall destination: no arm of `showEligibilityBlockerModal` navigates
+anywhere, and the only navigation on the hold path is the geo pre-check's CTA
+to `/`.
+
+**On the modal.** Top Up Wallet (`modals/_wallet_topup`) has no entrance at head.
+`showWalletTopup` has one definition and zero calls — no `@click`, no dispatch,
+nothing in `app/assets/builds/`, and no dynamic `this[...]` dispatch in the board
+or the layout. The Add Funds hub's Back link swaps there only when
+`props.returnModal === 'wallet-topup'`, and the sole writer of that prop is
+`_wallet_topup` itself, which makes it a return path from itself rather than a
+way in. The admin gallery is not a way in either: `AdminController#modal_preview`
+passes `params[:modal_id]` through raw to `$store.modals.open()`, but
+`MODAL_VARIANTS` has no `wallet-topup` row and the `modal_preview` layout does
+not render the partial — so a hand-crafted `?modal_id=wallet-topup` opens the
+host over a panel that is not in the DOM, giving an empty card rather than an
+entrance.
+
+It regains an entrance the moment either condition changes: something calls
+`showWalletTopup`, or some other opener passes that prop.
 
 ## Navbar
 
@@ -380,7 +434,7 @@ A modal registered only in (1) works in the app and is silently missing from the
 5. **tokens-minted** — Success card: "Entry Token Minted" + balance display + in-modal Hold-to-Confirm button. The hold fires `'hold-confirm-entry'`; the board's listener detects auth-modal context and stays in the modal → step `tokens-submitted`.
 6. **tokens-submitted** — `entry_confirmed` card (seeds bar + explorer link + leaderboard CTA). Auto-redirects to the contest or fallback.
 7. **tokens-error** — Poll timed out or entry submission failed. Error card with "Refresh" button.
-8. **redirect** — Geo-blocked / not logged in / insufficient funds. Countdown + CTA to the blocker's target page (e.g. `/wallet`). Driven by the board's `setInterval`.
+8. **redirect** — geo-blocked only. `showRedirectModal` is this step's one opener and the board's `runHoldValidations` geo pre-check is its one caller, so the CTA is always "Location Restricted" → `/`. Not-logged-in and funds blockers open their own modals and never reach this step (see § Redirect Modal). The 5s drain belongs to `studio/modals/blocks/cta_redirect`; the board's `setInterval` + `props.countdown` loop is retired.
 
 **Stripe integration**: Pack cards trigger `POST /tokens/stripe_checkout` → opens checkout in a new tab → buyer returns to `/tokens/processing?session_id=…` → page polls `GET /tokens/status` every 500ms until `ready: true`. Backend: webhook → `TokenPurchaseJob` → mints incrementally via `Vault#mint_entry_token`. Job is idempotent — tracks `already_minted` count, resumes from the next index on retry. See § Entry Tokens (Web2) below.
 

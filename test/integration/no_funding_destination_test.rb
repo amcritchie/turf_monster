@@ -45,7 +45,7 @@ class NoFundingDestinationTest < ActionDispatch::IntegrationTest
                  "and the comments in error_interpreter.rb are written on that fact")
   end
 
-  test "the funds dispatcher's own body offers Get USDC and Buy an Entry Token, and nothing else" do
+  test "the funds dispatcher's own body offers Get USDC and Buy an Entry Token, and never Top Up Wallet" do
     get contest_path(contests(:one))
     assert_response :success
 

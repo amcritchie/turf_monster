@@ -45,7 +45,7 @@ class Solana::ErrorInterpreterClaimsTest < ActiveSupport::TestCase
     source.gsub(/\n[ \t]*#[ \t]?/, " ").gsub(/\s+/, " ")
   end
 
-  # The five sentences these files carried before this task, verbatim. Each
+  # The six sentences these files carried before this task, verbatim. Each
   # needle below is proven against them, so a needle that can never match
   # anything fails HERE instead of passing as a soundness claim it cannot keep.
   PRE_FIX_SENTENCES = [
