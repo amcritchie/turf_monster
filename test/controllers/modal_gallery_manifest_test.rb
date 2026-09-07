@@ -48,8 +48,14 @@ class ModalGalleryManifestTest < ActionDispatch::IntegrationTest
     assert_select "h2", text: "Templates", count: 0
     # The six Quest / Newsletter cards were registered in layouts/application
     # but never in the preview layout, so every one of them drew blank here.
-    # All six stay carded on the engine style guide (newsletter-subscribe as
-    # 'join-newsletter', newsletter-success as 'ds-newsletter-success').
+    # FIVE of the six are carded on the engine style guide (newsletter-success
+    # as 'ds-newsletter-success', which names turf's modals/_newsletter_success
+    # outright). newsletter-subscribe is NOT: the engine's 'join-newsletter'
+    # cards the gem's OWN studio/modals/blocks/_leveling_activity, a different
+    # partial from turf's self-contained modals/_newsletter_subscribe. It came
+    # off by the SECOND route only -- a blank card was never a review surface --
+    # so turf's partial has no review surface anywhere, and a later port must
+    # not read an engine id of the same shape as one. See docs/AUTH.md.
     assert_select "h2", text: "Quest / Newsletter", count: 0
 
     # A mistyped flow step key renders this instead of a step; the deletions
