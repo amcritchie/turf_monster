@@ -92,22 +92,32 @@ class LandingPagesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".lp-badge", count: 0
   end
 
-  # --- Funnel copy regression: the NFL branch must not speak World Cup. ---
+  # --- Funnel copy regression: the steps and the rulebook link follow the
+  # contest's SPORT, and neither sport is hardcoded. ---
   #
-  # `Contest#game_type` is a TWO-value enum (contest.rb:45), so the helper's
-  # else branch serves EVERY NFL (turf_totals) contest *and* the no-contest
-  # draft preview. Both are asserted below, because a fix that lands on one
-  # audience and misses the other is the bug again in a new costume.
+  # `Contest#game_type` is a FORMAT enum (turf_totals / world_cup_survivor), NOT
+  # a sport. The SPORT lives on the SLATE — Turf Totals ran on the World Cup in
+  # season 1 and runs on the NFL now — so a funnel that hardcodes either sport is
+  # right for one audience and wrong for the other. This file has certified both
+  # mistakes: the shipped code hardcoded World Cup, a fix hardcoded NFL, and the
+  # green suite asserted that a FIFA-slate contest must render "NFL". Both sports
+  # are asserted below so neither can be traded for the other again.
   #
-  # These read the RENDERED subtree, not the source: a `data-test` scope keeps
-  # the layout's own nav/footer/meta copy out of the assertion, which a
-  # page-wide assert_select would silently swallow.
+  # `landing_pages(:launch)` -> `contests(:one)` -> `slates(:one)` is the World
+  # Cup case, and that is production: both live funnels (/l/alpha,
+  # /l/world-cup-week-1) are turf_totals on a fifa slate, one of them carrying an
+  # open money contest. The fixture now states `sport: fifa` rather than leaving
+  # it to be derived from the name "Test Slate".
+  #
+  # These read the RENDERED subtree, not the source: a `data-test` scope keeps the
+  # layout's own nav/footer/meta copy out of the assertion, which a page-wide
+  # assert_select would silently swallow.
 
-  # Copy that would strand the reader in the wrong sport.
-  WRONG_SPORT = /world cup|survivor|goals scored/i
+  WORLD_CUP_WORDING = /world cup/i
+  NFL_WORDING = /\bNFL\b/
 
-  # A hardcoded calendar date rots the day after it passes, and "simulated"
-  # is rehearsal vocabulary that must never reach a real-money funnel.
+  # A hardcoded calendar date rots the day after it passes, and "simulated" is
+  # rehearsal vocabulary that must never reach a real-money funnel.
   REHEARSAL_NOISE = /simulated|\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\b|\bthe \d{1,2}(?:st|nd|rd|th)\b|\b\d{1,2}(?::\d{2})?\s*[ap]m\b|\b[MECP][SD]T\b/i
 
   def funnel_steps_text
@@ -116,47 +126,94 @@ class LandingPagesControllerTest < ActionDispatch::IntegrationTest
     subtree.first.text
   end
 
-  test "NFL contest funnel steps name NFL picks, never World Cup" do
-    assert @active.contest.turf_totals?, "fixture guard: launch funnel must be an NFL contest"
+  # A Turf Totals contest on an NFL slate — the audience production does not have
+  # yet, and the one the NFL-hardcoding fix would have served at the World Cup's
+  # expense. Built here rather than as a fixture on purpose: `slates(:one)` is
+  # deliberately the fifa case, and a second global slate fixture would land in
+  # every `Slate.selector_ordered` assertion in the suite.
+  def nfl_funnel
+    slate = Slate.create!(name: "NFL 2026 Week 1")
+    assert_equal "nfl", slate.sport, "guard: this slate must read as football"
+
+    contest = Contest.create!(name: "NFL Copy Contest", game_type: "turf_totals",
+                              contest_type: "standard", status: "open", slate: slate)
+    LandingPage.create!(name: "NFL Copy Funnel", headline: "Pick Six", contest: contest, active: true)
+  end
+
+  test "a World Cup contest funnel names the World Cup and never the NFL" do
+    assert @active.contest.turf_totals?, "fixture guard: launch funnel is a Turf Totals contest"
+    assert_equal "fifa", @active.contest.slate.sport, "fixture guard: on a World Cup slate"
 
     get landing_page_path(@active)
     assert_response :success
 
     steps = funnel_steps_text
-    assert_match(/NFL/, steps, "the NFL funnel must name the sport it is selling")
-    assert_no_match(WRONG_SPORT, steps, "NFL funnel is showing World Cup copy")
+    assert_match(WORLD_CUP_WORDING, steps, "the World Cup funnel must name the sport it is selling")
+    assert_no_match(NFL_WORDING, steps, "World Cup funnel is showing NFL copy")
+
+    # Byte-for-byte what production serves today on both live funnels. The
+    # derivation must reproduce the live sentence exactly, not merely something
+    # that mentions the World Cup — this is a real-money page with an open
+    # contest on it, and the fix is not allowed to reword it.
+    assert_includes steps, "Choose 6 World Cup team matchups for your entry."
   end
 
-  test "NFL contest funnel steps carry no hardcoded date and no rehearsal wording" do
-    get landing_page_path(@active)
+  test "an NFL contest funnel names the NFL and never the World Cup" do
+    get landing_page_path(nfl_funnel)
     assert_response :success
 
-    assert_no_match(REHEARSAL_NOISE, funnel_steps_text,
-                    "public funnel is showing a hardcoded rehearsal date or simulated-games copy")
+    steps = funnel_steps_text
+    assert_match(NFL_WORDING, steps, "the NFL funnel must name the sport it is selling")
+    assert_no_match(WORLD_CUP_WORDING, steps, "NFL funnel is showing World Cup copy")
+    assert_includes steps, "Choose 6 NFL team matchups for your entry."
   end
 
-  test "draft preview with no contest gets the same NFL copy and no rehearsal date" do
-    assert_nil @inactive.contest, "fixture guard: draft funnel must have no contest wired"
+  test "neither sport's funnel carries a hardcoded date or rehearsal wording" do
+    get landing_page_path(@active)
+    assert_response :success
+    assert_no_match(REHEARSAL_NOISE, funnel_steps_text,
+                    "World Cup funnel is showing a hardcoded date or simulated-games copy")
+
+    get landing_page_path(nfl_funnel)
+    assert_response :success
+    assert_no_match(REHEARSAL_NOISE, funnel_steps_text,
+                    "NFL funnel is showing a hardcoded date or simulated-games copy")
+  end
+
+  test "the funnel rulebook link follows the contest's sport" do
+    # turf-totals-v1 documents the World Cup format and is still badged
+    # "World Cup 2026"; turf-monster-v1 documents the NFL format (routes.rb).
+    get landing_page_path(@active)
+    assert_response :success
+    assert_select "[data-test='funnel-footer'] a[href=?]", turf_totals_v1_path
+    assert_select "[data-test='funnel-footer'] a[href=?]", turf_monster_v1_path, count: 0
+
+    get landing_page_path(nfl_funnel)
+    assert_response :success
+    assert_select "[data-test='funnel-footer'] a[href=?]", turf_monster_v1_path
+    assert_select "[data-test='funnel-footer'] a[href=?]", turf_totals_v1_path, count: 0
+  end
+
+  test "the sportless draft preview names no sport at all" do
+    assert_nil @inactive.contest, "fixture guard: draft funnel has no contest wired"
 
     log_in_as(@admin) # inactive pages are admin-preview only
     get landing_page_path(@inactive)
     assert_response :success
 
     steps = funnel_steps_text
-    assert_match(/NFL/, steps, "the no-contest draft preview must name the sport too")
-    assert_no_match(WRONG_SPORT, steps, "draft preview is showing World Cup copy")
+    # No contest means no slate means no sport to read. The copy must stay true
+    # by naming neither, rather than guessing one and being wrong half the time.
+    # The exact sentence, so the sport slot collapsing to a blank (a dropped
+    # `compact`) reads as the defect it is rather than passing a loose match.
+    assert_includes steps, "Choose 6 team matchups for your entry."
+    assert_no_match(NFL_WORDING, steps, "draft preview invented a sport (NFL)")
+    assert_no_match(WORLD_CUP_WORDING, steps, "draft preview invented a sport (World Cup)")
     assert_no_match(REHEARSAL_NOISE, steps, "draft preview is showing a hardcoded rehearsal date")
-  end
 
-  test "NFL funnel rulebook link points at the sitewide NFL rules page" do
-    get landing_page_path(@active)
-    assert_response :success
-
-    # turf-monster-v1 is the NFL rulebook and the canonical target in the
-    # navbar, footer and transparency hub; turf-totals-v1 is the PREVIOUS
-    # season's page and still badged "World Cup 2026" (routes.rb:81-87).
+    # The sportless fallback is the sitewide canonical Rules target, so the
+    # preview agrees with the navbar and footer rendered around it.
     assert_select "[data-test='funnel-footer'] a[href=?]", turf_monster_v1_path
-    assert_select "[data-test='funnel-footer'] a[href=?]", turf_totals_v1_path, count: 0
   end
 
   test "survivor funnel keeps its own copy and gains no NFL wording" do
@@ -170,6 +227,6 @@ class LandingPagesControllerTest < ActionDispatch::IntegrationTest
 
     steps = funnel_steps_text
     assert_match(/survive/i, steps, "survivor funnel must keep its survivor copy")
-    assert_no_match(/NFL/, steps, "NFL copy leaked into the survivor branch")
+    assert_no_match(NFL_WORDING, steps, "NFL copy leaked into the survivor branch")
   end
 end

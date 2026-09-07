@@ -92,10 +92,11 @@
         <%= link_to "Visit the Help Center", help_path, target: "_blank", rel: "noopener", class: "text-primary hover:text-primary-300 underline underline-offset-2" %>
       <% else %>
         New to Turf Monster?
-        <%# turf-monster-v1 is the NFL rulebook and the canonical Rules target in
-            the navbar, footer and transparency hub. turf-totals-v1 is the prior
-            season's page, still badged "World Cup 2026" (routes.rb). %>
-        <%= link_to "See how it works", turf_monster_v1_path, target: "_blank", rel: "noopener", class: "text-primary hover:text-primary-300 underline underline-offset-2" %>
+        <%# DERIVED, never hardcoded: turf-totals-v1 is the World Cup rulebook and
+            turf-monster-v1 the NFL one (routes.rb - one page per SEASON, not per
+            brand). The sport comes off the contest slate, so each audience opens
+            its own book. See LandingPagesHelper.funnel_rulebook_path. %>
+        <%= link_to "See how it works", funnel_rulebook_path(@contest), target: "_blank", rel: "noopener", class: "text-primary hover:text-primary-300 underline underline-offset-2" %>
       <% end %>
     </p>
   </div>
