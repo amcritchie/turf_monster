@@ -705,6 +705,21 @@
 # only number that describes THIS tree is the one the lister produced after the
 # merge. Re-derived with bin/e2e-lane-derive --write on the MERGED tree. Re-run
 # it, never add.
+#
+# 246 -> DERIVED (level-up-reveals-stale-modal, #597): two specs in
+# e2e/level_up_stacked_modal.spec.js. One pins that a settled free entry leaves
+# nothing under the level-up celebration; the other that a level-up arriving
+# mid-signature never clobbers the prompt still waiting on the user. Both cover
+# ONE CARD PER FLOW in the layout's show(), where three stacked onchain-tx cards
+# used to make dismissing the celebration pop back to a settled transaction's
+# spinner.
+#
+# AND THIS LINE CONFLICTED A FOURTH TIME, which is the point the paragraph above
+# keeps making. This branch declared 248 (246+2); accepted, moved on by #593,
+# declared 247 (246+1). 248+1 = 249 happened to be right THIS TIME and was still
+# not derived — the lister on the merged tree is what wrote it. The arithmetic
+# agreeing once is not evidence it is the method; the three entries above are
+# three times it disagreed.
 # 247 -> 250 (signatures-nav-pending-badge): three specs in
 # e2e/signatures_nav_badge.spec.js for the admin Signatures badge. Its signal is
 # its WEIGHT — gray at zero, bold when something waits — so it can be caught
@@ -720,7 +735,17 @@
 # at the time), never hand-incremented. NOTE: modal-steps-stop-stacking (PR
 # #600) also adds four specs and is still at `submitted` — whichever of the two
 # merges second must re-derive, or the counter silently under-declares.
-total_specs: 250
+#
+# AND A FIFTH TIME — resolved in REVIEW, not by the builder. #602
+# (signatures-nav-pending-badge) merged into accepted while this PR's merge was
+# in flight, moving the line 247 -> 250 and leaving this branch's 249 BELOW the
+# base, which fails e2e_declared_set outright. The branch was NOT bounced for it:
+# the base moved after the review claim, so there was nothing for the builder to
+# answer. Re-derived with bin/e2e-lane-derive --write on the MERGED tree, which
+# is the only thing this file has ever accepted. Note what the arithmetic would
+# have said: 249 + 3 = 252 and 250 + 2 = 252 AGREE here, and agreement still is
+# not derivation — the lister is what wrote the number below.
+total_specs: 252
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
 #
@@ -987,7 +1012,7 @@ allowed_skips: 4
 # TREE, not by arithmetic on any of the three conflicts this line has hit.
 # allowed_skips stays 4: both listers agree, which is what proves none of the new
 # specs brought a runtime skip with it.
-executed: 229
+executed: 231
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
 # this EXACT value — so widening the filter to `@devnet|something` is a test failure, not a

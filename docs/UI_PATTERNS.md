@@ -432,6 +432,26 @@ A modal registered only in (1) works in the app and is silently missing from the
 
 > The old `Alpine.store('solanaModal')` is now a thin compatibility proxy over `$store.modals`. New code should call `$store.modals` directly. `fireSuccessConfetti()` still lives in `solana_utils.js` (the old "in wallet_connect" claim was always wrong).
 
+**One `onchain-tx` card per flow, and `show()` is what keeps it that way.** Every
+write the proxy makes — `success()`, `error()`, and all fifteen field setters —
+resolves through `current()`, so it reaches only the card on TOP. But `show()` is
+how the proxy spells a STEP TRANSITION, not a new dialog: one contest entry calls
+it three times (Preparing Transaction, Sign Transaction, Confirming Onchain),
+contest create six, `lock_contest.js` six. `$store.modals.open()` PUSHES, so each
+of those flows used to leave a tower of `onchain-tx` cards of which only the last
+was ever advanced. The buried ones kept `state: 'processing'` and
+`dismissible: false` for the life of the page, invisible — the host renders only
+`current()` — until something landed on top and was dismissed. That is how
+closing the level-up celebration came to reveal "Approve your free entry in your
+wallet..." for a transaction that had settled seconds earlier
+(`level-up-reveals-stale-modal`). `show()` now reuses the live `onchain-tx` entry
+and pushes only when there is none, so `success()` is always pointed at the only
+card there is. It patches the entry's props in place rather than going through
+`swap()` / `advance()` on purpose: both defer the new props by one animation
+frame, and a `success()` arriving inside that window would be overwritten by
+processing props landing late. Guarded by `e2e/level_up_stacked_modal.spec.js`,
+which asserts the stack itself — the DOM cannot show you a buried card.
+
 ## Auth Modal — 8-step state machine
 
 `/modals/_auth.html.erb` is a single Alpine component that branches on an 8-step state machine. State lives on `$store.modals.current().props.step`, mutated by the board's `selectionBoard` component.
