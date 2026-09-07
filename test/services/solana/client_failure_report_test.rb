@@ -130,6 +130,39 @@ class Solana::ClientFailureReportTest < ActiveSupport::TestCase
     assert_equal "web3_step_up", build(stage: "web3_step_up").stage
   end
 
+  test "the fallback's own stage survives, so its rows are filterable" do
+    # `connect_verify_fallback` is not a render surface — it is the connect +
+    # signMessage fallback INSIDE solanaConnectAndVerify, which reports before it
+    # replaces an unusable wallet's message with our own setup sentence
+    # (/tasks/raw-message-is-ours). Unregistered, every one of those reports lands
+    # as `unknown` and the one class the endpoint exists for becomes the one class
+    # an operator cannot filter for.
+    report = build(stage: "connect_verify_fallback")
+
+    assert_equal "connect_verify_fallback", report.stage
+    assert_includes report.summary, "stage=connect_verify_fallback"
+  end
+
+  test "a differing raw and mapped half both reach the row, and are told apart" do
+    # THE WHOLE POINT OF THE PAIR. Until 2026-09-07 the malfunction class arrived
+    # with these two byte-identical — both of them OUR sentence — so a row proved
+    # only that something failed. Each half is carried under its OWN label, which
+    # is what lets a reader see which one is the wallet's; a summary that printed
+    # one, or ran them together, would read the same on a useful row and a
+    # useless one.
+    report = build(
+      raw: "Unexpected error",
+      mapped: "Finish setting up your wallet in Phantom — create or import one, then try again."
+    )
+
+    refute_equal report.raw_message, report.mapped_message,
+                 "the fixture must differ or this test asserts nothing"
+    assert_includes report.summary, "raw=Unexpected error"
+    assert_includes report.summary, "shown=Finish setting up your wallet in Phantom"
+    assert_operator report.summary.index("shown="), :<, report.summary.index("raw="),
+                    "the sentence the user READ leads; the wallet's own words follow it"
+  end
+
   # ── Hostile input ───────────────────────────────────────────────────────────
 
   test "invalid UTF-8 does not raise" do
