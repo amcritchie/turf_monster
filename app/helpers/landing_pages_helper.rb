@@ -60,8 +60,15 @@ module LandingPagesHelper
         ["Submit Entry", "Confirm your #{required_picks} picks and submit your entry."],
         # True for BOTH sports on the current code: Contest#locks_at is
         # `starts_at || slate.first_game_starts_at || slate.starts_at`, and
-        # Entry#toggle_selection! / #submit! refuse every edit once it passes
-        # (entry.rb:44, :134) — not just picks whose own game has kicked off.
+        # EVERY write path refuses once it passes — Entry#toggle_selection!
+        # (entry.rb:47), #update_picks! (entry.rb:81) and #assert_enterable!
+        # (entry.rb:134) each raise "Contest has locked — entries closed".
+        # Not just picks whose own game has kicked off: the per-game
+        # SlateMatchup#locked? check is a SEPARATE, additional guard, and is NOT
+        # what this sentence rests on — an earlier version of this comment cited
+        # that guard, and a method that does not exist, for a conclusion that
+        # was nonetheless right. turf_totals_lock_rule_test.rb now pins every
+        # entry.rb line cited here to a contest-wide lock guard.
         ["Contest Locks", "The contest locks when the first game kicks off. Picks are final after that."]
       ]
     end

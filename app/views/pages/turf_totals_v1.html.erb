@@ -6,7 +6,10 @@
   <meta property="og:image" content="<%= request.base_url %>/logo.png">
 <% end %>
 
-<div class="max-w-3xl mx-auto py-8 px-2">
+<%# data-test hook: the tests scope their copy assertions to THIS subtree, so a
+    page-wide assert_select cannot pass on navbar/footer text. Mirrors the NFL
+    rulebook's turf-monster-rules hook. %>
+<div class="max-w-3xl mx-auto py-8 px-2" data-test="turf-totals-rules">
 
   <!-- ========== HERO ========== -->
   <section class="text-center mb-16">
@@ -270,18 +273,28 @@
 
   <hr class="border-subtle my-10">
 
-  <!-- ========== 06 — PER-GAME LOCK ========== -->
-  <section class="mb-12 md:mb-16">
+  <%# CORRECTED 2026-09-07. This section used to be headed "Per-Game Lock" and
+      promised each selection locked at its OWN kickoff, with a worked example
+      showing a 9pm pick still swappable at 3:01pm. Entry has never allowed
+      that. The H7 prelaunch audit (2026-05-24) closed it deliberately as the
+      staggered-kickoff information-edge attack — see the guard comment on
+      Entry#assert_enterable!, which refuses EVERY edit once Contest#locks_at
+      passes. The corrected rule stays at section 06, where a player who read
+      the old promise will look for it. Pinned by
+      test/integration/turf_totals_lock_rule_test.rb, which measures the guard
+      against a staggered slate rather than grepping for these sentences. %>
+  <!-- ========== 06 — WHEN PICKS LOCK ========== -->
+  <section class="mb-12 md:mb-16" data-test="lock-rules">
     <p class="text-primary font-mono text-sm mb-2">06</p>
-    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">Per-Game Lock</h2>
+    <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">When Picks Lock</h2>
     <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
-      Each selection locks when its specific game kicks off — not all at once. You can change or swap picks for games that haven't started yet, even after confirming your entry.
+      A contest locks all at once, at its stated start time — the first kickoff on its slate. Until then you can swap any of your six teams as often as you like. After it, every pick is final, including picks whose own match kicks off later in the day; there are no substitutions.
     </p>
 
-    <div class="bg-surface-alt rounded-xl border border-violet/30 p-6">
+    <div class="bg-surface-alt rounded-xl border border-violet/30 p-6" data-test="lock-example">
       <p class="text-heading font-semibold mb-3">Example</p>
       <p class="text-secondary text-sm leading-relaxed">
-        You picked USA (3pm game) and Haiti (9pm game). At 3:01pm, your USA pick is locked — but you can still swap Haiti for another team until 9pm.
+        You picked USA (3pm kickoff) and Haiti (9pm kickoff). The contest locks at 3pm, because that is the first kickoff on the slate. At 3:01pm both picks are final — Haiti&rsquo;s later kickoff does not buy you extra time to change it. Everyone picks blind, from the same board, before a single match starts; nobody gets to watch the 3pm result and then choose their 9pm team.
       </p>
     </div>
   </section>
@@ -333,7 +346,7 @@
         <div class="text-heading text-right">Split evenly</div>
 
         <div class="text-secondary">Lock</div>
-        <div class="text-heading text-right">Per-game kickoff</div>
+        <div class="text-heading text-right" data-test="lock-quick-ref">First kickoff on the slate</div>
       </div>
     </div>
   </section>
