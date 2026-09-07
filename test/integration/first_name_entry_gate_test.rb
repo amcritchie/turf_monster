@@ -123,26 +123,154 @@ class FirstNameEntryGateTest < ActionDispatch::IntegrationTest
 
   # --- 3. the card in required mode -------------------------------------------
 
+  # The two registrations of the `onboarding` id. The card comes from
+  # studio-engine now and resolves `required` at RENDER time, so the required and
+  # skippable states are two different renders rather than one card switching on
+  # a prop — see the registration note in layouts/application.
+  def onboarding_registrations(body)
+    modal_registration_sources(body, "onboarding")
+  end
+
   test "the required card drops the skip affordances and keeps a plain close" do
     log_in_as users(:alex)
     get admin_modal_preview_path(modal_id: "onboarding", props: { required: true }.to_json)
     assert_response :success
 
-    assert_includes response.body, "What should we call you?"
-    # The skip link is x-show'd off rather than deleted — one card, two callers —
-    # so assert the BINDING that hides it, not the absence of the words.
-    assert_includes response.body, 'x-show="!required"'
-    assert_includes response.body, %(@click="required ? $store.modals.close() : skip()")
-    # And the save still clears the store flag the resumed hold will read.
-    assert_includes response.body, "sess.firstNameRequired = false;"
-    assert_includes response.body, "first-name-saved"
+    cards = onboarding_registrations(response.body)
+    assert_equal 2, cards.length,
+                 "both registrations must render — the required one is only reachable through " \
+                 "its own branch, so a missing branch silently serves the skippable card to the " \
+                 "entry gate rather than drawing a blank one"
+
+    required = cards.find { |c| c.include?(%(aria-label="Close")) }
+    assert required, "no registration rendered the required card's plain Close"
+
+    assert_includes required, "What should we call you?"
+
+    # OMITTED, NOT HIDDEN, and the change is the point. turf's deleted card
+    # x-show'd the skip link off, so the old assertion had to read the BINDING
+    # rather than the absence of the words. The engine's card leaves the button
+    # out of the render entirely when required, for a reason worth keeping:
+    # a control hidden with x-show is still in the DOM, and still clickable, for
+    # as long as Alpine has not mounted. So the absence IS now the assertion.
+    assert_not_includes required, "Skip for now",
+                        "the entry-gate card must not render a skip control at all — the hold " \
+                        "cannot proceed without the name, so a Skip link promises a way past a " \
+                        "wall that does not move"
+    # THE SKIP ENDPOINT IS STILL IN THERE, and that is the gem's design rather
+    # than a leak. `skip()` stays defined on the component (with its POST path)
+    # when required; what the required render removes is every CONTROL bound to
+    # it — the button is not emitted, and the x calls close() instead. So the
+    # method is unreachable from the UI, which is the property worth asserting,
+    # and asserting the endpoint's ABSENCE would have pinned an implementation
+    # detail the gem never promised.
+    #
+    # And if it were somehow invoked, it would still be safe: skip() finishes
+    # with saved:false, and the chain driver's branch only resumes an entry on a
+    # save. The two halves cover each other.
+    assert_not_includes required, %(@click="skip()"),
+                        "nothing in the required card may be wired to skip()"
+    assert_includes required, %(@click="$store.modals.close()"),
+                    "closing must stay available — a required step abandons the entry, it never " \
+                    "traps the user in it"
+
+    # The skippable branch is still there and still skippable, which is what
+    # makes the assertions above about the REQUIRED card rather than about the
+    # whole page.
+    skippable = cards.find { |c| c.include?("Skip for now") }
+    assert skippable, "the chain's skippable registration must still render"
+    assert_includes skippable, %(aria-label="Skip")
+  end
+
+  # THE LAYOUT THE ENTRY GATE ACTUALLY USES.
+  #
+  # FOUND BY MUTATION, and it is the disease this codebase already has a name
+  # for. Every other assertion about this card renders through
+  # /admin/modals/preview, which uses layouts/modal_preview — and that layout
+  # keeps its OWN registration list. Breaking the required branch in
+  # layouts/application, the layout a real player is served, changed nothing in
+  # this suite: the mutant survived every test in the file while the entry gate
+  # silently served the SKIPPABLE card, complete with a Skip link that records a
+  # session skip the gate deliberately ignores.
+  #
+  # So this asserts the live layout directly. Not logged in, matching the board
+  # assertions above: the registrations are static markup, identical for every
+  # viewer, and they live in the layout rather than the page.
+  test "the app layout registers BOTH first-name branches, not just the preview" do
+    get contests_path
+    assert_response :success
+
+    cards = onboarding_registrations(response.body)
+    assert_equal 2, cards.length,
+                 "layouts/application must register the first-name card twice — the gem resolves " \
+                 "`required` at RENDER time, so one registration bakes a single mode for both " \
+                 "callers. Found #{cards.length}."
+
+    required  = cards.find { |c| c.include?(%(aria-label="Close")) }
+    skippable = cards.find { |c| c.include?(%(aria-label="Skip")) }
+
+    assert required,
+           "the LIVE layout has no required registration, so the entry gate would open the " \
+           "skippable card and offer a way past a validation the hold re-applies"
+    assert skippable, "the LIVE layout has no skippable registration for the post-auth chain"
+
+    assert_not_includes required, "Skip for now",
+                        "the entry-gate card must not render a skip control in the real app"
+    assert_includes skippable, "Skip for now"
+
+    # And each branch must be keyed on the PROP, since that is what the two
+    # callers differ by — the chain opens with no props, the gate with
+    # { required: true }.
+    assert_includes response.body,
+                    %(id === 'onboarding' && !!($store.modals.current().props || {}).required)
+    assert_includes response.body,
+                    %(id === 'onboarding' && !($store.modals.current().props || {}).required)
+  end
+
+  # --- 4. the resume shim, which did NOT graduate into the gem -----------------
+
+  # turf's deleted card cleared $store.session.firstNameRequired and dispatched
+  # 'first-name-saved' from save() ONLY. The engine's card fires ONE event for
+  # both outcomes and distinguishes them with detail.saved, so the branch moved
+  # into the layout's chain driver.
+  #
+  # THIS TIER IS STRUCTURAL AND SAYS SO. These are assertions about inlined JS
+  # SOURCE TEXT: they prove the branch shipped, not that it behaves. A mutant
+  # that negates the condition — `if (e && e.detail && !e.detail.saved)` —
+  # passes every assertion below while doing precisely the damage the branch
+  # exists to prevent. The behavioural half is
+  # e2e/onboarding_chain.spec.js's "the entry resume fires on a save and not on
+  # a skip", which drives the real listener in a real browser.
+  test "[component] the chain driver re-dispatches the resume only on a save" do
+    get contests_path
+    assert_response :success
+    body = response.body
+
+    assert_includes body, "if (e && e.detail && e.detail.saved) {",
+                    "the re-dispatch must be BRANCHED on the gem's saved flag; unbranched, a " \
+                    "skip resumes an entry whose user still has no name"
+    assert_includes body, "if (sess) sess.firstNameRequired = false;"
+    assert_includes body, "window.dispatchEvent(new CustomEvent('first-name-saved'));"
+
+    # The gem must be the one REPORTING that flag, or the branch reads undefined
+    # on every path and silently never fires. This is the consumer half of the
+    # 0.72.0 floor recorded on the Gemfile pin.
+    assert_operator Gem::Version.new(Studio::VERSION), :>=, Gem::Version.new("0.72.0"),
+                    "the onboarding card's done event only carries detail.saved from 0.72.0; " \
+                    "below it this branch never fires and a gated entry never resumes"
   end
 
   test "the chain's card keeps its skip, because a signup is not an entry" do
     log_in_as users(:alex)
     get admin_modal_preview_path(modal_id: "onboarding", props: {}.to_json)
     assert_response :success
-    assert_includes response.body, "Skip for now"
-    assert_includes response.body, "/onboarding/skip_first_name"
+
+    # SCOPED TO THE BRANCH, because both registrations are in every response
+    # now: an unscoped assert_includes for "Skip for now" would pass on the
+    # required card's presence alone and prove nothing about this one.
+    skippable = onboarding_registrations(response.body).find { |c| c.include?(%(aria-label="Skip")) }
+    assert skippable, "the chain's registration must render a Skip-labelled dismiss"
+    assert_includes skippable, "Skip for now"
+    assert_includes skippable, "/onboarding/skip_first_name"
   end
 end

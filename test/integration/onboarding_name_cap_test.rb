@@ -2,17 +2,25 @@ require "test_helper"
 
 # The onboarding first-name field's length cap, asserted against RENDERED HTML.
 #
-# THE BUG THIS REGRESSES. app/views/modals/_onboarding.html.erb hard-coded
-# maxlength="40". That number is Studio::FIRST_NAME_MAX_LENGTH — the PER-FIELD
-# cap, what one derived half may be — and this field asks for a whole name.
+# THE BUG THIS REGRESSES. turf's own onboarding card (the since-deleted
+# app/views/modals/_onboarding.html.erb) hard-coded maxlength="40". That number
+# is Studio::FIRST_NAME_MAX_LENGTH — the PER-FIELD cap, what one derived half may
+# be — and this field asks for a whole name.
 # "Bartholomew Fitzwilliam Montgomery-Smythe" is 41 characters, so the browser
 # clamped it to a LEGAL 40-character answer whose two halves both fit the
 # per-field cap. The server therefore had nothing to refuse: 200 OK, and the
 # account was handed back its own surname misspelled as "Montgomery-Smyth".
 # Nothing raised, nothing logged, no 422 — the name was gone before the request
-# was made. studio-engine PR #275 fixed the shared partial, but this app renders
-# its OWN onboarding modal (layouts/application.html.erb registers
-# render "modals/onboarding"), so the fix never reached here.
+# was made. studio-engine PR #275 fixed the shared partial, but this app rendered
+# its OWN onboarding modal at the time, so the fix never reached here.
+#
+# THAT FORK IS NOW GONE: turf-adopts-first-name deleted the local card and this
+# app renders the engine's studio/modals/onboarding/first_name, which reads the
+# constant itself. These assertions therefore changed meaning without changing
+# shape — they no longer guard against a re-hardcoded literal in this repo, they
+# guard the ADOPTION: that what this app actually serves still carries the cap,
+# on BOTH registered branches. A gem that regressed the attribute, or a locals
+# change here that overrode max_length, lands in exactly the same place.
 #
 # WHY THESE ASSERTIONS ARE RENDERED, NOT GREPPED. The guards that already exist
 # around this modal read the .erb file as a STRING (see onboarding_gallery_test's
@@ -32,24 +40,39 @@ require "test_helper"
 # property that made onboarding_controller_test drop its own length assertions.
 class OnboardingNameCapTest < ActionDispatch::IntegrationTest
   # The modal as a browser receives it. /admin/modals/preview is the path
-  # onboarding_gallery_test already uses to render this card, and it goes
-  # through modal_preview.html.erb's registration — the same
-  # render "modals/onboarding" the application layout performs.
-  def rendered_first_name_field
+  # onboarding_gallery_test already uses to render this card, and it goes through
+  # modal_preview.html.erb's registration — the same engine partial, with the
+  # same locals helper, that the application layout renders.
+  #
+  # BOTH BRANCHES, not the first one found. The card is registered twice now
+  # (skippable + required; see the note in layouts/application), and they are
+  # separate render calls with separate locals — so a max_length that reached one
+  # and not the other is a real and otherwise invisible outcome. at_css would
+  # have silently measured whichever came first.
+  def rendered_first_name_fields
     log_in_as users(:alex)
     get admin_modal_preview_path(modal_id: "onboarding", props: {}.to_json)
     assert_response :success
 
-    field = Nokogiri::HTML(response.body).at_css("#onboarding-first-name")
-    assert field, "the first-name input did not render at all"
-    field
+    fields = Nokogiri::HTML(response.body).css("#onboarding-first-name")
+    assert_equal 2, fields.length,
+                 "expected the first-name input on BOTH registrations; found #{fields.length}"
+    fields
+  end
+
+  # The one a browser mounts for the CHAIN caller, for the tests that only need
+  # a single representative field.
+  def rendered_first_name_field
+    rendered_first_name_fields.first
   end
 
   # --- [component] the rendered bound -----------------------------------------
 
   test "the rendered first-name field caps at the WHOLE-ANSWER length" do
-    field = rendered_first_name_field
+    rendered_first_name_fields.each { |f| assert_whole_answer_cap(f) }
+  end
 
+  def assert_whole_answer_cap(field)
     # Present at all. Read explicitly rather than folded into the comparison
     # below, because a missing attribute and a wrong one are different bugs and
     # the failure message should say which happened.

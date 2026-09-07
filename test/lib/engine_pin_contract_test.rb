@@ -129,10 +129,12 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #   0.69.5 — Studio::FULL_NAME_MAX_LENGTH, and the FIRST floor in this list
   #          that is a PATCH rather than a minor. turf-modal-caps-forty
   #          (PR 573) made the constant a RENDER-TIME dependency on EVERY
-  #          page: layouts/application renders modals/_onboarding
-  #          unconditionally and the <template x-if> wrapper is CLIENT-side,
-  #          so the ERB evaluates on every request and reads the constant for
-  #          the field's maxlength. Below 0.69.5 that is a NameError on every
+  #          page. It still is, but by a different route since
+  #          turf-adopts-first-name: layouts/application renders the ENGINE's
+  #          studio/modals/onboarding/first_name unconditionally and the
+  #          <template x-if> wrapper is CLIENT-side, so the ERB evaluates on
+  #          every request and that partial reads the constant for the field's
+  #          maxlength. Below 0.69.5 that is a NameError on every
   #          page render — a TOTAL outage, the same class as the 0.64 boot
   #          failure above, not a degraded field.
   #          DATED TWO WAYS, because the number is the whole point here:
@@ -153,7 +155,27 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          requirement's EFFECTIVE lower bound at full precision instead of
   #          the `~>` operand's first two segments — which is what let a floor
   #          five releases too low agree with itself here.
-  MINIMUM = Gem::Version.new("0.69.5")
+  #   0.72.0 — the two first-name-card LOCALS this app passes, and the QUIETEST
+  #          floor in this list by some distance. turf-adopts-first-name deleted
+  #          app/views/modals/_onboarding.html.erb and now renders the engine's
+  #          studio/modals/onboarding/first_name from both host registration
+  #          lists. THE PARTIAL IS NOT THE FLOOR — it exists back to 0.66.2 — so
+  #          unlike the 0.54 and 0.57 floors above, nothing here raises.
+  #          DERIVED FROM THE GEM REPO by reading that partial at each tag:
+  #          v0.70.0 and v0.71.0 carry NEITHER local below, v0.72.0 carries
+  #          both, and `required` alone first appears in 0.70.0.
+  #            placeholder_names — the opt-in typed placeholder. Below 0.72.0
+  #              the local is not read and the field silently falls back to a
+  #              static placeholder.
+  #            detail.saved on the done event — the sharp one.
+  #              layouts/application's onboarding-step-done listener BRANCHES on
+  #              it before clearing $store.session.firstNameRequired and
+  #              re-dispatching first-name-saved, which is how
+  #              contests/_turf_totals_board resumes an entry its first-name
+  #              gate interrupted. Below 0.72.0 the key is undefined on every
+  #              path, so the branch never fires and a held entry never resumes
+  #              — a dead hold-to-confirm with nothing logged anywhere.
+  MINIMUM = Gem::Version.new("0.72.0")
 
   test "the resolved studio-engine is at or above the floor this app depends on" do
     resolved = Gem::Version.new(Studio::VERSION)
@@ -163,7 +185,7 @@ class EnginePinContractTest < ActiveSupport::TestCase
                     "a host-owned layered banner needs >= 0.43; the adopted first-name onboarding " \
                     "endpoints need >= 0.46; the shared /profile page and its section registry need " \
                     ">= 0.52; the shared date-of-birth field rendered by modals/_birthday needs " \
-                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot; and Studio::FULL_NAME_MAX_LENGTH needs >= 0.69.5 — modals/_onboarding reads it for the field maxlength and layouts/application renders that partial on EVERY page, so below it every request raises NameError)"
+                    ">= 0.54; the rail-row and close-x chrome primitives this app RENDERS need >= 0.61, and an UNESCAPED rail-row click handler needs >= 0.62.2; and the shared layer scale this app no longer mirrors locally needs >= 0.63; and the wallet surface needs >= 0.64 — config.wallet_debug_sink is SET in this app's initializer, so below it Studio.configure raises at boot; and Studio::FULL_NAME_MAX_LENGTH needs >= 0.69.5 — the engine's studio/modals/onboarding/first_name reads it for the field maxlength and layouts/application renders that partial on EVERY page, so below it every request raises NameError; and the first-name card's placeholder_names local and its done-event detail.saved key need >= 0.72.0, both of which fail SILENTLY below it — the typed placeholder goes static, and the entry-gate resume never fires)"
   end
 
   # ── THE FLOOR, ASKED OF THE SOURCE INSTEAD OF OF A NUMBER ───────────────
@@ -233,9 +255,13 @@ class EnginePinContractTest < ActiveSupport::TestCase
     # 0.69.5, so its removal is a reason to revisit MINIMUM rather than something
     # to route around. Re-point the control at another live reference then.
     assert_includes references.keys, "FULL_NAME_MAX_LENGTH",
-                    "the scan did not see Studio::FULL_NAME_MAX_LENGTH, which modals/_onboarding " \
-                    "reads for the field maxlength — either the scanner stopped reading, or the " \
-                    "reference that holds the 0.69.5 floor is gone and MINIMUM needs revisiting"
+                    "the scan did not see Studio::FULL_NAME_MAX_LENGTH, which " \
+                    "test/integration/onboarding_name_cap_test.rb asserts the rendered field against " \
+                    "— either the scanner stopped reading, or the reference that holds the 0.69.5 " \
+                    "entry is gone and that entry needs revisiting. It is no longer this app's " \
+                    "TOP floor (see the 0.72.0 entry), but it is still a live reference: the app " \
+                    "stopped NAMING the constant in a view when turf-adopts-first-name deleted " \
+                    "modals/_onboarding, and the engine's partial reads it instead."
 
     # And the resolver half has to DISCRIMINATE, or the verdict is "nothing is
     # ever missing". Fed a name the engine does not define, it must say so. The

@@ -1142,6 +1142,32 @@
         // the note above: this runs inside the dispatching modal's finish(),
         // before its close(), so anything that opens a card here loses it.
         window.addEventListener('onboarding-step-done', function (e) {
+          // THE SAVE/SKIP BRANCH. This is the one behaviour of turf's deleted
+          // local card that did NOT graduate into the gem, and it is deliberate
+          // on both sides. That card cleared $store.session.firstNameRequired
+          // and dispatched 'first-name-saved' from save() ONLY. The engine's
+          // card fires ONE event for both outcomes and distinguishes them with
+          // detail.saved (studio-engine 0.72.0) — it does not resume anything
+          // itself, because a shared primitive cannot know that this app has a
+          // contest entry parked behind the question.
+          //
+          // FIRING THIS AFTER A SKIP IS THE BUG THIS BRANCH EXISTS TO PREVENT.
+          // The board's 'first-name-saved' listener resumes the entry its gate
+          // interrupted, and confirmEntry re-runs eligibilityBlocker against
+          // $store.session.firstNameRequired — the flag cleared just below. So
+          // an unbranched re-dispatch would clear the gate and resume the entry
+          // for a user who had just declined to give a name, waving the entry
+          // past the exact validation that had stopped it.
+          //
+          // ORDER IS UNCHANGED from the deleted card, which mattered enough to
+          // be worth keeping: the gem dispatches this event and THEN closes,
+          // and the board defers its confirmEntry to a microtask, so the close
+          // still lands before the resume can open anything on top of it.
+          if (e && e.detail && e.detail.saved) {
+            var sess = window.Alpine && Alpine.store && Alpine.store('session');
+            if (sess) sess.firstNameRequired = false;
+            window.dispatchEvent(new CustomEvent('first-name-saved'));
+          }
           var next = (e && e.detail && e.detail.next) || [];
           next = next.filter(function (s) { return s !== 'first_name'; });
           if (next.length) setTimeout(function () { openStep(next); }, HANDOFF_MS);
@@ -1359,11 +1385,38 @@
           render right after auth success (session prompt, below) and on demand
           from the entry gate's 'wallet_setup_required' blocker. Registered
           ungated so the entry gate can always reach it. %>
-      <%# Onboarding chain step 1 — the first-name capture, and the whole modal
-          (the welcome step and its step machine were retired 2026-08-15).
-          Registered ungated so the chain driver can always reach it. %>
-      <template x-if="$store.modals.current().id === 'onboarding'">
-        <%= render "modals/onboarding" %>
+      <%# Onboarding chain step 1 — the first-name capture. The CARD is the
+          engine's now (studio/modals/onboarding/first_name); turf's local copy
+          was deleted when this app adopted it. Registered ungated so both
+          callers can always reach it.
+
+          TWO REGISTRATIONS, ONE MODAL ID — forced by the gem, not chosen. The
+          gem resolves `required` at RENDER time: it OMITS the "Skip for now"
+          button rather than hiding it, and resolves the dismiss action and
+          label server-side. That is deliberate on the gem's part — a skip
+          affordance hidden with x-show is still in the DOM, and still
+          clickable, for as long as Alpine has not mounted.
+
+          turf's two callers, though, pick their mode at RUNTIME: the chain
+          driver above opens this id with no props, and the entry gate opens the
+          SAME id with { required: true } (see showFirstNameModal in
+          contests/_turf_totals_board). One registration would therefore bake a
+          single mode for both — and the mode it would bake is the skippable
+          one, putting a Skip link on the entry gate that promises a way past a
+          wall the hold will not move.
+
+          So the caller's prop picks the branch, and the branch picks the
+          render. Both keep the same field id on purpose: template content is
+          inert and never in the document, so only the mounted clone exists and
+          a lookup for that field still resolves to exactly one element.
+
+          Locals come from first_name_modal_locals so this list and
+          layouts/modal_preview's cannot drift apart. %>
+      <template x-if="$store.modals.current().id === 'onboarding' && !($store.modals.current().props || {}).required">
+        <%= render "studio/modals/onboarding/first_name", **first_name_modal_locals %>
+      </template>
+      <template x-if="$store.modals.current().id === 'onboarding' && !!($store.modals.current().props || {}).required">
+        <%= render "studio/modals/onboarding/first_name", **first_name_modal_locals(required: true) %>
       </template>
       <template x-if="$store.modals.current().id === 'wallet-setup'">
         <%= render "modals/wallet_setup" %>
