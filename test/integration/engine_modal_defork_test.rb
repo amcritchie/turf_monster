@@ -75,8 +75,34 @@ class EngineModalDeforkTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "window.fireFreeEntryConfetti || window.fireSuccessConfetti"
     # Turf's reward copy, threaded in as the block's `subtitle` local.
     assert_includes response.body, "Free Entry Token"
-    assert_includes response.body, "It is minting now and should appear shortly"
     assert_includes response.body, "window.refreshLevelUpToken && window.refreshLevelUpToken()"
+
+    # SLICED TO THE CARD, not asserted against the whole page. Both glyphs occur
+    # elsewhere in this document — a bare assert on the sparkle would pass off the
+    # navbar badge and a bare refute on the confetti would fail off the chat feed,
+    # so neither would be reading THIS card (2026-09-07).
+    card = free_entry_card_markup(response.body)
+    assert_includes card, "\u2728", "the level-up card should carry the sparkle"
+    refute_includes card, "\u{1F389}", "the confetti glyph should no longer be the card's icon"
+    refute_includes card, "It is minting now and should appear shortly",
+                    "the minting sentence was removed from the reward copy"
+    assert_includes card, "Keep earning more free entries with each level",
+                    "the rest of the reward copy must survive the deletion"
+    assert_includes card, "&#127915;", "the ticket glyph inside the strong tag stays"
+  end
+
+  # The free-entry card's own markup: from its host registration to the end of
+  # that <template>. Returns "" rather than the whole body when the marker moves,
+  # so a renamed id fails the assertions above instead of silently widening them
+  # back to a page-wide search.
+  def free_entry_card_markup(body)
+    start = body.index("$store.modals.current().id === 'free-entry-earned'")
+    return "" if start.nil?
+
+    stop = body.index("</template>", start)
+    return "" if stop.nil?
+
+    body[start..stop]
   end
 
   test "modal templates render from studio-engine (non-production gallery)" do
