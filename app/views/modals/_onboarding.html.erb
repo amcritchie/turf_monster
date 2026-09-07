@@ -211,8 +211,34 @@
           typing dismisses it, a blur is recorded, and a focus after that blur
           (the user deliberately returning) dismisses it too. A bare focus does
           not, because the x-init below fires one immediately. %>
+      <%# THE WHOLE-ANSWER CAP, not the per-field one, and the two are different
+          questions. This field asks for a name and people type a FULL one, so
+          the string that leaves here is first name PLUS surname, and
+          Studio::FULL_NAME_MAX_LENGTH is the constant that measures a whole
+          typed answer. Studio::FIRST_NAME_MAX_LENGTH measures what ONE derived
+          half may be, and borrowing it here is exactly the bug this line
+          carried as a hard-coded 40: Bartholomew Fitzwilliam
+          Montgomery-Smythe is 41 characters, so the browser clamped it to a
+          LEGAL 40-character answer whose two halves both fit the per-field cap
+          — the server had nothing to refuse, answered 200, and the account was
+          handed back its own surname misspelled as Montgomery-Smyth.
+
+          READ THE CONSTANT, DO NOT COPY ITS VALUE. The engine derives it as
+          first(40) plus a space plus last(40), so a future move of the
+          per-field cap carries this field with it; a literal would silently
+          stop tracking. The same constant is what Studio::OnboardingController
+          bounds the POST with (it refuses past it with a 422 rather than
+          truncating), so the browser bound and the server bound agree by
+          construction rather than by coincidence.
+
+          DIRECT read, matching studio/profiles/_name_fields, rather than the
+          local_assigns.fetch form studio/modals/onboarding/_first_name uses:
+          this modal takes no ERB locals at all — its props arrive through the
+          Alpine store — so an override local would be a contract with no
+          caller.
+      %>
       <input id="onboarding-first-name" type="text" x-model="firstName"
-             maxlength="40" autocomplete="given-name" enterkeyhint="done"
+             maxlength="<%= Studio::FULL_NAME_MAX_LENGTH %>" autocomplete="given-name" enterkeyhint="done"
              :placeholder="placeholderText"
              @input="dismissPlaceholder()"
              @blur="markPlaceholderBlurred()"
