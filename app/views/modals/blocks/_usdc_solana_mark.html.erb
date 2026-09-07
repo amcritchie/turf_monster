@@ -7,10 +7,11 @@
   the same fact for a screen reader.
 
   COMPOSED FROM THE SHIPPED ASSETS, NOT REDRAWN. public/usdc-mark.svg and
-  public/solana-mark.svg are the real brand files, and every site in the app
-  reaches them by img src — so exactly one copy of each path exists. Inlining a
-  hand-copy here would create the second, to keep in step with a brand that is
-  not ours to restyle. They are <img> so the originals stay the single source.
+  public/solana-mark.svg are the real brand files. The USDC path lives only
+  there; the Solana path is ALREADY hand-copied inline in
+  contests/_hero.html.erb, so a copy here would be its THIRD. Either way it is a
+  copy of a brand that is not ours to restyle, and copies drift. They are <img>
+  so the originals stay the single source.
 
   The badge sits in a ring of the CARD's background rather than a fixed colour,
   so the notch it cuts out of the disc reads as a gap in both themes instead of a

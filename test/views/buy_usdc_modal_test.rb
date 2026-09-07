@@ -113,9 +113,9 @@ class BuyUsdcModalTest < ActionView::TestCase
     mark = doc.at_css("[data-usdc-solana-mark]")
 
     assert mark, "the card's image must render"
-    # COMPOSED, NOT REDRAWN. Both point at the shipped brand files, which every
-    # site in the app reaches by img src — exactly one copy of each path exists.
-    # Inlining one here would create the second, of a brand not ours to restyle.
+    # COMPOSED, NOT REDRAWN. Both point at the shipped brand files. The USDC
+    # path lives only in public/; the Solana path is ALREADY hand-copied inline
+    # in contests/_hero.html.erb, so a copy here would be its THIRD.
     assert_equal "/usdc-mark.svg",   mark.at_css("[data-mark='usdc']")&.[]("src")
     assert_equal "/solana-mark.svg", mark.at_css("[data-mark='solana']")&.[]("src")
     assert_equal "img", mark["role"], "it is an image, and it needs a name"
