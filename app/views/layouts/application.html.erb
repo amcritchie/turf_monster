@@ -1594,8 +1594,13 @@
           <%# free-entry-earned now renders studio-engine's shared block (0.20);
               TM supplies only the reward copy. The block reads props.level off
               $store.modals.current().props and fires window.fireFreeEntryConfetti. %>
+          <%# The sparkle is passed, not defaulted: the block ships 🎉 and this card
+              is the quieter half of the celebration — the confetti burst already
+              fires from fireFreeEntryConfetti, so the glyph does not need to shout
+              it a second time (operator, 2026-09-07). %>
           <%= render "studio/modals/blocks/free_entry_earned",
-                subtitle: "Well done! You earned a <strong class='text-heading font-semibold'>Free Entry Token &#127915;</strong>. It is minting now and should appear shortly. Keep earning more free entries with each level.".html_safe %>
+                icon_emoji: "✨",
+                subtitle: "Well done! You earned a <strong class='text-heading font-semibold'>Free Entry Token &#127915;</strong>. Keep earning more free entries with each level.".html_safe %>
         </template>
       <% end %>
       <%# crop-photo gets pushed on top of whatever modal owns the avatar
