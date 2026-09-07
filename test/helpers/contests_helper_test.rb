@@ -201,4 +201,36 @@ class ContestsHelperTest < ActionView::TestCase
     assert_empty chat_prompt_samples(@contest, nil)
     assert_empty chat_prompt_samples(nil, @owner)
   end
+
+  # --- contest_spots_left ---
+  #
+  # Capacity minus the confirmed field, clamped at zero. The subtraction is the
+  # whole method, so every case here differs in BOTH operands from the one
+  # before it — a stubbed constant would satisfy any single case.
+
+  test "spots left is capacity minus the field" do
+    assert_equal 29, @contest.max_entries
+    assert_equal 27, contest_spots_left(@contest, 2)
+    assert_equal 9, contest_spots_left(@contest, 20)
+  end
+
+  test "a full field leaves no spots" do
+    assert_equal 0, contest_spots_left(@contest, 29)
+  end
+
+  # Comped entries can push a field past its cap (Contest#fill!). "-3 spots
+  # left" is not a thing a card may ever say.
+  test "an over-filled field clamps to zero rather than going negative" do
+    assert_equal 0, contest_spots_left(@contest, 32)
+  end
+
+  # A contest with no explicit cap falls back to its FORMAT's, the same pair
+  # Contest#fill! and the on-chain payload use.
+  test "a contest with no explicit cap uses its format's" do
+    @contest.update!(max_entries: nil)
+
+    assert_equal 29, @contest.format_config[:max_entries],
+      "the standard format must carry the cap this test reads through"
+    assert_equal 24, contest_spots_left(@contest, 5)
+  end
 end
