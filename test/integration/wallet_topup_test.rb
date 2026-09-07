@@ -2,8 +2,16 @@ require "test_helper"
 
 # Render-gating coverage for the COINBASE-FORWARD Top Up Wallet modal
 # (modals/_wallet_topup), its ungated registration in the application layout,
-# the entry-blocker re-route in contests/_turf_totals_board, and the Add Funds
-# hub's returnModal back-branching. Companion to onramp_hub_test.rb.
+# the entry blocker's funds-needed dispatch in contests/_turf_totals_board, and
+# the Add Funds hub's returnModal back-branching. Companion to onramp_hub_test.rb.
+#
+# THE ENTRY BLOCKER NO LONGER REACHES THIS MODAL, and nothing in this file may
+# assert that it does. showFundsNeeded routes to Get USDC (modals/_buy_usdc) or,
+# for the USDC kill-switch audience, to Buy an Entry Token, and
+# selectionBoard#showWalletTopup has zero callers. What is still true, and is what
+# these tests pin, is that the modal RENDERS and GATES correctly wherever it is
+# opened from — the hub's Back link still returns to it, and the layout still
+# registers it ungated.
 #
 # Since unified funding (operator 2026-06-13), a web2/managed USDC entry works
 # (server-signed enter_contest) when ENABLE_WEB2_USDC_ENTRY is on, so USDC is the
@@ -152,22 +160,36 @@ class WalletTopupTest < ActionDispatch::IntegrationTest
                     "hub Back must default to the tokens picker"
   end
 
-  # --- entry-blocker re-route (render level; e2e gap noted above) ---
+  # --- entry-blocker funds dispatch (render level; e2e gap noted above) ---
 
-  test "the board entry blocker routes the funds-needed wall through showFundsNeeded (web3 keeps Top Up Wallet)" do
+  test "the board entry blocker routes the funds-needed wall through showFundsNeeded" do
     get contest_path(contests(:one))
     assert_response :success
     body = response.body
-    # REBOUND. This asserted showWalletTopup's SOURCE TEXT was present, which a
-    # dead function satisfies just as well as a live one — and showFundsNeeded
-    # was its only caller, so for one revision this passed over an orphan. Assert
-    # the ROUTE instead: Get USDC carries the onward control that reaches it.
-    assert_includes body, "showWalletTopup()"
-    assert_includes body, "s.open('wallet-topup', { enterAnim: 'shake' })"
-    assert_includes body, "$store.modals.swap('wallet-topup', {})",
-                    "Top Up Wallet must have a live entrance, not just a definition"
-    # The 'no_funding' eligibility-blocker case still routes through the
-    # dispatcher — that part is unchanged.
+    # REBOUND AGAIN, 2026-09-07, and this time by DELETION.
+    #
+    # The previous rebind replaced "showWalletTopup's source text is present"
+    # with "Get USDC carries the onward control that reaches it" — and shipped
+    # the very failure its own comment described. It asserted, against the whole
+    # contest page, `$store.modals.swap('wallet-topup', {})` under the message
+    # "Top Up Wallet must have a live entrance, not just a definition". That
+    # string is rendered by modals/_onramp_hub, which the layout registers
+    # ungated into every contest page, so the assertion never once looked at the
+    # Get USDC card. It also kept `showWalletTopup()` — source text again, and
+    # the function has had no callers since b792cd32.
+    #
+    # It could not have gone green-to-red either way: deleting the entire Get
+    # USDC partial left it passing (measured 2026-09-07). And the route it
+    # demanded is one the operator FORBADE — the CDP/Coinbase onramp has no legal
+    # clearance, and Top Up Wallet leads with it — so a red run here would have
+    # read as an instruction to restore it.
+    #
+    # The card's real contract is pinned where the card can be rendered alone:
+    # test/views/buy_usdc_modal_test.rb, "the card offers Phantom and NOTHING
+    # resembling a payment rail". What stays HERE is the dispatch this test is
+    # named for.
+    #
+    # The 'no_funding' eligibility-blocker case routes through the dispatcher.
     assert_match(/case 'no_funding':\s+this\.showFundsNeeded\(\);/, body,
                  "the no_funding entry wall must route through showFundsNeeded")
     # REBOUND (2026-09-05). This pinned `mode === 'web2'` as the WHOLE dispatcher

@@ -144,14 +144,6 @@ class FakeVault
     defined?(@wallet_balances) ? @wallet_balances : { sol: 0.0, usdc: 0.0, usdt: 0.0 }
   end
 
-  # Recovery flow re-derives the entry PDA server-side before verifying the
-  # signature. The real Vault returns [pubkey_bytes, bump]; tests stub
-  # Solana::Keypair.encode_base58 to identity, so a deterministic value here
-  # is enough to exercise the derive → verify → confirm path.
-  def entry_pda(_contest_slug, _wallet_address, _entry_num)
-    ["epda-derived", 255]
-  end
-
   # --- Token minting (TokenPurchaseJob, dev_mint) ---
 
   # Set to an exception to make every mint raise it. Distinct from `fail_after`,
@@ -372,9 +364,20 @@ class FakeVault
     @cosign_safe_calls ||= []
   end
 
-  # Used by ContestsController#confirm_onchain_entry. Real Vault returns
-  # [pda_bytes, bump] and the controller passes pda_bytes through
-  # Solana::Keypair.encode_base58. For tests, return a tuple whose first
+  # THE ONLY entry_pda, and it must stay that way. This class carried TWO
+  # definitions of it — this one and an earlier `["epda-derived", 255]` at the top
+  # of the file — and Ruby silently kept whichever came last. That is this one, so
+  # the other's comment taught a return value no caller has ever seen, in the
+  # double that stands in for the chain across every entry suite. Proved before it
+  # was deleted (2026-09-07): `source_location` reported this line, an
+  # unconditional `raise` in the dead body left 196 runs / 797 assertions green
+  # across the entry suites, and the same raise HERE failed them loudly.
+  # test/lib/test_double_shadowed_method_test.rb now refuses a second definition.
+  #
+  # Used by ContestsController#confirm_onchain_entry, and by the recovery flow,
+  # which re-derives the entry PDA server-side before verifying the signature.
+  # Real Vault returns [pda_bytes, bump] and the controller passes pda_bytes
+  # through Solana::Keypair.encode_base58. For tests, return a tuple whose first
   # element is already a string and stub Solana::Keypair.encode_base58 to
   # identity when calling confirm_onchain_entry.
   def entry_pda(contest_slug, wallet_address, entry_num)

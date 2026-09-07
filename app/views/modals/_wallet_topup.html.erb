@@ -1,7 +1,14 @@
 <%#
-  Top Up Wallet — the FIRST funds modal a logged-in player sees when they try
-  to enter a contest and lack funds (the board's no_funding entry blocker,
-  selectionBoard#showWalletTopup, plus the chain-layer "no tokens" twin).
+  Top Up Wallet — the Coinbase-forward funds modal.
+
+  IT IS NO LONGER THE ENTRY BLOCKER'S ANSWER, and this header used to say it was.
+  The funds wall now routes to Get USDC (modals/_buy_usdc) via showFundsNeeded,
+  because this modal leads with the CDP onramp and that rail has no legal
+  clearance (operator, 2026-09-06). selectionBoard#showWalletTopup is kept but has
+  no caller; what to do with this modal and the Add Funds hub while the onramp
+  stays uncleared is an operator decision about those surfaces, not a modal fix.
+  It is still reachable from the Add Funds hub's Back link, so what follows still
+  describes what it renders and how it gates.
 
   COINBASE-FORWARD (operator 2026-06-13): now that a web2/managed USDC entry
   works (the server signs the on-chain enter_contest with the user's custodial
