@@ -1504,8 +1504,16 @@
             endpoint via Cdp::BaseController; the inert cdpRampFlow factory
             in shared/_alpine_factories is the only remnant). Opened by the
             /wallet buttons, the wallet-deposit modal's Coinbase option, and
-            the /cdp return pages' deep-link. %>
-        <% if AppFlags.cdp_ramp? %>
+            the /cdp return pages' deep-link.
+
+            cdp_ramp_modal_available? (app/helpers/onramp_helper.rb) is THE
+            statement of this guard, and every surface that opens 'cdp-ramp'
+            asks the same predicate. It also reads logged_in?, redundant here
+            inside the enclosing logged_in? block and load-bearing at the
+            openers: wallet-topup and onramp-hub are registered UNGATED above
+            so they survive an in-session signup, and their Coinbase rails must
+            not outlive this registration. Keep the two answers in one place. %>
+        <% if cdp_ramp_modal_available? %>
           <template x-if="$store.modals.current().id === 'cdp-ramp'">
             <%= render "modals/cdp_ramp" %>
           </template>

@@ -16,8 +16,13 @@
   the flag off, read from $store.session) flips the modal to the entry-token
   rail for exactly that audience. web3 and flag-on web2 always see Coinbase.
 
-  The Coinbase rail is server-gated on onramp_rail_visible?(:coinbase) (the same
-  policy the hub uses: ENABLE_CDP_RAMP in production) so a flagged-off ramp never
+  The Coinbase rail is server-gated on onramp_rail_visible?(:coinbase), which
+  for this rail alone resolves to cdp_ramp_modal_available? — the SAME predicate
+  the host layout uses to register the cdp-ramp modal, in every environment. It
+  reads logged_in? as well as the ENABLE_CDP_RAMP flag, and both halves matter
+  here: this modal is registered UNGATED (it must survive an in-session signup,
+  where the server-rendered logged_in? was still false) while cdp-ramp is not,
+  so on that page the rail used to outlive its destination. Either half missing
   ships a dead button that swaps to an unregistered cdp-ramp modal.
 
   One modal id ('wallet-topup'); no internal step machine. Opened by the board's

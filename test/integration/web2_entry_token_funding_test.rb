@@ -121,7 +121,22 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
     assert_includes body, "$store.modals.current().id === 'wallet-topup'"
     assert_includes body, "$store.modals.swap('wallet-topup', {})",
                     "the Get USDC card must carry the onward control into Top Up Wallet"
-    assert_includes body, "Buy USDC with Coinbase"
+
+    # The Coinbase CTA inside that modal is NOT part of its reachability, and
+    # asserting it on this page pinned the defect: cdp-ramp is registered behind
+    # logged_in? AND ENABLE_CDP_RAMP, neither of which holds for the guest render
+    # above, so the CTA used to render here with no modal to open. Ask for it on
+    # a page that actually registers the modal.
+    refute_includes body, "Buy USDC with Coinbase",
+                    "the CTA must not outlive the cdp-ramp modal on a guest page"
+
+    with_env("ENABLE_CDP_RAMP" => "true") do
+      log_in_as users(:jordan)
+      get contest_path(contests(:one))
+    end
+    assert_response :success
+    assert_includes response.body, "Buy USDC with Coinbase"
+    assert_includes response.body, "$store.modals.current().id === 'cdp-ramp'"
   end
 
   # --- the empty-rails guard, with its FALSE branch actually run --------------
