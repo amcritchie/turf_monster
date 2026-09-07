@@ -672,12 +672,25 @@
 # Rules link moved to /turf-monster-v1, so BOTH versioned rules pages are smoked
 # — the new destination, and the old route that must keep answering old links.
 #
-# THIS NUMBER SURVIVED A THREE-WAY CONFLICT and is the reason arithmetic is
-# banned here. Merging accepted put 234 (this branch, 233+1) against 237 (the
-# conflict hunk, 233+4); 234+4 = 238 was ALSO wrong, because accepted had moved
-# again while the branch sat in review. Only the lister run on the merged tree
-# gives 239. Re-run it, never add.
-total_specs: 239
+# 239 -> DERIVED (narrow-wallet-setup-diagnosis): four specs in
+# e2e/wallet_sign_in.spec.js pin how NARROW the "Finish setting up your wallet
+# ... create or import one" diagnosis has to be
+# (/tasks/narrow-wallet-setup-diagnosis). The catch that composes it wraps the
+# whole connect + signMessage fallback, so it was also answering a signMessage
+# that failed AFTER connect() returned a public key, a user who dismissed the
+# account-selection sheet, and our own nonce endpoint falling over. Only a run
+# can say WHICH guard answered — the assertions compare sentences the page
+# EMITTED against each other rather than against a copy typed into the spec,
+# which is exactly the coupling a source scan cannot hold. Coverage ADDED;
+# `quarantined` is untouched, and none carries a runtime skip.
+#
+# THIS BRANCH HAS NOW CONFLICTED HERE TWICE, AND NO SIDE'S NUMBER EVER SURVIVED.
+# First against report-client-wallet-failures (237 vs 238), now against
+# nfl-turf-monster-rules-page (242 vs 239). 242 counted a base that had already
+# moved; 239 counts a tree without these four specs. No sum of the two is right,
+# which is the arithmetic this file bans. Re-derived with bin/e2e-lane-derive
+# --write on the MERGED tree, and confirmed with both listers.
+total_specs: 243
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -937,7 +950,13 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 218
+#
+# 218 -> DERIVED (narrow-wallet-setup-diagnosis): the four wallet sign-in specs
+# described beside total_specs above. Re-derived with bin/e2e-lane-derive
+# --write ON THE MERGED TREE, not by arithmetic on either side of the two
+# conflicts this branch hit here. allowed_skips stays 4: both listers agree,
+# which is what proves none of the four brought a runtime skip with it.
+executed: 222
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
