@@ -129,15 +129,35 @@ class Contest < ApplicationRecord
     ranked.find_by(status: :open)
   end
 
-  # The contest the app spotlights — the admin-set main contest, else its
-  # open-only fallback, else the newest open/settled (a freshly-graded contest
-  # still serves as a leaderboard landing until a newer one opens). Single source
-  # of truth for the root redirect (ContestsController#world_cup) and the
+  # The contest the app spotlights — the admin-set main contest, else the newest
+  # open contest, else the newest open/settled (a freshly-graded contest still
+  # serves as a leaderboard landing until a newer one opens). Single source of
+  # truth for the root redirect (ContestsController#world_cup) and the
   # magic-link sign-in landing (MagicLinksController).
+  #
+  # THE FALLBACKS SKIP COMING SOON; THE ADMIN PIN DOES NOT. `coming_soon` is a
+  # boolean independent of status, so a coming-soon contest IS `open` and can be
+  # the newest open row — which is how "/" came to land a visitor on a contest
+  # it was advertising rather than one they could enter. The two automatic rungs
+  # filter it out and fall through to the newest contest that is actually
+  # playable. The pin is left alone on purpose: an admin picking a specific
+  # contest at /admin/dashboard is deliberately advertising it, and that choice
+  # outranks this rule.
+  #
+  # THE FILTER BELONGS IN THE QUERY, NOT AFTER IT. Post-filtering the row a rung
+  # returned (`row unless row.coming_soon?`) reads the same and is not: it sends
+  # a coming-soon winner on to the NEXT RUNG instead of the next CONTEST, so a
+  # board whose newest open contest is coming soon would skip every remaining
+  # open contest and land on a settled one.
+  #
+  # Rung 2 no longer routes through SeasonConfig.main_contest. That call is only
+  # ever reached with the explicit pin nil, and a nil pin makes it resolve to
+  # exactly the query written here — so the indirection hid where the filter
+  # belongs without changing which contest came back.
   def self.featured
     SeasonConfig.main_contest_explicit ||
-      SeasonConfig.main_contest ||
-      where(status: [:open, :settled]).order(created_at: :desc).first
+      where(status: :open, coming_soon: false).order(created_at: :desc).first ||
+      where(status: [:open, :settled], coming_soon: false).order(created_at: :desc).first
   end
 
   # ─── Multi-week span ────────────────────────────────────────────────
