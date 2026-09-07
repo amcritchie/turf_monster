@@ -125,16 +125,23 @@ class Solana::ErrorInterpreterClaimsTest < ActiveSupport::TestCase
                     "that answers that blocker on the board"
   end
 
-  test "the service names both real destinations of the funds wall" do
+  test "the service names both real destinations at EVERY no_funding mapping" do
     flat = flatten(SERVICE_PATH.read)
+    # PER-SITE, not file-wide. A whole-file assert_includes is satisfied by ONE
+    # mention anywhere, so a single site could drop both destinations and this
+    # guard would stay green — exactly what the header above promises it does
+    # not do. Same shape as the dispatcher assertion: three no_funding branches,
+    # so each needle owes three appearances.
     {
-      "Get USDC"           => "the destination for everyone but the kill-switch audience",
-      "modals/_buy_usdc"   => "the file behind Get USDC",
-      "Buy an Entry Token" => "the destination for the USDC kill-switch audience",
+      "Get USDC"                => "the destination for everyone but the kill-switch audience",
+      "modals/_buy_usdc"        => "the file behind Get USDC",
+      "Buy an Entry Token"      => "the destination for the USDC kill-switch audience",
       "modals/_buy_entry_token" => "the file behind Buy an Entry Token"
     }.each do |needle, why|
-      assert_includes flat, needle,
-                      "error_interpreter.rb must name #{needle} — #{why}"
+      assert_operator flat.scan(needle).size, :>=, 3,
+                      "every no_funding branch must name #{needle} — #{why}. A file-wide " \
+                      "mention is not enough: each of the three sites owes the reader both " \
+                      "destinations, not just whichever site happens to carry them."
     end
   end
 
