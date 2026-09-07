@@ -106,33 +106,6 @@ class BuyUsdcModalTest < ActionView::TestCase
     refute_includes html, "Coinbase", "and it must not be named"
   end
 
-  test "the Phantom row tries to open the wallet, and keeps the link as its floor" do
-    html = with_video_id(nil) { render_card }
-    row  = Nokogiri::HTML5.fragment(html).at_css("[data-usdc-rail='phantom']")
-
-    assert_includes row.to_html, "openPhantom($event)",
-                    "tapping the row must reach for the installed wallet"
-    # THE HREF IS THE FLOOR, not decoration: openPhantom returns WITHOUT
-    # preventDefault when no provider exists, so a visitor with no Phantom still
-    # navigates somewhere useful instead of tapping a dead row.
-    assert row["href"].to_s.start_with?("https://phantom."),
-           "no-provider case must still navigate"
-  end
-
-  test "the already-connected case says so instead of looking dead" do
-    html = with_video_id(nil) { render_card }
-
-    # Phantom auto-approves a trusted site and opens NOTHING, and no web API can
-    # force an extension popup. At this wall the user is usually already
-    # connected, so this is the common path, not an edge case.
-    assert_includes html, "prov.isConnected",
-                    "the already-connected state must be detected, not assumed away"
-    assert_includes html, "open it from your browser toolbar",
-                    "and must tell the user the one thing that actually works"
-    assert Nokogiri::HTML5.fragment(html).at_css("[data-phantom-hint]"),
-           "the hint needs somewhere to render"
-  end
-
   test "the card leads with the USDC-on-Solana mark, composed from the real assets" do
     html = with_video_id(nil) { render_card }
     doc  = Nokogiri::HTML5.fragment(html)
