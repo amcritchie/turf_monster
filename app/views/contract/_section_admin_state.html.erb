@@ -29,23 +29,40 @@
       <dd class="font-mono text-xs sm:text-sm text-heading break-all">
         <%# Phase 2: read from Solana::Config::PROGRAM_ID at request time.
 
-            THE FALLBACK IS A LOAD FAILURE, NOT A MISSING VAR. Every value in
-            this card comes from Solana::Config, and none of the three env vars
-            behind them can reach a RENDERED page unset. PROGRAM_ID and NETWORK
-            are load-time constants that raise during eager load in production
-            (OPSEC-012; for NETWORK, unset, empty and whitespace-only alike),
-            so a missing value stops boot instead of showing up here; dev and
-            test resolve both to devnet defaults and cannot raise at all; and
-            squads_vault_pda never raises in any environment. The only trigger
-            left for these rescues is Solana::Config itself failing to resolve.
+            THE FALLBACK IS A LOAD FAILURE, NOT A MISSING VAR. Scope: the
+            THREE RESCUED values, which live in TWO of this card's six cells.
+            This cell reads Solana::Config, and so do both halves of the
+            Upgrade authority cell below. The other four cells (Paused,
+            Registered currencies, Operator revenue, Treasury authority) are
+            Phase 2 placeholders bound for the vault-state preload named in the
+            header above, not for Solana::Config, and carry no rescue yet.
 
-            AND THE THIRD IS DEAD OUTRIGHT. The application layout reads
-            Solana::Config.devnet? on the body tag of EVERY render, unrescued
-            (layouts/application.html.erb, the data-solana-cluster attribute),
-            and devnet? reads NETWORK. So any state that makes NETWORK
-            unreadable raises there first and the page 500s before this partial
-            renders. The NETWORK rescue below therefore cannot fire, and its
-            message says so rather than inventing a friendlier error string.
+            None of the three env vars behind the Config reads can reach a
+            RENDERED page unset. PROGRAM_ID and NETWORK are load-time constants
+            that raise during eager load in production (OPSEC-012; for NETWORK,
+            unset, empty and whitespace-only alike), so a missing value stops
+            boot instead of showing up here; dev and test resolve both to
+            devnet defaults and cannot raise at all; and squads_vault_pda never
+            raises in any environment. The only trigger left for these rescues
+            is Solana::Config itself failing to resolve.
+
+            AND THE THIRD IS NEVER SEEN - BUT IT DOES FIRE. The application
+            layout reads Solana::Config.devnet? on the body tag of EVERY render,
+            unrescued (layouts/application.html.erb, the data-solana-cluster
+            attribute), and devnet? reads NETWORK. ActionView renders the
+            template and its partials FIRST and the layout SECOND: in
+            template_renderer.rb the layout is stored as
+            view_flow.set(:layout, yield(layout)) and only then rendered. So the
+            true sequence is that this partial renders, the NETWORK rescue below
+            FIRES, and then the layout raises and the fully-rendered body is
+            DISCARDED. Measured both ways: instrumenting
+            render_partial.action_view during a failing request shows this
+            partial completing with exception nil and the layout carrying the
+            NameError, and rendering this partial standalone with NETWORK
+            removed returns 3,569 bytes with the fallback string in the output.
+
+            So the message below says unreachable, which is true of what a
+            reader can SEE, and it must not claim the partial never ran.
 
             Each message names the state that actually produces it, plus what
             is true of its own value, so a reader is not sent chasing a
@@ -59,10 +76,16 @@
       <dt class="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Upgrade authority</dt>
       <dd class="font-mono text-xs sm:text-sm text-heading break-all">
         <%# Read from Solana::Config at request time. PER CLUSTER, unlike the program ID above:
-            devnet and mainnet are different Squads, so this must never be a literal. %>
-        <%= (Solana::Config.squads_vault_pda rescue "(Solana::Config did not load; SOLANA_SQUADS_VAULT_PDA is correctly unset, the cluster default is the live path)") %>
+            devnet and mainnet are different Squads, so this must never be a literal.
+
+            The message states the unset case as a CONDITION rather than a fact
+            about right now. The variable is absent on both deployed apps today,
+            but config.rb keeps the env override as the runbook escape hatch, so
+            the first legitimate use of that hatch must not make this line print
+            a false sentence. %>
+        <%= (Solana::Config.squads_vault_pda rescue "(Solana::Config did not load; with SOLANA_SQUADS_VAULT_PDA unset, as it is on both deployed apps, the cluster default is the live path)") %>
       </dd>
-      <p class="text-[11px] text-muted mt-1">Squads V4 2-of-3 vault PDA on <%= (Solana::Config::NETWORK rescue "an unresolved cluster (this fallback is unreachable: the layout reads NETWORK first, so an unreadable NETWORK 500s the page before this line renders)") %> &mdash; each cluster has its own Squad. Only the Squad can ship upgrades.</p>
+      <p class="text-[11px] text-muted mt-1">Squads V4 2-of-3 vault PDA on <%= (Solana::Config::NETWORK rescue "an unresolved cluster (this fallback is unreachable: it renders, then the layout reads NETWORK too and raises, so the whole body is discarded unseen)") %> &mdash; each cluster has its own Squad. Only the Squad can ship upgrades.</p>
     </div>
 
     <div class="bg-surface-alt border border-subtle rounded-lg p-4">
