@@ -188,8 +188,8 @@ one call passes "Location Restricted" → `/`.
 ### 2. The blocker switch navigates nowhere
 
 `showEligibilityBlockerModal(blocker)` (same partial) switches on
-`blocker.reason`. It has **six arms plus a default, and ZERO of them are redirect
-modals** — no arm navigates: the six named arms each open a modal and stay on
+`blocker.reason`. It has **seven arms plus a default, and ZERO of them are redirect
+modals** — no arm navigates: the seven named arms each open a modal and stay on
 the page, and the default only resets the hold button:
 
 - `not_logged_in` → `showLoginModal()` — the auth modal, not a redirect to `/signin`
@@ -198,6 +198,7 @@ the page, and the default only resets the hold button:
 - `wallet_setup_required` → `showWalletSetupModal()`
 - `no_funding` → `showFundsNeeded()` — Get USDC (`modals/_buy_usdc`), or Buy an Entry Token (`modals/_buy_entry_token`) for the USDC kill-switch audience (a web2 session with `ENABLE_WEB2_USDC_ENTRY` off). When that audience's two entry-token rails are both dark, `showBuyEntryToken` falls through to `showGetUsdc` rather than open an empty card — so with no rail to show, every audience lands on Get USDC.
 - `insufficient_balance` → `showInsufficientBalanceModal(blocker)` — the web3 deposit/currency picker (`modals/_wallet_deposit`, modal id `wallet-deposit`)
+- `web3_step_up_required` → `showWeb3StepUpModal(blocker)` — the self-custody step-up card (`solana_studio/modals/web3_step_up`, modal id `web3-step-up`; the partial is engine-owned, rendered by the app layout). Added by `self-custody-entry-unguarded`: a web2 session acting on a self-custody account, which has no managed keypair to sign the entry with. It opens the card and calls `resetHoldButtons()` — it does not navigate.
 - `default` → `resetHoldButtons()`
 
 There is no `geo_blocked` arm, and `blocker.reason` never carries that value
@@ -209,8 +210,8 @@ different layer.)
 **The two paths leave the hold button in OPPOSITE states**, so do not read the
 red state as "blocked" in general. `setHoldError()` — the only code that adds
 `.error` ("Entry Blocked") — has exactly one caller, the geo pre-check, so the
-red state belongs to geo alone. The switch path CLEARS it instead: five of the
-six arms and the default call `resetHoldButtons()`, and the `no_funding` arm
+red state belongs to geo alone. The switch path CLEARS it instead: six of the
+seven arms and the default call `resetHoldButtons()`, and the `no_funding` arm
 does not touch the button at all (`showFundsNeeded` only opens a card).
 (`resetHoldButtons` is not the only clearer, whatever its own comment says —
 `setHoldSuccess` and `setHoldLoading` drop `.error` too.)
