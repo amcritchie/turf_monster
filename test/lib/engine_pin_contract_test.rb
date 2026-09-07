@@ -894,27 +894,111 @@ class EnginePinContractTest < ActiveSupport::TestCase
   end
 
   # The lowest-versioned tag whose history contains `rev`, or nil when git
-  # cannot answer. Version-sorted rather than lexical: `v0.9.0` sorts ABOVE
-  # `v0.70.0` alphabetically, which would name the wrong earliest tag on any
-  # project that has passed a two-digit minor.
+  # cannot answer.
   def earliest_tag_containing(repo, rev)
-    out, _err, status = Open3.capture3("git", "-C", repo, "tag", "--contains", rev, "--sort=v:refname")
+    out, _err, status = Open3.capture3("git", "-C", repo, "tag", "--contains", rev)
     return nil unless status.success?
 
-    out.split("\n").map(&:strip).reject(&:empty?).first
+    lowest_version_tag(out.split("\n"))
   end
 
   def highest_tag_below(repo, version)
     out, _err, status = Open3.capture3("git", "-C", repo, "tag", "--list", "v*")
     return nil unless status.success?
 
-    out.split("\n").filter_map { |tag|
-      number = tag.strip.delete_prefix("v")
-      next unless Gem::Version.correct?(number)
+    highest_version_tag(out.split("\n").select { |tag| below?(tag, version) })
+  end
 
-      parsed = Gem::Version.new(number)
-      [ tag.strip, parsed ] if parsed < version
-    }.max_by(&:last)&.first
+  def below?(tag, version)
+    version_tags([ tag ]).any? { |_name, parsed| parsed < version }
+  end
+
+  # THE TWO SELECTIONS, NAMED SO A TEST CAN ASK THEM DIRECTLY. They exist as
+  # their own methods rather than as inline `min_by`/`max_by` for one reason:
+  # the gem's real tags cannot tell a version ordering from a lexical one (see
+  # version_tags), so an ordering asserted only through earliest_tag_containing
+  # is asserted by a computation that would agree either way.
+  def lowest_version_tag(tags)
+    version_tags(tags).min_by(&:last)&.first
+  end
+
+  def highest_version_tag(tags)
+    version_tags(tags).max_by(&:last)&.first
+  end
+
+  # `v`-prefixed tags paired with their parsed version, ORDERABLE. A tag that
+  # does not name a version (`latest`, a branch-shaped tag, a blank line) is
+  # dropped rather than ordered, because there is no answer to where it sits —
+  # and because Gem::Version.new("atest") raises, so ordering it would take this
+  # whole file down rather than answer.
+  #
+  # THE ORDERING IS BY Gem::Version AND NOT BY STRING, and the difference is not
+  # cosmetic: `v0.9.0` sorts ABOVE `v0.70.0` lexically, so a lexical "first"
+  # names the wrong earliest tag the moment a project passes a two-digit minor —
+  # or, later, a three-digit one.
+  #
+  # IT IS ASSERTED AGAINST A SYNTHETIC LIST rather than against the gem's own
+  # tags, and that is the whole point of the test below. Every tag containing
+  # the commit the floor note names has a two-digit minor today (v0.69.5,
+  # v0.70.0, v0.71.0, v0.72.0), and those order identically under both rules —
+  # so deleting the version ordering changes no answer the real-repo test can
+  # see. Measured 2026-09-07: that mutation SURVIVED the real-repo assertions,
+  # which is why the ordering was extracted to here and pinned directly.
+  def version_tags(tags)
+    tags.filter_map { |tag|
+      name = tag.to_s.strip
+      number = name.delete_prefix("v")
+      [ name, Gem::Version.new(number) ] if name.start_with?("v") && Gem::Version.correct?(number)
+    }
+  end
+
+  # ── THE ORDERING, PINNED WHERE THE REAL TAGS CANNOT PIN IT ──────────────
+  #
+  # WHY THIS IS NOT DRIVEN OFF THE GEM'S TAGS. The test above computes the
+  # earliest tag containing the floor note's commit and gets v0.69.5. It gets
+  # v0.69.5 under a VERSION ordering and under a plain LEXICAL one alike,
+  # because every containing tag today has a two-digit minor and "0.69.5" <
+  # "0.70.0" reads the same either way. So deleting the version ordering
+  # altogether changes no answer that test can see, and it survives — measured,
+  # not assumed. A guard whose recompute agrees with the value it checks for the
+  # wrong reason is inert, and that is the exact defect this task family is
+  # about.
+  #
+  # SO THE ORDERING IS ASKED A QUESTION THE TWO RULES ANSWER DIFFERENTLY, off a
+  # synthetic list — which also means it runs in CI, where no gem checkout
+  # exists and the test above skips.
+  test "the tag ordering is by VERSION, where a lexical one would answer differently" do
+    tags = [ "v0.70.0", "v0.9.0", "v0.100.0" ]
+
+    # ── CONTROL: the fixture DISCRIMINATES. If lexical and version order agreed
+    # on this list, everything below would pass under either rule and prove
+    # nothing — which is precisely the trap the gem's real tags fall into. Here
+    # the two rules disagree at BOTH ends, so either selection reading strings
+    # instead of versions is visible.
+    assert_equal "v0.100.0", tags.min, "lexically the LOWEST of these is v0.100.0"
+    assert_equal "v0.9.0", tags.max, "and lexically the HIGHEST is v0.9.0 — the fixture disagrees " \
+                                     "with version order at both ends, which is what makes it a fixture"
+
+    # ASKED OF THE SELECTIONS THEMSELVES — these are the two methods
+    # earliest_tag_containing and highest_tag_below delegate to, so pinning them
+    # here pins the ordering at the only place it is decided.
+    assert_equal "v0.9.0", lowest_version_tag(tags),
+                 "0.9.0 is the lowest VERSION here; a lexical ordering answers v0.100.0, and the " \
+                 "floor note would then be dated to a release that does not contain its commit"
+    assert_equal "v0.100.0", highest_version_tag(tags),
+                 "and 0.100.0 is the highest; a lexical ordering answers v0.9.0"
+    assert_not_equal lowest_version_tag(tags), highest_version_tag(tags),
+                     "the two selections must not be one method wearing two names"
+
+    # NON-VERSION TAGS ARE DROPPED, not ordered.
+    assert_equal [ "v0.9.0" ], version_tags([ "latest", "v0.9.0", "", "main" ]).map(&:first)
+    assert_empty version_tags([ "latest", "main", "" ])
+    assert_nil lowest_version_tag([ "latest", "main" ]), "no version tag means no answer, not a crash"
+    assert_nil highest_version_tag([])
+
+    # AND A TAG WITHOUT THE `v` IS NOT ONE OF OURS. Every studio-engine tag
+    # carries it; accepting a bare `0.9.0` would silently widen what this reads.
+    assert_empty version_tags([ "0.9.0" ])
   end
 
   # ── requirement_floor, ASKED DIRECTLY ───────────────────────────────────
