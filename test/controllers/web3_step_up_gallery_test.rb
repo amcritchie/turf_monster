@@ -85,18 +85,41 @@ class Web3StepUpGalleryTest < ActionDispatch::IntegrationTest
                "the fork is back as a shadow at the gem's virtual path"
   end
 
-  # The layout must render the GEM partial. Asserting on the rendered card
-  # rather than on the layout source, because what matters is which template
-  # actually produced the markup a player sees.
-  test "the layout renders the gem partial, with this app's own words" do
+  # A bare object carrying the helper and this app's routes. The SEAM is the
+  # tier that can see a local being added back; the rendered card cannot,
+  # because the gem's default and an app override land in the same slot and the
+  # markup looks the same either way — which is exactly how the `subtext`
+  # override survived a copy change nobody could see on screen.
+  class LocalsProbe
+    include Rails.application.routes.url_helpers
+    include Web3StepUpHelper
+  end
+
+  # THE CARD'S WORDS ARE THE GEM'S NOW (2026-09-06). This app used to pass its
+  # own four-line `subtext:`, so when solana-studio cut the body to one line the
+  # shared default changed and the card a player actually met did not — it kept
+  # the long copy AND gained the new address line, which is more copy rather
+  # than less. The override is gone.
+  #
+  # Asserted as ONE LOCAL and an ABSENCE, never as the gem's current sentence:
+  # the gem owns those words and will change them again, and pinning them here
+  # rebuilds the fork inside the test suite. This is also why the assertion is
+  # version-agnostic — the release sweep bumps this app's lock without touching
+  # this file, so anything pinned to one release's copy breaks at the bump.
+  test "the step-up seam passes this app's help route and nothing else" do
+    locals = LocalsProbe.new.web3_step_up_locals
+
+    assert_equal [:help_url], locals.keys,
+                 "every other local is a gem default that already matches this app; a second " \
+                 "one here is a second place for the card to drift"
+    assert_equal help_path, locals[:help_url]
+  end
+
+  test "the rendered card carries no forked copy of the gem's body" do
     preview(REMEMBERED)
-    # The shared default names "on-chain actions"; this app names the two things
-    # a player actually loses. If the local passed by the layout ever goes
-    # missing, the copy silently reverts to the gem's — hence this assertion.
-    assert_includes card, "entering contests",
-                    "the app-supplied subtext local is missing — the card fell back to the " \
-                    "gem's generic 'on-chain actions' wording"
-    assert_includes card, "moving funds"
+    assert_not_includes card, "entering contests",
+                        "this app's forked subtext is back — the card's copy belongs to the gem"
+    assert_not_includes card, "moving funds"
   end
 
   # help_url is a String local in the gem but a route helper here. The escape
@@ -168,10 +191,36 @@ class Web3StepUpGalleryTest < ActionDispatch::IntegrationTest
     assert_includes response.body, 'x-text="walletHint"'
   end
 
+  # A REMEMBERED WALLET CAN STILL BE THE WRONG ONE, and the card must let the
+  # user say so — otherwise naming the wallet makes a mismatch visible without
+  # making it actionable, which is worse than not naming it.
+  #
+  # THE ROUTE IS THE INVARIANT; ITS SPELLING IS THE GEM'S AND IT MOVED. Up to
+  # solana-studio 0.6.0 it was a full-width "Use a different wallet" row; the
+  # next release replaces that row with a quiet "Not your wallet?" link beside
+  # the address (operator call). This app renders whichever its LOCK resolves,
+  # and the release sweep bumps that lock without touching this file — so an
+  # assertion pinned to one spelling is red on one side of the bump or the
+  # other. The handler is what does not move, and the gem's own render tier
+  # pins the new link tightly; re-asserting it here would only re-couple the
+  # repos, which is the mistake ResolvedWeb3StepUp's own note warns about.
   test "a remembered wallet still offers a way to use another one" do
     preview(REMEMBERED)
-    assert_includes response.body, "Use a different wallet"
     assert_includes response.body, "openPicker()"
+    assert_match(/Use a different wallet|Not your wallet\?/, card,
+                 "the remembered-wallet card offers no route to the picker at all")
+  end
+
+  # ...and the route lands somewhere this app actually registers. The gem swaps
+  # by ID, so a picker id this layout never registered opens nothing and the
+  # user is left on a card whose correction path silently does nothing.
+  test "the picker the card swaps to is one this app registers" do
+    preview(REMEMBERED)
+    assert_includes response.body, "swap('wallet-connect'"
+    assert_includes response.body, "backTo: 'web3-step-up'",
+                    "or the picker's Back button strands the user instead of returning"
+    assert_includes response.body, "$store.modals.current().id === 'wallet-connect'",
+                    "the preview layout must register the modal the card swaps to"
   end
 
   # --- the no-memory card (every wallet linked before the column existed) ------
