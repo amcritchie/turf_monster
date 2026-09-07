@@ -228,7 +228,9 @@ class AdminController < ApplicationController
     # The teaching card at the same wall, and the one showFundsNeeded now reaches
     # for first. It hands off to wallet-topup for the rails rather than carrying
     # its own, so what it previews is the explainer: the USDC line, the band, and
-    # the guide. The player only appears with BUY_USDC_VIDEO_ID set.
+    # the guide. The band always ships a player — the helper's id falls back to
+    # BuyUsdcHelper::DEFAULT_VIDEO_ID, so BUY_USDC_VIDEO_ID only swaps which
+    # video plays.
     { group: "Funding",
       label: "Get USDC (teaching card — video + guide)", key: "buy-usdc",
       modal_id: "buy-usdc", file: "app/views/modals/_buy_usdc.html.erb",
