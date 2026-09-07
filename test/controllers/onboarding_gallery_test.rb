@@ -154,15 +154,21 @@ class OnboardingGalleryTest < ActionDispatch::IntegrationTest
     # modal that simply has little in it. The gallery happily listed and opened
     # a card the preview layout could not draw.
     #
-    # SCOPED TO THE CHAIN on purpose. The same audit found SEVEN more gallery
-    # modals unregistered in the preview layout (cosign-rejected, quest-success,
-    # free-entry-earned, newsletter-subscribe, newsletter-success,
-    # unsubscribe-confirm, unsubscribe-goodbye) and one — cosign-rejected —
-    # missing from BOTH layouts, i.e. unreachable anywhere. Registering seven
-    # unrelated modals is its own change with its own blast radius (some need
-    # factories or stores the preview layout does not load, the way `username`
-    # does), so it is a follow-up, not a passenger on this one. Widen this test
-    # to the full manifest when that task lands.
+    # SCOPED TO THE CHAIN on purpose, and the follow-up it once named has
+    # landed. The same audit found SEVEN more gallery modals unregistered in
+    # the preview layout (cosign-rejected, quest-success, free-entry-earned,
+    # newsletter-subscribe, newsletter-success, unsubscribe-confirm,
+    # unsubscribe-goodbye). All seven are now resolved, but by two different
+    # routes, neither of them "register them here":
+    #   - cosign-rejected reaches BOTH layouts from ONE entry in
+    #     modals/_host_extras (2026-08-28, defork-turf-modal-host) — see below.
+    #   - the other six were DELETED from the gallery
+    #     (2026-09-06, /tasks/drop-dead-gallery-cards). They only ever drew
+    #     blank cards here, and studio-engine's own /style#modals cards every
+    #     one of them, so the gallery lost no review surface by dropping them.
+    # The whole-manifest version of this property now lives in
+    # test/controllers/modal_gallery_manifest_test.rb. This test stays chain-
+    # scoped because the onboarding chain is what it was written to regress.
     #
     # COSIGN-REJECTED IS OFF THAT LIST as of 2026-08-28
     # (defork-turf-modal-host). It is registered ONCE, in

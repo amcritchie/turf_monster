@@ -352,10 +352,27 @@ Rules worth knowing:
   (operator direction, 2026-08-21): modal primitive work goes to the engine's
   living style guide at `/admin/style#modals`, where a modal is inherited by
   every Studio app instead of being turf's alone. The page still stands because
-  8 modal ids have no card in the engine guide yet (`wallet-setup`,
-  `wallet-changed`, `cdp-ramp`, `buy-entry-token`, `cosign-rejected`,
-  `quest-success`, `unsubscribe-confirm`, `unsubscribe-goodbye`) — port first,
-  delete second, so no state loses its review surface on the way out.
+  5 modal ids have no card in the engine guide yet (`wallet-setup`,
+  `wallet-changed`, `cdp-ramp`, `buy-entry-token`, `cosign-rejected`) — port
+  first, delete second, so no state loses its review surface on the way out.
+  A NAME LEAVES THIS LIST FOR ONE OF TWO REASONS, and they are not the same
+  reason. Either the engine now OWNS the partial and shows its states (a true
+  port, as `web3-step-up` was below), or this page turned out never to be that modal's
+  review surface at all (it drew an EMPTY card). An engine SPECIMEN of a card
+  turf still owns is neither: it does not review turf's partial, so it does not
+  retire a name from this list. Measure against that bar, not against a
+  matching id in the engine guide.
+  2026-09-06 (/tasks/drop-dead-gallery-cards) took three names off by the
+  SECOND route: `quest-success`, `unsubscribe-confirm` and `unsubscribe-goodbye`
+  were registered in `layouts/application` but never in `layouts/modal_preview`,
+  and `admin/modal_preview.html.erb` has no dynamic fallback, so each drew a
+  blank card here. This page was never their showroom, so it is not holding one
+  open for them. The same change dropped the five `Templates` cards (a TRUE
+  port — the engine owns and cards `studio/modals/templates/*` itself) and the
+  three remaining blank Quest / Newsletter cards (`free-entry-earned`,
+  `newsletter-subscribe`, `newsletter-success`).
+  `cosign-rejected` STAYS: it is registered once in `modals/_host_extras`, which
+  studio-engine's host renders on every path, so it genuinely draws here.
   `web3-step-up` came off this list on 2026-08-24: the card had moved out of this
   app, and the engine's style guide shows both of its states — it renders
   solana-studio's real partial there, not a specimen copy — so its cards here were

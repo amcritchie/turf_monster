@@ -20,13 +20,26 @@ class AdminController < ApplicationController
   # work goes to the engine's living style guide at /admin/style#modals from now
   # on; a modal built there is inherited by every Studio app, one built here is
   # turf's alone. This registry is not deleted yet for a measured reason rather
-  # than an unmade decision: 8 of the modal ids below have no card in the engine
+  # than an unmade decision: 5 of the modal ids below have no card in the engine
   # guide (wallet-setup, wallet-changed, cdp-ramp, buy-entry-token,
-  # cosign-rejected, quest-success, unsubscribe-confirm, unsubscribe-goodbye), so
+  # cosign-rejected), so
   # deleting this page today would drop their only review surface instead of
-  # tidying a duplicate. Port first, delete second. web3-step-up came off that
-  # list on 2026-08-24: the engine owns the partial AND shows both of its states,
-  # so its cards here were the duplicate, not the review surface. The page itself carries the
+  # tidying a duplicate. Port first, delete second.
+  #
+  # A NAME LEAVES THIS LIST FOR ONE OF TWO REASONS. Either the engine now OWNS
+  # the partial and shows its states (a true port), or this page was never that
+  # modal's review surface to begin with. An engine SPECIMEN of a card turf
+  # still owns is NEITHER — it does not review turf's partial — so a matching
+  # id in the engine guide is not on its own grounds to strike a name here.
+  # web3-step-up came off on 2026-08-24 by the first route: the engine owns the
+  # partial AND shows both of its states, so its cards here were the duplicate,
+  # not the review surface. quest-success, unsubscribe-confirm and
+  # unsubscribe-goodbye came off on 2026-09-06 by the SECOND
+  # (/tasks/drop-dead-gallery-cards): they were registered in
+  # layouts/application but never in layouts/modal_preview, so each drew an
+  # EMPTY card here and this page was never their showroom.
+  # cosign-rejected STAYS — modals/_host_extras registers it once and the
+  # engine host renders that on every path, so it really does draw here. The page itself carries the
   # same notice at the top, where someone about to build here will actually see
   # it — see app/views/admin/modals.html.erb.
   MODAL_FLOWS = [
@@ -48,45 +61,22 @@ class AdminController < ApplicationController
 
   # Manifest of every modal partial + interesting internal state, used by
   # the /admin/modals gallery (see views/admin/modals.html.erb). Each
-  # variant is rendered in an iframe via #modal_preview. Keep this in
-  # sync with app/views/modals/* and the host registrations in
-  # layouts/application.html.erb.
+  # variant is rendered in an iframe via #modal_preview.
+  #
+  # THE REGISTRATION THAT DECIDES WHETHER A CARD DRAWS IS THE PREVIEW
+  # LAYOUT'S, NOT THE APP LAYOUT'S. app/views/admin/modal_preview.html.erb
+  # has no dynamic fallback — it only calls `modals.open(cfg.id, props)` —
+  # so a variant whose :modal_id is missing from
+  # app/views/layouts/modal_preview.html.erb opens an EMPTY card here, and
+  # empty reads exactly like a modal that simply has little in it. Six cards
+  # sat broken that way until /tasks/drop-dead-gallery-cards removed them.
+  # modal_gallery_manifest_test.rb now fails the build on a repeat, so add
+  # the preview registration in the SAME change as the card.
+  #
+  # Keep this in sync with app/views/modals/* and with BOTH host registration
+  # lists: layouts/application.html.erb (the live app) and
+  # layouts/modal_preview.html.erb (this gallery).
   MODAL_VARIANTS = [
-    # === Templates ===========================================================
-    # Reference implementations new modal work should copy. Each pairs a
-    # visual archetype (form / action / status / wizard) with a complete
-    # working modal under app/views/modals/templates/. Registered in the
-    # modal host gated to !production. The :partial key tells the gallery
-    # to render the variant INLINE (no iframe) — the templates are pure
-    # local x-data with no props dependency, so they drop in anywhere.
-    # Open ↗ still pushes them onto the live host for full interactive
-    # testing (backdrop, escape, click-outside).
-    { group: "Templates",
-      label: "Wizard (Step N of M + nav)", key: "template-wizard",
-      modal_id: "template-wizard", file: "[studio-engine] app/views/studio/modals/templates/_wizard.html.erb",
-      partial: "studio/modals/templates/wizard",
-      props: {} },
-    { group: "Templates",
-      label: "Success (large title — celebration)", key: "template-success",
-      modal_id: "template-success", file: "[studio-engine] app/views/studio/modals/templates/_success.html.erb",
-      partial: "studio/modals/templates/success",
-      props: {} },
-    { group: "Templates",
-      label: "Status (small title — in-flight)", key: "template-status",
-      modal_id: "template-status", file: "[studio-engine] app/views/studio/modals/templates/_status.html.erb",
-      partial: "studio/modals/templates/status",
-      props: {} },
-    { group: "Templates",
-      label: "Action (icon + question + dual CTA)", key: "template-action",
-      modal_id: "template-action", file: "[studio-engine] app/views/studio/modals/templates/_action.html.erb",
-      partial: "studio/modals/templates/action",
-      props: {} },
-    { group: "Templates",
-      label: "Form (title + body + CTA)", key: "template-form",
-      modal_id: "template-form", file: "[studio-engine] app/views/studio/modals/templates/_form.html.erb",
-      partial: "studio/modals/templates/form",
-      props: {} },
-
     # CREDENTIALS-STEP PROPS MIRROR THE LIVE CALL SITES KEY-FOR-KEY.
     # components/_user_nav.html.erb and layouts/_navbar.html.erb both open this
     # modal with { step, mode, submitting, formError, phantomError, googleError },
@@ -367,36 +357,7 @@ class AdminController < ApplicationController
       # imageUrl set → crop view. Avatar cropper ships from studio-engine
       # (studio/modals/_crop_photo, v0.4.12; components/_avatar_cropper v0.4.13).
       modal_id: "crop-photo", file: "studio/modals/_crop_photo.html.erb",
-      props: { imageUrl: "/logo.png" } },
-
-    # === Quest / Newsletter (feat/quest-mailing-list) ====================
-    # The quest-success + newsletter join + unsubscribe modal chain. All gate
-    # on current_user in the host; quest-success reads display_seeds_data
-    # (server) for its bar, so the gallery preview shows the viewing admin's seeds.
-    { group: "Quest / Newsletter",
-      label: "Quest success (+25 + subscribe CTA)", key: "quest-success",
-      modal_id: "quest-success", file: "app/views/modals/_quest_success.html.erb",
-      props: { seeds_earned: 25, seeds_total: 75, seeds_level: 1 } },
-    { group: "Quest / Newsletter",
-      label: "Free entry earned (100 seeds / level up)", key: "free-entry-earned",
-      modal_id: "free-entry-earned", file: "[studio-engine] app/views/studio/modals/blocks/_free_entry_earned.html.erb",
-      props: {} },
-    { group: "Quest / Newsletter",
-      label: "Newsletter subscribe (consent-gated)", key: "newsletter-subscribe",
-      modal_id: "newsletter-subscribe", file: "app/views/modals/_newsletter_subscribe.html.erb",
-      props: {} },
-    { group: "Quest / Newsletter",
-      label: "Newsletter success (+25 — you're in)", key: "newsletter-success",
-      modal_id: "newsletter-success", file: "app/views/modals/_newsletter_success.html.erb",
-      props: {} },
-    { group: "Quest / Newsletter",
-      label: "Unsubscribe — are you sure?", key: "unsubscribe-confirm",
-      modal_id: "unsubscribe-confirm", file: "app/views/modals/_unsubscribe_confirm.html.erb",
-      props: {} },
-    { group: "Quest / Newsletter",
-      label: "Unsubscribe — see you later", key: "unsubscribe-goodbye",
-      modal_id: "unsubscribe-goodbye", file: "app/views/modals/_unsubscribe_goodbye.html.erb",
-      props: {} }
+      props: { imageUrl: "/logo.png" } }
   ].freeze
 
   def navbar
