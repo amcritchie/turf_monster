@@ -17,7 +17,11 @@ require "nokogiri"
 # engine covers is the engine's file. What this app's users get is whichever host
 # RESOLVES here, and two things can still change that answer without touching a
 # line of the engine: a new app view at the same path re-creates the shadow, and
-# the pin (~> 0.64) admits a version whose host predates a fix. Both are silent —
+# the studio-engine pin admits a RANGE, so a resolve inside it can carry a host
+# that predates a fix. (The pin's version is deliberately not named — this line
+# used to say `~> 0.64`, a pin PR #581 deleted, and the argument turns on the
+# range rather than on the number. test/lib/engine_pin_contract_test.rb owns the
+# current floor and asserts it.) Both are silent —
 # the page still renders a modal either way. So the assertions below read the
 # RESOLVED host (ResolvedModalHost, test/support), which is the same file a page
 # actually gets, and they hold whichever repo it came from.

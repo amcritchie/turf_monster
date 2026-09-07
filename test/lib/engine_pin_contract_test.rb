@@ -1,4 +1,5 @@
 require "test_helper"
+require "open3"
 
 # Contract for the studio-engine pin.
 #
@@ -135,16 +136,42 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          the field's maxlength. Below 0.69.5 that is a NameError on every
   #          page render — a TOTAL outage, the same class as the 0.64 boot
   #          failure above, not a degraded field.
-  #          DATED TWO WAYS, because the number is the whole point here:
-  #          grepping every installed studio-engine tree (128 of them,
-  #          118 distinct versions across two Ruby gem homes) for the
-  #          ASSIGNMENT `FULL_NAME_MAX_LENGTH =` under lib/ and app/ finds
-  #          it in exactly 0.69.5 and 0.70.0 and in NONE of the 116
-  #          versions below; and
-  #          in the gem repo the commit that adds it (f2c2d1c, 2026-09-06) is
-  #          contained by exactly the v0.69.5 and v0.70.0 tags, while that
+  #          DATED TWO WAYS, because the number is the whole point here,
+  #          and BOTH ARE STATED AS A MINIMUM RATHER THAN AS A LIST:
+  #          grepping every installed studio-engine tree, across both Ruby
+  #          gem homes, for the ASSIGNMENT `FULL_NAME_MAX_LENGTH =` under
+  #          lib/ and app/ finds the LOWEST version defining it to be
+  #          0.69.5, and NO version below it defines it (the COUNT of those
+  #          versions is deliberately absent: it describes one laptop's
+  #          unpacked gems, not the gem);
+  #          and in the gem repo the EARLIEST tag containing the commit
+  #          that adds it (f2c2d1c, 2026-09-06) is v0.69.5, while that
   #          commit's own version.rb still reads 0.69.4 — so 0.69.4 is the
   #          last release WITHOUT it.
+  #          WHY "EARLIEST" AND "LOWEST" RATHER THAN A LIST — this sentence
+  #          learned it by rotting. It used to read "contained by exactly
+  #          the v0.69.5 and v0.70.0 tags", and that was TRUE WHEN IT WAS
+  #          WRITTEN AND FALSE FIVE MINUTES LATER — the sharper version of
+  #          the lesson, because no care at writing time prevents it.
+  #          e68837c3 wrote the sentence at 00:24:22; v0.71.0's TAG OBJECT
+  #          was created at 00:29:14, 4m52s AFTER. The author was still in
+  #          the line: 4f5c3e76 rewrote it at 00:31:55, 2m41s past false,
+  #          and shipped it; it was still false at the #581 merge
+  #          (01:07:18), and v0.72.0 was tagged 01:09:11. All times
+  #          2026-09-07 -0600. THE CLOCK IS THE TAG OBJECT'S OWN DATE
+  #          (`git for-each-ref --format='%(taggerdate:iso-strict)'
+  #          refs/tags/v0.71.0`), NOT the tagged commit's (00:12:26, `git
+  #          log -1 --format=%cI v0.71.0^{}`), because `git tag --contains`
+  #          answers about tags that EXIST — and reading the second as the
+  #          first is what INVERTED the first telling of this story.
+  #          Measured 2026-09-07, four tags contain f2c2d1c. An enumeration
+  #          of containing tags is a CLOCK, not a fact — every release
+  #          falsifies it — so the note whose whole job is to keep a floor
+  #          from rotting rotted in under five minutes. The EARLIEST one moves
+  #          only if a release DELETES the constant, and that is what the
+  #          derived guard below catches. The citation is now asserted
+  #          rather than trusted: see "the floor note's tag citation names
+  #          the EARLIEST tag containing the commit it names" below.
   #          WHY THE PIN GREW A SECOND REQUIREMENT, and why the guard below
   #          changed shape with it: `~> 0.69` means `>= 0.69, < 1.0`, so it
   #          ADMITS 0.69.0 through 0.69.4 — the exact window that raises. A
@@ -573,9 +600,17 @@ class EnginePinContractTest < ActiveSupport::TestCase
 
     floor = requirement_floor(Gem::Requirement.new(requirements))
 
+    # THE MESSAGE NAMES THE ACTUAL CAUSE SET, which it used not to. An EXACT pin
+    # (`gem "studio-engine", "0.69.5"`) reached here and was told it stated no
+    # lower bound — a constraint that was present, exact, and the tightest one
+    # expressible. requirement_floor reads `=` now, so the only requirements that
+    # can arrive here are ceilings and `>`, and the sentence says so.
     assert floor,
-           "the studio-engine pin states no LOWER bound (#{requirements.inspect}) — a `< x.y` " \
-           "ceiling alone permits every version below it, which is what this file exists to refuse"
+           "the studio-engine pin states no LOWER bound this guard can read " \
+           "(#{requirements.inspect}) — a `< x.y` ceiling alone permits every version below it, " \
+           "which is what this file exists to refuse, and a `> x.y.z` names no least version to " \
+           "compare (see requirement_floor). `~>`, `>=` and an EXACT `= x.y.z` all state a floor " \
+           "and are read as one."
 
     # COMPARED AT FULL PRECISION, and that is the fix rather than the style. This
     # assertion used to read `Gem::Version.new(pin).segments.first(2)` against
@@ -597,16 +632,33 @@ class EnginePinContractTest < ActiveSupport::TestCase
   end
 
   # The lowest version a requirement list actually admits, or nil when it states
-  # no lower bound at all. `~>` and `>=` both pin from below at their own operand,
-  # and the tightest of them wins; `<`, `<=` and `!=` bound from above and say
-  # nothing about the floor. `>` is deliberately absent: `> 0.69.5` admits
-  # everything ABOVE 0.69.5 and not 0.69.5 itself, so it has no least element to
-  # compare, and treating its operand as the floor would be off by an unknowable
-  # amount. It is not used in this Gemfile, and if it ever is, this returns nil
-  # and the assertion above says the pin states no lower bound rather than
-  # quietly guessing one.
+  # no lower bound at all. `~>`, `>=` and `=` all pin from below at their own
+  # operand, and the tightest of them wins; `<`, `<=` and `!=` bound from above
+  # and say nothing about the floor.
+  #
+  # `=` IS HERE BECAUSE ITS ABSENCE MISDESCRIBED THE FAILURE, not because an
+  # exact pin was ever accepted. `gem "studio-engine", "0.69.5"` parses as
+  # `= 0.69.5` — a requirement whose least admitted version is 0.69.5, plainly a
+  # lower bound — and this returned nil for it, so the assertion above reported
+  # "the studio-engine pin states no LOWER bound". That FAILS CLOSED, which is
+  # why it was never urgent: an exact pin went red rather than silently passing.
+  # But the sentence sent the reader hunting for a missing constraint that was
+  # present, exact, and the tightest one expressible. A guard that refuses for
+  # the wrong stated reason costs the next person the time it saves.
+  #
+  # `>` STAYS DELIBERATELY ABSENT, and the difference is real rather than
+  # stylistic: `> 0.69.5` admits everything ABOVE 0.69.5 and not 0.69.5 itself,
+  # so it has no least element at all and treating its operand as the floor
+  # would be off by an unknowable amount. `= 0.69.5` has a least element and it
+  # is exactly the operand. So `>` still returns nil and still reports "no lower
+  # bound" — which for `>` is the honest description.
+  #
+  # A list that pairs `=` with a HIGHER `>=` is unsatisfiable, and `.max` would
+  # report the `>=` operand for it. That is bundler's refusal to make, not this
+  # guard's: the resolver never gets past such a Gemfile, so the suite that
+  # reads it never runs.
   def requirement_floor(requirement)
-    requirement.requirements.filter_map { |op, version| version if ["~>", ">="].include?(op) }.max
+    requirement.requirements.filter_map { |op, version| version if ["~>", ">=", "="].include?(op) }.max
   end
 
   # WHY THE LOCKFILE IS NOT GUARDED HERE, written down because the obvious guard
@@ -688,6 +740,373 @@ class EnginePinContractTest < ActiveSupport::TestCase
                  "breaks below it) and demote the old one to `PRIOR FLOOR NOTE, still true:`."
   end
 
+
+  # ── THE NOTE'S TAG CITATION, ASSERTED INSTEAD OF TRUSTED ────────────────
+  #
+  # THE FAILURE THIS EXISTS FOR IS THIS NOTE'S OWN. The floor note dated
+  # Studio::FULL_NAME_MAX_LENGTH by naming the gem commit that adds it and the
+  # tags containing that commit — and it ENUMERATED them: "contained by exactly
+  # two tags, v0.69.5 and v0.70.0". That sentence was TRUE WHEN IT WAS WRITTEN
+  # AND FALSE FIVE MINUTES LATER. e68837c3 committed it at 00:24:22; v0.71.0's
+  # TAG OBJECT was created at 00:29:14 — 4m52s AFTER. The author had not even
+  # left the line: 4f5c3e76 re-edited it at 00:31:55, 2m41s after it had gone
+  # false, and shipped it; it was still false at the #581 merge (01:07:18), and
+  # v0.72.0 was tagged 01:09:11. All times 2026-09-07 -0600, read off the TAG
+  # OBJECT's own creation date rather than its tagged commit's (00:12:26),
+  # because `git tag --contains` answers about tags that EXIST. The note whose
+  # entire job is to keep a floor from rotting rotted in five minutes, and
+  # nothing was red.
+  #
+  # TRUE-THEN-FALSE IS THE WORSE FAILURE, AND THE WHOLE ARGUMENT FOR COMPUTING
+  # THIS. A claim that is false on arrival is an author's mistake, and one
+  # careful reader catches it. A claim that is true when written and false
+  # before its author stops editing the line cannot be caught by care at all —
+  # the world moved, not the sentence. Only re-deriving it on every run catches
+  # that, which is what this test does.
+  #
+  # THE FIX IS THE SHAPE OF THE CLAIM, NOT THE NUMBERS IN IT. A list of
+  # containing tags is a clock: every release falsifies it, so it is guaranteed
+  # to be wrong and merely a question of when. The EARLIEST containing tag is a
+  # fact about the commit — it moves only if a release DELETES the constant,
+  # which is the one case the derived guard above already catches. So the note
+  # now says "the EARLIEST tag containing … is vX.Y.Z", and this reads that
+  # sentence back and checks it.
+  #
+  # NO VERSION LITERAL APPEARS BELOW, deliberately. The expected value is
+  # MINIMUM, so a floor bump moves the note, the pin and this guard together or
+  # goes red. A guard pinning "v0.69.5" would be the same class of statement
+  # that just rotted — a hand-copied number with nothing keeping it honest.
+  #
+  # IT RUNS IN TWO HALVES, because only one of them can run everywhere:
+  #
+  #   ALWAYS — the note is parsed and the version it cites is compared to
+  #     MINIMUM. Needs nothing but the Gemfile, so CI runs it.
+  #   WHERE THE GEM'S GIT CHECKOUT IS REACHABLE — the earliest containing tag
+  #     is COMPUTED from the commit the note names and compared to MINIMUM.
+  #     CI installs from Gemfile.lock and has no gem repo, so this half skips
+  #     there, narrowly and loudly: the skip fires only when no checkout
+  #     carrying the `v<MINIMUM>` tag can be found. A checkout that HAS that
+  #     tag and does not know the commit is a wrong SHA and fails.
+  TAG_CITATION = /EARLIEST tag containing the commit that adds it \(([0-9a-f]{7,40})[^)]*\) is v(\d+(?:\.\d+)+)/
+
+  test "the floor note's tag citation names the EARLIEST tag containing the commit it names" do
+    comment = studio_engine_pin_comment
+
+    # ── CONTROL: the read actually reached the note. A missing Gemfile, a
+    # renamed gem, or a declaration that lost its comment all produce an empty
+    # string, and an empty string satisfies a "does not contradict MINIMUM"
+    # reading of everything below perfectly.
+    assert_operator comment.length, :>, 2_000,
+                    "the studio-engine floor note read back as #{comment.length} characters — it is " \
+                    "a multi-thousand-character chain of derivations, so a number this small means " \
+                    "the comment was not read and every assertion below is vacuous"
+
+    citation = comment.match(TAG_CITATION)
+
+    assert citation,
+           "the floor note no longer carries a tag citation in the form `the EARLIEST tag " \
+           "containing the commit that adds it (<sha>, …) is v<version>`. That phrasing is not " \
+           "decoration: it is what makes the claim un-rottable, because a LIST of containing tags " \
+           "is falsified by the next release and this note has already been falsified that way " \
+           "once. Restore the sentence, or move this guard with it."
+
+    # ── CONTROL: the parser DISCRIMINATES. A regex that matched a constant, or
+    # one whose captures were transposed, would agree with MINIMUM by luck. Fed
+    # a sentence naming a different commit and a different version, it has to
+    # come back with THOSE.
+    control = "the EARLIEST tag containing the commit that adds it (abc1234, 1999-01-01) is v9.8.7"
+    control_match = TAG_CITATION.match(control)
+    assert control_match, "the citation pattern cannot match its own documented form"
+    assert_equal [ "abc1234", "9.8.7" ], control_match.captures,
+                 "the citation pattern does not read its captures off the sentence it is given, so " \
+                 "the real one below proves nothing about the real note"
+
+    sha, cited = citation.captures
+
+    # THE HALF THAT RUNS EVERYWHERE.
+    assert_equal MINIMUM, Gem::Version.new(cited),
+                 "the floor note cites v#{cited} as the earliest tag containing #{sha}, but this " \
+                 "app's floor is #{MINIMUM}. The pin moved and the derivation naming WHY did not — " \
+                 "re-derive the earliest containing tag for the commit that adds the capability " \
+                 "#{MINIMUM} is the floor for, and write that."
+
+    # THE HALF THAT NEEDS THE GEM'S HISTORY.
+    expected_tag = "v#{MINIMUM}"
+    repo = studio_engine_git_repo(expected_tag)
+
+    unless repo
+      skip "no studio-engine git checkout carrying #{expected_tag} is reachable from here — the " \
+           "tag half of this citation cannot be recomputed (CI installs from Gemfile.lock and has " \
+           "no gem repo). Set STUDIO_ENGINE_REPO to check it locally."
+    end
+
+    assert git_knows_commit?(repo, sha),
+           "#{repo} carries #{expected_tag} but has never heard of #{sha} — the floor note names a " \
+           "commit that does not exist in studio-engine's history, so its whole derivation is " \
+           "unverifiable rather than merely stale"
+
+    # ── CONTROL: the computation VARIES WITH ITS INPUT. A helper that returned
+    # the newest tag, the first line of anything, or a cached string would agree
+    # with the assertion below for the wrong reason. The highest tag strictly
+    # BELOW the floor must date to itself, not to the floor.
+    previous_tag = highest_tag_below(repo, MINIMUM)
+    assert previous_tag,
+           "#{repo} carries no tag below #{MINIMUM}, so the discrimination control below cannot " \
+           "run and the computation is unproven"
+    assert_equal previous_tag, earliest_tag_containing(repo, "#{previous_tag}^{commit}"),
+                 "asked for the earliest tag containing #{previous_tag}'s own commit, the " \
+                 "computation did not answer #{previous_tag} — it is not reading the commit it is " \
+                 "given, so the verdict below means nothing"
+    assert_not_equal expected_tag, earliest_tag_containing(repo, "#{previous_tag}^{commit}"),
+                     "the computation returns #{expected_tag} for a commit released BEFORE it, so " \
+                     "it would return #{expected_tag} for anything"
+
+    assert_equal expected_tag, earliest_tag_containing(repo, sha),
+                 "#{sha} is first contained by #{earliest_tag_containing(repo, sha).inspect}, not " \
+                 "by #{expected_tag}. Either the floor note names the wrong commit, or the " \
+                 "capability it dates arrived in a different release than the pin claims — and the " \
+                 "pin is what a `bundle update` obeys."
+  end
+
+  # The studio-engine declaration's COMMENT, which is where every floor note in
+  # the chain lives. Empty string rather than nil when there is no comment, so a
+  # caller measuring its length gets a number instead of a NoMethodError.
+  def studio_engine_pin_comment
+    gemfile = Rails.root.join("Gemfile").read
+    declaration = gemfile[/^\s*gem\s+["']studio-engine["'].*$/].to_s
+    declaration.split("#", 2)[1].to_s
+  end
+
+  # A studio-engine git checkout that carries `tag`. Absent in CI by design, so
+  # every caller must handle nil rather than assume a repo.
+  #
+  # THE TAG IS THE GATE, not the directory's existence: a shallow or
+  # tag-less clone answers a containment question with silence, which would read
+  # as "no containing tags" and fail for the wrong reason.
+  def studio_engine_git_repo(tag)
+    candidates = []
+    candidates << ENV["STUDIO_ENGINE_REPO"] if ENV["STUDIO_ENGINE_REPO"].present?
+
+    # The consumer-CI lane bundles the engine as a path checkout, which IS a git
+    # repo — worth asking, even though it is usually tag-less.
+    spec = Gem.loaded_specs["studio-engine"]
+    candidates << spec.full_gem_path if spec
+
+    # A sibling checkout: /Users/…/projects/studio-engine from an app root or a
+    # worktree desk two or three levels under it. `studio` is the directory name
+    # studio-engine's own consumer-CI lane checks the gem out as.
+    dir = Rails.root
+    4.times do
+      dir = dir.parent
+      candidates << dir.join("studio-engine").to_s
+      candidates << dir.join("studio").to_s
+    end
+
+    candidates.uniq.find { |path| git_tag_present?(path, tag) }
+  end
+
+  def git_tag_present?(path, tag)
+    return false unless File.directory?(path)
+
+    out, _err, status = Open3.capture3("git", "-C", path, "tag", "--list", tag)
+    status.success? && out.strip.present?
+  end
+
+  def git_knows_commit?(repo, sha)
+    _out, _err, status = Open3.capture3("git", "-C", repo, "cat-file", "-e", "#{sha}^{commit}")
+    status.success?
+  end
+
+  # The lowest-versioned tag whose history contains `rev`, or nil when git
+  # cannot answer.
+  def earliest_tag_containing(repo, rev)
+    out, _err, status = Open3.capture3("git", "-C", repo, "tag", "--contains", rev)
+    return nil unless status.success?
+
+    lowest_version_tag(out.split("\n"))
+  end
+
+  def highest_tag_below(repo, version)
+    out, _err, status = Open3.capture3("git", "-C", repo, "tag", "--list", "v*")
+    return nil unless status.success?
+
+    highest_version_tag(out.split("\n").select { |tag| below?(tag, version) })
+  end
+
+  def below?(tag, version)
+    version_tags([ tag ]).any? { |_name, parsed| parsed < version }
+  end
+
+  # THE TWO SELECTIONS, NAMED SO A TEST CAN ASK THEM DIRECTLY. They exist as
+  # their own methods rather than as inline `min_by`/`max_by` for one reason:
+  # the gem's real tags cannot tell a version ordering from a lexical one (see
+  # version_tags), so an ordering asserted only through earliest_tag_containing
+  # is asserted by a computation that would agree either way.
+  def lowest_version_tag(tags)
+    version_tags(tags).min_by(&:last)&.first
+  end
+
+  def highest_version_tag(tags)
+    version_tags(tags).max_by(&:last)&.first
+  end
+
+  # `v`-prefixed tags paired with their parsed version, ORDERABLE. A tag that
+  # does not name a version (`latest`, a branch-shaped tag, a blank line) is
+  # dropped rather than ordered, because there is no answer to where it sits —
+  # and because Gem::Version.new("atest") raises, so ordering it would take this
+  # whole file down rather than answer.
+  #
+  # THE ORDERING IS BY Gem::Version AND NOT BY STRING, and the difference is not
+  # cosmetic: `v0.9.0` sorts ABOVE `v0.70.0` lexically, so a lexical "first"
+  # names the wrong earliest tag the moment a project passes a two-digit minor —
+  # or, later, a three-digit one.
+  #
+  # IT IS ASSERTED AGAINST A SYNTHETIC LIST rather than against the gem's own
+  # tags, and that is the whole point of the test below. Every tag containing
+  # the commit the floor note names has a two-digit minor today (v0.69.5,
+  # v0.70.0, v0.71.0, v0.72.0), and those order identically under both rules —
+  # so deleting the version ordering changes no answer the real-repo test can
+  # see. Measured 2026-09-07: that mutation SURVIVED the real-repo assertions,
+  # which is why the ordering was extracted to here and pinned directly.
+  def version_tags(tags)
+    tags.filter_map { |tag|
+      name = tag.to_s.strip
+      number = name.delete_prefix("v")
+      [ name, Gem::Version.new(number) ] if name.start_with?("v") && Gem::Version.correct?(number)
+    }
+  end
+
+  # ── THE ORDERING, PINNED WHERE THE REAL TAGS CANNOT PIN IT ──────────────
+  #
+  # WHY THIS IS NOT DRIVEN OFF THE GEM'S TAGS. The test above computes the
+  # earliest tag containing the floor note's commit and gets v0.69.5. It gets
+  # v0.69.5 under a VERSION ordering and under a plain LEXICAL one alike,
+  # because every containing tag today has a two-digit minor and "0.69.5" <
+  # "0.70.0" reads the same either way. So deleting the version ordering
+  # altogether changes no answer that test can see, and it survives — measured,
+  # not assumed. A guard whose recompute agrees with the value it checks for the
+  # wrong reason is inert, and that is the exact defect this task family is
+  # about.
+  #
+  # SO THE ORDERING IS ASKED A QUESTION THE TWO RULES ANSWER DIFFERENTLY, off a
+  # synthetic list — which also means it runs in CI, where no gem checkout
+  # exists and the test above skips.
+  test "the tag ordering is by VERSION, where a lexical one would answer differently" do
+    tags = [ "v0.70.0", "v0.9.0", "v0.100.0" ]
+
+    # ── CONTROL: the fixture DISCRIMINATES. If lexical and version order agreed
+    # on this list, everything below would pass under either rule and prove
+    # nothing — which is precisely the trap the gem's real tags fall into. Here
+    # the two rules disagree at BOTH ends, so either selection reading strings
+    # instead of versions is visible.
+    assert_equal "v0.100.0", tags.min, "lexically the LOWEST of these is v0.100.0"
+    assert_equal "v0.9.0", tags.max, "and lexically the HIGHEST is v0.9.0 — the fixture disagrees " \
+                                     "with version order at both ends, which is what makes it a fixture"
+
+    # ASKED OF THE SELECTIONS THEMSELVES — these are the two methods
+    # earliest_tag_containing and highest_tag_below delegate to, so pinning them
+    # here pins the ordering at the only place it is decided.
+    assert_equal "v0.9.0", lowest_version_tag(tags),
+                 "0.9.0 is the lowest VERSION here; a lexical ordering answers v0.100.0, and the " \
+                 "floor note would then be dated to a release that does not contain its commit"
+    assert_equal "v0.100.0", highest_version_tag(tags),
+                 "and 0.100.0 is the highest; a lexical ordering answers v0.9.0"
+    assert_not_equal lowest_version_tag(tags), highest_version_tag(tags),
+                     "the two selections must not be one method wearing two names"
+
+    # NON-VERSION TAGS ARE DROPPED, not ordered.
+    assert_equal [ "v0.9.0" ], version_tags([ "latest", "v0.9.0", "", "main" ]).map(&:first)
+    assert_empty version_tags([ "latest", "main", "" ])
+
+    # AND "STARTS WITH v" IS NOT ENOUGH ON ITS OWN, which is why the parse is
+    # asked as well. `vnext` clears the prefix rule and `Gem::Version.new("next")`
+    # RAISES — so a repo that ever carries such a tag would take this whole file
+    # down with an ArgumentError instead of answering. Measured: without this
+    # fixture, deleting the Gem::Version.correct? guard survives every other
+    # assertion here, because nothing else in the list starts with a `v`.
+    assert_empty version_tags([ "vnext", "v-old", "vlatest" ])
+    assert_equal [ "v0.9.0" ], version_tags([ "vnext", "v0.9.0" ]).map(&:first)
+    assert_nil lowest_version_tag([ "latest", "main" ]), "no version tag means no answer, not a crash"
+    assert_nil highest_version_tag([])
+
+    # AND A TAG WITHOUT THE `v` IS NOT ONE OF OURS. Every studio-engine tag
+    # carries it; accepting a bare `0.9.0` would silently widen what this reads.
+    assert_empty version_tags([ "0.9.0" ])
+  end
+
+  # ── requirement_floor, ASKED DIRECTLY ───────────────────────────────────
+  #
+  # THE DEFECT: an EXACT pin was read as no pin at all. `gem "studio-engine",
+  # "0.69.5"` parses as `= 0.69.5`, whose least admitted version is plainly
+  # 0.69.5 — and requirement_floor returned nil for it, so the guard above
+  # refused with "the studio-engine pin states no LOWER bound". It FAILED
+  # CLOSED, which is why it was never urgent: the exact pin went red rather than
+  # passing. What it cost was the next reader's afternoon — the message sent
+  # them looking for a missing constraint that was present, exact, and the
+  # tightest one expressible.
+  #
+  # ASKED OF THE FUNCTION, NOT THROUGH THE GEMFILE, on purpose. Driving this
+  # through the real pin would be inert: this app's pin has a `>=` in it, so the
+  # `=` branch would never fire and the test would pass identically with the
+  # defect in place. Fixtures are the only way to reach a branch the real input
+  # does not exercise.
+  #
+  # EVERY OPERATOR IS ASSERTED ON ITS OWN. A single mixed requirement would let
+  # one branch carry the others: `["~> 1.2", ">= 1.2.3", "= 1.2.3"]` yields
+  # 1.2.3 whether or not `=` is read at all. One operator per assertion is what
+  # makes each branch's absence visible.
+  #
+  # THE FIXTURE VERSIONS ARE UNRELATED TO THIS APP'S FLOOR, so nothing here can
+  # pass by coincidentally matching MINIMUM.
+  test "requirement_floor reads a floor from every operator that states one" do
+    assert_equal Gem::Version.new("1.2"), requirement_floor(Gem::Requirement.new("~> 1.2"))
+    assert_equal Gem::Version.new("1.2.3"), requirement_floor(Gem::Requirement.new(">= 1.2.3"))
+    assert_equal Gem::Version.new("1.2.3"), requirement_floor(Gem::Requirement.new("= 1.2.3"))
+
+    # THE SHAPE THE DEFECT WAS ABOUT. A bare version string in a Gemfile is what
+    # anyone writing an exact pin actually types, and Gem::Requirement parses it
+    # as `=` — so this and the assertion above are the same branch reached the
+    # two ways a Gemfile can reach it.
+    assert_equal Gem::Version.new("1.2.3"), requirement_floor(Gem::Requirement.new("1.2.3")),
+                 "a bare `gem \"studio-engine\", \"1.2.3\"` is an EXACT pin — the tightest floor " \
+                 "expressible — and reading it as no floor at all makes the guard above refuse a " \
+                 "correct pin while blaming a missing constraint"
+
+    # THE TIGHTEST LOWER BOUND WINS, which is the shape this app's own pin has.
+    assert_equal Gem::Version.new("1.2.3"),
+                 requirement_floor(Gem::Requirement.new([ "~> 1.2", ">= 1.2.3" ]))
+
+    # AND CEILINGS ARE IGNORED rather than mistaken for floors.
+    assert_equal Gem::Version.new("1.2.3"),
+                 requirement_floor(Gem::Requirement.new([ ">= 1.2.3", "< 2.0" ]))
+  end
+
+  # THE OTHER HALF OF THE SAME FUNCTION, and it has to be asserted separately or
+  # the operator list could simply be "everything" and still pass above.
+  test "requirement_floor reports no floor for requirements that state none" do
+    [ "< 2.0", "<= 2.0", "!= 1.2.3" ].each do |ceiling|
+      assert_nil requirement_floor(Gem::Requirement.new(ceiling)),
+                 "#{ceiling} bounds from above and says nothing about the floor"
+
+      # And the guard's refusal SENTENCE has to be true of them: it tells the
+      # reader a ceiling "permits every version below it". Asserted, because a
+      # message describing the wrong cause is exactly the defect this pair fixes.
+      assert Gem::Requirement.new(ceiling).satisfied_by?(Gem::Version.new("0.0.1")),
+             "#{ceiling} is supposed to admit versions far below its operand — if it does not, " \
+             "the refusal message above describes the wrong failure"
+    end
+
+    # `>` IS EXCLUDED DELIBERATELY AND IS NOT A CEILING. `> 1.2.3` admits
+    # everything above 1.2.3 and not 1.2.3 itself, so it has no least element to
+    # compare and treating its operand as the floor would be off by an
+    # unknowable amount. It returns nil for a DIFFERENT reason than the three
+    # above, which is why it is asserted apart from them and why the refusal
+    # message names it.
+    assert_nil requirement_floor(Gem::Requirement.new("> 1.2.3"))
+    assert_not Gem::Requirement.new("> 1.2.3").satisfied_by?(Gem::Version.new("0.0.1")),
+               "`>` does bound from below — it just has no least element — so it must not be " \
+               "described to the reader as a ceiling"
+  end
   # THE TEST THAT CATCHES A GEM BUMP OUTRUNNING AN ADOPTION.
   #
   # `studio_engine:install:migrations` COPIES the gem's migrations into this

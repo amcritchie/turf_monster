@@ -401,10 +401,10 @@ window.selectionBoard = function() {
           if (step && step.contestSlug === this.contestId) {
             if (step.step === 'tokens') {
               // Post-signup pack-picker resume — deliberately STAYS the Get
-              // Entry Tokens picker (not the Top Up Wallet modal). This restores
-              // the buy-tokens step the user was on through the signup reload,
-              // not the in-entry funds wall (that's the 'no_funding' blocker +
-              // its chain-layer twin, both rerouted to showWalletTopup).
+              // Entry Tokens picker. This restores the buy-tokens step the user
+              // was on through the signup reload, not the in-entry funds wall
+              // (that's the 'no_funding' blocker + its chain-layer twin, both
+              // rerouted to showFundsNeeded).
               //
               // The onboarding chain may be walking (first name -> age ->
               // wallet), and this picker can land on top of it — a
@@ -807,10 +807,11 @@ window.selectionBoard = function() {
         // The dismissible setup modal comes BACK here — this is the "re-opens
         // when it matters" half of letting the user close it after auth.
         case 'wallet_setup_required': this.showWalletSetupModal(); break;
-        // Funds-needed entry wall. showFundsNeeded sends BOTH audiences to the
-        // Get USDC card (Coinbase rail + Phantom row); only the USDC kill-switch
-        // audience, who cannot pay with USDC at all, still goes to the entry-token
-        // modal. Every funds-needed reroute funnels through the dispatcher.
+        // Funds-needed entry wall. showFundsNeeded sends both audiences to the
+        // Get USDC card, whose single route is a Phantom row; only the USDC
+        // kill-switch audience, who cannot pay with USDC at all, still goes to the
+        // entry-token modal. Every funds-needed reroute funnels through the
+        // dispatcher.
         case 'no_funding':           this.showFundsNeeded(); break;
         case 'insufficient_balance': this.showInsufficientBalanceModal(blocker); break;
         default:                     this.resetHoldButtons();
@@ -1119,12 +1120,20 @@ window.selectionBoard = function() {
       }
     },
 
-    // Open (or swap into) the Coinbase-forward Top Up Wallet modal — the FIRST
-    // funds modal a logged-in player sees at the entry blocker when they lack
-    // funds (replaces the pack picker at that trigger; showTokensPanel above is
-    // still the picker, reached via the hub's Stripe card + the post-signup
-    // resume). wallet-topup is its OWN modal id, so unlike showTokensPanel
-    // (which advance()s WITHIN the auth wizard) the choice is open-vs-swap:
+    // Open (or swap into) the Top Up Wallet modal.
+    //
+    // NO CALLER, and that is deliberate rather than an oversight. It used to be
+    // the first funds modal at the entry blocker; the wall now answers with the
+    // Get USDC card (showFundsNeeded -> showGetUsdc), because Top Up Wallet leads
+    // with the CDP onramp and that rail has no legal clearance (operator,
+    // 2026-09-06). What to do with Top Up Wallet and the Add Funds hub while it
+    // stays uncleared is an operator decision about those surfaces, so this is
+    // kept rather than deleted — see the closing comment in modals/_buy_usdc.
+    //
+    // showTokensPanel above is still the pack picker, reached via the hub's
+    // Stripe card + the post-signup resume. wallet-topup is its OWN modal id, so
+    // unlike showTokensPanel (which advance()s WITHIN the auth wizard) the choice
+    // is open-vs-swap:
     //   - any modal currently open (e.g. the auth wizard) → swap() runs the
     //     host's cross-modal directional slide.
     //   - cold board (no modal open) → open() plays the fresh mount.
@@ -1541,11 +1550,14 @@ window.selectionBoard = function() {
       // has no USDC ATA yet, so $store.session.usdcCents reads null (unknown,
       // not 0) and the sync blocker fails OPEN — which previously let a $0 user
       // submit a doomed on-chain entry (cryptic "custom program error: 0x1").
-      // Only a DEFINITIVE { fundable:false } aborts into the Top Up Wallet.
+      // Only a DEFINITIVE { fundable:false } aborts into the funds-needed
+      // dispatcher below (showFundsNeeded) — Get USDC, or Buy an Entry Token for
+      // the USDC kill-switch audience. NOT Top Up Wallet: that modal has had no
+      // opener since showWalletTopup lost its last caller.
       //
       // Fail-OPEN by design — proceed (and rely on the server safety-net
       // resolve_web2_entry_funding!, which pre-checks USDC and returns
-      // no_funding → Top Up Wallet) when the check is: absent (non-hold auto-
+      // no_funding → that same dispatcher) when the check is: absent (non-hold auto-
       // enter, or web3 — beginFundingCheck no-ops there), null (401/flake/non-
       // OK), still unresolved at hold-end, or stale from an earlier flow (the
       // 8s freshness belt covers the release → buy-tokens → in-modal-hold case,

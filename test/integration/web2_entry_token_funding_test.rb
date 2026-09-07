@@ -1,17 +1,23 @@
 require "test_helper"
 
-# Web2 entry-token funding — a web2 / managed player who lacks funds at the entry
-# blocker now buys an ENTRY TOKEN (the Buy an Entry Token modal: Coinflow buy-1 on
-# top, the Stripe pack picker below) instead of the USDC Top Up Wallet. Web3 wallet
-# players are UNCHANGED (still the Coinbase-forward USDC Top Up Wallet).
+# Web2 entry-token funding — the ONE audience the funds wall still sends to an
+# ENTRY TOKEN (the Buy an Entry Token modal: Coinflow buy-1 on top, the Stripe pack
+# picker below) rather than to the Get USDC card.
 #
-# The audience split is a single client dispatcher, selectionBoard#showFundsNeeded,
-# that every funds-needed reroute (the no_funding blocker, the hold-window check,
-# the chain-layer "no entry token" twin) funnels through. These assert the wiring
-# at the render boundary — the modal registration, both rails, the dispatcher, and
-# that web3's showWalletTopup path is intact. The live Alpine handoff is a tracked
-# Playwright e2e gap (same precedent as wallet_topup_test + the on-chain success
-# modal). Companion to wallet_topup_test.rb.
+# THAT AUDIENCE IS NOT "web2", and an earlier version of this header said it was.
+# showFundsNeeded stopped forking on session.mode on 2026-09-05: the answer at the
+# funds wall is Get USDC for everyone EXCEPT the USDC kill-switch audience (a web2
+# viewer with ENABLE_WEB2_USDC_ENTRY off), who literally cannot pay an entry with
+# USDC. Top Up Wallet is not on either branch — see the note above the dispatcher
+# tests below.
+#
+# The split is a single client dispatcher, selectionBoard#showFundsNeeded, that
+# every funds-needed reroute (the no_funding blocker, the hold-window check, the
+# chain-layer "no entry token" twin) funnels through. These assert the wiring at
+# the render boundary — the modal registration, both rails, and the dispatcher. The
+# live Alpine handoff is a tracked Playwright e2e gap (same precedent as
+# wallet_topup_test + the on-chain success modal). Companion to
+# wallet_topup_test.rb.
 class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
   # --- modal registration (ungated, like wallet-topup / onramp-hub) ---
 
@@ -68,7 +74,8 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
            "the Coinflow rail must render above the Stripe rail (Coinflow first)"
   end
 
-  # --- the audience dispatcher: web2 -> buy-entry-token, web3 -> wallet-topup ---
+  # --- the funds dispatcher: kill-switch audience -> buy-entry-token, everyone
+  #     else -> buy-usdc. Nothing routes to wallet-topup any more. ---
 
   test "showFundsNeeded sends the funds wall to Get USDC, keeping only the kill-switch audience on tokens" do
     get contest_path(contests(:one))
@@ -101,28 +108,69 @@ class Web2EntryTokenFundingTest < ActionDispatch::IntegrationTest
                  "the no_funding entry wall must route through showFundsNeeded")
     # Exactly the three funds-needed reroutes call the dispatcher (the no_funding
     # blocker, the hold-window fundable:false abort, and the chain-layer twin).
-    # showFundsNeeded's own body calls showBuyEntryToken / showWalletTopup, not
+    # showFundsNeeded's own body calls showBuyEntryToken / showGetUsdc, not
     # itself, so it never inflates the count.
     assert_equal 3, body.scan("this.showFundsNeeded();").size,
                  "all three funds-needed reroutes must funnel through showFundsNeeded"
   end
 
-  # --- web3 unchanged: showWalletTopup + the USDC Top Up Wallet are intact ---
-
-  test "Top Up Wallet is still REACHABLE, not merely still defined" do
-    get contest_path(contests(:one))
-    assert_response :success
-    body = response.body
-    # REBOUND. "unchanged" was proved by the presence of the function's source
-    # text, which stays true after its last caller disappears — and that is
-    # exactly what happened for one revision. The property worth defending is
-    # that a player can still GET there.
-    assert_includes body, "showWalletTopup() {"
-    assert_includes body, "$store.modals.current().id === 'wallet-topup'"
-    assert_includes body, "$store.modals.swap('wallet-topup', {})",
-                    "the Get USDC card must carry the onward control into Top Up Wallet"
-    assert_includes body, "Buy USDC with Coinbase"
-  end
+  # --- WHY NOTHING HERE ASSERTS A ROUTE INTO TOP UP WALLET ---------------------
+  #
+  # A test named "Top Up Wallet is still REACHABLE, not merely still defined" used
+  # to sit here, and it was WORSE than no test. It asserted, against the whole
+  # contest page:
+  #
+  #     $store.modals.swap('wallet-topup', {})   # "the Get USDC card must carry
+  #                                              #  the onward control into Top Up
+  #                                              #  Wallet"
+  #     "Buy USDC with Coinbase"
+  #
+  # NEITHER STRING COMES FROM THE GET USDC CARD. The swap() literal is rendered by
+  # modals/_onramp_hub (its Back link) and the Coinbase title by
+  # modals/_wallet_topup, and the layout registers BOTH ungated into every contest
+  # page — so these held whatever the card did.
+  #
+  # (Since /tasks/kill-switch-leaves-dead-buttons the Coinbase title is no longer
+  # among them on THIS page: _wallet_topup gates that rail on
+  # cdp_ramp_modal_available?, which reads logged_in? as well as ENABLE_CDP_RAMP,
+  # and the render above is a guest. The layout still registers the modal ungated
+  # — only its Coinbase rail moved behind the guard. That strengthens the case for
+  # deleting this test rather than weakening it: the string was never the card's
+  # to begin with, and now it is not even reliably on the page.) It also asserted
+  # `showWalletTopup() {` and the layout's own `current().id === 'wallet-topup'`,
+  # which are the board script and the layout answering for a third file again.
+  #
+  # Measured three ways, 2026-09-07:
+  #
+  #   · commit 6e4d73cd ADDED that control to the card (as its :198 "More ways to
+  #     add funds" button) and b792cd32 REMOVED it. Every assertion in this test
+  #     was byte-identical and green across both.
+  #   · replacing modals/_buy_usdc.html.erb with an empty <div> — the entire card
+  #     deleted — left this file and wallet_topup_test.rb at 26 runs, 170
+  #     assertions, 0 failures.
+  #   · re-adding the control failed test/views/buy_usdc_modal_test.rb at its
+  #     wallet-topup refutation, and moved nothing here.
+  #
+  # AND THE FAILURE MESSAGE POINTED THE WRONG WAY, which is the part that made it
+  # urgent rather than merely useless. The CDP/Coinbase onramp has NO LEGAL
+  # CLEARANCE (operator, 2026-09-06), so the card deliberately carries no route to
+  # it — direct or one hop away through Top Up Wallet. Had this ever gone red it
+  # would have instructed the next builder to restore exactly that route.
+  #
+  # WHERE THE COVERAGE ACTUALLY LIVES, and it is the opposite assertion:
+  #   · test/views/buy_usdc_modal_test.rb, "the card offers Phantom and NOTHING
+  #     resembling a payment rail" — renders the PARTIAL alone (so the layout's
+  #     other modals cannot answer for it) and refutes cdp-ramp, wallet-topup,
+  #     onramp-hub and "Coinbase". That guard is what fails if the link returns.
+  #   · the dispatcher tests above pin the route that IS live: showFundsNeeded ->
+  #     showGetUsdc.
+  #   · wallet_topup_test.rb pins that the wallet-topup modal is still registered.
+  #
+  # showWalletTopup itself now has ZERO callers. That orphan is a known, escalated
+  # loose end (see the closing comment in modals/_buy_usdc.html.erb): what to do
+  # with Top Up Wallet and the Add Funds hub while the onramp is uncleared is an
+  # operator decision about those surfaces, not something a test may quietly
+  # decide by demanding a link back.
 
   # --- the empty-rails guard, with its FALSE branch actually run --------------
   #
