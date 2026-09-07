@@ -132,6 +132,74 @@ class ContestsFinalizeWriteOrderingTest < ActionDispatch::IntegrationTest
       "the HOUSE wallet must never fund a Phantom-created contest — that is the double spend"
   end
 
+  # ───────────────────────────────────────────────────────────────────────────
+  # THE NAVBAR BALANCE IS PART OF THE SAME ORDERING INVARIANT.
+  #
+  # The pill is served cache-first on a 60s TTL, so the instant the broadcast
+  # lands the cached number is a LIE — it shows the creator money they no longer
+  # have. Measured on QA 2026-09-07: a $45 prize pool left the wallet and the
+  # navbar held $1284 until a manual refresh read the true $1239.
+  #
+  # The drop therefore belongs immediately after the broadcast (STEP 3b), not
+  # beside the render — for exactly the reason the rest of this file exists:
+  # every step below it can raise, and a contest that took the money but failed
+  # its read-back must not leave the creator looking at a pre-spend balance.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  def warm_balance_cache_for(user)
+    Rails.cache.write("usdc_balance:#{user.id}", 1284.0, expires_in: 60.seconds)
+    Rails.cache.write("usdt_balance:#{user.id}", 7.0, expires_in: 60.seconds)
+  end
+
+  def balance_cache_for(user)
+    [Rails.cache.read("usdc_balance:#{user.id}"), Rails.cache.read("usdt_balance:#{user.id}")]
+  end
+
+  test "finalize drops BOTH balance cache keys once the prize pool has moved" do
+    Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
+      log_in_as(admin_phantom)
+      create_json = run_create(slug: "bust-cache", name: "Bust Cache")
+      warm_balance_cache_for(admin_phantom)
+      assert_equal [1284.0, 7.0], balance_cache_for(admin_phantom), "precondition: cache is warm"
+
+      run_finalize(create_json, FakeVault.new)
+
+      assert_response :success
+      assert_equal [nil, nil], balance_cache_for(admin_phantom),
+        "both keys must be dropped — USDC alone leaves USDT warm and renders $7 as the wallet total"
+    end
+  end
+
+  # THE PLACEMENT, not merely the presence. Move the drop down beside the render
+  # and this test fails while the one above still passes.
+  test "a finalize that RAISES after the broadcast still drops the balance cache" do
+    Rails.stub(:cache, ActiveSupport::Cache::MemoryStore.new) do
+      log_in_as(admin_phantom)
+      create_json = run_create(slug: "bust-on-raise", name: "Bust On Raise")
+      warm_balance_cache_for(admin_phantom)
+
+      body = {
+        params_token: create_json["params_token"],
+        contest_pda:  create_json["contest_pda"],
+        signed_tx:    "SIGNED_CREATE_WIRE"
+      }
+      # STEP 4 raises: the money moved, the request fails. The creator must not
+      # be shown their pre-spend balance for the rest of the TTL.
+      Solana::Vault.stub :new, FakeVault.new do
+        Solana::Keypair.stub :encode_base58, ->(x) { x.is_a?(String) ? x : x.to_s } do
+          Solana::TxVerifier.stub :verify!, ->(*) { raise "read-back flaked" } do
+            post finalize_contests_path, params: body, as: :json
+          end
+        end
+      end
+
+      assert_not response.parsed_body["success"], "precondition: this finalize must have FAILED"
+      assert_equal [nil, nil], balance_cache_for(admin_phantom),
+        "the money moved before the raise, so the stale pill must be dropped anyway — " \
+        "this is why the drop sits at STEP 3b and not beside the render"
+    end
+  end
+
   # THE CALLBACK ITSELF, with the test-environment short-circuit removed.
   #
   # `skip_onchain_callback_active?` is `skip_onchain_callback || onchain? ||
