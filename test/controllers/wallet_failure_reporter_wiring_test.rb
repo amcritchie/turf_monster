@@ -1,0 +1,103 @@
+require "test_helper"
+
+# The seams between the three artifacts that make client-failure reporting work:
+# the JS reporter (app/javascript/solana_errors.js), the call site that invokes
+# it (a modal's x-data), and the server that receives it.
+#
+# WHY THESE ASSERTIONS AND NOT "THE STRING IS PRESENT". Grepping rendered markup
+# for `reportWalletFailure` proves the characters shipped and nothing else — the
+# path could 404, the stage could be one the server has never heard of, and every
+# such assertion would still pass. Each test below instead couples TWO artifacts
+# and fails when either moves alone. Whether the behaviour actually works is the
+# e2e tier's job (e2e/wallet_failure_report.spec.js), not this one's.
+class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
+  REPORTER_JS = "app/javascript/solana_errors.js".freeze
+
+  # THE BOUNDARY, MADE EXECUTABLE. Three render surfaces catch these rejections.
+  # ONE is in this repo. The other two are in the solana-studio GEM, and wiring
+  # them needs a gem release — so they are unwired today, on purpose, and this
+  # accounting is what stops a partial fix from reading as a complete one. A
+  # half-corrected change leaves a contradiction more authoritative than the gap
+  # it replaced; the fix is to say which half, out loud, in a place that is
+  # checked. Follow-on work is tracked in docs/AUTH.md.
+  WIRED_STAGES = {
+    "wallet_setup_connect" => "app/views/modals/_wallet_setup.html.erb"
+  }.freeze
+
+  # Deliberately NOT asserted against the gem's own source. A turf-monster test
+  # that reddens the moment solana-studio ships these call sites would red-seal
+  # the producer's release against a consumer's bookkeeping. The accounting lives
+  # here; the wiring lives there.
+  PENDING_GEM_STAGES = {
+    "wallet_connect" => "solana-studio: solana_studio/modals/_wallet_connect.html.erb",
+    "web3_step_up"   => "solana-studio: solana_studio/modals/_web3_step_up.html.erb"
+  }.freeze
+
+  test "the URL the browser posts to resolves to the endpoint that records" do
+    # THE FAILURE THIS CATCHES: a reporter aimed at a path that 404s. It is
+    # invisible to every other tier — the endpoint's tests pass (they call the
+    # route directly), the modal renders, and the reports simply never arrive.
+    # Reading the literal out of the shipped JS and pushing it through the real
+    # router is what couples the two halves.
+    source = Rails.root.join(REPORTER_JS).read
+    path = source[/fetch\('([^']+)'/, 1]
+    assert path.present?, "could not find the reporter's fetch URL in #{REPORTER_JS}"
+
+    route = Rails.application.routes.recognize_path(path, method: :post)
+
+    assert_equal "solana_sessions", route[:controller]
+    assert_equal "report_failure", route[:action]
+  end
+
+  test "every stage the server knows is either wired here or named as pending" do
+    # Nothing may fall off the list silently in either direction: a stage the
+    # server declares but nobody sends is dead weight, and a stage sent by a call
+    # site the server has never heard of is recorded as `unknown` with no error.
+    assert_equal Solana::ClientFailureReport::STAGES.sort,
+                 (WIRED_STAGES.keys + PENDING_GEM_STAGES.keys).sort,
+                 "a stage was added or removed without updating the wiring ledger above"
+  end
+
+  test "each wired call site sends a stage the server actually recognises" do
+    # The cross-artifact check. A typo'd stage does not fail anywhere — it is
+    # normalised to `unknown` and the row loses the one field an operator filters
+    # on. This is the only place the two spellings meet.
+    WIRED_STAGES.each do |stage, file|
+      source = Rails.root.join(file).read
+      sent = source.scan(/window\.reportWalletFailure\('([^']+)'/).flatten
+
+      assert_includes sent, stage,
+                      "#{file} no longer reports stage #{stage.inspect}"
+      sent.each do |value|
+        assert_includes Solana::ClientFailureReport::STAGES, value,
+                        "#{file} sends stage #{value.inspect}, which the server maps to `unknown`"
+      end
+    end
+  end
+
+  test "the reporter is on a module the application bundle actually loads" do
+    # A reporter in an unpinned or unimported file is a `typeof` guard that is
+    # false forever — every call site degrades to silence and nothing anywhere
+    # goes red. Both halves of importmap delivery are asserted because either one
+    # alone is insufficient.
+    module_name = File.basename(REPORTER_JS, ".js")
+
+    assert_includes Rails.root.join("config/importmap.rb").read, %(pin "#{module_name}"),
+                    "#{REPORTER_JS} is not pinned — the browser can never load it"
+    assert_includes Rails.root.join("app/javascript/application.js").read, %(import "#{module_name}"),
+                    "#{REPORTER_JS} is pinned but never imported"
+  end
+
+  test "the reporter never sends a credential-bearing key" do
+    # Layer 1 of the PII rule, asserted at the SENDER as well as the receiver.
+    # The controller's allowlist is what makes a credential unstorable; this is
+    # what makes it un-SENT, so a credential never crosses the wire in the first
+    # place and never lands in an access log or a proxy buffer on the way.
+    body = Rails.root.join(REPORTER_JS).read[/JSON\.stringify\(\{(.*?)\}\)/m, 1]
+    assert body.present?, "could not find the reporter's request body"
+
+    keys = body.scan(/^\s*(\w+):/).flatten.sort
+    assert_equal %w[mapped_message provider raw_message stage], keys,
+                 "the reporter's body changed shape — every key here is stored verbatim"
+  end
+end

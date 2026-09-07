@@ -19,8 +19,8 @@ const MOCK_PUBKEY_B58 = "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt";
  * Inject Phantom mock into the page via addInitScript.
  * Runs before any page scripts — Alpine's walletAvailable check passes immediately.
  */
-async function setupPhantomMock(page, { seedByte = 1, walletStandard = false } = {}) {
-  await page.addInitScript(({ initialSeedByte, useWalletStandard }) => {
+async function setupPhantomMock(page, { seedByte = 1, walletStandard = false, connectError = null } = {}) {
+  await page.addInitScript(({ initialSeedByte, useWalletStandard, rejectConnectWith }) => {
     let currentSeedByte = Number(localStorage.getItem("phantomMockSeedByte")) || initialSeedByte;
 
     // --- Base58 encoder (Bitcoin alphabet) ---
@@ -102,7 +102,27 @@ async function setupPhantomMock(page, { seedByte = 1, walletStandard = false } =
       isConnected: false,
       publicKey: null,
 
+      // A WALLET THAT WILL NOT CONNECT. Two real cases share this shape and
+      // both are what e2e/wallet_failure_report.spec.js drives:
+      //   * the user declines the prompt — Phantom rejects with
+      //     `{ code: 4001, message: 'User rejected the request.' }`;
+      //   * the extension is installed but holds no keypair, so it is sitting on
+      //     its own create-or-import screen and rejects with a bare
+      //     'Unexpected error' and NO code (production, 2026-09-06).
+      //
+      // SHAPED FROM PHANTOM, NOT FROM OUR HANDLER. The `code` is a separate own
+      // property and is deliberately ABSENT unless a caller asks for it: the app
+      // branches on `e.code === 4001` OR the message text, and a mock that always
+      // set a code would certify the code branch while the text branch — the one
+      // that actually catches Wallet Standard wallets — went unexercised.
       async connect() {
+        if (rejectConnectWith) {
+          const err = new Error(rejectConnectWith.message);
+          if (rejectConnectWith.code !== undefined && rejectConnectWith.code !== null) {
+            err.code = rejectConnectWith.code;
+          }
+          throw err;
+        }
         const kp = await getKeypair();
         this.isConnected = true;
         this.publicKey = makePublicKey(kp.publicKey);
@@ -283,7 +303,7 @@ async function setupPhantomMock(page, { seedByte = 1, walletStandard = false } =
         document.head.appendChild(meta);
       }
     }, { once: true });
-  }, { initialSeedByte: seedByte, useWalletStandard: walletStandard });
+  }, { initialSeedByte: seedByte, useWalletStandard: walletStandard, rejectConnectWith: connectError });
 }
 
 module.exports = { MOCK_PUBKEY_B58, setupPhantomMock };
