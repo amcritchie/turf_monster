@@ -41,8 +41,12 @@ class NavbarBrandTest < ActionView::TestCase
     # through the FOOTER's Rules link, but every Rules link now follows the
     # season (see the sweep below), so pin the route where it is DECLARED — a
     # declaration cannot drift the way a reference to it can.
-    assert_includes ROUTES.read, "as: :turf_totals_v1",
-                    "the route identifier is not copy and never renames"
+    # Anchored on a word boundary, NOT assert_includes: "as: :turf_totals_v1"
+    # is a prefix of "as: :turf_totals_v1_legacy", so a plain substring match
+    # is satisfied by the very rename it exists to refuse. (Measured: that
+    # mutant survived until this line became a regex.)
+    assert_match(/as: :turf_totals_v1\b/, ROUTES.read,
+                 "the route identifier is not copy and never renames")
     # Reachability is proven separately, and by RENDER rather than by source:
     # pages_controller_test's "the World Cup rules page still answers" GETs the
     # path and asserts 200. An old link in the wild must never 404.
