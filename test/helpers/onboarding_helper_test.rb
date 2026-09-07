@@ -11,7 +11,17 @@ class OnboardingHelperTest < ActionView::TestCase
     OnboardingHelper::QB_FIRST_NAMES.each do |name|
       assert_not_includes name, " ", "#{name.inspect} is not a single first name"
       assert name.present?, "blank entry in the list"
-      assert name.length <= 40,
+      # BOUND TO THE FIELD, not to a copy of its number. This says "a placeholder
+      # must not type past what a user could enter", so it has to read whatever
+      # the field actually caps at — app/views/modals/_onboarding.html.erb
+      # renders Studio::FULL_NAME_MAX_LENGTH. It used to hard-code 40, which was
+      # correct only while the field did too; the field asks for a WHOLE name
+      # and 40 was the PER-FIELD cap, the borrow that truncated "Bartholomew
+      # Fitzwilliam Montgomery-Smythe". Leaving the literal here would have left
+      # this reason stating something false about a field it no longer describes.
+      # The tighter, semantic bound these entries actually owe — one word, no
+      # surname — is the space assertion above, not this one.
+      assert name.length <= Studio::FULL_NAME_MAX_LENGTH,
              "#{name.inspect} exceeds the field's maxlength, so it would type past what a user could enter"
     end
   end

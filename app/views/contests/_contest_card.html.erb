@@ -1,31 +1,45 @@
-<%# A contest summary card — banner, slate, name, status, fee/prizes/entries,
+<%# A contest summary card — banner, slate, name, status, prizes/spots/fee,
     lock date, and (when it has one) the sash laid across its top-right corner.
 
     Locals:
       contest         the Contest.
       entry_count     the FIELD size — every entrant's confirmed entries. Passed
-                      in so the card never triggers its own count query.
+                      in so the card never triggers its own count query. The
+                      card SUBTRACTS it (see contest_spots_left) rather than
+                      printing it.
       my_entry_count  THIS VIEWER'S entries, which is what the sash reports.
                       Defaults to 0 for a signed-out reader.
 
     `relative` is load-bearing, not decoration: both the dim layer and the sash
     are absolutely positioned against this card, and the existing
     `overflow-hidden` is what clips the sash's rotated ends into a corner
-    ribbon rather than letting them hang off the card. %>
+    ribbon rather than letting them hang off the card. It also clips the
+    banner's hover push (.tt-contest-card-banner) back into the card. %>
 <% my_entry_count = local_assigns.fetch(:my_entry_count, 0) %>
 <% sash = contest_sash_label(contest, my_entry_count) %>
-<%# `h-full flex flex-col` is what makes a row of these cards share one height.
-    The featured rail is a flex row with `items-stretch`, which stretches each
-    card's WRAPPER — not the card, which is a block-level <a> inside it. So
-    without this the cards sit at their own content heights and a contest whose
-    name wraps to two lines is visibly taller than its neighbours. The body
-    below takes `flex-1` so the extra height lands there rather than under the
-    banner. %>
-<%= link_to contest_path(contest), class: "card-hover flex flex-col h-full overflow-hidden relative", data: { contest_card: contest.slug } do %>
+<% spots_left = contest_spots_left(contest, entry_count) %>
+
+<%# TWO SURFACES, AND WHICH ONE THIS CARD GETS IS THE POINT.
+
+    A live contest takes `.card-hover .tt-contest-card` and answers the cursor
+    — it lifts, brightens its border, and pushes into its own banner. A COMING
+    SOON one takes the inert `.card`: same box, no reaction. The rail mixes both
+    bands, and the dim layer alone only said "later" once the reader had already
+    committed to the card. Neither is disabled — a coming-soon card still opens
+    its contest page — the hover just stops advertising it as playable now.
+
+    `data-contest-hover` is the seam that pairing is asserted on
+    (test/views/contest_card_stats_test.rb); a class list is not, because
+    `.card-hover` and `.card` share a prefix and every card matches a substring
+    probe for the shorter one. %>
+<% live = !contest.coming_soon? %>
+<%= link_to contest_path(contest),
+            class: "#{live ? 'card-hover tt-contest-card' : 'card'} flex flex-col h-full overflow-hidden relative",
+            data: { contest_card: contest.slug, contest_hover: (live ? "lift" : nil) } do %>
   <% if contest.contest_image.attached? %>
-    <%= image_tag contest.contest_image, class: "w-full h-36 object-cover", alt: contest.name %>
+    <%= image_tag contest.contest_image, class: "tt-contest-card-banner w-full h-36 object-cover", alt: contest.name %>
   <% else %>
-    <div class="w-full h-36" style="background: linear-gradient(135deg, var(--color-primary-700), var(--color-primary-900))"></div>
+    <div class="tt-contest-card-banner w-full h-36" style="background: linear-gradient(135deg, var(--color-primary-700), var(--color-primary-900))"></div>
   <% end %>
 
   <div class="p-5 flex-1">
@@ -41,19 +55,44 @@
         which says it louder and costs the title nothing.
 
         `truncate` then guarantees ONE line for any name, however long — the
-        card is a fixed 288/320px and the names are operator-typed, so no font
+        card is a fixed 320/384px and the names are operator-typed, so no font
         size can promise this and only a hard single-line rule can. The full
         name rides in `title` so a clipped one is still readable on hover, and
         it is never the only place the name appears: both tables below print it
         in full. %>
     <h2 class="text-lg font-bold text-heading truncate mb-3" title="<%= contest.name %>"><%= contest.name %></h2>
 
-    <div class="flex items-center gap-4 text-sm text-secondary mb-2">
-      <span><%= dollars(contest.entry_fee_dollars) %> entry</span>
+    <%# The money line, in the order a reader decides in: what is on offer, how
+        much room is left, what it costs. Prizes lead and are the only green
+        figure, the same hierarchy the contest page's own stats row uses
+        (contests/_contest_header row 2) — bold VALUE, muted label after it.
+
+        SPOTS LEFT, NOT ENTRIES TAKEN. The two are the same fact read from
+        opposite ends, and only one of them is the reader's: "0 entries" on a
+        contest nobody has found yet reads as "nobody wants this", where "3
+        spots left" on that same contest reads as "get in". The field size is
+        still printed in full (n/max) on the contest page itself, where a reader
+        who is deciding has room for both halves.
+
+        `flex-wrap` because the figures are operator-set and unbounded — a
+        four-digit pool beside a two-digit field is the widest this line gets,
+        and it must break onto a second line rather than run under the card's
+        rounded edge. %>
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-secondary mb-2" data-contest-money-line>
+      <span class="whitespace-nowrap">
+        <span class="font-extrabold text-primary"><%= dollars_short(contest.guaranteed_prize_dollars) %></span>
+        <span class="text-xs text-muted">prizes</span>
+      </span>
       <span class="text-muted">|</span>
-      <span><%= dollars(contest.guaranteed_prize_dollars) %> prizes</span>
+      <span class="whitespace-nowrap">
+        <span class="font-bold text-heading"><%= spots_left %></span>
+        <span class="text-xs text-muted">spots left</span>
+      </span>
       <span class="text-muted">|</span>
-      <span><%= entry_count %> entries</span>
+      <span class="whitespace-nowrap">
+        <span class="font-bold text-heading"><%= dollars_short(contest.entry_fee_dollars) %></span>
+        <span class="text-xs text-muted">entry</span>
+      </span>
     </div>
 
     <% if contest.starts_at %>
