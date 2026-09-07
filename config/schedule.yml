@@ -83,3 +83,15 @@ pending_contest_reconciler:
     instead. NEVER signs or broadcasts. 10-minute threshold leaves an in-flight
     finalize untouched.
   queue: default
+email_delivery_resend:
+  cron: "*/20 * * * *"   # every 20 minutes
+  class: EmailDeliveryResendJob
+  active_job: true
+  description: >-
+    Re-enqueue EmailDelivery rows still unsent 30 minutes after they were
+    recorded. Covers the gap Sidekiq cannot: a row left sent=false with NO
+    error and NO job anywhere, which is how a winner was paid $100 on
+    2026-09-07 and never told. Only rows past the threshold are touched, so
+    deliveries still legitimately in flight are left alone.
+  queue: default
+
