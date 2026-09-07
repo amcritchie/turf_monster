@@ -672,12 +672,34 @@
 # Rules link moved to /turf-monster-v1, so BOTH versioned rules pages are smoked
 # — the new destination, and the old route that must keep answering old links.
 #
-# THIS NUMBER SURVIVED A THREE-WAY CONFLICT and is the reason arithmetic is
-# banned here. Merging accepted put 234 (this branch, 233+1) against 237 (the
-# conflict hunk, 233+4); 234+4 = 238 was ALSO wrong, because accepted had moved
-# again while the branch sat in review. Only the lister run on the merged tree
-# gives 239. Re-run it, never add.
-total_specs: 239
+# 239 -> DERIVED (narrow-wallet-setup-diagnosis, #587): four specs in
+# e2e/wallet_sign_in.spec.js pin how NARROW the "Finish setting up your wallet
+# ... create or import one" diagnosis has to be. The catch that composes it
+# wrapped the whole connect + signMessage fallback, so it was also answering a
+# signMessage that failed AFTER connect() returned a public key, a user who
+# dismissed the account-selection sheet, and our own nonce endpoint falling over.
+# Only a run can say WHICH guard answered — the assertions compare sentences the
+# page EMITTED against each other rather than against a copy typed into the spec.
+#
+# + DERIVED (raw-message-is-ours, #590): the wallet-failure specs in
+# e2e/wallet_failure_report.spec.js, which pin that the reported pair ARRIVES
+# differing rather than byte-identical. The LAST of them was added during this
+# branch's rework and is the reason the count moved twice here: #587's second
+# substituting guard (`connected`) shipped without a report, and the only tier
+# that can see that is a run — a source scan sees a file that reports and cannot
+# tell WHICH guard it reports from. Reaching that guard also needed a new knob on
+# e2e/phantom-mock.js (`signMessageError`), because a wallet that fails connect()
+# never gets there.
+#
+# THIS LINE HAS NOW CONFLICTED THREE TIMES ACROSS TWO BRANCHES, AND NO SIDE'S
+# NUMBER HAS EVER SURVIVED. report-client-wallet-failures (237 vs 238), then
+# nfl-turf-monster-rules-page (242 vs 239), now #587 vs #590 (241 vs 243).
+# Every one of those pairs tempted an addition and every addition would have been
+# wrong, because each side counted a base the other had already moved past. The
+# only number that describes THIS tree is the one the lister produced after the
+# merge. Re-derived with bin/e2e-lane-derive --write on the MERGED tree. Re-run
+# it, never add.
+total_specs: 246
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -937,7 +959,14 @@ allowed_skips: 4
 # 220/199 against a base that then moved, and only the tool run after merging
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
-executed: 218
+#
+# 218 -> DERIVED (narrow-wallet-setup-diagnosis #587 + raw-message-is-ours #590):
+# the wallet sign-in specs and the wallet-failure specs described beside
+# total_specs above. Re-derived with bin/e2e-lane-derive --write ON THE MERGED
+# TREE, not by arithmetic on any of the three conflicts this line has hit.
+# allowed_skips stays 4: both listers agree, which is what proves none of the new
+# specs brought a runtime skip with it.
+executed: 225
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to

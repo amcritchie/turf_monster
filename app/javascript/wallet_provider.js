@@ -248,6 +248,30 @@ function _wsHasSolana(wallet) {
   return !!(wallet && wallet.chains && wallet.chains.some(function(c) { return c.indexOf('solana:') === 0; }));
 }
 
+// A REJECTION THAT PROVES THE WALLET EXISTS.
+//
+// `standard:connect` resolving an EMPTY accounts array is not a missing wallet.
+// It is a user who dismissed the account-selection sheet, or deselected every
+// account in it — the wallet answered, and authorized nothing. Rejecting to
+// sign without a connected account says the same thing one step later.
+//
+// The sign-in fallback's catch (app/views/layouts/application.html.erb,
+// window.solanaConnectAndVerify) reads this tag and rethrows these untouched,
+// because the ONE diagnosis that catch can offer — "Finish setting up your
+// wallet … create or import one" — is FALSE for someone who plainly has one.
+// Before uninitialized-phantom-reads-wrong (PR #571) these travelled to
+// parseSolanaError verbatim: opaque, but TRUE. The tag is what keeps them true
+// now that the catch has a friendlier answer it must not give here.
+//
+// A PLAIN PROPERTY, NOT A SUBCLASS OR A MESSAGE PREFIX, on purpose: the message
+// is user-facing prose that reaches parseSolanaError, and neither an
+// `instanceof` across script boundaries nor a sentinel inside the copy survives
+// being read by a human.
+function _walletAnswered(err) {
+  err.walletAnswered = true;
+  return err;
+}
+
 // Normalize a Wallet Standard `Wallet` into our provider interface. The byte
 // contract is preserved: signMessage takes the same Uint8Array the SIWS code
 // produces with TextEncoder, and returns { signature: Uint8Array } — exactly
@@ -272,12 +296,12 @@ function _makeWsAdapter(wallet) {
       return feat.connect(silent ? { silent: true } : {}).then(function(res) {
         var accts = (res && res.accounts) || wallet.accounts || [];
         account = accts[0] || null;
-        if (!account) throw new Error('No account authorized');
+        if (!account) throw _walletAnswered(new Error('No account authorized'));
         return { publicKey: pubObj(account) };
       });
     },
     signMessage: function(encoded /*, encoding ignored — WS always takes raw bytes */) {
-      if (!account) return Promise.reject(new Error('Wallet not connected'));
+      if (!account) return Promise.reject(_walletAnswered(new Error('Wallet not connected')));
       return wallet.features['solana:signMessage'].signMessage({ account: account, message: encoded })
         .then(function(outputs) {
           var out = Array.isArray(outputs) ? outputs[0] : outputs;
