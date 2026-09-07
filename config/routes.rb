@@ -78,7 +78,13 @@ Rails.application.routes.draw do
     post "dev/live_scores/conclude_game", to: "dev/live_scores#conclude_game", as: :dev_live_scores_conclude_game
   end
 
-  get "turf-totals-v1", to: "pages#turf_totals_v1", as: :turf_totals_v1
+  # Two versioned rules pages, one per SEASON — not one per brand. turf-totals-v1
+  # documents the World Cup format (logarithmic multiplier, x1-x3, goals);
+  # turf-monster-v1 documents the NFL format (linear multiplier, x1-x2, points
+  # scored, multi-week spans). The navbar's Rules link points at whichever
+  # season is being played; both stay routed so an old link never 404s.
+  get "turf-totals-v1",  to: "pages#turf_totals_v1",  as: :turf_totals_v1
+  get "turf-monster-v1", to: "pages#turf_monster_v1", as: :turf_monster_v1
   get "terms",          to: "pages#terms",          as: :terms
 
   # Site-legitimacy / trust pages. A real Privacy Policy, Terms of Service, and
