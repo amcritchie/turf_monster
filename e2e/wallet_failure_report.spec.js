@@ -201,21 +201,42 @@ test("a successful connect reports nothing", async ({ page }) => {
   expect(reports).toBe(0);
 });
 
-test("the 2026-09-06 incident: an empty Phantom reports the layout's substituted string", async ({ page }) => {
+test("the 2026-09-06 incident: an empty Phantom reports what the WALLET said", async ({ page }) => {
   // THE INCIDENT ITSELF, replayed. Phantom is installed — so the row paints
-  // "Installed" and the picker offers it — but it holds no keypair and rejects
-  // with its generic 'Unexpected error'. That string used to reach
-  // parseSolanaError, whose transaction branch answered with USDC balance advice
-  // in a CONNECT modal. solanaConnectAndVerify now rethrows it in the vocabulary
-  // of what actually failed.
+  // "Installed" and the picker offers it — but it holds no keypair, sits on its
+  // own create-or-import screen, and rejects with its generic 'Unexpected error'.
+  // That string used to reach parseSolanaError, whose transaction branch answered
+  // with USDC balance advice in a CONNECT modal.
   //
-  // AND THE LIMIT THIS PINS, so nobody reads a row wrong: because that rethrow
-  // happens in the LAYOUT, the wallet's own 'Unexpected error' is already gone by
-  // the time the modal catches it. On this branch `raw` is the layout's sentence,
-  // not Phantom's. A decline rethrows the original untouched (see the first test
-  // above), so the common case is genuine — but this one is not, and the fix for
-  // it is a report from inside solanaConnectAndVerify, which is a separate change.
+  // AND THE HALF THAT WAS STILL BROKEN AFTER THAT FIX. solanaConnectAndVerify
+  // substitutes its own sentence for the wallet's before rethrowing, so by the
+  // time any surface catches it, 'Unexpected error' is gone — and the report
+  // arrived with raw_message and mapped_message BYTE-IDENTICAL, both of them our
+  // words. The pair is the entire diagnostic value of the call, and for the one
+  // incident the whole feature was built for, the raw half said nothing.
+  // /tasks/raw-message-is-ours moved the report INSIDE the layout, to the last
+  // point at which the wallet's own string still exists.
   await openWalletSetup(page, { message: "Unexpected error" });
+
+  // ── THE ROUTE, ASSERTED BEFORE THE BEHAVIOUR ──────────────────────────────
+  // Real Phantom advertises solana:signIn, so a real empty extension fails
+  // signIn FIRST and only then the connect + signMessage fallback. Until
+  // 2026-09-07 e2e/phantom-mock.js advertised signIn on NEITHER interface, so
+  // every spec in this file drove a route Phantom does not take — which is
+  // precisely why none of them could see the defect above. Without this line the
+  // file silently reverts to certifying that route the moment the mock changes.
+  expect(
+    await page.evaluate(() => window.walletProvider.get("Phantom").supportsSignIn())
+  ).toBe(true);
+
+  // Count every report this failure produces. The layout tags the error it
+  // substituted so the modal's own catch skips it; untagged, the SAME failure
+  // lands twice and the second row carries our sentence in both halves — the
+  // useless row an operator meets first.
+  const reports = [];
+  page.on("request", (r) => {
+    if (r.url().includes(REPORT_PATH)) reports.push(JSON.parse(r.postData()));
+  });
 
   const [request] = await Promise.all([
     page.waitForRequest((r) => r.url().includes(REPORT_PATH) && r.method() === "POST"),
@@ -223,10 +244,183 @@ test("the 2026-09-06 incident: an empty Phantom reports the layout's substituted
   ]);
 
   const body = JSON.parse(request.postData());
-  expect(body.raw_message).toContain("Finish setting up your wallet in Phantom");
-  expect(body.raw_message).not.toContain("Unexpected error");
 
-  // And the user is NOT told about their USDC balance.
+  // THE FIX, AND THE ACCEPTANCE. A malfunction — not a decline — now produces a
+  // report whose two halves DIFFER: raw is Phantom's, mapped is ours.
+  expect(body.raw_message).toBe("Unexpected error");
+  expect(body.mapped_message).toContain("Finish setting up your wallet in Phantom");
+  expect(body.raw_message).not.toBe(body.mapped_message);
+
+  // Reported from the fallback itself, not from a surface downstream.
+  expect(body.stage).toBe("connect_verify_fallback");
+  expect(body.provider).toBe("Phantom");
+
+  // `mapped` IS WHAT THE USER READ, and it is compared against the page rather
+  // than against a sentence typed into this spec. A copy of the copy cannot fail
+  // when the copy changes; this can.
+  const shown = page.locator("p.text-red-400");
+  await expect(shown).toContainText("create or import one");
+  expect(body.mapped_message).toBe((await shown.textContent()).trim());
+
+  // And the user is still NOT told about their USDC balance.
   expect(body.mapped_message).not.toMatch(/USDC/i);
-  await expect(page.locator("p.text-red-400")).toContainText("create or import one");
+
+  // ONE ROW, NOT TWO. Asserted after the sentence is on screen, which is the
+  // point past which the modal's catch has already run and either reported or
+  // skipped.
+  expect(reports).toHaveLength(1);
+});
+
+test("the SAME failure on the Wallet Standard interface reports the wallet's string", async ({ page }) => {
+  // THIS APP HAS TWO PROVIDER INTERFACES AND A MOCK PINNED TO ONE CERTIFIES
+  // HALF. Phantom reaches this app as the legacy injected provider AND as a
+  // Wallet Standard adapter, and walletProvider.get() prefers the adapter once
+  // it registers — so the interface the previous spec exercised is not the one a
+  // current Phantom actually uses. The two run different code:
+  // wallet_provider.js's _makeWsAdapter composes connect/signIn out of
+  // `standard:connect` and `solana:signIn`, and normalizeSignInOutput takes its
+  // OTHER branch here (`account.address`, not `address`).
+  //
+  // The failure and the acceptance are identical, which is the assertion: the
+  // raw half must be the wallet's on both.
+  await setupPhantomMock(page, {
+    seedByte: UNOWNED_WALLET_SEED,
+    walletStandard: true,
+    connectError: { message: "Unexpected error" },
+  });
+  await login(page, `walletreportws-${Date.now().toString(36)}@example.com`);
+  await page.goto("/");
+  await page.waitForFunction(() => window.Alpine && Alpine.store("modals"));
+  await page.evaluate(() => Alpine.store("modals").open("wallet-setup", {}));
+  await expect(page.getByRole("heading", { name: "Set up your wallet" })).toBeVisible();
+
+  // WAIT FOR THE ADAPTER, don't hope for it. The mock registers the Wallet
+  // Standard wallet on a deliberate 1.5s delay so this ordering is deterministic
+  // in both places (see e2e/phantom-mock.js). `_raw` exists only on the adapter,
+  // so this is the difference between the two interfaces, not a proxy for it.
+  await expect
+    .poll(() => page.evaluate(() => !!window.walletProvider.get("Phantom")?._raw))
+    .toBe(true);
+  expect(
+    await page.evaluate(() => window.walletProvider.get("Phantom").supportsSignIn())
+  ).toBe(true);
+
+  const [request] = await Promise.all([
+    page.waitForRequest((r) => r.url().includes(REPORT_PATH) && r.method() === "POST"),
+    page.getByText("Installed", { exact: true }).click(),
+  ]);
+
+  const body = JSON.parse(request.postData());
+
+  expect(body.raw_message).toBe("Unexpected error");
+  expect(body.raw_message).not.toBe(body.mapped_message);
+  expect(body.stage).toBe("connect_verify_fallback");
+
+  const shown = page.locator("p.text-red-400");
+  await expect(shown).toContainText("create or import one");
+  expect(body.mapped_message).toBe((await shown.textContent()).trim());
+});
+
+test("a wallet that connects and then refuses to sign reports the WALLET's string", async ({ page }) => {
+  // THE SECOND SUBSTITUTION, AND THE REASON THIS SPEC EXISTS.
+  // narrow-wallet-setup-diagnosis (#587) added a guard ABOVE the setup copy: if
+  // connect() answered with a publicKey and signMessage refused afterwards, the
+  // fallback substitutes "Your wallet connected but could not sign you in"
+  // instead of the setup sentence. That guard RETURNS FIRST, so on this path the
+  // setup site — the one every other spec in this file drives — never runs.
+  //
+  // It shipped without a report, which silently reopened the exact defect this
+  // file exists to close: the substituted error reached the modal untagged, the
+  // modal reported it, and because parseSolanaError passes that sentence through
+  // unrecognised, `raw_message` and `mapped_message` arrived BYTE-IDENTICAL —
+  // both of them ours. A whole failure class, invisible again.
+  //
+  // WHY THE MOCK NEEDED A NEW KNOB. `connectError` cannot express this: an
+  // extension that fails connect() never reaches the guard. Only a wallet that
+  // connects and THEN refuses to sign does, which is what `signMessageError`
+  // models (e2e/phantom-mock.js).
+  await setupPhantomMock(page, {
+    seedByte: UNOWNED_WALLET_SEED,
+    // signIn must fail for the connect + signMessage fallback to run at all, and
+    // it must fail as something OTHER than a decline — a decline is rethrown
+    // before the fallback is ever considered.
+    signInError: { message: "Unexpected error" },
+    // connect() SUCCEEDS. No connectError, deliberately: `connected` only flips
+    // once a publicKey comes back, and that flag is the guard's whole predicate.
+    signMessageError: { message: "Unexpected error" }
+  });
+  await login(page, `walletreportsign-${Date.now().toString(36)}@example.com`);
+  await page.goto("/");
+  await page.waitForFunction(() => window.Alpine && Alpine.store("modals"));
+  await page.evaluate(() => Alpine.store("modals").open("wallet-setup", {}));
+  await expect(page.getByRole("heading", { name: "Set up your wallet" })).toBeVisible();
+  await expect(page.getByText("Installed", { exact: true })).toBeVisible();
+
+  const reports = [];
+  page.on("request", (r) => {
+    if (r.url().includes(REPORT_PATH)) reports.push(JSON.parse(r.postData()));
+  });
+
+  const [request] = await Promise.all([
+    page.waitForRequest((r) => r.url().includes(REPORT_PATH) && r.method() === "POST"),
+    page.getByText("Installed", { exact: true }).click(),
+  ]);
+
+  const body = JSON.parse(request.postData());
+
+  // THE ACCEPTANCE. The halves DIFFER: raw is what Phantom said, mapped is the
+  // sentence we substituted for it.
+  expect(body.raw_message).toBe("Unexpected error");
+  expect(body.mapped_message).toContain("could not sign you in");
+  expect(body.raw_message).not.toBe(body.mapped_message);
+
+  // ITS OWN STAGE. Not connect_verify_fallback — that stage means connect()
+  // never answered, and here it answered. An operator filtering for a wallet
+  // that holds no keypair must not meet this row.
+  expect(body.stage).toBe("connect_verify_signature");
+  expect(body.provider).toBe("Phantom");
+
+  // AND THE USER WAS NOT TOLD TO CREATE A WALLET. The whole point of #587's
+  // guard is that this user HAS one; the setup sentence would be false.
+  expect(body.mapped_message).not.toContain("create or import one");
+  expect(body.mapped_message).not.toMatch(/USDC/i);
+
+  // `mapped` IS WHAT THE USER READ, compared against the page rather than a copy
+  // typed into this spec.
+  const shown = page.locator("p.text-red-400");
+  await expect(shown).toContainText("could not sign you in");
+  expect(body.mapped_message).toBe((await shown.textContent()).trim());
+
+  // ONE ROW, NOT TWO — the tag on the substituted error keeps the modal's own
+  // catch from reporting it a second time with our sentence in both halves.
+  expect(reports).toHaveLength(1);
+});
+
+test("the failure paragraph is a live region that existed before the failure", async ({ page }) => {
+  // PRE-EXISTING, fixed alongside the reporting defect because it is the same
+  // paragraph: a screen reader was never told the connect failed. The modal's
+  // only feedback for a rejected or unusable wallet is this sentence.
+  //
+  // AND WHY THE ORDER IS THE ASSERTION. The paragraph used to be
+  // `<template x-if="error">`, so it did not exist until the error did — and a
+  // live region inserted alongside its own content is not reliably announced,
+  // because assistive technology has to be observing the region before the text
+  // lands in it. Putting aria-live on that markup would have been a green test
+  // over an unchanged experience. So this reads the region while it is still
+  // EMPTY, then watches it fill: an ordering no source scan can see, and the one
+  // thing that makes the attributes mean anything.
+  await openWalletSetup(page, PHANTOM_DECLINE);
+
+  const region = page.locator('p[x-text="error"]');
+
+  // 1. It is here, before anything has failed, and it is empty.
+  await expect(region).toHaveAttribute("role", "alert");
+  await expect(region).toHaveAttribute("aria-live", "assertive");
+  expect((await region.textContent()).trim()).toBe("");
+
+  // 2. It fills in place. Same element handle throughout — a re-inserted node
+  //    would leave this locator resolving something else.
+  await page.getByText("Installed", { exact: true }).click();
+  await expect(region).toHaveText("Signature rejected");
+  await expect(region).toBeVisible();
 });
