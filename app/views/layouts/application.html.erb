@@ -149,7 +149,15 @@
               // ONE line of glue on purpose: the decision itself is
               // settleOnLoadIfPending() in solana_utils.js, where a unit test
               // can execute it. Inline layout script is unreachable by tests.
-              if (window.settleOnLoadIfPending && window.settleOnLoadIfPending()) return;
+              // Claim the re-entry guard for the WHOLE settle window. This
+              // handler fires on DOMContentLoaded AND turbo:load; without the
+              // claim the second call skips the (now consumed) marker and does
+              // the early read, undoing the defer a millisecond later.
+              if (window.settleOnLoadIfPending &&
+                  window.settleOnLoadIfPending(function () { _navHydrating = false; })) {
+                _navHydrating = true;
+                return;
+              }
               _navHydrating = true;
               if (window.showNavSpinner) window.showNavSpinner();
               refreshSession().finally(function() {

@@ -315,10 +315,18 @@ export function pendingOnchainSettleMs() {
 // where a silent regression hides. Returns true when the caller must NOT do its
 // own load-time read: a spend happened on the page that sent us here, so
 // onchainSettled now owns the pill until it settles.
-export function settleOnLoadIfPending() {
+// onSettled fires when the window closes, so the caller can release whatever
+// re-entry guard it holds. It MATTERS: hydrateNavbar runs on BOTH
+// DOMContentLoaded and turbo:load, and a defer that does not claim that guard
+// lets the SECOND call sail past and do the early read this exists to prevent —
+// repainting the stale number about a millisecond after we cleared it. Measured
+// in a browser 2026-09-07; both the node unit tests and a hand probe missed it,
+// the probe only because its unstubbed fetch happened to fail.
+export function settleOnLoadIfPending(onSettled) {
   var pendingMs = pendingOnchainSettleMs();
   if (pendingMs == null) return false;
-  onchainSettled({ delayMs: pendingMs });
+  var pending = onchainSettled({ delayMs: pendingMs });
+  if (pending && typeof onSettled === "function") pending.then(onSettled, onSettled);
   return true;
 }
 

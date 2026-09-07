@@ -175,6 +175,37 @@ class OnchainSettledJsTest < ActiveSupport::TestCase
       "a later reload must hydrate normally — the marker is consumed, so the wait cannot re-arm"
   end
 
+  # PROPERTY 5 — the double fire. hydrateNavbar runs on BOTH DOMContentLoaded
+  # and turbo:load. Found in a BROWSER, not here: the node tests below all
+  # passed while the second call undid the defer a millisecond later.
+  test "the defer releases its guard only when the window closes" do
+    r = run_module(<<~JS)
+      mod.onchainSettled({ navigating: true, delayMs: 10000 });
+
+      let released = false;
+      const first = mod.settleOnLoadIfPending(() => { released = true; });
+      const releasedDuringWait = released;
+
+      // The SECOND fire. The marker is already consumed, so this returns false
+      // — which is exactly why the caller must hold a guard of its own until
+      // the callback says the window closed.
+      const second = mod.settleOnLoadIfPending(() => {});
+
+      advance(10001);
+      await settle(30);
+      console.log(JSON.stringify({ first, second, releasedDuringWait, releasedAfter: released }));
+    JS
+
+    assert_equal true, r["first"], "the first fire takes the window"
+    assert_equal false, r["second"],
+      "the second fire finds the marker consumed — so it would fall through to a normal " \
+      "hydrate and read the chain early unless the caller is still holding its guard"
+    assert_equal false, r["releasedDuringWait"],
+      "the guard must stay held for the WHOLE window, not released on the next tick"
+    assert_equal true, r["releasedAfter"],
+      "and it must be released once settled, or the navbar never hydrates again"
+  end
+
   # PROPERTY 3 — the seeds guard. Converging every path onto a delayed FULL
   # reload means that reload can land mid level-up animation.
   test "the delayed reload leaves the seeds bar alone while it is animating" do
