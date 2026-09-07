@@ -204,6 +204,122 @@ The modal stays retryable when the player cancels Phantom's signature request
 or verification fails. It never routes through `/logout` or `/signin` as a
 wallet-change fallback.
 
+## Reporting client-side wallet failures
+
+`POST /auth/solana/report_failure` → `SolanaSessionsController#report_failure`.
+
+Wallet sign-in fails **entirely in the browser**. `window.solanaConnectAndVerify`
+throws, the modal catches it, `parseSolanaError` maps it, and an `x-text`
+paragraph paints it. Nothing reached the server, so `error_logs` never held one
+— the only user-facing failure class in the app that was invisible to support.
+On **2026-09-06** a player whose Phantom held no keypair was told to check their
+USDC balance seven times in one production session before an operator noticed by
+hand. This endpoint is the counterpart to the backend discipline's "every
+workflow rescues into an ErrorLog" for the client half.
+
+**The pieces:**
+
+| Piece | Where |
+|---|---|
+| `window.reportWalletFailure(stage, provider, raw, mapped)` | `app/javascript/solana_errors.js` (beside `parseSolanaError`) |
+| Endpoint | `SolanaSessionsController#report_failure` |
+| Sanitiser + PII rule | `Solana::ClientFailureReport` |
+| Row class | `Solana::ClientWalletFailure` |
+| Throttle | `solana_report_failure/ip`, 20 / min (`docs/RATE_LIMITING.md`) |
+
+**Both message halves are sent.** `mapped` is what the user read; `raw` is what
+the wallet said. A mis-mapping is invisible in the mapped half alone — the
+2026-09-06 incident *was* a correct mapper meeting a wallet string it had never
+seen.
+
+**It fails open.** The endpoint answers `204` whether it recorded anything or
+not, swallows every fault into the Rails log, and is never awaited on the
+client. A reporting failure must never surface to the user, block sign-in, or
+change what they see. Proven directly rather than by inspection:
+`e2e/wallet_failure_report.spec.js` breaks the endpoint with a 500 and asserts
+the screen is byte-identical.
+
+**What a row targets.** The **User** when one is signed in (a wallet *link* or a
+step-up); **nothing** for a guest sign-in, which has no user by definition —
+those are found by class and stage. Worth stating because this app's other
+on-chain rows target the **Entry**, so an operator searching `error_logs` by
+user comes back empty and reads it as "nothing was logged".
+
+**The PII rule** is the house one, already settled for this domain in
+`app/javascript/debug_logger.js`, and is enforced in two layers:
+
+1. **By key — and it is a PAIR, not the permit list alone.**
+   `client_failure_params` permits exactly `provider`, `stage`, `raw_message`,
+   `mapped_message`, and `ClientFailureReport.from_params` reads exactly those
+   four **by name**. Measured 2026-09-07 by mutation: widening the permit list
+   to allow `:signature`, `:nonce` and `:message` changed *nothing* and left the
+   suite green — the reader never looks at the rest of the hash. So the **reader**
+   is what makes a credential unstorable; the permit list is the outer layer that
+   keeps it out of the params object and anything that iterates it. The two are
+   asserted as ONE set in
+   `test/controllers/wallet_failure_reporter_wiring_test.rb`, so neither can be
+   widened alone.
+2. **By value** — `Solana::ClientFailureReport.scrub` redacts a labelled
+   `Nonce: …`, any base58 run of 64+ characters (an ed25519 signature), any hex
+   run of 32+ characters (`SecureRandom.hex(16)` is exactly 32), and any RPC
+   api-key (delegated to `Solana::Config.redact_message`). Layer 1 cannot see
+   inside `raw_message`, and this app hands the wallet a string containing its
+   own nonce to sign — so a wallet quoting that message back is a live path for
+   a credential to arrive under a permitted key.
+
+A **pubkey is kept, deliberately**: it is public (already on
+`<body data-wallet-address>`) and it is the only handle a guest row has. The
+signature rule starts at 64 characters precisely so a 44-character pubkey passes
+through it.
+
+### ⚠️ Only ONE of the three call sites is wired
+
+Three render surfaces catch these rejections. Two are in the **solana-studio
+gem**, and wiring them needs a gem release — so today this reports from one:
+
+| Stage | Surface | Status |
+|---|---|---|
+| `wallet_setup_connect` | `app/views/modals/_wallet_setup.html.erb` | **wired** |
+| `wallet_connect` | solana-studio `solana_studio/modals/_wallet_connect.html.erb` | **not wired** — needs a gem release |
+| `web3_step_up` | solana-studio `solana_studio/modals/_web3_step_up.html.erb` | **not wired** — needs a gem release |
+
+The reporter deliberately lives **here, not in the gem**. The gem's partials
+already call the host-provided `window.parseSolanaError` behind a `typeof`
+guard, so `window.reportWalletFailure` follows a contract that already exists:
+each gem call site becomes one guarded line, with no gem-side reporter and no
+new host dependency. An app consuming solana-studio without it degrades to
+silence, exactly as it already does for the mapper.
+
+`test/controllers/wallet_failure_reporter_wiring_test.rb` holds this ledger as
+an executable accounting, so a stage cannot be added or dropped without the
+table above being wrong out loud. It deliberately does **not** assert against
+the gem's source — a consumer test that reddens when the producer ships would
+red-seal the gem's own release.
+
+### Three limits worth knowing before reading a row
+
+- **The raw string is not always the wallet's.** On the `connect` +
+  `signMessage` fallback path, `solanaConnectAndVerify` REPLACES an unusable
+  wallet's message with "Finish setting up your wallet in …" before rethrowing
+  (that substitution is itself a 2026-09-06 fix). At the modal's catch the
+  original Phantom string is already gone, so `raw` is the layout's sentence for
+  that one branch. A decline (`code 4001`) rethrows the original untouched, so
+  the common case is genuine.
+- **The report is best-effort by design.** It is dropped on a throttle, a
+  closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
+  triage surface here, never a count.
+- **CSRF is required, and no automated tier proves it.** Measured against a live
+  dev stack (2026-09-07): a tokenless POST is answered **422** and writes no
+  report row; `X-CSRF-Token: <token>` is answered **204** and writes one. The
+  test env sets `allow_forgery_protection = false` — and Playwright drives a
+  test-env server, which is also why `e2e/phantom-mock.js` has to inject a fake
+  csrf meta tag — so *every* automated assertion about this endpoint is made
+  with CSRF off. What is pinned instead is that the reporter uses the identical
+  meta-tag + header plumbing as `solanaConnectAndVerify`'s POST to
+  `/auth/solana/verify`, which production exercises on every wallet sign-in
+  (`test/controllers/wallet_failure_reporter_wiring_test.rb`). A rename on
+  either side refuses every report **silently**.
+
 ## Web3-only onboarding
 
 `AppFlags.web3_only_onboarding?` is a **kill-switch: ON by default** since

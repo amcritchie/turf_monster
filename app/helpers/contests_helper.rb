@@ -64,6 +64,29 @@ module ContestsHelper
     count == 1 ? "Entered" : "#{count} Entries"
   end
 
+  # ── How much room is left in the field ───────────────────────────────────
+  #
+  # The card's stat line reports SPOTS LEFT rather than entries taken, because
+  # the two numbers answer different questions and only one of them is the
+  # reader's. "0 entries" on a brand-new contest reads as "nobody wants this";
+  # "3 spots left" on the same contest reads as "get in". The field size is
+  # still on the contest page itself (`_contest_header` row 2 prints n/max),
+  # where a reader who is deciding has the room for both halves.
+  #
+  # `entry_count` is passed IN — the confirmed count the controller already
+  # grouped for the whole page — so the card never triggers its own count query
+  # per row. The capacity is the contest's own `max_entries` when the operator
+  # set one, and its format's default otherwise; the same fallback pair
+  # Contest#fill! and the on-chain payload use.
+  #
+  # Clamped at zero. An over-filled field (comped entries can push the count
+  # past the cap — see Contest#fill!) must read "0 spots left", never a negative
+  # count, and "0 spots left" is the true statement in that case anyway.
+  def contest_spots_left(contest, entry_count)
+    capacity = contest.max_entries || contest.format_config[:max_entries]
+    [capacity.to_i - entry_count.to_i, 0].max
+  end
+
   # What the Prizes cell says about a contest, for the viewer named by
   # `payout_cents`. Three readings, and the middle one is the only place on the
   # page where the number itself changes:

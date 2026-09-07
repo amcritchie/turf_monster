@@ -643,7 +643,32 @@
 # one, "Burn all" names its count, and a holder with nothing spendable is
 # offered no control at all. Coverage ADDED; `quarantined` is untouched.
 #
-# 233 -> 237 on 2026-09-07: four specs in e2e/wallet_sign_in.spec.js pin how
+# 233 -> 237 (report-client-wallet-failures): four specs in
+# e2e/wallet_failure_report.spec.js, for a path that exists ONLY in a browser.
+# Wallet sign-in fails entirely client-side — caught, mapped, painted — so no
+# other tier can watch a real rejection end in a POST leaving the page. Two of
+# the four are the ones no server test can express at all: a 500 from the
+# reporting endpoint leaving the rendered error byte-identical (the fail-open
+# contract, proven by breaking it rather than by inspection), and a SUCCESSFUL
+# connect reporting nothing, so error_logs is not buried under the sign-ins it
+# is meant to make findable.
+#
+# One of them was INERT on first write and is worth recording: driven as the
+# admin, "a successful connect reports nothing" passed in 688ms having driven
+# nothing — global-setup.js pins the admin's wallet to the mock's own address,
+# so the `phantomLinked` wait it hangs on was already true before the click. It
+# now signs up a fresh account and ASSERTS the precondition first.
+#
+# 237 -> 238 (report-client-wallet-failures, second pass): a fifth spec, "a dead
+# network while reporting leaves the sign-in flow untouched". The four above
+# proved fail-open with a 500, which `fetch` RESOLVES — an HTTP error status is a
+# successful round trip — so the reporter's `.catch()` was never entered by any
+# of them. Measured by mutation 2026-09-07: deleting `.catch(function() {})`
+# outright left all four GREEN. Aborting the request rejects the promise and is
+# the only thing in the lane that exercises that guard.
+#
+# 238 -> 242 on 2026-09-07 (narrow-wallet-setup-diagnosis): four specs in
+# e2e/wallet_sign_in.spec.js pin how
 # NARROW the "Finish setting up your wallet ... create or import one" diagnosis
 # has to be (/tasks/narrow-wallet-setup-diagnosis). The catch that composes it
 # wraps the whole connect + signMessage fallback, so it was also answering a
@@ -654,7 +679,12 @@
 # into the spec, which is exactly the coupling a source scan cannot hold. Three
 # of the four fail on the code they replace. Coverage ADDED; `quarantined` is
 # untouched, and none of the four carries a runtime skip.
-total_specs: 237
+#
+# MERGED, AND NEITHER SIDE'S NUMBER SURVIVED. This branch and
+# report-client-wallet-failures both cut from 233 and both wrote their own
+# total; the merge conflicted and no sum of 237 and 238 describes this tree.
+# Re-derived with bin/e2e-lane-derive --write AFTER merging origin/accepted.
+total_specs: 242
 
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
@@ -915,13 +945,13 @@ allowed_skips: 4
 # 2682b24 describes this tree. allowed_skips stays 4; neither spec carries a
 # runtime skip.
 #
-# 212 -> 216 (narrow-wallet-setup-diagnosis): the four wallet sign-in specs
+# 217 -> 221 (narrow-wallet-setup-diagnosis): the four wallet sign-in specs
 # described beside total_specs above. Re-derived with bin/e2e-lane-derive
-# --write on this tree, not by arithmetic — 237 - 17 - 4 = 216, and the
-# grep-invert lister collects 220, less the same 4 runtime skips. allowed_skips
-# stays 4: the two identities agree, which is what proves none of the four
-# brought a runtime skip with it.
-executed: 216
+# --write ON THE MERGED TREE, not by arithmetic on either side of the conflict
+# this branch hit against report-client-wallet-failures. allowed_skips stays 4:
+# both listers agree, which is what proves none of the four brought a runtime
+# skip with it.
+executed: 221
 
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
