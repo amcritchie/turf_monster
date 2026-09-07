@@ -354,6 +354,17 @@
               if (/user rejected/i.test(rejMsg) || /user declined/i.test(rejMsg) || (e && e.code === 4001)) {
                 throw e;
               }
+              // SWALLOWED HERE, AND NOT REPORTED HERE — the reasoning, so it is
+              // not re-derived. This rejection is not yet a user-facing failure:
+              // the fallback below either SUCCEEDS, in which case the user signed
+              // in and a row would be noise on a triage surface (see the
+              // over-reporting guard in e2e/wallet_failure_report.spec.js), or it
+              // fails too and reports its own rejection with the wallet's words
+              // intact. An extension holding no keypair fails both calls with the
+              // same generic string, which is the case the reporting exists for.
+              // What is genuinely lost is a signIn rejection that differs from the
+              // fallback's; that stays in the console, deliberately, rather than
+              // buying it with a row per successful two-prompt sign-in.
               console.warn('[siws] signIn unusable, falling back to connect + signMessage:', rejMsg);
               useSignIn = false;
             }
@@ -444,6 +455,17 @@
               var em = (e && e.message) ? e.message : String(e);
               if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;
 
+              // provider.name is a lowercase SLUG on the legacy provider ('phantom',
+              // wallet_provider.js:69) but a display name on the Wallet Standard
+              // adapter (:289), so capitalise it. Nothing sets label/displayName.
+              //
+              // HOISTED ABOVE BOTH SUBSTITUTING GUARDS. Each of them now reports
+              // before it replaces the wallet's string, and a report names the
+              // brand, so this has to be in hand before the FIRST of them runs.
+              var brand = (provider && (provider.label || provider.displayName)) ||
+                          (provider && provider.name ? provider.name.charAt(0).toUpperCase() + provider.name.slice(1) : '') ||
+                          'your wallet';
+
               // CONNECT ALREADY ANSWERED. A publicKey came back, so a keypair
               // exists; whatever rejected afterwards (signMessage, most often
               // with Phantom's same generic "Unexpected error") is a signing
@@ -459,8 +481,29 @@
               // wallet's own string is generic here and the substitution costs it
               // from error_logs, the same trade the setup copy above already
               // makes; docs/AUTH.md carries that consequence into triage.
+              //
+              // REPORTED BEFORE IT SUBSTITUTES, for exactly the reason the setup
+              // copy below is — the long note there is the argument, and it
+              // applies here unchanged the moment this guard replaces a string.
+              // `em` still holds what the wallet actually said, which on this
+              // path is Phantom's generic "Unexpected error" far more often than
+              // anything else; the sentence below is what the user reads. A
+              // report made downstream of this throw would carry OUR words in
+              // both halves, which is the byte-identical row this task exists to
+              // remove — the defect simply relocated to a newer guard.
+              //
+              // ITS OWN STAGE, NOT connect_verify_fallback. That stage means the
+              // wallet could not answer connect() at all; here connect() ANSWERED
+              // and signMessage refused. The two need different responses from an
+              // operator, so they get different filters (Solana::ClientFailureReport::STAGES).
               if (connected) {
-                throw new Error('Your wallet connected but could not sign you in. Signing in moves no funds \u2014 try again.');
+                var signFailCopy = 'Your wallet connected but could not sign you in. Signing in moves no funds \u2014 try again.';
+                if (typeof window.reportWalletFailure === 'function') {
+                  window.reportWalletFailure('connect_verify_signature', brand, em, signFailCopy);
+                }
+                var signFailError = new Error(signFailCopy);
+                signFailError.walletFailureReported = true;
+                throw signFailError;
               }
 
               // THE WALLET ANSWERED WITH NOTHING. wallet_provider.js tags the
@@ -469,13 +512,55 @@
               // sheet, or every account deselected. Opaque, but true; the setup
               // copy would be readable and false.
               if (e && e.walletAnswered) throw e;
-              // provider.name is a lowercase SLUG on the legacy provider ('phantom',
-              // wallet_provider.js:69) but a display name on the Wallet Standard
-              // adapter (:265), so capitalise it. Nothing sets label/displayName.
-              var brand = (provider && (provider.label || provider.displayName)) ||
-                          (provider && provider.name ? provider.name.charAt(0).toUpperCase() + provider.name.slice(1) : '') ||
-                          'your wallet';
-              throw new Error('Finish setting up your wallet in ' + brand + ' \u2014 create or import one, then try again.');
+
+              // ── THE WALLET'S OWN WORDS DIE ON THE NEXT LINE, SO THEY ARE
+              //    REPORTED ON THIS ONE ────────────────────────────────────────
+              //
+              // The substitution below is the ONE place in this app that throws
+              // away a wallet's error string on purpose, and it is the reason
+              // report-client-wallet-failures captured almost nothing for the
+              // class it was built for. Downstream, every catch sees only the
+              // sentence composed here; parseSolanaError has no rule for it, so
+              // it passes through unchanged and the report arrives with
+              // `raw_message` and `mapped_message` BYTE-IDENTICAL. The pair is
+              // the whole diagnostic value of the call — `raw` is what makes a
+              // MIS-mapping visible — and for the 2026-09-06 incident that
+              // motivated the reporting work (an empty Phantom, a user told to
+              // check their USDC balance seven times) the raw string WAS the
+              // mapped string. Only a `4001` decline, rethrown untouched by the
+              // guard above, ever carried a genuine wallet string.
+              //
+              // So the report is made HERE, where `em` still holds what the
+              // wallet actually said, rather than at a surface that can only see
+              // what we replaced it with. This is the fourth call site named
+              // during the original build and deferred then; the three surface
+              // call sites stay exactly as they are for every OTHER rejection,
+              // which reaches them intact.
+              //
+              // `mapped` is the sentence the user will read, not a guess at it:
+              // this rethrow is the only thing the surface has to work from, and
+              // parseSolanaError's pass-through leaving it untouched is pinned by
+              // test/views/wallet_connect_error_copy_test.rb. A change that broke
+              // that coupling would redden there before it could lie here.
+              //
+              // FIRE AND FORGET, like every other call site — `typeof` guard,
+              // no await, and the reporter swallows its own faults
+              // (app/javascript/solana_errors.js). Observation may not delay,
+              // block or alter the failure a user is about to be handed.
+              var setupCopy = 'Finish setting up your wallet in ' + brand + ' \u2014 create or import one, then try again.';
+              if (typeof window.reportWalletFailure === 'function') {
+                window.reportWalletFailure('connect_verify_fallback', brand, em, setupCopy);
+              }
+              // TAGGED SO THE SURFACE DOES NOT REPORT IT AGAIN. Without this the
+              // same failure lands twice: once with the wallet's words, and once
+              // with ours in both halves — and the useless row is the one an
+              // operator meets first. The tag is a plain property for the same
+              // reason wallet_provider.js gives for its own: an `instanceof` does
+              // not survive script boundaries and a sentinel inside the message
+              // would be read by a human.
+              var setupError = new Error(setupCopy);
+              setupError.walletFailureReported = true;
+              throw setupError;
             }
           }
           var verifyUrl = opts.linkMode ? '/account/link_solana' : '/auth/solana/verify';
@@ -1594,8 +1679,13 @@
           <%# free-entry-earned now renders studio-engine's shared block (0.20);
               TM supplies only the reward copy. The block reads props.level off
               $store.modals.current().props and fires window.fireFreeEntryConfetti. %>
+          <%# The sparkle is passed, not defaulted: the block ships 🎉 and this card
+              is the quieter half of the celebration — the confetti burst already
+              fires from fireFreeEntryConfetti, so the glyph does not need to shout
+              it a second time (operator, 2026-09-07). %>
           <%= render "studio/modals/blocks/free_entry_earned",
-                subtitle: "Well done! You earned a <strong class='text-heading font-semibold'>Free Entry Token &#127915;</strong>. It is minting now and should appear shortly. Keep earning more free entries with each level.".html_safe %>
+                icon_emoji: "✨",
+                subtitle: "Well done! You earned a <strong class='text-heading font-semibold'>Free Entry Token &#127915;</strong>. Keep earning more free entries with each level.".html_safe %>
         </template>
       <% end %>
       <%# crop-photo gets pushed on top of whatever modal owns the avatar

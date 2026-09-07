@@ -814,6 +814,10 @@ window.selectionBoard = function() {
         // dispatcher.
         case 'no_funding':           this.showFundsNeeded(); break;
         case 'insufficient_balance': this.showInsufficientBalanceModal(blocker); break;
+        // Self-custody account, web2 session. The server refused BEFORE
+        // attempting to sign (ContestsController#enter) because there is no
+        // custodial keypair for it to sign with. Open the card that fixes it.
+        case 'web3_step_up_required': this.showWeb3StepUpModal(blocker); break;
         default:                     this.resetHoldButtons();
       }
     },
@@ -868,6 +872,31 @@ window.selectionBoard = function() {
       // Default pop-in instead.
       Alpine.store('modals').open('wallet-setup', {
         returnUrl: window.location.href
+      });
+    },
+
+    // Web3 step-up: this session was established by a web2 credential (magic
+    // link, email, Google) on an account whose only wallet is self-custody, so
+    // it cannot sign an entry. Opens the SAME card the auth paths open, with the
+    // SAME props — the server hands Web3StepUpPolicy#to_h through the blocker,
+    // so the remembered brand and the truncated address survive the round trip
+    // and the user sees one card, not two variants of one.
+    //
+    // Idempotent, mirroring showWalletSetupModal: this card may ALREADY be up
+    // (the post-auth render opens it too, which is exactly the stack the
+    // operator photographed on 2026-09-07). Pushing a second copy would leave
+    // one underneath for the user to close twice.
+    showWeb3StepUpModal(blocker) {
+      this.resetHoldButtons();
+      this.submitting = false;
+      var modals = Alpine.store('modals');
+      var open = (modals.stack || []).some(function (e) { return e && e.id === 'web3-step-up' && !e._closing; });
+      if (open) return;
+      var d = (blocker && blocker.data) || {};
+      modals.open('web3-step-up', {
+        provider:      d.provider      || null,
+        providerLabel: d.providerLabel || null,
+        walletHint:    d.walletHint    || null
       });
     },
 
@@ -1846,7 +1875,12 @@ window.selectionBoard = function() {
             this.showFundsNeeded();
           } else {
             if (Alpine.store('solanaModal').visible) {
-              Alpine.store('solanaModal').error(data.error || 'Something went wrong');
+              // TITLE THE FAILED STATE. error() leaves the title alone when it
+              // is not given one, so the card kept saying 'Submitting Entry'
+              // over a red error body — in-progress wording on a finished
+              // failure. Reported by an operator on 2026-09-07, alongside the
+              // raw raise text this same card was showing.
+              Alpine.store('solanaModal').error(data.error || 'Something went wrong', 'Entry Failed');
             } else {
               this.showError(data.error || 'Something went wrong');
             }

@@ -147,6 +147,30 @@ class ContestsController < ApplicationController
     payload = verify_bundle_payload(params[:params_token])
     raise "User mismatch — token was issued to a different user" unless payload[:user_id] == current_user.id
 
+    # THE MONEY MOVED BEFORE THIS ACTION WAS ENTERED, so — unlike #finalize —
+    # there is no post-broadcast line to sit behind. The CLIENT broadcasts and
+    # confirms the prize-pool transfer itself (contests/generator.html.erb:
+    # sendRawTransaction then confirmTransaction) and only POSTs here after. The
+    # whole body and both rescues are therefore already post-spend.
+    #
+    # Same staleness #finalize had, reachable end to end: this action renders
+    # `redirect: generator_contests_path`, the client assigns it to
+    # window.location.href, and #generator sets no @wallet_balances — so
+    # #display_balance takes its cache-first branch and serves the pre-spend
+    # number for the rest of the 60s TTL. Per contest_bundle.rb's header,
+    # finalize_phantom! is the only provisioning path that works on prod.
+    #
+    # PLACEMENT: as early as verified identity allows, so the success render
+    # and the StandardError rescue both inherit it. Not earlier — above these
+    # two lines the token is not yet known to be server-issued to THIS user,
+    # and busting on an unverified POST would let any request thrash a
+    # logged-in user's cache.
+    #
+    # Both keys, not just USDC: see #invalidate_wallet_balance_cache. The guard
+    # is redundant here (the line above already dereferenced current_user) and
+    # kept for symmetry with the other #invalidate_* call sites, which need it.
+    invalidate_wallet_balance_cache if logged_in?
+
     key = payload[:key]
     raise "Unknown bundle" unless ContestBundle::ALL.key?(key)
 
@@ -350,6 +374,20 @@ class ContestsController < ApplicationController
     # on-chain effect; losing it because an RPC flaked is avoidable for the cost
     # of one UPDATE. The row stays `pending`: broadcast is not verification.
     contest.update!(onchain_tx_signature: tx_signature)
+
+    # STEP 3b — the creator's navbar balance is now WRONG, so drop it here,
+    # immediately after the broadcast rather than beside the render. The pill is
+    # served cache-first on a 60s TTL, and every step below this one can raise:
+    # bust it at the render and a contest that took the money but failed its
+    # read-back leaves the creator looking at their pre-spend balance until the
+    # TTL lapses. That is the bug this fixes, measured on QA 2026-09-07 — a $45
+    # prize pool left the wallet and the navbar held $1284 until a manual
+    # refresh read the true $1239.
+    #
+    # Both keys, not just USDC: see #invalidate_wallet_balance_cache. Guarded
+    # like the call in #confirm_onchain_contest because #invalidate_*
+    # dereferences current_user for the key.
+    invalidate_wallet_balance_cache if logged_in?
 
     # STEP 4 — OPSEC-010: assert the broadcast tx is the create_contest IX
     # targeting THIS PDA, signed by the original creator from the server-issued
@@ -680,10 +718,12 @@ class ContestsController < ApplicationController
     # Both boards POST here with headers only and no body, so its
     # `params[:signature].present?` was never true. It was not merely dead — it
     # was a fail-CLOSED gate, so deleting it outright would have let a web3
-    # session walk into the server-signing path with no check at all. Today that
-    # still fails, but only incidentally: a phantom-only account has no
-    # web2_solana_address, so resolve_web2_entry_funding! raises "Managed wallet
+    # session walk into the server-signing path with no check at all. It used to
+    # still fail, but only incidentally: a phantom-only account has no
+    # web2_solana_address, so resolve_web2_entry_funding! raised "Managed wallet
     # missing keypair" — an accident of another guard rather than a decision.
+    # THAT ACCIDENT IS NOW A DECISION, and it is the guard directly below this
+    # one; a player reached it before anyone converted it (QA, 2026-09-07).
     #
     # So: refuse explicitly, and name the path the caller should be on. Same
     # shape as the self_custodied? guard above, which already routes rather than
@@ -695,6 +735,54 @@ class ContestsController < ApplicationController
         success: false,
         error: "Wallet sessions enter on-chain — use prepare_entry to build and sign the entry transaction.",
         self_custodied: true
+      }, status: :unprocessable_entity
+    end
+
+    # THE OTHER HALF OF THAT SAME QUESTION, and the half a real player hit
+    # (operator report, QA, 2026-09-07). The guard above turns away a session
+    # that CAN sign. This one turns away a session that CANNOT — a self-custody
+    # account whose current session was established by a WEB2 credential.
+    #
+    # Every earlier gate misses it, and each for its own honest reason:
+    # `onchain_session?` is false (they signed in with Google, not a wallet);
+    # `self_custodied?` is false (that column marks a deliberate EXPORT, not the
+    # mere holding of a wallet); and `wallet_kind` is :phantom, not :none, so the
+    # no-wallet refusal has nothing to say. So the request fell all the way
+    # through to #resolve_web2_entry_funding!, which raised "Managed wallet
+    # missing keypair (cannot sign entry)" — the accident the comment above
+    # already named, now arriving as a red card on a player's screen with the
+    # step-up card sitting underneath it saying the right thing.
+    #
+    # WHY IT ASKS Web3StepUpPolicy INSTEAD OF RE-DERIVING THE POPULATION. That
+    # policy is the one place that answers "does THIS SESSION owe a wallet
+    # signature", and the auth paths already act on its answer. A second copy of
+    # that rule here is how the entry path and the auth path end up disagreeing
+    # about the same account — the card telling a player to sign while the entry
+    # lets them through, or the reverse.
+    #
+    # AND WHY IT IS NOT THE POLICY ALONE. The policy's verdict is ADVISORY by
+    # construction: a COMBO account (managed + linked wallet) owes a step-up and
+    # can still enter, because #resolve_web2_entry_funding! deliberately signs
+    # and spends from the custodial address for exactly that account. What makes
+    # the refusal a REFUSAL here is the second clause — there is no keypair to
+    # sign with — which is the precondition of the raise, stated as a decision.
+    # The fee clauses keep it to entries that are actually signed: a free
+    # contest reaches no keypair at all, and walling one off would strand every
+    # wallet-only player behind a signature nothing was going to ask for.
+    #
+    # ROUTE, DON'T MERELY REFUSE — the standard both guards above already set.
+    # The blocker gives the board a reason to dispatch on (it opens the card in
+    # place), and arm_web3_step_up_for — the same arming the Google collision
+    # uses at the front door — makes the NEXT render open it too, for a player
+    # who reloads rather than reads a modal.
+    step_up = Web3StepUpPolicy.new(current_user, session_mode: wallet_context.mode)
+    if @contest.onchain? && @contest.entry_fee_cents.to_i.positive? &&
+       step_up.required? && !current_user.managed_wallet?
+      arm_web3_step_up_for(current_user)
+      return render json: {
+        success: false,
+        error: "Sign in with your wallet to enter — this account's entries are signed by the wallet itself.",
+        blocker: { reason: "web3_step_up_required", mode: "web3", data: step_up.to_h }
       }, status: :unprocessable_entity
     end
 

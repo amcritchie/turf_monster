@@ -29,6 +29,29 @@ module Solana
         return ok(message: "Transaction canceled.", toast: true)
       end
 
+      # A SELF-CUSTODY ACCOUNT ON A WEB2 SESSION, reaching a path that needs a
+      # custodial keypair it does not have. #resolve_web2_entry_funding! raises
+      # "Managed wallet missing keypair (cannot sign entry)" for exactly this
+      # shape, and until 2026-09-07 that RAISE STRING WAS THE USER-FACING COPY:
+      # a player who signed in with Google got a red card reading it, stacked
+      # over the web3 step-up card that was already telling them what to do.
+      #
+      # ContestsController#enter now refuses this before it ever attempts to
+      # sign, so this branch is the BACKSTOP rather than the fix — which is
+      # precisely why it belongs here. The message is the one thing an
+      # interpreter can always promise: whatever else drifts, no raise text
+      # reaches a modal. It maps to the same web3_step_up_required blocker the
+      # guard returns, so a player who arrives by either route lands on the same
+      # card. mode-free on purpose: the account's problem is that it has no
+      # managed wallet, which is true whichever session is asking.
+      if stripped.match?(/managed wallet missing keypair/i)
+        return ok(
+          message: "Sign in with your wallet to enter — this account's entries are signed by the wallet itself.",
+          blocker: { reason: "web3_step_up_required", mode: "web3", data: {} },
+          log: true
+        )
+      end
+
       # web2 — managed wallet can't fund the entry by ANY enabled method
       # (no entry token, and USDC entry off or insufficient). Server-side raise
       # from ContestsController#resolve_web2_entry_funding! when the flag is off
