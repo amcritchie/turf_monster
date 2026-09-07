@@ -140,9 +140,9 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     text = rules_page_text
-    assert_match(/x1\.0/, text)
-    assert_match(/x2\.0/, text)
-    assert_no_match(/x3\.0/, text, "x3.0 is the World Cup ceiling, not the NFL one")
+    assert_match(/1\.0/, text)
+    assert_match(/2\.0/, text)
+    assert_no_match(/3\.0\s*[x\u00d7]/i, text, "3.0x is the World Cup ceiling, not the NFL one")
     assert_no_match(/World Cup/i, text, "this page documents the NFL season")
     # NOT a blunt /goals?/ refutation — "field goal" is the NFL's own word and
     # appears twice on this page legitimately. What must never come back is the
@@ -176,6 +176,123 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
     total = css_select('table[data-test="scoring-example"] tfoot td').last.text.strip.to_f
     assert_equal derived.sum.round(1), total, "the total must be the sum of the rows"
+  end
+
+  # THE BLOCKER THIS ENCODES (review, 2026-09-07). The page shipped to review
+  # promising "no withdrawal request, no waiting on a payout queue". All three
+  # timing claims were false:
+  #
+  #   * nothing grades at the final whistle — Contest#grade! is reached only from
+  #     ContestsController#grade (admin) and the QA rehearsal driver, and none of
+  #     the five cron jobs in config/schedule.yml grades or settles a contest;
+  #   * settlement IS a queue — Contest#settle_onchain! builds a PARTIALLY-SIGNED
+  #     transaction into PendingTransaction(tx_type: "settle_contest") for 2-of-3
+  #     multisig cosigning, which an admin confirms. Production was holding
+  #     settle pt#298 for two days when this was caught;
+  #   * only WHERE the money goes was true (entry.user.solana_address).
+  #
+  # Green CI, correct numbers, and a false money claim on a public real-money
+  # page. Nobody here knows the payout SLA, so the page must promise none — and
+  # the fix for that is not vigilance, it is this test. Scoped to the page's own
+  # subtree so the layout's marketing copy cannot satisfy or trip it.
+  PAYOUT_PROMISES = [
+    /no waiting/i, /no withdrawal/i, /instantly/i, /immediately/i,
+    /right away/i, /straight away/i, /within \s*\d+\s*(second|minute|hour|day)/i,
+    /as soon as the (?:last )?game/i, /no queue/i, /automatic(?:ally)? paid/i
+  ].freeze
+
+  test "the NFL rules page promises no payout SLA" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    text = rules_page_text
+
+    offenders = PAYOUT_PROMISES.select { |pattern| text.match?(pattern) }
+    assert_empty offenders,
+                 "settlement is a 2-of-3 multisig queue with no published SLA — this page " \
+                 "may say WHERE winnings go, never WHEN: #{offenders.join(', ')}"
+  end
+
+  # THE SAME DEFECT, ONE SECTION UP — found by applying review's rule to the rest
+  # of the page rather than only to the line it named. The leaderboard copy said
+  # scores land "in real time" and update "while the games are being played".
+  # Goal creation really does broadcast live (goal.rb), but a Goal only exists
+  # once Nfl::LiveScores::PollCycle has run, and its own header says it is
+  # "called on a fixed cadence by an agent" — no cron in config/schedule.yml
+  # drives it. So the latency is an operational process with no SLA, exactly like
+  # settlement. The page may describe the MECHANISM; it may not promise a clock.
+  SCORING_LATENCY_PROMISES = [
+    /in real ?time/i, /live updates/i, /the moment (?:a|the|they)/i,
+    /within seconds/i, /instant(?:ly)? updat/i, /as (?:the games|it) happens?/i
+  ].freeze
+
+  test "the NFL rules page promises no scoring latency either" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    text = rules_page_text
+
+    offenders = SCORING_LATENCY_PROMISES.select { |pattern| text.match?(pattern) }
+    assert_empty offenders,
+                 "live scores depend on an agent-driven poll cycle with no SLA — describe the " \
+                 "mechanism, never the clock: #{offenders.join(', ')}"
+  end
+
+  # The true half of the claim has to survive the guard above, or a later edit
+  # satisfies it by deleting the payout sentence altogether.
+  test "the NFL rules page still says where winnings go" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    assert_match(/payouts go to the wallet you entered from/i, rules_page_text,
+                 "dropping the SLA must not drop the destination")
+  end
+
+  # THE MONEY IS DERIVED, like the multipliers. Review found the payouts and
+  # contest size hard-typed in two sections while every multiplier was derived —
+  # and Contest::FORMATS carries five other live formats.
+  test "the NFL rules page prints the money Contest::FORMATS carries" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    text = rules_page_text
+    format = Contest::FORMATS.fetch("medium")
+
+    format[:payouts].each_value do |cents|
+      assert_match(/\$#{format('%.2f', cents / 100.0)}/, text,
+                   "the payout table must print FORMATS' own amounts")
+    end
+    assert_match(/#{format[:max_entries]} entries/, text)
+    assert_match(/\$#{format('%.2f', format[:payouts].values.sum / 100.0)}/, text,
+                 "the prize pool is the sum FORMATS defines")
+  end
+
+  # The published formula has to reproduce the multiplier a player is PAID.
+  # SlateMatchup.turf_score_for rounds to one decimal, and that rounded value is
+  # what freezes onto the pick — so ranks 1 and 2 both pay 1.0x. A reader
+  # computing rank 5 from an unrounded formula gets 1.129 and is paid 1.1.
+  test "the NFL rules page states that the curve is rounded" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    assert_match(/rounded to one decimal/i, rules_page_text,
+                 "the printed formula must reproduce the paid multiplier")
+  end
+
+  # The scoring example's lead sentence is derived from the same data the table
+  # renders, so it cannot name the wrong pair or quote a stale delta — which is
+  # exactly what the hand-written version did.
+  test "the scoring example lead matches the table it introduces" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    text = rules_page_text
+    comparison = TurfMonsterRules.comparison
+
+    assert_match(/#{comparison.fewer_points} fewer points/, text)
+    assert_match(/#{Regexp.escape(format('%.1f', comparison.points_ahead))} ahead/, text)
+    assert_match(/hypothetical/i, text,
+                 "the invented weekly results must be hedged in the lead, not only under the table")
   end
 
   test "the World Cup rules page still answers" do

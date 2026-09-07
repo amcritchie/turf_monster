@@ -26,7 +26,11 @@
   </p>
 
   <p class="<%= compact ? 'mt-1' : 'mt-2' %>">
-    <span class="font-mono font-bold <%= compact ? 'text-base' : 'text-2xl' %>" style="color: <%= pal[:fg] %>"><%= format_turf_score(example.turf_score) %>&times;</span>
+    <%# One decimal, NOT format_turf_score. The board's helper drops the decimal on
+        a whole number, so Baltimore read "1x" here while the prose two sections
+        down called the same value "x1.0" — review flagged the mismatch. The page
+        uses ONE notation throughout: suffix, one decimal. %>
+    <span class="font-mono font-bold <%= compact ? 'text-base' : 'text-2xl' %>" style="color: <%= pal[:fg] %>"><%= number_with_precision(example.turf_score, precision: 1) %>&times;</span>
     <span class="<%= compact ? 'text-[10px]' : 'text-sm' %>" style="color: <%= pal[:fg_faint] %>">Turf Score</span>
   </p>
 

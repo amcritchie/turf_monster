@@ -76,6 +76,56 @@ module TurfMonsterRules
     { team_slug: "arizona-cardinals",    rank: 32, note: "Every point counts double" }
   ].freeze
 
+  # THE CONTEST THE PAGE PRICES ITSELF AGAINST. Read from Contest::FORMATS, not
+  # typed, for the same reason the multipliers are derived: review found the
+  # money hard-typed in two sections while the multipliers were derived, and
+  # FORMATS carries five other live formats with different sizes and payouts.
+  # Change a payout in the app and this page changes with it.
+  EXAMPLE_FORMAT = "medium".freeze
+
+  def self.example_format
+    Contest::FORMATS.fetch(EXAMPLE_FORMAT)
+  end
+
+  # [[place, dollars], ...] in finishing order.
+  def self.example_payouts
+    example_format[:payouts].sort_by(&:first).map { |place, cents| [ place, cents / 100.0 ] }
+  end
+
+  def self.example_prize_pool
+    example_format[:payouts].values.sum / 100.0
+  end
+
+  def self.example_max_entries
+    example_format[:max_entries]
+  end
+
+  # THE COMPARISON SECTION 04'S LEAD SENTENCE MAKES, derived so the prose cannot
+  # point at the wrong rows or quote a stale delta. Review caught exactly that:
+  # the sentence said "the bottom two rows" while the teams it named were the
+  # first and fifth, so a reader following the instruction compared the wrong
+  # pair and neither number matched.
+  Comparison = Data.define(:favorite, :longshot) do
+    # How many fewer points the longshot put on the scoreboard.
+    def fewer_points
+      favorite.points_scored - longshot.points_scored
+    end
+
+    # How far ahead it still finished, after the multiplier.
+    def points_ahead
+      (longshot.entry_points - favorite.entry_points).round(1)
+    end
+  end
+
+  # The lowest multiplier in the lineup, against the biggest scorer that beat it
+  # on FEWER raw points — the pair that makes the page's whole point.
+  def self.comparison
+    favorite = LINEUP.min_by(&:turf_score)
+    longshot = LINEUP.select { |e| e.points_scored < favorite.points_scored }
+                     .max_by(&:entry_points)
+    Comparison.new(favorite: favorite, longshot: longshot)
+  end
+
   # The scoring example's footer total.
   def self.lineup_total
     LINEUP.sum(&:entry_points).round(1)
