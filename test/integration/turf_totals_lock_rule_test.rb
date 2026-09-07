@@ -184,6 +184,102 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     refute_match(/per-game/i, row, "the quick-reference row must not promise per-game locking")
   end
 
+  # ── the lock WINDOW, measured off the production slate definition ─────────
+  # "every pick is final, including picks whose own match kicks off later in
+  # the day" was not false — the categorical clauses beside it carry the rule —
+  # but it understated the window. A slate is ONE STAGE (seed_slates! groups
+  # FIXTURES by stage and sets starts_at to that stage's MIN kickoff), and the
+  # Round of 32 spans over five days. A player whose match is three days out
+  # can read "later in the day" and infer the window does not reach them.
+  #
+  # Measured, not asserted: the span comes from the seed the production slates
+  # are built from, so if the calendar ever compresses to a single day this
+  # guard stops demanding the wider wording.
+  def widest_seeded_slate_span
+    WorldCup2026KnockoutSeed::FIXTURES
+      .group_by { |fixture| fixture[:stage] }
+      .values
+      .map { |fixtures| fixtures.map { |f| Time.iso8601(f[:kickoff_at]) } }
+      .map { |kickoffs| kickoffs.max - kickoffs.min }
+      .max
+  end
+
+  test "the rulebook's lock scope covers a multi-day slate" do
+    span = widest_seeded_slate_span
+
+    get turf_totals_v1_path
+    assert_response :success
+    lock_text = scoped_text("lock-rules")
+
+    if span > 1.day
+      refute_match(/later in the day/i, lock_text,
+                   "the widest seeded slate spans #{(span / 1.day.to_f).round(1)} days, so " \
+                   "scoping finality to \"later in the day\" understates the lock window — a " \
+                   "player whose match is days out can infer it does not reach them")
+      assert_match(/later in the contest/i, lock_text,
+                   "the lock scope must reach the whole contest, not one day of it")
+    end
+  end
+
+  # ── the same measurement, pointed at the BINDING page ─────────────────────
+  # The Terms of Service is the one lock-scope surface a player can hold the
+  # operator to, and it carried the per-game framing too: "picks whose
+  # real-world games have already kicked off cannot be changed". That clause is
+  # not a contradiction of the sentence beside it — it is VESTIGIAL. Under a
+  # contest-wide lock derived from the slate's FIRST kickoff, any game having
+  # kicked off means the contest is already locked and NO pick is editable, so
+  # the carve-out can never be the operative reason a pick is frozen. It
+  # described a window the code closed on 2026-05-24.
+  #
+  # This reuses the measurement above rather than grepping a second page: the
+  # copy is a function of the code, so the code is what gets asked. If per-game
+  # locking ever comes back, the measurement flips and this test demands the
+  # carve-out be restored to the binding page.
+  test "the Terms editing clause matches the lock Entry enforces" do
+    # CONTROL — same as the rulebook test. Without it the measurement could read
+    # "nothing editable" off a broken setup and certify any Terms text at all.
+    travel_to @contest.locks_at - 1.hour do
+      assert accepted?(@spare_late.first),
+             "control: a spare pick must be editable BEFORE the contest locks"
+    end
+
+    editable = nil
+    travel_to @contest.locks_at + 1.minute do
+      editable = matchups_still_editable_after_contest_lock
+    end
+
+    get terms_path
+    assert_response :success
+    clause = scoped_text("terms-entry-editing")
+
+    if editable.any?
+      # Per-game locking would be real again: the BINDING page must say so.
+      assert_match(/kicked off/i, clause,
+                   "Entry left #{editable.size} pick(s) editable after the contest lock — " \
+                   "the Terms editing clause must document the per-game carve-out")
+    else
+      # Measured reality: ONE contest-wide lock, no per-game exemption. The
+      # clause may still promise editing WHILE OPEN and still except Survivor;
+      # what it may not do is carve out individual kicked-off picks.
+      assert_match(/change/i, clause,
+                   "the clause must still state that picks are editable while the contest is open")
+      assert_match(/locks/i, clause, "the clause must name the contest lock")
+      assert_match(/final/i, clause, "the clause must say entries are final after the lock")
+
+      {
+        /already kicked off/i => "carves out picks whose own game has started",
+        /whose (own|real-world|specific) (game|match)/i => "scopes the freeze to individual picks",
+        /per-game/i => "names a per-game lock moment"
+      }.each do |pattern, why|
+        refute_match(pattern, clause,
+                     "Terms copy matching #{pattern.inspect} #{why}, but Entry raises " \
+                     "\"Contest has locked — entries closed\" for EVERY pick once " \
+                     "Contest#locks_at (the slate's first kickoff) passes, so no pick is " \
+                     "ever frozen on the strength of its own kickoff alone")
+      end
+    end
+  end
+
   # Locks the citation trail the funnel helper hands the next reader: it cites
   # the guards that actually enforce the sentence it prints.
   test "the funnel lock step cites guards that exist and are contest-wide" do
