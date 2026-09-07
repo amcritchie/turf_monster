@@ -34,12 +34,41 @@ Rails.application.config.to_prepare do
     description: "Passwordless create-or-login link.",
     type: :transactional,
     default_asset: "emails/magic-link-banner.jpg",
-    # A COPY of the shared studio artwork, committed HERE deliberately rather
-    # than resolved from the gem — Mr. McRitchie's call: keep the Studio loop for
-    # now and swap in turf's own later. Owning the file is what makes "later" a
-    # one-file change, and it is what stops the silent inheritance this entry had
-    # before: the same name resolved from studio-engine and nobody could tell.
-    background: "emails/magic-link-background.gif",
+    # The layered background this entry used to carry,
+    # "emails/magic-link-background.gif", is still committed in this repo — a
+    # copy of the shared studio artwork, kept here deliberately rather than
+    # resolved from the gem so restoring the layered banner stays a one-file
+    # change and never silently inherits studio-engine's picture of the same
+    # name. It is simply not registered any more; see below.
+    #
+    # FLAT, deliberately — Mr. McRitchie asked for the July artwork back
+    # (2026-09-07). magic-link-banner.jpg is a FINISHED banner: "Your Magic Link"
+    # and "Click the link below to log in." are baked into the picture, which is
+    # why the body template calls itself "deliberately minimal". Drawing the
+    # layered header over it would print the words twice.
+    #
+    # ONE key does it, and it has to be "" rather than deleted. `register` merges
+    # on `.presence`: nil INHERITS and "" CLEARS, so dropping this line puts the
+    # engine's island back — the silent inheritance the note above warns about.
+    #
+    # A cleared background is the DOCUMENTED way to send an entry flat, not a
+    # trick: Studio::Banner.for ends `banner.background_url.present? ? banner :
+    # nil` over the comment "a nil background means the catalogue said this app
+    # sends the email flat". So Banner.for returns nil, branded_mailer falls past
+    # `@banner.renderable?` to the `@banner_url` <img>, and that is
+    # resolved_url(:magic_link) — this file's default_asset, the July jpg.
+    # @banner_alt already falls back to "Your Magic Link" when @banner is nil.
+    #
+    # Do NOT also blank header/subtext to "make sure". Banner.for never reaches
+    # renderable? once the background is nil, so they change nothing today — and
+    # clearing them would throw away the wording ("Welcome {name}!") that
+    # restoring this one line is supposed to bring back with it.
+    #
+    # THE TRADE: this email's header and sub-text stop being editable on
+    # /admin/emails, because the wording now lives in the artwork. They are
+    # still REGISTERED and still inherited, so restoring the layered banner is
+    # putting a real background back on this one key.
+    background: "",
     # THIS APP'S OWN MARK, and it must stay a path this app OWNS. The value here
     # was "emails/logo-horizontal.png" — a file turf does not have. Sprockets
     # served studio-engine's copy of that name, so the sign-in email went out
