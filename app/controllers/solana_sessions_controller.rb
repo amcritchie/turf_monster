@@ -150,8 +150,17 @@ class SolanaSessionsController < ApplicationController
   private
 
   # Layer 1 of the PII rule (Solana::ClientFailureReport has the whole rule).
-  # FOUR KEYS, and the allowlist is the enforcement: there is no key under which
-  # a signature, a nonce, or a signed message can arrive, so none can be stored.
+  # FOUR KEYS — but read what this layer does and does not do, because a mutant
+  # proved the obvious reading wrong. Widening this list to permit :signature,
+  # :nonce and :message left the whole suite green: permitting a key STORES
+  # nothing by itself, because Solana::ClientFailureReport.from_params reads four
+  # keys by name and never looks at the rest of the hash.
+  #
+  # So this is the OUTER layer — it keeps a credential out of the params object,
+  # out of a log of them, and out of anything downstream that iterates the hash.
+  # The load-bearing constraint is `from_params`. The two are asserted as one set
+  # by test/controllers/wallet_failure_reporter_wiring_test.rb, so neither can be
+  # widened alone.
   def client_failure_params
     params.permit(:provider, :stage, :raw_message, :mapped_message)
   end

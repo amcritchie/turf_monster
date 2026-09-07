@@ -36,12 +36,16 @@ module Solana
   # Two layers enforce it, because one is not enough and each covers the other's
   # blind spot:
   #
-  #   1. BY KEY, at the controller. SolanaSessionsController#client_failure_params
-  #      permits exactly four keys. A client cannot smuggle a `signature` field
-  #      into an error_logs row because there is no key for it to arrive under.
-  #      This is the strong layer — it is structural, and it is the layer
-  #      debug_logger.js reasoned its way to for the same reason ("the key names
-  #      are the thing this app actually controls").
+  #   1. BY KEY. SolanaSessionsController#client_failure_params permits exactly
+  #      four keys, and `.from_params` below reads exactly those four BY NAME.
+  #      Read the pair, not either half: measured 2026-09-07, widening the permit
+  #      list alone changed nothing, because the reader never looks at the rest of
+  #      the hash. The READER is what makes a credential unstorable; the permit
+  #      list is what keeps it out of the params object at all. They are asserted
+  #      as ONE set in test/controllers/wallet_failure_reporter_wiring_test.rb, so
+  #      neither can drift from the other. (Same instinct as debug_logger.js —
+  #      "the key names are the thing this app actually controls" — but the
+  #      enforcement point is the read, not the permit.)
   #
   #   2. BY VALUE, here. `raw_message` is free text composed by a WALLET, so key
   #      allowlisting says nothing about what is inside it — and this app hands

@@ -88,6 +88,34 @@ class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
                     "#{REPORTER_JS} is pinned but never imported"
   end
 
+  test "the permitted keys and the keys the report actually reads are one set" do
+    # WHERE THE PII ALLOWLIST IS REALLY ENFORCED, pinned because a mutant showed
+    # the obvious answer is wrong. Widening #client_failure_params to permit
+    # :signature, :nonce and :message left every test green — permitting a key
+    # stores nothing on its own, because ClientFailureReport.from_params reads
+    # four keys by name and never looks at the rest of the hash. The permit list
+    # is the OUTER layer; `from_params` is the load-bearing one.
+    #
+    # So assert them as ONE set, which makes both halves killable: widening the
+    # permit list without widening the reader fails here, and widening the reader
+    # without widening the permit list fails here too. Either alone is a silent
+    # change to what can reach an error_logs row.
+    read = []
+    probe = Object.new
+    probe.define_singleton_method(:[]) { |key| read << key.to_sym; nil }
+    Solana::ClientFailureReport.from_params(probe)
+
+    controller = Rails.root.join("app/controllers/solana_sessions_controller.rb").read
+    permitted = controller[/def client_failure_params\s*\n\s*params\.permit\(([^)]*)\)/m, 1]
+    assert permitted.present?, "could not find client_failure_params' permit list"
+    permitted = permitted.scan(/:(\w+)/).flatten.map(&:to_sym).sort
+
+    assert_equal %i[mapped_message provider raw_message stage], read.uniq.sort,
+                 "ClientFailureReport.from_params changed which keys it reads"
+    assert_equal permitted, read.uniq.sort,
+                 "the controller permits a key the report never reads, or vice versa"
+  end
+
   test "the reporter never sends a credential-bearing key" do
     # Layer 1 of the PII rule, asserted at the SENDER as well as the receiver.
     # The controller's allowlist is what makes a credential unstorable; this is

@@ -83,9 +83,11 @@ class SolanaClientFailureReportTest < ActionDispatch::IntegrationTest
   # ── PII, layer 1: the four-key allowlist ────────────────────────────────────
 
   test "a signature posted under its own key never reaches the row" do
-    # Layer 1 is structural: there is no permitted key for a credential, so one
-    # cannot be stored no matter what a client sends. This is the test that says
-    # so — and the one that fails if someone widens client_failure_params.
+    # Layer 1, from the client's side: a credential posted under its own key is
+    # not stored. Note what this does NOT pin — widening client_failure_params
+    # alone leaves this green, because `from_params` reads four keys by name and
+    # ignores the rest. The permit list and that reader are pinned together in
+    # test/controllers/wallet_failure_reporter_wiring_test.rb.
     report(signature: SIGNATURE, message: "sign this", nonce: NONCE)
 
     log = ErrorLog.last
