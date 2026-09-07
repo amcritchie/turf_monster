@@ -23,7 +23,7 @@ class ApplicationController < ActionController::Base
   before_action :touch_last_seen
   before_action :require_profile_completion
   before_action :preload_navbar_solana_data
-  helper_method :display_balance, :display_seeds_data, :display_entry_token_count, :onchain_session?, :wallet_context, :client_session_payload, :true_user, :impersonating?, :current_wallet
+  helper_method :display_balance, :display_seeds_data, :display_entry_token_count, :onchain_session?, :wallet_context, :client_session_payload, :true_user, :impersonating?, :current_wallet, :pending_signature_count
 
   # OPSEC-045: extend the engine's set_app_session to also bind a per-user
   # session_token in the cookie. The verify_session_token before_action
@@ -524,6 +524,22 @@ class ApplicationController < ActionController::Base
   # actually SIGN the consume), so a cold/null token hint can never mis-fund — it
   # can only mis-label. #display_entry_token_count scopes the hint to the wallet
   # that can sign in this session, matching the authoritative entry path.
+  # How many treasury transactions are actually waiting on a co-signature —
+  # the number behind the Signatures badge in the admin nav.
+  #
+  # `awaiting_signature` and not `pending`: production held 11 pending rows the
+  # day this shipped and 10 were dead `enter_contest` transactions from June and
+  # July. A badge that reads 11 when one thing needs signing teaches the operator
+  # to ignore it, which is worse than having no badge.
+  #
+  # Non-admins never pay for the query, and the result is memoized so rendering
+  # the sidebar twice (desktop + mobile panel) hits the database once.
+  def pending_signature_count
+    return 0 unless current_user&.admin?
+
+    @pending_signature_count ||= PendingTransaction.awaiting_signature.count
+  end
+
   def client_session_payload
     wallet_context.to_h.merge(
       usdcCents:       wallet_field_cents(:usdc),

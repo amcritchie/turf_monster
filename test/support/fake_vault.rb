@@ -135,7 +135,20 @@ class FakeVault
   # the conflation Avi flagged as previously untested.
   attr_writer :wallet_balances, :wallet_balances_raises
 
-  def fetch_wallet_balances(_wallet_address, raise_on_read_error: false)
+  # WHICH address each balance read was issued for, in order — the same reason
+  # mint_wallets exists beside mint_calls. Recording only THAT a balance was
+  # read let a test assert a funding verdict without asserting it was computed
+  # from the right wallet, and the two disagree on exactly the account this
+  # recording was added for: a web3-only user whose web2 address is nil, where
+  # the funding gate and the navbar resolve different wallets
+  # (/tasks/funds-gate-ignores-web3-wallet). An EMPTY list is a first-class
+  # fact too — it says the verdict was reached without ever asking about money.
+  def balance_calls
+    @balance_calls ||= []
+  end
+
+  def fetch_wallet_balances(wallet_address, raise_on_read_error: false)
+    balance_calls << wallet_address
     if defined?(@wallet_balances_raises) && @wallet_balances_raises
       raise Solana::Client::RpcError, "simulated token-accounts RPC flake" if raise_on_read_error
 

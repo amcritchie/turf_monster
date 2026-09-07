@@ -820,8 +820,21 @@
                 if (!m) return;
                 var cur = m.current && m.current();
                 // Swap over a dismissible modal (e.g. newsletter-success), but
-                // never clobber an in-flight non-dismissible one (the onchain-tx
-                // entry modal mid-broadcast) — open on top of that instead.
+                // never clobber a non-dismissible one — open on top of that
+                // instead. A card that forbids dismissal is guarding something
+                // the user still has to finish, and taking the screen away from
+                // it loses a prompt they have to act on.
+                //
+                // WHICH CARD, precisely — the note here used to name the wrong
+                // one. This event's only producer of levelUp is the seeds
+                // fanout (state_fanout.js), dispatched two seconds after an
+                // ENTRY succeeds, and that response's own success() or
+                // resolveEntry() has already run in the same tick. So the entry
+                // card is normally SUCCESS and dismissible by the time this
+                // reads it, and this takes the swap branch. The guard still
+                // earns its keep where that is not true: an entry that awards
+                // seeds and then throws before success(), or any other on-chain
+                // flow holding a processing card when the beat lands.
                 if (cur && cur.id && !(cur.props && cur.props.dismissible === false)) {
                   m.swap('free-entry-earned', props);
                 } else {
@@ -860,6 +873,30 @@
             var c = Alpine.store('modals').current();
             return (c && c.id === 'onchain-tx') ? c : null;
           };
+          // The live 'onchain-tx' entry ANYWHERE on the stack, or null. There is
+          // at most one, and show() below is what keeps that true. Entries on
+          // their way out are excluded: close() flips _closing immediately and
+          // splices only after the exit animation, and a card inside that window
+          // is gone as far as a new flow is concerned. That is the same line the
+          // engine's own isLive() draws; this walks the stack directly because it
+          // needs the ENTRY, not a boolean.
+          //
+          // THE `_closing` CLAUSE IS DELIBERATELY UNPINNED. Review mutated it
+          // away (2026-09-07) and both specs in level_up_stacked_modal.spec.js
+          // stayed green, so no test bites if it is deleted. It is kept because
+          // it is correct, not because a test defends it: patching a card inside
+          // its exit window writes props onto an entry about to be spliced, so
+          // the step would be lost. Pinning it needs a show() landing between
+          // close() and that splice — reachable only by driving the store from
+          // the spec, which tests this helper's shape rather than a journey a
+          // user can walk. Left as a known gap rather than a racy spec.
+          var _liveTx = function() {
+            var stack = Alpine.store('modals').stack;
+            for (var i = stack.length - 1; i >= 0; i--) {
+              if (stack[i].id === 'onchain-tx' && !stack[i]._closing) return stack[i];
+            }
+            return null;
+          };
           var _propRead = function(key, fallback) {
             var c = _onCurrent();
             return c ? (c.props[key] !== undefined ? c.props[key] : fallback) : fallback;
@@ -878,7 +915,7 @@
               // dismissible: false suppresses click-outside + escape while
               // a Phantom signature / RPC confirm is pending — success()/
               // error() flip it to true.
-              Alpine.store('modals').open('onchain-tx', {
+              var props = {
                 dismissible:     false,
                 state:           'processing',
                 title:           title,
@@ -903,7 +940,32 @@
                 // confetti on success — resolved in success() per variant
                 // (entry: on, generic: off unless opts.confetti:true).
                 confetti:        true
-              });
+              };
+              // ONE CARD PER FLOW. show() is how this store spells a STEP
+              // TRANSITION, not a new dialog: a single contest entry calls it
+              // three times (Preparing Transaction, then Sign Transaction, then
+              // Confirming Onchain) and modals.open() PUSHES, so the flow used to
+              // leave THREE stacked onchain-tx cards. Everything that follows —
+              // success(), error(), every field setter — goes through
+              // _onCurrent(), which reaches only the TOP one, so the cards
+              // underneath kept state 'processing' and dismissible:false for the
+              // life of the page. They were invisible (the host renders only
+              // current()) until something landed on top and was dismissed:
+              // closing the level-up celebration popped back to "Approve your
+              // free entry in your wallet..." for a transaction that had settled
+              // seconds earlier. Reusing the live entry keeps success() pointed
+              // at the only card there is.
+              //
+              // Patched in place rather than through swap()/advance() on purpose:
+              // both defer the new props by one animation frame, so a success()
+              // arriving inside that window would be overwritten by processing
+              // props landing late — a settled entry re-showing a spinner.
+              var live = _liveTx();
+              if (live) {
+                Object.assign(live.props, props);
+                return;
+              }
+              Alpine.store('modals').open('onchain-tx', props);
             },
             // opts (optional): { variant: 'entry'|'generic', title,
             // subtitle, ctaLabel, ctaHref } for the generic success card.
