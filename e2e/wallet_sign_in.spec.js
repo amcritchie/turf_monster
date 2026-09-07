@@ -227,3 +227,244 @@ test("the callback clears its nacl gate and never prints the dapp secret @smoke"
   expect(printed).toContain("PUBKEY-fine-to-print");
   expect(printed).toMatch(/redacted/);
 });
+
+// ── THE SETUP DIAGNOSIS, AND HOW NARROW IT HAS TO BE ──────────────────────
+//
+// uninitialized-phantom-reads-wrong (PR #571) stopped Phantom's generic
+// "Unexpected error" from being read as a transaction failure, and answered the
+// real case — an installed extension holding no keypair — with "Finish setting
+// up your wallet ... create or import one". Correct for that case. But the catch
+// it lives in wraps the WHOLE fallback, so the same sentence was also handed to
+// people who demonstrably HAVE a wallet: anyone whose signMessage failed after a
+// successful connect, anyone who dismissed the account-selection sheet, and
+// anyone whose only problem was that OUR server did not answer.
+//
+// WHY THESE ARE BROWSER SPECS AND NOTHING CHEAPER. The function under test is
+// inlined in application.html.erb and composes its answer from three moving
+// parts — the provider's rejection, our own nonce fetch, and parseSolanaError's
+// pass-through. A source scan can see that the guards are PRESENT; only a run
+// can see which one answered.
+//
+// AND WHY NOTHING HERE TYPES THE SENTENCE OUT. Every assertion below compares
+// values the page actually EMITTED against each other. A test that declares its
+// own copy of the copy cannot notice the copy changing — poison the real string
+// and a presence check stays green, which is exactly how #571 shipped with eight
+// live mutants.
+
+// A wallet that cannot answer at all — Phantom with no keypair in it. The
+// BASELINE every spec below measures against, and the control that proves these
+// narrower guards did not simply delete #571's fix.
+const UNINITIALIZED = "Unexpected error";
+
+test("a signMessage failure after connect() is not read as a missing wallet @smoke", async ({ page }) => {
+  await injectFreshKeypair(page);
+  await page.goto("/signin");
+
+  const out = await page.evaluate(async (generic) => {
+    const grab = async (fn) => {
+      try { await fn(); return null; } catch (e) { return (e && e.message) ? e.message : String(e); }
+    };
+    const p = window.walletProvider.get("keypair");
+    p.supportsSignIn = function () { return false; };
+    const realConnect = p.connect.bind(p);
+
+    // BASELINE — connect() never answers. The case #571 exists for, run for real
+    // so the sentence under test is the one the source emits.
+    p.connect = function () { return Promise.reject(new Error(generic)); };
+    const setup = await grab(() => window.solanaConnectAndVerify("keypair", {}));
+
+    // THE BUG — connect() DOES answer, with a public key, and only the signature
+    // fails. The wallet has proven it holds a keypair; "create or import one" is
+    // false advice to someone whose wallet just identified itself.
+    let pubkey = null;
+    p.connect = function () {
+      return realConnect().then(function (r) { pubkey = r.publicKey.toBase58(); return r; });
+    };
+    p.signMessage = function () { return Promise.reject(new Error(generic)); };
+    const signing = await grab(() => window.solanaConnectAndVerify("keypair", {}));
+
+    return {
+      setup,
+      signing,
+      pubkey,
+      mapped: window.parseSolanaError(setup),
+      // Both from the page's OWN mapper, never a copy typed into this spec.
+      // `mappedGeneric` is what the raw wallet string BECOMES — the transaction
+      // sentence this guard exists to keep off a sign-in surface.
+      mappedSigning: window.parseSolanaError(signing),
+      mappedGeneric: window.parseSolanaError(generic),
+    };
+  }, UNINITIALIZED);
+
+  // The wallet ANSWERED. Without this the spec would pass against a connect()
+  // that failed for its own reasons and never reached signMessage at all.
+  expect(out.pubkey).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+
+  // #571 still works: the wallet that could not answer is still rediagnosed...
+  expect(out.setup).not.toBe(UNINITIALIZED);
+  // ...and the sentence survives parseSolanaError untouched, which is the
+  // coupling it rests on. Asserted against what the page emitted, not a copy.
+  expect(out.mapped).toBe(out.setup);
+
+  // THE REGRESSION, IN THE VOCABULARY THE USER ACTUALLY READS. Asserting the RAW
+  // rethrow was not enough, and that gap is why this defect survived a green
+  // suite: every surface runs parseSolanaError before painting, so a raw string
+  // that reads fine can still be MAPPED into the wrong sentence. It was —
+  // "Unexpected error" became "…Check wallet connection and USDC balance." for a
+  // signed-out user who attempted no transaction.
+  //
+  // THE PRECONDITION FIRST, or the control below is vacuous. The raw generic
+  // really is rewritten by the mapper; without this, "not that sentence" could
+  // pass by comparing against a string nothing on this page ever produces.
+  expect(out.mappedGeneric).not.toBe(UNINITIALIZED);
+
+  // THE CONTROL. What the signing path emits must not land on the transaction
+  // sentence — compared against the page's own mapper OUTPUT, so rewording the
+  // mapper cannot quietly make this pass.
+  expect(out.mappedSigning).not.toBe(out.mappedGeneric);
+  // ...and it survives the mapper untouched, the same coupling `setup` rests on.
+  expect(out.mappedSigning).toBe(out.signing);
+  // Still its own diagnosis, and no longer the wallet's bare generic.
+  expect(out.signing).not.toBe(out.setup);
+  expect(out.signing).not.toBe(UNINITIALIZED);
+});
+
+test("a wallet that authorized no account is not read as a missing wallet @smoke", async ({ page }) => {
+  // TWO Wallet Standard wallets through the SAME adapter, differing only in how
+  // standard:connect answers. Resolving an EMPTY accounts array is a user who
+  // dismissed the account-selection sheet or deselected every account —
+  // wallet_provider.js rejects that with "No account authorized", and the
+  // fallback used to rewrite it into setup copy for someone who plainly has one.
+  await page.addInitScript(() => {
+    const shell = (name, connect) => ({
+      name,
+      version: "1.0.0",
+      icon: "data:image/svg+xml;base64,PHN2Zy8+",
+      chains: ["solana:devnet"],
+      accounts: [],
+      features: {
+        "standard:connect": { version: "1.0.0", connect },
+        "solana:signMessage": {
+          version: "1.0.0",
+          signMessage: async () => [{ signature: new Uint8Array(64) }]
+        }
+      }
+    });
+    const wallets = [
+      // The sheet was dismissed: the wallet answered, and authorized nothing.
+      shell("SheetDismissed", async () => ({ accounts: [] })),
+      // The control — a wallet with nothing in it, which SHOULD get setup copy.
+      shell("NoKeypairHere", async () => { throw new Error("Unexpected error"); })
+    ];
+    window.addEventListener("wallet-standard:app-ready", (e) => {
+      try { wallets.forEach((w) => e.detail.register(w)); } catch (err) { /* unregistered */ }
+    });
+  });
+  await page.goto("/signin");
+
+  const out = await page.evaluate(async () => {
+    const grab = async (fn) => {
+      try { await fn(); return null; } catch (e) { return (e && e.message) ? e.message : String(e); }
+    };
+    return {
+      named: window.walletProvider.available().map((w) => w.name),
+      empty: await grab(() => window.solanaConnectAndVerify("SheetDismissed", {})),
+      setup: await grab(() => window.solanaConnectAndVerify("NoKeypairHere", {}))
+    };
+  });
+
+  // Both fakes really registered and really went through the Wallet Standard
+  // adapter. Without this the spec could be comparing two nulls.
+  expect(out.named).toEqual(expect.arrayContaining(["SheetDismissed", "NoKeypairHere"]));
+
+  // The control: a wallet that cannot answer still gets the setup sentence.
+  expect(out.setup).not.toBe(UNINITIALIZED);
+
+  // THE REGRESSION. Opaque, but TRUE — and not the readable sentence that lies.
+  expect(out.empty).toBe("No account authorized");
+  expect(out.empty).not.toBe(out.setup);
+});
+
+test("the nonce round trip runs against the open wallet prompt @smoke", async ({ page }) => {
+  // Closing #571's first blocker hoisted `await noncePromise` above the try,
+  // which put a server round trip AHEAD of the wallet sheet for every wallet
+  // without solana:signIn. The await belongs BELOW connect(), where the fetch
+  // overlaps the human reading the prompt; tagging the fetch's own rejection is
+  // what makes that safe. Only ORDER can witness it, so order is what is pinned.
+  await injectFreshKeypair(page);
+  await page.goto("/signin");
+
+  const out = await page.evaluate(async () => {
+    const order = [];
+    const realFetch = window.fetch.bind(window);
+    let release = null;
+    let seen = false;
+    window.fetch = function (url, opts) {
+      if (!seen && String(url).indexOf("/auth/solana/nonce") !== -1) {
+        seen = true;
+        order.push("nonce:requested");
+        return new Promise(function (resolve) {
+          release = function () { order.push("nonce:answered"); resolve(realFetch(url, opts)); };
+        });
+      }
+      return realFetch(url, opts);
+    };
+
+    const p = window.walletProvider.get("keypair");
+    p.supportsSignIn = function () { return false; };
+    const realConnect = p.connect.bind(p);
+    p.connect = function () { order.push("connect:called"); return realConnect(); };
+
+    const pending = window.solanaConnectAndVerify("keypair", {});
+    // Hold the nonce response back. If the await sits above connect(), nothing
+    // reaches the wallet until this is released, and the order inverts.
+    await new Promise((r) => setTimeout(r, 250));
+    release();
+    const result = await pending;
+    window.fetch = realFetch;
+    return { order, success: !!(result && result.success) };
+  });
+
+  expect(out.order).toEqual(["nonce:requested", "connect:called", "nonce:answered"]);
+  // And the reordering still signs the user in — the half a pure ordering
+  // assertion is blind to.
+  expect(out.success).toBe(true);
+});
+
+test("our own server failing is not read as a missing wallet @smoke", async ({ page }) => {
+  await injectFreshKeypair(page);
+  await page.goto("/signin");
+
+  const out = await page.evaluate(async (generic) => {
+    const grab = async (fn) => {
+      try { await fn(); return null; } catch (e) { return (e && e.message) ? e.message : String(e); }
+    };
+    const p = window.walletProvider.get("keypair");
+    p.supportsSignIn = function () { return false; };
+    const realConnect = p.connect.bind(p);
+
+    // BASELINE, with the real endpoint up.
+    p.connect = function () { return Promise.reject(new Error(generic)); };
+    const setup = await grab(() => window.solanaConnectAndVerify("keypair", {}));
+
+    // Now /auth/solana/nonce falls over, with a wallet that works perfectly.
+    p.connect = realConnect;
+    const realFetch = window.fetch.bind(window);
+    window.fetch = function (url, opts) {
+      if (String(url).indexOf("/auth/solana/nonce") !== -1) {
+        return Promise.reject(new TypeError("Failed to fetch"));
+      }
+      return realFetch(url, opts);
+    };
+    const serverDown = await grab(() => window.solanaConnectAndVerify("keypair", {}));
+    window.fetch = realFetch;
+    return { setup, serverDown };
+  }, UNINITIALIZED);
+
+  // "Failed to fetch" is the one string that says OFFLINE. Wrapping it would
+  // replace the browser's own diagnosis with our guess, so it must arrive
+  // verbatim — and above all it must not be the setup sentence.
+  expect(out.serverDown).toBe("Failed to fetch");
+  expect(out.serverDown).not.toBe(out.setup);
+  expect(out.setup).not.toBe(UNINITIALIZED);
+});

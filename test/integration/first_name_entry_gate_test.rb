@@ -235,10 +235,18 @@ class FirstNameEntryGateTest < ActionDispatch::IntegrationTest
   # into the layout's chain driver.
   #
   # THIS TIER IS STRUCTURAL AND SAYS SO. These are assertions about inlined JS
-  # SOURCE TEXT: they prove the branch shipped, not that it behaves. A mutant
-  # that negates the condition — `if (e && e.detail && !e.detail.saved)` —
-  # passes every assertion below while doing precisely the damage the branch
-  # exists to prevent. The behavioural half is
+  # SOURCE TEXT: they prove the branch shipped, not that it behaves.
+  #
+  # This note NAMED THE WRONG MUTANT until 2026-09-07, and the correction makes
+  # the point sharper rather than softer. It claimed a negated condition —
+  # `if (e && e.detail && !e.detail.saved)` — slips past; it does not, because
+  # the assert_includes below pins that literal character-for-character and the
+  # `!` breaks it. The mutant that really survives this whole Ruby tier (measured:
+  # 26 runs, 213 assertions, 0 failures) keeps EVERY literal intact and simply
+  # moves the `window.dispatchEvent` line OUT of the `if` — so every string this
+  # file looks for is still present, in order, while a skip resumes an entry whose
+  # user still has no name. A source-text tier cannot see a statement that MOVED.
+  # The behavioural half is
   # e2e/onboarding_chain.spec.js's "the entry resume fires on a save and not on
   # a skip", which drives the real listener in a real browser.
   test "[component] the chain driver re-dispatches the resume only on a save" do

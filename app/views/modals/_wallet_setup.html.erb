@@ -309,7 +309,14 @@
            // observation: it may not delay, block or alter the line the user has
            // just been given. The reporter swallows its own faults; the typeof
            // guard covers a page where it never loaded.
-           if (typeof window.reportWalletFailure === 'function') {
+           //
+           // EXCEPT WHEN THE LAYOUT ALREADY REPORTED IT. solanaConnectAndVerify
+           // substitutes its own setup sentence for an unusable wallet's message
+           // and reports the pair from in there, where the wallet's words still
+           // exist. Reporting again from out here would add a second row whose
+           // `raw` and `mapped` are both OUR sentence — the exact useless shape
+           // that fix removes, and the row an operator would meet first.
+           if (typeof window.reportWalletFailure === 'function' && !(e && e.walletFailureReported)) {
              window.reportWalletFailure('wallet_setup_connect', 'Phantom', raw, msg);
            }
          }
@@ -481,9 +488,19 @@
     </div>
   </template>
 
-  <template x-if="error">
-    <p class="text-red-400 text-sm mt-3 text-center" x-text="error"></p>
-  </template>
+  <%# A LIVE REGION THAT IS ACTUALLY LIVE, so a screen reader is told the
+      connect failed. This was a <template x-if="error"> until 2026-09-07: the
+      paragraph did not exist until the error did, and a live region INSERTED
+      alongside its own content is not reliably announced — assistive tech has to
+      be watching the region before the text lands in it. Adding aria-live to the
+      old markup would have been the nominal fix that changes nothing.
+
+      So the paragraph is permanent and only its VISIBILITY moves — the same
+      x-show + x-cloak shape the install hint above it already uses. `alert`
+      rather than `status` because this interrupts a user who is waiting on a
+      click they just made, and it carries no other content to talk over. %>
+  <p x-show="error" x-cloak role="alert" aria-live="assertive" aria-atomic="true"
+     class="text-red-400 text-sm mt-3 text-center" x-text="error"></p>
 
   <%# === NEW TO SOLANA ======================================================
       The teaching half: someone walking the whole install on screen. This was
