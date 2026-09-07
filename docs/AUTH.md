@@ -355,8 +355,19 @@ red-seal the gem's own release.
   2026-09-07 fix removes — while adding nothing an operator could not read
   server-side. If those rejections should reach `error_logs`, the place to log
   them is `SolanaSessionsController#verify`'s own `rescue` clauses, where the
-  cause is in hand; note that `Solana::AuthVerifier::VerificationError` is
-  rescued OUTSIDE the `rescue_and_log` block today and so writes no row.
+  cause is in hand.
+
+  **And one of those two rescues writes no `ErrorLog` row — check the LINE
+  NUMBERS, not the rescue.** `rescue_and_log` persists a row and then RE-RAISES
+  by contract, so anything raised INSIDE its block is already logged by the time
+  `#verify`'s rescues see it. But `verify_solana_signature!` is called at
+  **:26** and that block does not open until **:59**, so a
+  `Solana::AuthVerifier::VerificationError` — an expired nonce, a bad signature,
+  a rewritten domain — is raised 33 lines ABOVE the block, never passes through
+  the logger, and answers `401` with no row behind it. The `rescue StandardError`
+  beside it is the opposite case: it catches the re-raise, and that one IS
+  logged. Spelled out because the two rescues sit on adjacent lines and read as
+  one behaviour; they are not, and this was misread once on 2026-09-07.
 - **CSRF is required, and no automated tier proves it.** Measured against a live
   dev stack (2026-09-07): a tokenless POST is answered **422** and writes no
   report row; `X-CSRF-Token: <token>` is answered **204** and writes one. The
