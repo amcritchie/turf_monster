@@ -16,7 +16,10 @@ class SolanaClientFailureReportTest < ActionDispatch::IntegrationTest
   PATH = "/auth/solana/report_failure".freeze
   NONCE = "a1b2c3d4e5f60718293a4b5c6d7e8f90".freeze
   PUBKEY = "6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt".freeze
-  SIGNATURE = ("5" * 88).freeze
+  # Non-hex base58 on purpose — see the note on the same constant in
+  # test/services/solana/client_failure_report_test.rb. An all-hex stand-in is
+  # caught by HEX_SECRET_RE and proves nothing about the signature rule.
+  SIGNATURE = "LDTEtogGVHwvu8FBPzatztKdh1GQtnwvo483Tg1C7SR82eHsS6c7ENpBFM3bPJ7KVrqSCpFES1bJaPia8QP6w61V".freeze
 
   def report(**overrides)
     post PATH, params: {
@@ -128,6 +131,30 @@ class SolanaClientFailureReportTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :no_content
+  end
+
+  test "a recorded report logs nothing claiming it was dropped" do
+    # THE HOLE A MUTANT FOUND, 2026-09-07. #record_client_wallet_failure enters
+    # the shared logging path by RAISING one line deep, and `rescue_and_log`
+    # re-raises by contract — so the success path ends in a raise that something
+    # must absorb. Deleting its `rescue Solana::ClientWalletFailure` left every
+    # test here green: the outer `rescue StandardError` in #report_failure caught
+    # the re-raise, the row was already written, and the status was still 204.
+    #
+    # What changed, and what nothing was watching, is the LOG. Every SUCCESSFUL
+    # report began emitting "[solana][client-failure] report dropped:" — an
+    # operator-facing line that is not merely noisy but false, about the one
+    # surface this whole task exists to make legible. A row that records and a
+    # log that says it did not is worse than either alone.
+    logged = []
+    Rails.logger.stub(:error, ->(message = nil, &_blk) { logged << message.to_s }) do
+      assert_difference "ErrorLog.count", 1 do
+        report
+      end
+    end
+
+    refute logged.any? { |line| line.include?("report dropped") },
+           "a report that WAS recorded logged that it was dropped: #{logged.inspect}"
   end
 
   test "a report with no body at all is absorbed" do

@@ -27,7 +27,15 @@ class Solana::ClientFailureReportTest < ActiveSupport::TestCase
   MSG
 
   # An ed25519 signature is 64 bytes -> 87-88 base58 characters.
-  SIGNATURE = ("5" * 88).freeze
+  #
+  # IT MUST CONTAIN NON-HEX BASE58 CHARACTERS, and that is the whole reason this
+  # is a literal rather than `"5" * 88`. Measured 2026-09-07: with the all-"5"
+  # form, deleting SIGNATURE_RE entirely left this file GREEN — every character
+  # of `"5" * 88` is also a hex digit, so HEX_SECRET_RE caught the string and the
+  # signature test was passing on its sibling's rule. A fixture that two rules
+  # both match cannot tell you which one is load-bearing. Verified against both:
+  # this value matches SIGNATURE_RE and does NOT match HEX_SECRET_RE.
+  SIGNATURE = "LDTEtogGVHwvu8FBPzatztKdh1GQtnwvo483Tg1C7SR82eHsS6c7ENpBFM3bPJ7KVrqSCpFES1bJaPia8QP6w61V".freeze
 
   def build(raw: "boom", mapped: "Something went wrong", provider: "Phantom", stage: "wallet_setup_connect")
     Solana::ClientFailureReport.new(
@@ -140,8 +148,19 @@ class Solana::ClientFailureReportTest < ActiveSupport::TestCase
   end
 
   test "an oversized message is truncated" do
-    report = build(raw: "x" * 5_000)
+    # THE INPUT HAS TO SURVIVE THE SCRUBS TO REACH THE TRUNCATION, which `"x" *
+    # 5_000` does not: it is one unbroken run of base58, so SIGNATURE_RE ate the
+    # whole string and left 10 characters. Measured 2026-09-07 — deleting
+    # `truncate` outright kept this test green, because truncation was never
+    # reached. Spaces are what keep the sentence intact through every rule above.
+    raw = "wallet rejected the request " * 40
 
+    report = build(raw: raw)
+
+    assert_operator raw.length, :>, Solana::ClientFailureReport::MAX_MESSAGE,
+                    "the fixture must exceed the cap or this test asserts nothing"
+    assert_includes report.raw_message, "wallet rejected the request",
+                    "the fixture was redacted away before truncation could be exercised"
     assert_operator report.raw_message.length, :<=, Solana::ClientFailureReport::MAX_MESSAGE
   end
 
