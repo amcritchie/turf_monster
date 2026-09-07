@@ -422,6 +422,7 @@ address. One standard now covers both.
 | Wallet brand registry | `Solana::WalletProvider` (`phantom` / `solflare` / `backpack`) |
 | Armed at sign-in | `record_web3_step_up_state!` → `session[:web3_step_up_prompt]` (one-shot) |
 | Armed at the Google collision | `arm_web3_step_up_for(user)` — popup branch only |
+| Armed at an entry refusal | `arm_web3_step_up_for(user)` again, from `ContestsController#enter` — see the ADVISORY note below |
 | Read on render | `web3_step_up_required?` — helper, RPC-free, true for the whole session |
 | The modal | `solana_studio/modals/_web3_step_up` — solana-studio owns the card; this app passes its own subtext + help route via `Web3StepUpHelper#web3_step_up_locals` |
 | Brand memory | `users.web3_wallet_provider` + `web3_authenticated_at`, stamped by `User#record_web3_authentication!` |
@@ -438,6 +439,21 @@ Rules worth knowing:
   Getting it backwards would lock a legitimate owner out of their own account
   over a wallet they merely cannot reach right now, which is why the card also
   carries a support link.
+- **ONE CALLER READS THE VERDICT AS A GATE, and it is narrower than the verdict**
+  (2026-09-07). `ContestsController#enter` refuses a PAID on-chain entry when the
+  policy says `true` **AND** the account holds no custodial keypair
+  (`!managed_wallet?`), returning `blocker.reason: "web3_step_up_required"` and
+  re-arming the card. That is not the advice becoming enforcement — such an
+  account has nothing to sign the entry with, so proceeding could only fail. The
+  second clause is what keeps it narrow: a **combo** account (managed + linked
+  wallet) gets the same `true` and enters anyway, from the custodial wallet
+  `#resolve_web2_entry_funding!` deliberately spends from; and a **free** contest
+  signs nothing, so it is never refused. Before this guard existed the same
+  request fell through to that method's `raise "Managed wallet missing keypair
+  (cannot sign entry)"`, and a player on QA read that exception text on a red
+  card titled "Submitting Entry" with the step-up card sitting underneath it.
+  `Solana::ErrorInterpreter` now maps that raise to the same blocker as a
+  backstop, so no raise wording can reach a modal by any route.
 - **It is disjoint from `WalletSetupPolicy`.** That policy asks "should this
   account GET a wallet"; this one asks "should this SESSION prove the wallet it
   already has" — opposite populations, since a `phantom_wallet?` account exits
