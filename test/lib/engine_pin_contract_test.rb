@@ -131,9 +131,11 @@ class EnginePinContractTest < ActiveSupport::TestCase
   #          page render — a TOTAL outage, the same class as the 0.64 boot
   #          failure above, not a degraded field.
   #          DATED TWO WAYS, because the number is the whole point here:
-  #          grepping all 118 installed studio-engine trees for the
-  #          ASSIGNMENT `FULL_NAME_MAX_LENGTH =` under lib/ and app/ finds it
-  #          in exactly 0.69.5 and 0.70.0 and in NONE of the 116 below; and
+  #          grepping every installed studio-engine tree (128 of them,
+  #          118 distinct versions across two Ruby gem homes) for the
+  #          ASSIGNMENT `FULL_NAME_MAX_LENGTH =` under lib/ and app/ finds
+  #          it in exactly 0.69.5 and 0.70.0 and in NONE of the 116
+  #          versions below; and
   #          in the gem repo the commit that adds it (f2c2d1c, 2026-09-06) is
   #          contained by exactly the v0.69.5 and v0.70.0 tags, while that
   #          commit's own version.rb still reads 0.69.4 — so 0.69.4 is the
