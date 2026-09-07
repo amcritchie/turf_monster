@@ -210,9 +210,10 @@ different layer.)
 red state as "blocked" in general. `setHoldError()` — the only code that adds
 `.error` ("Entry Blocked") — has exactly one caller, the geo pre-check, so the
 red state belongs to geo alone. The switch path CLEARS it instead: five of the
-six arms and the default call `resetHoldButtons()`, the only remover of
-`.error`, and the `no_funding` arm does not touch the button at all
-(`showFundsNeeded` only opens a card).
+six arms and the default call `resetHoldButtons()`, and the `no_funding` arm
+does not touch the button at all (`showFundsNeeded` only opens a card).
+(`resetHoldButtons` is not the only clearer, whatever its own comment says —
+`setHoldSuccess` and `setHoldLoading` drop `.error` too.)
 
 ### What this section used to claim, and why both halves were wrong
 
