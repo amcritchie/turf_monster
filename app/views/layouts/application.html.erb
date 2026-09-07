@@ -244,9 +244,9 @@
           var provider = walletName ? window.walletProvider.get(walletName) : window.walletProvider.detect();
           if (!provider) throw new Error('Wallet not available');
           // Fire the nonce fetch IMMEDIATELY. It takes no parameters and does not
-          // depend on the wallet, but used to be awaited AFTER connect() — so its
-          // round trip sat behind a human-gated wallet prompt for no reason. Kicked
-          // off here it resolves during that prompt, on both paths below.
+          // depend on the wallet. Both paths below await it BEFORE they prompt, so
+          // it overlaps the setup here, NOT the wallet sheet — the price of never
+          // diagnosing our own server's failure as a broken wallet.
           //
           // SIDE EFFECT, deliberate and recorded: this also starts the server's
           // NONCE_MAX_AGE (300s) clock BEFORE the wallet sheet opens rather than
@@ -370,9 +370,9 @@
               // rejected"; only a wallet that could not answer gets the setup copy.
               var em = (e && e.message) ? e.message : String(e);
               if (/user rejected/i.test(em) || /user declined/i.test(em) || (e && e.code === 4001)) throw e;
-              // provider.name is the lowercase SLUG ('phantom'), which reads as
-              // "your wallet in phantom" in prose. Prefer the brand's own
-              // spelling; fall back to a capitalised slug, then to the generic.
+              // provider.name is a lowercase SLUG on the legacy provider ('phantom',
+              // wallet_provider.js:69) but a display name on the Wallet Standard
+              // adapter (:265), so capitalise it. Nothing sets label/displayName.
               var brand = (provider && (provider.label || provider.displayName)) ||
                           (provider && provider.name ? provider.name.charAt(0).toUpperCase() + provider.name.slice(1) : '') ||
                           'your wallet';

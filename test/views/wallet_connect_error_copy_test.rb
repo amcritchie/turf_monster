@@ -61,11 +61,9 @@ class WalletConnectErrorCopyTest < ActionDispatch::IntegrationTest
   test "the wallet is named the way its brand writes it, not by slug" do
     src = LAYOUT.read
 
-    # provider.name is the lowercase slug, so the sentence read "your wallet in
-    # phantom". This diff is the first place provider identity is rendered as
-    # user-facing PROSE rather than shipped as a normalised server field.
-    assert_includes src, "provider.label || provider.displayName",
-                    "prefer the brand's own spelling"
+    # provider.name is the lowercase slug on the legacy provider, so the sentence
+    # read "your wallet in phantom". NOT asserting the label/displayName alternand:
+    # nothing sets either key, so pinning its text certifies a dead branch.
     assert_includes src, "toUpperCase()",
                     "and capitalise the slug rather than printing it raw"
     refute_match(/in ' \+ \(\(provider && provider\.name\)/, src,
