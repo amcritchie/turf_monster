@@ -1,0 +1,200 @@
+require "test_helper"
+require "json"
+require "open3"
+
+# onchainSettled() — the one seam every web3-transaction-success path calls.
+#
+# WHAT IT IS FOR. A balance read taken right after a broadcast is a coin flip:
+# the transaction is confirmed but the RPC has not necessarily caught up, so the
+# read returns the PRE-SPEND number. Measured on QA 2026-09-07 — a $75 contest
+# creation, a session_refresh 828ms after finalize returned, and a navbar that
+# showed the old balance confidently for the next minute.
+#
+# The three properties below are the ones that were NOT free, and each is
+# asserted against the real module executed in node.
+class OnchainSettledJsTest < ActiveSupport::TestCase
+  def run_module(body)
+    source = Rails.root.join("app/javascript/solana_utils.js")
+    script = <<~JS
+      import { pathToFileURL } from 'node:url';
+
+      const store = {};
+      const painted = [];          // every write to the balance pill, in order
+      const fetched = [];          // every session_refresh the module issues
+      let now = 1_000_000;
+      const realSetTimeout = globalThis.setTimeout;
+
+      // A clock we control: the whole subject is WHEN a read happens.
+      const timers = [];
+      globalThis.setTimeout = (fn, ms) => { timers.push({ fn, at: now + (ms || 0) }); return timers.length; };
+      const advance = (ms) => {
+        now += ms;
+        timers.filter(t => t.at <= now && !t.done).forEach(t => { t.done = true; t.fn(); });
+      };
+      const RealDate = Date;
+      globalThis.Date = class extends RealDate { static now() { return now; } };
+
+      const pill = { textContent: '$1239', classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, has(c) { return this._s.has(c); } } };
+      globalThis.document = {
+        querySelectorAll(sel) { return sel === '[data-balance-display]' ? [pill] : []; },
+        getElementById() { return null; },
+        addEventListener() {}, dispatchEvent() {}
+      };
+      globalThis.localStorage = { _d: {}, setItem(k, v) { this._d[k] = v; }, getItem(k) { return this._d[k] ?? null; }, removeItem(k) { delete this._d[k]; } };
+      const sessionStore = { _d: {}, setItem(k, v) { this._d[k] = String(v); }, getItem(k) { return this._d[k] ?? null; }, removeItem(k) { delete this._d[k]; } };
+
+      const seedsEvents = [];
+      globalThis.window = {
+        sessionStorage: sessionStore,
+        localStorage: globalThis.localStorage,
+        addEventListener() {},
+        dispatchEvent(e) { if (e && e.type === 'navbar-seeds-update') seedsEvents.push(e); return true; }
+      };
+      globalThis.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = (init || {}).detail; } };
+      globalThis.Alpine = { store(n, v) { if (arguments.length === 2) store[n] = v; return store[n]; } };
+      globalThis.Alpine.store('session', {});
+
+      // The server always answers with the SETTLED number here; the question is
+      // only whether the module asks at the right time and paints in between.
+      globalThis.fetch = (url) => {
+        fetched.push({ url, at: now });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          usdc: '1164.0', usdt: '0', tokens: 0, seeds: 10, level: 2, toward_next: 5, progress: 50
+        }) });
+      };
+
+      const mod = await import(pathToFileURL(process.argv[1]).href + '?t=' + RealDate.now());
+      const settle = (ms) => new Promise(r => realSetTimeout(r, ms));
+      #{body}
+    JS
+
+    stdout, stderr, status = Open3.capture3(
+      "node", "--input-type=module", "--eval", script, source.to_s
+    )
+    assert status.success?, stderr
+    JSON.parse(stdout)
+  end
+
+  # PROPERTY 1 — the navigating caller. Contest creation assigns
+  # window.location.href the moment the server answers, and a setTimeout does
+  # not survive unload. If this scheduled a timer instead of leaving a marker it
+  # would be a SILENT no-op on the exact flow it was built for.
+  test "a navigating caller leaves a marker instead of a doomed timer" do
+    r = run_module(<<~JS)
+      mod.onchainSettled({ navigating: true });
+      const markerWritten = sessionStore.getItem('tm:onchain-settle-until');
+      advance(60000);                       // the unload would have killed a timer
+      const fetchedWhileNavigating = fetched.length;
+
+      // The destination page consumes it and gets the REMAINING window.
+      const remaining = mod.pendingOnchainSettleMs();
+      const clearedAfterRead = sessionStore.getItem('tm:onchain-settle-until');
+      const secondRead = mod.pendingOnchainSettleMs();
+
+      console.log(JSON.stringify({ markerWritten, fetchedWhileNavigating, remaining, clearedAfterRead, secondRead }));
+    JS
+
+    assert_not_nil r["markerWritten"],
+      "a navigating caller must persist the settle window; a timer would die on unload"
+    assert_equal 0, r["fetchedWhileNavigating"],
+      "it must NOT schedule its own read — that read belongs to the destination page"
+    assert_equal 0, r["remaining"],
+      "the marker's window had already elapsed, so the destination settles immediately"
+    assert_nil r["clearedAfterRead"], "reading the marker must consume it"
+    assert_nil r["secondRead"],
+      "a second read must find nothing — otherwise a reload re-arms the wait forever"
+  end
+
+  # PROPERTY 2 — never a wrong number. This is the operator's call: hold the
+  # loading state rather than paint a value we have reason to distrust.
+  test "the pill goes to loading and is painted ONCE, after the settle window" do
+    r = run_module(<<~JS)
+      mod.onchainSettled({ delayMs: 10000 });
+      const duringWait = { text: pill.textContent, hidden: pill.classList.has('hidden'), fetches: fetched.length };
+      advance(9999);
+      const justBefore = { fetches: fetched.length, text: pill.textContent };
+      advance(2);
+      await settle(30);
+      const after = { fetches: fetched.length, text: pill.textContent, hidden: pill.classList.has('hidden') };
+      console.log(JSON.stringify({ duringWait, justBefore, after }));
+    JS
+
+    assert_equal "", r.dig("duringWait", "text"),
+      "the stale figure must be cleared the moment the spend is known — not left on screen"
+    assert r.dig("duringWait", "hidden"),
+      "the pill must return to the server's cache-cold LOADING shape while it waits"
+    assert_equal 0, r.dig("duringWait", "fetches"),
+      "no read during the wait — reading early is the whole bug"
+    assert_equal 0, r.dig("justBefore", "fetches"),
+      "still nothing at 9999ms; the window must actually be honoured"
+    assert_equal 1, r.dig("after", "fetches"),
+      "exactly one read, once the chain has had its ten seconds"
+    assert_equal "$1164", r.dig("after", "text"), "and it paints the SETTLED number"
+    assert_not r.dig("after", "hidden"), "loading clears once a trustworthy value lands"
+  end
+
+  # PROPERTY 4 — the load-time decision the layout delegates to.
+  #
+  # This is the seam that makes the redirect work end to end, and it used to be
+  # three lines of inline ERB that no test could execute. Extracted so it can be.
+  test "the page that receives the redirect defers its own read, exactly once" do
+    r = run_module(<<~JS)
+      // (a) no spend happened — the page hydrates normally.
+      const cleanPage = mod.settleOnLoadIfPending();
+      const fetchesAfterClean = fetched.length;
+
+      // (b) a spend happened on the page that sent us here.
+      mod.onchainSettled({ navigating: true, delayMs: 10000 });
+      const deferred = mod.settleOnLoadIfPending();
+      const paintedDuringWait = { text: pill.textContent, hidden: pill.classList.has('hidden') };
+      const fetchesDuringWait = fetched.length;
+      advance(10001);
+      await settle(30);
+      const fetchesAfterSettle = fetched.length;
+
+      // (c) a RELOAD after settling must not defer again.
+      const secondLoad = mod.settleOnLoadIfPending();
+
+      console.log(JSON.stringify({ cleanPage, fetchesAfterClean, deferred, paintedDuringWait, fetchesDuringWait, fetchesAfterSettle, secondLoad }));
+    JS
+
+    assert_equal false, r["cleanPage"],
+      "with no spend pending it must return false so the normal load-time hydrate still runs — " \
+      "returning true here would silently stop the navbar ever hydrating"
+    assert_equal 0, r["fetchesAfterClean"], "and it must not read on its own in that case"
+
+    assert_equal true, r["deferred"],
+      "a pending spend must take over the load, or the layout does its own early read — " \
+      "the exact read that painted the stale $1239"
+    assert_equal "", r.dig("paintedDuringWait", "text")
+    assert r.dig("paintedDuringWait", "hidden"), "the pill holds LOADING across the redirect"
+    assert_equal 0, r["fetchesDuringWait"], "no read during the inherited window"
+    assert_equal 1, r["fetchesAfterSettle"], "exactly one read, after it settles"
+
+    assert_equal false, r["secondLoad"],
+      "a later reload must hydrate normally — the marker is consumed, so the wait cannot re-arm"
+  end
+
+  # PROPERTY 3 — the seeds guard. Converging every path onto a delayed FULL
+  # reload means that reload can land mid level-up animation.
+  test "the delayed reload leaves the seeds bar alone while it is animating" do
+    r = run_module(<<~JS)
+      mod.markSeedsAnimating(3000);
+      await mod.refreshSession();
+      const during = { events: seedsEvents.length, stored: localStorage.getItem('seedsNavbar') };
+
+      advance(3001);                       // animation over
+      await mod.refreshSession();
+      const after = { events: seedsEvents.length, stored: localStorage.getItem('seedsNavbar') };
+      console.log(JSON.stringify({ during, after }));
+    JS
+
+    assert_equal 0, r.dig("during", "events"),
+      "no seeds event while the animation owns the bar — it would snap the bar back or re-fire the milestone"
+    assert_nil r.dig("during", "stored"),
+      "and no canonical seeds write either; the animation is mid-flight toward that value"
+    assert_equal 1, r.dig("after", "events"),
+      "once the animation is done the reload repaints seeds normally — the guard is a WINDOW, not an off switch"
+    assert_not_nil r.dig("after", "stored")
+  end
+end

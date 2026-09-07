@@ -231,6 +231,112 @@ export function refreshBalance() {
     .catch(function() {});
 }
 
+// ── THE ON-CHAIN SETTLE SEAM ────────────────────────────────────────────────
+//
+// onchainSettled() is what EVERY web3-transaction-success path calls. It exists
+// because a balance read taken right after a broadcast is a coin flip: the
+// transaction is confirmed, but the RPC has not necessarily caught up, so the
+// read comes back with the PRE-SPEND number. Measured on QA 2026-09-07 — a $75
+// contest creation, a session_refresh fired 828ms after finalize returned, and
+// a navbar that confidently showed the old balance for the next 60 seconds.
+//
+// THE RULE THAT SHAPES THIS: never paint a number we have reason to distrust.
+// Between the spend and the settle the pill holds its LOADING state (operator
+// call 2026-09-07). Ten seconds of "loading" is a worse look and a better
+// answer than ten seconds of a wrong dollar figure.
+//
+// WHY A MARKER AND NOT JUST A TIMER. Some callers navigate — contest creation
+// assigns window.location.href the moment the server answers — and a setTimeout
+// does not survive unload. Scheduling in the caller would be a SILENT no-op on
+// exactly the flows this was built for. So a navigating caller leaves a marker
+// in sessionStorage and the DESTINATION page picks it up (see the layout's
+// hydrateNavbar). A caller that stays put (every entry flow) schedules directly.
+var ONCHAIN_SETTLE_KEY = "tm:onchain-settle-until";
+export var ONCHAIN_SETTLE_MS = 10000;
+
+// Put the balance pill back into the server's cache-cold "loading" shape:
+// hidden, with no dollar figure. Mirrors _navbar.html.erb's `hide_balance`
+// branch, so the client's loading state and the server's are the same state.
+function paintBalanceLoading() {
+  try {
+    document.querySelectorAll("[data-balance-display]").forEach(function (el) {
+      el.textContent = "";
+      el.classList.add("hidden");
+    });
+  } catch (_) {}
+}
+
+function scheduleOnchainSettle(delay) {
+  paintBalanceLoading();
+  if (window.showNavSpinner) window.showNavSpinner();
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      refreshSession().finally(function () {
+        if (window.hideNavSpinner) window.hideNavSpinner();
+        resolve();
+      });
+    }, delay);
+  });
+}
+
+// opts.navigating — true when the caller is about to assign window.location.
+// opts.delayMs    — override the settle window (default ONCHAIN_SETTLE_MS).
+export function onchainSettled(opts) {
+  opts = opts || {};
+  var delay = (opts.delayMs == null) ? ONCHAIN_SETTLE_MS : opts.delayMs;
+  if (opts.navigating) {
+    try {
+      window.sessionStorage.setItem(ONCHAIN_SETTLE_KEY, String(Date.now() + delay));
+    } catch (_) {}
+    return null;
+  }
+  return scheduleOnchainSettle(delay);
+}
+
+// Consume a marker left by a navigating caller. Returns the REMAINING ms when
+// one was pending (never negative), else null. Clears it either way, so a
+// reload cannot re-arm the wait forever.
+export function pendingOnchainSettleMs() {
+  var raw = null;
+  try {
+    raw = window.sessionStorage.getItem(ONCHAIN_SETTLE_KEY);
+    window.sessionStorage.removeItem(ONCHAIN_SETTLE_KEY);
+  } catch (_) { return null; }
+  if (!raw) return null;
+  var until = parseInt(raw, 10);
+  if (!until) return null;
+  return Math.max(0, until - Date.now());
+}
+
+// The load-time decision, as a FUNCTION rather than as glue in the layout.
+//
+// It lives here because the layout's inline script is not reachable by any
+// unit test — three lines of ERB deciding whether to read the chain is exactly
+// where a silent regression hides. Returns true when the caller must NOT do its
+// own load-time read: a spend happened on the page that sent us here, so
+// onchainSettled now owns the pill until it settles.
+export function settleOnLoadIfPending() {
+  var pendingMs = pendingOnchainSettleMs();
+  if (pendingMs == null) return false;
+  onchainSettled({ delayMs: pendingMs });
+  return true;
+}
+
+// ── THE SEEDS GUARD ─────────────────────────────────────────────────────────
+// refreshSession() repaints the seeds bar, and the entry flow runs a ~3s
+// level-up animation. Converging every success path onto a delayed FULL reload
+// means that reload can land mid-animation and snap the bar back or re-fire the
+// milestone. The animation owns the bar while it plays; the reload skips it.
+var _seedsAnimatingUntil = 0;
+
+export function markSeedsAnimating(ms) {
+  _seedsAnimatingUntil = Date.now() + (ms || 3000);
+}
+
+export function seedsAnimating() {
+  return Date.now() < _seedsAnimatingUntil;
+}
+
 export function refreshBalanceDelayed(ms) {
   var delay = ms || 10000;
   if (window.showNavSpinner) window.showNavSpinner();
@@ -306,7 +412,11 @@ export function refreshSession() {
       // dispatch the same 'navbar-seeds-update' event the entry-confirm
       // flow uses so the bar transitions smoothly to the new value
       // instead of snapping on next reload.
+      // THE GUARD: a level-up animation owns the bar while it plays. A delayed
+      // full reload landing mid-animation would snap the bar back to a value
+      // the animation is still travelling toward, or re-fire the milestone.
       try {
+        if (seedsAnimating()) throw new Error("seeds animating — skip repaint");
         localStorage.setItem('seedsNavbar', JSON.stringify({
           seeds_total: data.seeds,
           level:       data.level,
@@ -554,6 +664,11 @@ window.solanaNetworkInfo = solanaNetworkInfo;
 window.confirmSolanaNetworkIntent = confirmSolanaNetworkIntent;
 window.refreshBalance = refreshBalance;
 window.refreshBalanceDelayed = refreshBalanceDelayed;
+window.onchainSettled = onchainSettled;
+window.pendingOnchainSettleMs = pendingOnchainSettleMs;
+window.settleOnLoadIfPending = settleOnLoadIfPending;
+window.markSeedsAnimating = markSeedsAnimating;
+window.seedsAnimating = seedsAnimating;
 window.refreshSession = refreshSession;
 window.refreshLevelUpToken = refreshLevelUpToken;
 // fireConfettiFromModal was removed (it had no call sites). Its exact radial
