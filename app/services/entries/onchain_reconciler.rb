@@ -25,22 +25,26 @@
 # stranded payment wearing a different status. Those rows are in reach too, but
 # only on proof: see #reconcilable?.
 #
-# The abandoned strand this ADMITS takes the PROBE path, and needs no special
-# handling to get there. Its signature was stamped on the PendingTransaction
-# rather than the entry, so Entry#release_slot_if_abandoned — which spares the
-# slot only when the ENTRY carries a signature — nulls its entry_number on the
-# way out. A nil entry_number is exactly what makes #find_onchain_entry scan
-# every slot instead of one, which is what finds the PDA the released number no
-# longer points at.
+# THE TWO ABANDONED STRANDS TAKE DIFFERENT PATHS, and which one a row takes is
+# decided by where its proof was written — the same fact that decides whether it
+# kept its slot:
 #
-# NOT EVERY ABANDONED STRAND, THOUGH. The MANAGED-wallet path
-# (ContestsController#enter) stamps the consume signature on the ENTRY itself and
-# writes no PendingTransaction at all, so clear_picks leaves `abandoned` + a
-# signature + the slot SPARED — and #reconcilable? refuses it, because a signed
-# PendingTransaction is its only abandoned admission. That strand is still out of
-# reach; task `reach-managed-abandoned-strand` carries the fix. Measured in review
-# 2026-09-06, not inferred: reconcile_entry returns :skipped on it and
-# #reconcilable_entries does not see it.
+#   - PHANTOM strand (#prepare_entry / #confirm_onchain_entry) → PROBE path. Its
+#     signature is on the PendingTransaction rather than the entry, so
+#     Entry#release_slot_if_abandoned — which spares the slot only when the ENTRY
+#     carries a signature — nulls its entry_number on the way out. That nil is
+#     exactly what makes #find_onchain_entry scan every slot instead of one,
+#     which is what finds the PDA the released number no longer points at.
+#   - MANAGED strand (ContestsController#enter) → FAST path. The durable capture
+#     put the consume signature on the ENTRY, so release_slot_if_abandoned spares
+#     the slot and reconcile_entry credits the stored proof without an RPC.
+#
+# The managed one was UNREACHABLE until `reach-managed-abandoned-strand`: it
+# writes no PendingTransaction at all, and a signed PendingTransaction was
+# #reconcilable?'s only abandoned admission — so the shape carrying the strongest
+# proof available was the one refused. Widened here in BOTH places that decide
+# admission (#reconcilable? and #reconcilable_entries), because they are separate
+# implementations of one rule.
 #
 # WHAT THIS SERVICE WILL NOT DO. It only ever PROMOTES a row toward `active`. It
 # never deletes one and never rewrites a status downward.
@@ -155,22 +159,43 @@ module Entries
     #
     # `abandoned` only on proof of a broadcast. The status alone says nothing:
     # clear_picks abandons a row every time anyone changes their mind, and
-    # promoting those would enter people who asked not to be entered. The
-    # discriminator is a PendingTransaction targeting this entry that carries a
-    # tx_signature — ContestsController#confirm_onchain_entry stamps it there
-    # IMMEDIATELY after the broadcast and BEFORE verification (A1, the
-    # double-charge guard), so its presence is the durable record that money
-    # moved for THIS row even though the entry itself never got a signature.
+    # promoting those would enter people who asked not to be entered. So the
+    # question is always "did money move for THIS row?", and there are exactly
+    # two places the answer can be recorded, because there are two entry paths:
     #
-    # It is an ADMISSION test, not the evidence. Nothing here is credited from
-    # the PendingTransaction: reconcile_entry still recovers the PDA and the
-    # consume signature from the chain, and still runs the full Entry#confirm!
-    # gate. So a signed PendingTransaction only buys the row a look.
+    #   - ON THE ENTRY (the MANAGED-wallet path, ContestsController#enter). The
+    #     durable capture stamps the consume signature onto the still-`cart`
+    #     entry and writes no PendingTransaction at all. This is the STRONGEST
+    #     proof there is — the consume signature itself — and it is why
+    #     release_slot_if_abandoned spared the row's entry_number on the way out.
+    #   - ON A PendingTransaction (the PHANTOM path, #prepare_entry /
+    #     #confirm_onchain_entry). The signature is stamped there IMMEDIATELY
+    #     after the broadcast and BEFORE verification (A1, the double-charge
+    #     guard), so it is the durable record that money moved even though the
+    #     entry itself never got a signature.
+    #
+    # Requiring the second alone refused every managed strand — the default
+    # onboarding population, since #enter turns away onchain_session? and
+    # self_custodied? users. Those users had paid on-chain, held no entry, and
+    # were not even slot-blocked (assign_onchain_entry_number! probes the chain,
+    # so the abandoned row sits outside the allocator's taken set): they would be
+    # issued the NEXT slot and could pay AGAIN, with the first payment never
+    # credited. Task `reach-managed-abandoned-strand`, measured in review of PR
+    # 560 and re-proven on `accepted` before the fix.
+    #
+    # `onchain_tx_signature` and NOT `onchain_entry_id`: a comped
+    # EnterContestWithToken stamps a PDA and moves no USDC, so a PDA says an
+    # Entry account exists, never that anyone paid for it.
+    #
+    # Both are ADMISSION tests, not the evidence. Nothing is credited from the
+    # PendingTransaction: reconcile_entry still recovers the PDA and the consume
+    # signature from the chain for a row with no proof of its own, and every row
+    # still runs the full Entry#confirm! gate. Proof only buys the row a look.
     def reconcilable?(entry)
       return true if entry.cart?
       return false unless entry.abandoned?
 
-      broadcast_proof?(entry)
+      entry.onchain_tx_signature.present? || broadcast_proof?(entry)
     end
 
     # Mirrors the polymorphic lookup in ContestsController#confirm_onchain_entry,
@@ -186,13 +211,20 @@ module Entries
     end
 
     # The sweep's candidate set: every `cart` row, plus only those `abandoned`
-    # rows a broadcast can be proven for. Resolving the abandoned half through
-    # PendingTransaction first keeps a contest full of ordinary cleared carts to
-    # one indexed lookup instead of a row-by-row walk that would call
-    # #reconcilable? on each.
+    # rows a broadcast can be proven for. Resolving the PendingTransaction half
+    # through one indexed lookup keeps a contest full of ordinary cleared carts
+    # off a row-by-row walk that would call #reconcilable? on each.
+    #
+    # THIS QUERY IS A SECOND, INDEPENDENT ADMISSION TEST. It does not call
+    # #reconcilable?; it re-states the same rule in SQL. So the two must be kept
+    # in step by hand, and the failure mode when they drift is silent: the sweep
+    # walks a candidate set that never contains the row and prints
+    # `reconciled=0` over a live, paid-for strand. Widen one, widen the other.
     def reconcilable_entries(contest)
+      abandoned = contest.entries.where(status: :abandoned)
       contest.entries.where(status: :cart)
-             .or(contest.entries.where(status: :abandoned, id: broadcast_strand_ids(contest)))
+             .or(abandoned.where.not(onchain_tx_signature: [nil, ""]))
+             .or(abandoned.where(id: broadcast_strand_ids(contest)))
     end
 
     def broadcast_strand_ids(contest)
