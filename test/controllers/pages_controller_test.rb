@@ -71,6 +71,119 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/close your account/i, response.body)
   end
 
+  # ── versioned rules pages ─────────────────────────────────────────────────
+  #
+  # TWO rules pages, one per SEASON. /turf-totals-v1 documents the World Cup
+  # format; /turf-monster-v1 documents the NFL one. They are not variants of the
+  # same copy — the sports price and score differently — so the tests below pin
+  # the NFL page to the NFL rules and assert the older page still answers.
+
+  test "NFL rules page renders without auth" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    assert_select "h1", /Turf\s*Monster/
+    assert_match "NFL 2026", response.body
+  end
+
+  # Scoped to the page's own subtree, not response.body: the layout ships
+  # site-wide meta that still describes the World Cup season, and a whole-body
+  # scan reads that chrome rather than this page.
+  def rules_page_text
+    node = css_select('[data-test="turf-monster-rules"]').first
+    assert node, "the rules page must render its own subtree"
+    node.text
+  end
+
+  test "NFL rules page leads with the four play steps in order" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    steps = ["Pick a contest", "Choose your teams", "Watch the leaderboard", "Win prizes"]
+    text = rules_page_text
+    positions = steps.map { |step| text.index(step) }
+
+    assert_equal [], steps.zip(positions).select { |_, at| at.nil? }.map(&:first),
+                 "every play step must appear on the page"
+    assert_equal positions, positions.sort,
+                 "the steps must read in order: #{steps.join(' -> ')}"
+  end
+
+  # THE OPERATOR RULE THIS PAGE IS BUILT ON: it teaches game play, and hands
+  # every question about what an entry COSTS to the Web3 onboarding guide. A
+  # dollar figure sitting here with no way through to /getting-started is the
+  # regression — so assert the link is present more than once (hero, prizes,
+  # quick reference, footer) rather than merely somewhere.
+  test "NFL rules page routes entry cost to the Web3 onboarding guide" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    # FOUR, not "at least a few": the page names cost in four places — the play
+    # steps, the Prizes section, the Quick Reference row, and the closing CTA —
+    # and each one carries its own way through. A floor of 3 let a link be
+    # deleted with the guard still green (measured by mutation, 2026-09-06).
+    # SCOPED to the page's own subtree. The layout ships two more
+    # /getting-started links of its own, so an unscoped assert_select counts SIX
+    # and a floor of four stays green after a page link is deleted — measured by
+    # mutation, 2026-09-06, and the same trap the World Cup assertion below hit.
+    assert_select '[data-test="turf-monster-rules"] a[href=?]', getting_started_path, { minimum: 4 },
+                  "each entry-cost mention must send the reader to the onboarding guide"
+    assert_match(/USDC/, rules_page_text)
+  end
+
+  # The page is NFL, and the multiplier curve is the tell: the NFL curve is
+  # linear and tops out at x2.0 (SlateMatchup.turf_score_for, sport: "nfl"),
+  # while the World Cup curve is logarithmic to x3.0. Copy that drifted back to
+  # the soccer numbers would still render, still read fine, and be wrong.
+  test "NFL rules page states the NFL multiplier curve, not the soccer one" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    text = rules_page_text
+    assert_match(/x1\.0/, text)
+    assert_match(/x2\.0/, text)
+    assert_no_match(/x3\.0/, text, "x3.0 is the World Cup ceiling, not the NFL one")
+    assert_no_match(/World Cup/i, text, "this page documents the NFL season")
+    # NOT a blunt /goals?/ refutation — "field goal" is the NFL's own word and
+    # appears twice on this page legitimately. What must never come back is the
+    # soccer SCORING UNIT, so pin the unit sentence positively and refute the
+    # phrasings that would replace it.
+    assert_match(/points scored/i, text, "the scoring unit is points scored")
+    assert_no_match(/goals scored|goals\s*[x\u00d7]\s*Turf/i, text,
+                    "the NFL page scores points, not goals")
+  end
+
+  # Every number in the worked example is re-derived here, so the table cannot
+  # quietly go wrong: each row is (its three weekly point totals, summed) times
+  # its Turf Score, and the footer total is the sum of the rows.
+  test "NFL rules page scoring example adds up" do
+    get turf_monster_v1_path
+
+    assert_response :success
+    rows = css_select('table[data-test="scoring-example"] tbody tr')
+    assert_equal 6, rows.size, "the example entry is six teams"
+
+    derived = rows.map do |row|
+      cells = row.css("td").map { |cell| cell.text.strip }
+      weekly = cells[1..3].map(&:to_i)
+      multiplier = cells[4].delete_suffix("x").to_f
+      scored = cells[5].to_f
+
+      assert_equal (weekly.sum * multiplier).round(1), scored,
+                   "#{cells[0]}: #{weekly.inspect} x #{multiplier} should be #{(weekly.sum * multiplier).round(1)}"
+      scored
+    end
+
+    total = css_select('table[data-test="scoring-example"] tfoot td').last.text.strip.to_f
+    assert_equal derived.sum.round(1), total, "the total must be the sum of the rows"
+  end
+
+  test "the World Cup rules page still answers" do
+    get turf_totals_v1_path
+
+    assert_response :success
+  end
+
   # ── web3 onboarding guide ─────────────────────────────────────────────────
 
   test "getting started guide renders without auth with all five steps" do

@@ -17,6 +17,7 @@ class NavbarBrandTest < ActionView::TestCase
   FOOTER = Rails.root.join("app/views/shared/_footer.html.erb")
   SIDEBAR = Rails.root.join("app/views/components/_gear_sidebar.html.erb")
   RULES_PAGE = Rails.root.join("app/views/pages/turf_totals_v1.html.erb")
+  NFL_RULES_PAGE = Rails.root.join("app/views/pages/turf_monster_v1.html.erb")
   # The one page whose "Turf Totals" is the GAME MODE, not the brand.
   GAME_MODE_PAGE = RULES_PAGE
 
@@ -32,11 +33,48 @@ class NavbarBrandTest < ActionView::TestCase
 
   test "the game mode keeps its name" do
     # turf_totals is a game_type in the database and the name of the mode the
-    # Rules link documents. The rename must not have reached it.
+    # World Cup rules page documents. The rename must not have reached it.
     assert_includes RULES_PAGE.read, "Turf Totals v1",
                     "the mode's own rules page is not brand copy and stays"
-    assert_includes NAVBAR.read, "turf_totals_v1_path",
+    # The route identifier is not copy and never renames. The navbar no longer
+    # carries it (see the season test below), so the FOOTER is what proves the
+    # route survived — and it is also what keeps the page reachable.
+    assert_includes FOOTER.read, "turf_totals_v1_path",
                     "the route identifier is not copy and never renames"
+  end
+
+  # --- the season ---------------------------------------------------------------
+
+  # THE RULES LINK FOLLOWS THE SEASON, NOT THE BRAND. There are two versioned
+  # rules pages because the two sports are different games underneath: the World
+  # Cup page (/turf-totals-v1) documents a logarithmic multiplier to x3.0 scored
+  # on goals; the NFL page (/turf-monster-v1) documents a linear one to x2.0
+  # scored on points, over a multi-week span. Pointing the navbar at the season
+  # being played is a CONTENT decision and is not the rename this file guards —
+  # turf-totals-v1 keeps its route, its name, and its footer link (asserted
+  # above).
+  #
+  # Counted, not merely present: the bar draws Rules TWICE (desktop nav and the
+  # mobile sub-navbar), and a repoint that moved only the one you looked at is
+  # exactly the miss an assert_includes sails past.
+  test "both Rules links point at the season being played" do
+    src = NAVBAR.read
+
+    assert_equal 2, src.scan(/link_to "Rules", turf_monster_v1_path/).size,
+                 "desktop AND mobile Rules links must point at the NFL rules page"
+    refute_includes src, 'link_to "Rules", turf_totals_v1_path',
+                    "no Rules link may still point at the World Cup page"
+  end
+
+  # The page the link now lands on has to exist, and has to be the NFL one. A
+  # navbar pointing at a route whose view was never written is a 500 on the most
+  # linked page in the app.
+  test "the NFL rules page exists and documents the NFL" do
+    assert_path_exists NFL_RULES_PAGE.to_s
+    src = NFL_RULES_PAGE.read
+
+    assert_includes src, "Turf Monster", "the NFL rules page is brand-named"
+    assert_includes src, "NFL 2026", "and says which season it documents"
   end
 
   # THE TEST THAT WOULD HAVE CAUGHT THE MISS. The brand is drawn as TWO SPANS in
