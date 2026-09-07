@@ -147,6 +147,30 @@ class ContestsController < ApplicationController
     payload = verify_bundle_payload(params[:params_token])
     raise "User mismatch — token was issued to a different user" unless payload[:user_id] == current_user.id
 
+    # THE MONEY MOVED BEFORE THIS ACTION WAS ENTERED, so — unlike #finalize —
+    # there is no post-broadcast line to sit behind. The CLIENT broadcasts and
+    # confirms the prize-pool transfer itself (contests/generator.html.erb:
+    # sendRawTransaction then confirmTransaction) and only POSTs here after. The
+    # whole body and both rescues are therefore already post-spend.
+    #
+    # Same staleness #finalize had, reachable end to end: this action renders
+    # `redirect: generator_contests_path`, the client assigns it to
+    # window.location.href, and #generator sets no @wallet_balances — so
+    # #display_balance takes its cache-first branch and serves the pre-spend
+    # number for the rest of the 60s TTL. Per contest_bundle.rb's header,
+    # finalize_phantom! is the only provisioning path that works on prod.
+    #
+    # PLACEMENT: as early as verified identity allows, so the success render
+    # and the StandardError rescue both inherit it. Not earlier — above these
+    # two lines the token is not yet known to be server-issued to THIS user,
+    # and busting on an unverified POST would let any request thrash a
+    # logged-in user's cache.
+    #
+    # Both keys, not just USDC: see #invalidate_wallet_balance_cache. The guard
+    # is redundant here (the line above already dereferenced current_user) and
+    # kept for symmetry with the other #invalidate_* call sites, which need it.
+    invalidate_wallet_balance_cache if logged_in?
+
     key = payload[:key]
     raise "Unknown bundle" unless ContestBundle::ALL.key?(key)
 
@@ -361,7 +385,8 @@ class ContestsController < ApplicationController
     # refresh read the true $1239.
     #
     # Both keys, not just USDC: see #invalidate_wallet_balance_cache. Guarded
-    # like :505 because #invalidate_* dereferences current_user for the key.
+    # like the call in #confirm_onchain_contest because #invalidate_*
+    # dereferences current_user for the key.
     invalidate_wallet_balance_cache if logged_in?
 
     # STEP 4 — OPSEC-010: assert the broadcast tx is the create_contest IX
