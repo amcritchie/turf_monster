@@ -72,8 +72,18 @@ module BuyUsdcHelper
     buy_usdc_video_id == DEFAULT_VIDEO_ID ? DEFAULT_VIDEO_START_SECONDS : 0
   end
 
-  # The band's player gate. Views ask this, never the id, so "configured" stays
-  # one decision in one place.
+  # The band's player gate — and IT CANNOT RETURN FALSE, today, for any value of
+  # BUY_USDC_VIDEO_ID. buy_usdc_video_id falls back to DEFAULT_VIDEO_ID above, so
+  # unset/blank/whitespace resolves to "yvSwABtqGq4" and anything else resolves to
+  # itself; either way `.present?` is true. There is no "no player" state to
+  # design for. Sibling comments that used to imply otherwise were corrected on
+  # earlier passes (modals/_buy_usdc, .env.example, admin_controller,
+  # test/views/buy_usdc_modal_test); this method's own was the one left.
+  #
+  # Kept anyway, and not as decoration: it is the SEAM that keeps "is a video
+  # configured?" one decision in one place. Views ask this, never the id, so if a
+  # future operator wants a genuinely optional band the answer changes here and
+  # the `if` in modals/_buy_usdc.html.erb keeps working unedited.
   def buy_usdc_video?
     buy_usdc_video_id.present?
   end
