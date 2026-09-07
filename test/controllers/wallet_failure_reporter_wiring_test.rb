@@ -21,14 +21,20 @@ class WalletFailureReporterWiringTest < ActionDispatch::IntegrationTest
   # it replaced; the fix is to say which half, out loud, in a place that is
   # checked. Follow-on work is tracked in docs/AUTH.md.
   #
-  # The LAYOUT is wired too, and it is not a surface. solanaConnectAndVerify
-  # substitutes its own sentence for an unusable wallet's message, so it is the
-  # last place the wallet's words exist — see the STAGES comment in
+  # The LAYOUT is wired too, and it is not a surface — it is TWO call sites in
+  # one file. solanaConnectAndVerify substitutes a sentence of its own in two
+  # places (a connect() that never answered, and a connect() that answered
+  # before signMessage refused), and each substitution is the last place the
+  # wallet's words exist on its path — see the STAGES comment in
   # Solana::ClientFailureReport. Wiring the two gem surfaces later does not
-  # replace it, because by the time they catch, the substitution has happened.
+  # replace either, because by the time they catch, the substitution has
+  # happened. Note this Hash is stage => file and two stages share one file;
+  # the per-site test below scans that file for EVERY stage it sends, so a
+  # second call site cannot hide behind the first.
   WIRED_STAGES = {
     "wallet_setup_connect"     => "app/views/modals/_wallet_setup.html.erb",
-    "connect_verify_fallback"  => "app/views/layouts/application.html.erb"
+    "connect_verify_fallback"  => "app/views/layouts/application.html.erb",
+    "connect_verify_signature" => "app/views/layouts/application.html.erb"
   }.freeze
 
   # Deliberately NOT asserted against the gem's own source. A turf-monster test

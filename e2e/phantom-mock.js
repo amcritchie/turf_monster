@@ -83,9 +83,16 @@ async function setupPhantomMock(page, {
   // keypair — rejects BOTH calls with Phantom's generic 'Unexpected error'
   // (production, 2026-09-06). Pass it explicitly for the other real case: a
   // signIn that fails while connect + signMessage still works.
-  signInError = undefined
+  signInError = undefined,
+  // How signMessage fails, when it does. Distinct from `connectError` ON
+  // PURPOSE: it is the ONLY way to reach the fallback's `connected` guard, which
+  // requires connect() to have ANSWERED with a publicKey and signMessage to
+  // refuse afterwards. An extension holding no keypair cannot model that — it
+  // fails connect() first — so a spec for that guard cannot be written with
+  // `connectError` no matter how it is shaped.
+  signMessageError = null
 } = {}) {
-  await page.addInitScript(({ initialSeedByte, useWalletStandard, rejectConnectWith, advertiseSignIn, rejectSignInWith }) => {
+  await page.addInitScript(({ initialSeedByte, useWalletStandard, rejectConnectWith, advertiseSignIn, rejectSignInWith, rejectSignMessageWith }) => {
     let currentSeedByte = Number(localStorage.getItem("phantomMockSeedByte")) || initialSeedByte;
 
     // --- Base58 encoder (Bitcoin alphabet) ---
@@ -237,6 +244,7 @@ async function setupPhantomMock(page, {
       },
 
       async signMessage(message) {
+        if (rejectSignMessageWith) throw walletRejection(rejectSignMessageWith);
         const kp = await getKeypair();
         const signature = nacl.sign.detached(message, kp.secretKey);
         return { signature };
@@ -401,6 +409,7 @@ async function setupPhantomMock(page, {
           "solana:signMessage": {
             version: "1.0.0",
             signMessage: async ({ message }) => {
+              if (rejectSignMessageWith) throw walletRejection(rejectSignMessageWith);
               const kp = await getKeypair();
               return [{ signature: nacl.sign.detached(message, kp.secretKey) }];
             },
@@ -481,6 +490,7 @@ async function setupPhantomMock(page, {
     // of the wallet this file models, and letting signIn succeed there would
     // hand the app a working sign-in from a wallet that holds no keypair.
     rejectSignInWith: signInError === undefined ? connectError : signInError,
+    rejectSignMessageWith: signMessageError,
   });
 }
 

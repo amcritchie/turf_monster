@@ -321,6 +321,81 @@ test("the SAME failure on the Wallet Standard interface reports the wallet's str
   expect(body.mapped_message).toBe((await shown.textContent()).trim());
 });
 
+test("a wallet that connects and then refuses to sign reports the WALLET's string", async ({ page }) => {
+  // THE SECOND SUBSTITUTION, AND THE REASON THIS SPEC EXISTS.
+  // narrow-wallet-setup-diagnosis (#587) added a guard ABOVE the setup copy: if
+  // connect() answered with a publicKey and signMessage refused afterwards, the
+  // fallback substitutes "Your wallet connected but could not sign you in"
+  // instead of the setup sentence. That guard RETURNS FIRST, so on this path the
+  // setup site — the one every other spec in this file drives — never runs.
+  //
+  // It shipped without a report, which silently reopened the exact defect this
+  // file exists to close: the substituted error reached the modal untagged, the
+  // modal reported it, and because parseSolanaError passes that sentence through
+  // unrecognised, `raw_message` and `mapped_message` arrived BYTE-IDENTICAL —
+  // both of them ours. A whole failure class, invisible again.
+  //
+  // WHY THE MOCK NEEDED A NEW KNOB. `connectError` cannot express this: an
+  // extension that fails connect() never reaches the guard. Only a wallet that
+  // connects and THEN refuses to sign does, which is what `signMessageError`
+  // models (e2e/phantom-mock.js).
+  await setupPhantomMock(page, {
+    seedByte: UNOWNED_WALLET_SEED,
+    // signIn must fail for the connect + signMessage fallback to run at all, and
+    // it must fail as something OTHER than a decline — a decline is rethrown
+    // before the fallback is ever considered.
+    signInError: { message: "Unexpected error" },
+    // connect() SUCCEEDS. No connectError, deliberately: `connected` only flips
+    // once a publicKey comes back, and that flag is the guard's whole predicate.
+    signMessageError: { message: "Unexpected error" }
+  });
+  await login(page, `walletreportsign-${Date.now().toString(36)}@example.com`);
+  await page.goto("/");
+  await page.waitForFunction(() => window.Alpine && Alpine.store("modals"));
+  await page.evaluate(() => Alpine.store("modals").open("wallet-setup", {}));
+  await expect(page.getByRole("heading", { name: "Set up your wallet" })).toBeVisible();
+  await expect(page.getByText("Installed", { exact: true })).toBeVisible();
+
+  const reports = [];
+  page.on("request", (r) => {
+    if (r.url().includes(REPORT_PATH)) reports.push(JSON.parse(r.postData()));
+  });
+
+  const [request] = await Promise.all([
+    page.waitForRequest((r) => r.url().includes(REPORT_PATH) && r.method() === "POST"),
+    page.getByText("Installed", { exact: true }).click(),
+  ]);
+
+  const body = JSON.parse(request.postData());
+
+  // THE ACCEPTANCE. The halves DIFFER: raw is what Phantom said, mapped is the
+  // sentence we substituted for it.
+  expect(body.raw_message).toBe("Unexpected error");
+  expect(body.mapped_message).toContain("could not sign you in");
+  expect(body.raw_message).not.toBe(body.mapped_message);
+
+  // ITS OWN STAGE. Not connect_verify_fallback — that stage means connect()
+  // never answered, and here it answered. An operator filtering for a wallet
+  // that holds no keypair must not meet this row.
+  expect(body.stage).toBe("connect_verify_signature");
+  expect(body.provider).toBe("Phantom");
+
+  // AND THE USER WAS NOT TOLD TO CREATE A WALLET. The whole point of #587's
+  // guard is that this user HAS one; the setup sentence would be false.
+  expect(body.mapped_message).not.toContain("create or import one");
+  expect(body.mapped_message).not.toMatch(/USDC/i);
+
+  // `mapped` IS WHAT THE USER READ, compared against the page rather than a copy
+  // typed into this spec.
+  const shown = page.locator("p.text-red-400");
+  await expect(shown).toContainText("could not sign you in");
+  expect(body.mapped_message).toBe((await shown.textContent()).trim());
+
+  // ONE ROW, NOT TWO — the tag on the substituted error keeps the modal's own
+  // catch from reporting it a second time with our sentence in both halves.
+  expect(reports).toHaveLength(1);
+});
+
 test("the failure paragraph is a live region that existed before the failure", async ({ page }) => {
   // PRE-EXISTING, fixed alongside the reporting defect because it is the same
   // paragraph: a screen reader was never told the connect failed. The modal's

@@ -143,6 +143,24 @@ class Solana::ClientFailureReportTest < ActiveSupport::TestCase
     assert_includes report.summary, "stage=connect_verify_fallback"
   end
 
+  test "the signature guard's stage survives, and is NOT the fallback's" do
+    # THE SECOND SUBSTITUTING GUARD, registered separately on purpose. It fires
+    # when connect() ANSWERED with a publicKey and signMessage then refused —
+    # a wallet that demonstrably holds a keypair. `connect_verify_fallback` means
+    # the opposite (no keypair at all), and the two want different responses from
+    # an operator, so collapsing them would put the app's two most confusable
+    # wallet failures behind one filter.
+    #
+    # Unregistered, this lands as `unknown`: narrow-wallet-setup-diagnosis added
+    # the guard without a stage or a report, and the rows it produced carried our
+    # sentence in both halves (/tasks/raw-message-is-ours).
+    report = build(stage: "connect_verify_signature")
+
+    assert_equal "connect_verify_signature", report.stage
+    assert_includes report.summary, "stage=connect_verify_signature"
+    refute_equal build(stage: "connect_verify_fallback").stage, report.stage
+  end
+
   test "a differing raw and mapped half both reach the row, and are told apart" do
     # THE WHOLE POINT OF THE PAIR. Until 2026-09-07 the malfunction class arrived
     # with these two byte-identical — both of them OUR sentence — so a row proved

@@ -73,15 +73,34 @@ module Solana
     # here because the stage is the operator's filter and the list is what makes
     # an unwired site visible as a MISSING stage rather than as no failures.
     #
-    # `connect_verify_fallback` IS NOT A SURFACE, and that is the point of it.
-    # It is the connect + signMessage fallback inside solanaConnectAndVerify
-    # (app/views/layouts/application.html.erb), which REPLACES an unusable
-    # wallet's message with our own setup sentence before rethrowing. Reported
+    # THE LAST TWO ARE NOT SURFACES, and that is the point of them. Both are
+    # guards inside the connect + signMessage fallback in solanaConnectAndVerify
+    # (app/views/layouts/application.html.erb) — the two places that REPLACE a
+    # wallet's message with a sentence of our own before rethrowing. Each reports
     # from in there because that is the last moment the wallet's own words exist;
     # a report from any surface downstream carries our sentence in BOTH halves
-    # and is undiagnosable. A row on this stage therefore means: the wallet could
-    # not answer connect(), and `raw_message` is what it said about it.
-    STAGES = %w[wallet_setup_connect wallet_connect web3_step_up connect_verify_fallback].freeze
+    # and is undiagnosable.
+    #
+    # They are SEPARATE stages because they are separate diagnoses, and an
+    # operator answers them differently:
+    #
+    #   connect_verify_fallback  — connect() never answered. The wallet is
+    #                              installed but holds no keypair. The user is
+    #                              told to create or import one.
+    #   connect_verify_signature — connect() ANSWERED with a publicKey and
+    #                              signMessage then refused. A keypair exists;
+    #                              telling this user to create one is false. The
+    #                              user is told signing moves no funds, try again.
+    #
+    # On both, `raw_message` is what the wallet said and `mapped_message` is what
+    # the user read, so the pair stays diagnosable on either path.
+    STAGES = %w[
+      wallet_setup_connect
+      wallet_connect
+      web3_step_up
+      connect_verify_fallback
+      connect_verify_signature
+    ].freeze
 
     # A stage or brand off the list is recorded as this rather than refused. A
     # report we cannot label is still a report; dropping it would put the surface

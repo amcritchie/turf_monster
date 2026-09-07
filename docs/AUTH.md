@@ -278,29 +278,41 @@ A **pubkey is kept, deliberately**: it is public (already on
 signature rule starts at 64 characters precisely so a 44-character pubkey passes
 through it.
 
-### ⚠️ Two of the four call sites are wired
+### ⚠️ Three of the five call sites are wired
 
 Three **render surfaces** catch these rejections; two of the three are in the
-**solana-studio gem**, and wiring them needs a gem release. The fourth site is
-not a surface at all — it is the connect + signMessage fallback inside
-`solanaConnectAndVerify`, which reports before it destroys the evidence:
+**solana-studio gem**, and wiring them needs a gem release. The other two sites
+are not surfaces at all — they are the two guards inside `solanaConnectAndVerify`
+that REPLACE a wallet's message with one of ours, and each reports before it
+destroys the evidence:
 
 | Stage | Where | Status |
 |---|---|---|
 | `wallet_setup_connect` | `app/views/modals/_wallet_setup.html.erb` | **wired** |
-| `connect_verify_fallback` | `app/views/layouts/application.html.erb`, `solanaConnectAndVerify` | **wired** |
+| `connect_verify_fallback` | `app/views/layouts/application.html.erb`, `solanaConnectAndVerify` — `connect()` never answered | **wired** |
+| `connect_verify_signature` | `app/views/layouts/application.html.erb`, `solanaConnectAndVerify` — connected, then `signMessage` refused | **wired** |
 | `wallet_connect` | solana-studio `solana_studio/modals/_wallet_connect.html.erb` | **not wired** — needs a gem release |
 | `web3_step_up` | solana-studio `solana_studio/modals/_web3_step_up.html.erb` | **not wired** — needs a gem release |
 
-`connect_verify_fallback` is not a substitute for the surfaces and they are not
-substitutes for it. It fires for exactly one thing — the failure whose message
-the layout is about to REPLACE with its own setup sentence — and the surfaces
-still report everything that reaches them intact. The substituted error is
-tagged `walletFailureReported`, and `_wallet_setup.html.erb` skips a tagged
-error, so one failure produces one row rather than two. **The two gem call
-sites owe that same guard when they are wired** — without it they would add a
-second row carrying our sentence in both halves, which is the shape this fix
-removes.
+The two layout stages are not a substitute for the surfaces and the surfaces are
+not a substitute for them. Each fires for exactly one thing — a failure whose
+message the layout is about to REPLACE with a sentence of its own — and the
+surfaces still report everything that reaches them intact. **They are two stages
+rather than one because they are two diagnoses**, and an operator answers them
+differently: `connect_verify_fallback` means the wallet holds no keypair, and
+`connect_verify_signature` means it holds one and would not sign. Collapsing them
+would put the app's two most confusable wallet failures behind a single filter.
+
+Each substituted error is tagged `walletFailureReported`, and
+`_wallet_setup.html.erb` skips a tagged error, so one failure produces one row
+rather than two. **The two gem call sites owe that same guard when they are
+wired** — without it they would add a second row carrying our sentence in both
+halves, which is the shape this fix removes. Any FUTURE substituting guard added
+to `solanaConnectAndVerify` owes all three things: its own stage, a report made
+before the substitution, and the tag. The `connect_verify_signature` guard was
+added without them on 2026-09-07 (#587) and silently reopened the byte-identical
+row this endpoint exists to prevent, which is why the rule is written down here
+rather than left to be re-derived.
 
 The reporter deliberately lives **here, not in the gem**. The gem's partials
 already call the host-provided `window.parseSolanaError` behind a `typeof`
@@ -317,29 +329,68 @@ red-seal the gem's own release.
 
 ### Four limits worth knowing before reading a row
 
-- **The raw string is the wallet's — because the report is made before ours
-  replaces it.** On the `connect` + `signMessage` fallback path,
-  `solanaConnectAndVerify` REPLACES an unusable wallet's message with "Finish
-  setting up your wallet in …" before rethrowing (that substitution is itself a
-  2026-09-06 fix), so by the time any surface catches it the original Phantom
-  string is gone.
+- **Two branches replace the wallet's string — and both report it first, so
+  `raw` is still the wallet's.** On the `connect` + `signMessage` fallback path,
+  `solanaConnectAndVerify` REPLACES the wallet's message before rethrowing. By
+  the time any surface catches, the original Phantom string is gone, so what the
+  USER reads is always our sentence. **What `error_logs` holds is not.** Since
+  2026-09-07 (`/tasks/raw-message-is-ours`) each substituting guard reports from
+  INSIDE `solanaConnectAndVerify`, at the last point the wallet's own words
+  exist, and the two guards report on stages of their own:
 
-  This page used to call that "one branch" and say "the common case is genuine".
-  **Both were backwards**, and the correction is worth stating plainly because
-  the feature was materially less useful than it read: a decline (`code 4001`)
-  was the ONLY failure that carried a wallet string, and the entire MALFUNCTION
-  class — the class this endpoint exists for — arrived with `raw_message` and
-  `mapped_message` byte-identical, both of them our sentence. For the 2026-09-06
-  incident itself, the raw half said nothing.
+  | Substituted failure | Stage | The sentence the user reads |
+  |---|---|---|
+  | A `connect()` that NEVER ANSWERED (2026-09-06) | `connect_verify_fallback` | "Finish setting up your wallet in … — create or import one, then try again." |
+  | Connected, then could not sign — `connect()` returned a public key and `signMessage` rejected (2026-09-07) | `connect_verify_signature` | "Your wallet connected but could not sign you in. Signing in moves no funds — try again." |
 
-  Fixed 2026-09-07 (`/tasks/raw-message-is-ours`): the fallback reports from
-  INSIDE `solanaConnectAndVerify`, at the last point the wallet's own string
-  exists, on stage `connect_verify_fallback`. So a malfunction now produces a row
-  whose halves differ — `raw_message: "Unexpected error"` beside
-  `mapped_message: "Finish setting up your wallet in Phantom …"` — which is what
-  makes a mis-mapping diagnosable. `mapped` there is what the user actually read,
-  and that rests on `parseSolanaError` passing the substituted sentence through
-  untouched, pinned in `test/views/wallet_connect_error_copy_test.rb`.
+  The second substitution exists because rethrowing that failure UNTOUCHED was
+  not safe. Phantom's generic "Unexpected error" is the string this path carries
+  most often, and `parseSolanaError`'s generic branch rewrites it into "Wallet
+  couldn't process the transaction. Check wallet connection and USDC balance." —
+  balance advice for a signed-out user who attempted no transaction, which is the
+  very sentence the 2026-09-06 fix existed to remove.
+
+  **This page said the opposite until 2026-09-07, and the correction is worth
+  stating plainly.** The report used to be made only at a render SURFACE, which
+  is downstream of both substitutions, so `raw_message` and `mapped_message`
+  arrived BYTE-IDENTICAL — both of them our sentence — for the entire MALFUNCTION
+  class this endpoint was built for. A decline (`code 4001`) was the only failure
+  that carried a genuine wallet string. For the 2026-09-06 incident itself, the
+  raw half said nothing. Reporting upstream of each substitution is what fixed
+  that: a row now reads `raw_message: "Unexpected error"` beside
+  `mapped_message: "Finish setting up your wallet in Phantom …"`, and a
+  mis-mapping is visible again. `mapped` is what the user actually read, which
+  rests on `parseSolanaError` passing both substituted sentences through
+  untouched — pinned in `test/views/wallet_connect_error_copy_test.rb`.
+
+  Three things rethrow the ORIGINAL untouched. No substitution happens, nothing
+  reports from the layout, and the surface reports them intact:
+
+  | Failure | Why it is not a missing wallet |
+  |---|---|
+  | A decline (`code 4001`, "user rejected/declined") | The human said no |
+  | `/auth/solana/nonce` failing (tagged `nonceFetchFailed`) | Our own server, not the wallet |
+  | Wallet Standard rejections tagged `walletAnswered` — "No account authorized" (an empty accounts array: a dismissed account-selection sheet), "Wallet not connected" | The wallet answered and authorized nothing |
+
+  **Triage by the STAGE, then read both halves.** The stage says which diagnosis
+  fired; `mapped` is what the user read; `raw` is what the wallet said. Three
+  readings and what they mean:
+
+  | What you see | What it means |
+  |---|---|
+  | `raw: "Unexpected error"` on `connect_verify_fallback` or `connect_verify_signature` | **Normal, and the fix working.** A substitution fired and the wallet's own generic string was captured before it was replaced. The stage tells you which of the two diagnoses the user was given. |
+  | `raw` == `mapped` on either of those two stages | **An anomaly worth chasing.** It means the row came from a surface downstream of the substitution — the layout's report or its `walletFailureReported` tag has regressed — which is exactly the defect fixed on 2026-09-07. |
+  | `raw: "Unexpected error"` (or `"Unexpected token '<' …"`) with `mapped` reading "Wallet couldn't process the transaction…" | One of the three rethrows above met the mapper's generic branch. Not a missing wallet, and not a transaction either — see the exposure below. |
+
+  **Known exposure, unfixed as of 2026-09-07.** A nonce fetch that fails with an
+  HTML body — any 500 that renders a page — makes `r.json()` reject with
+  "Unexpected token '<' … is not valid JSON", which matches that SAME
+  `/^unexpected/i` branch. It is tagged `nonceFetchFailed` and rethrown
+  untouched, so the commonest server-failure shape still reaches the user as the
+  transaction sentence. Closing it needs either a third substitution at the guard
+  or a mapper change whose blast radius crosses the entry paths that legitimately
+  own that wording.
+
 - **The report is best-effort by design.** It is dropped on a throttle, a
   closed tab that beats `keepalive`, or a blocked request. `error_logs` is a
   triage surface here, never a count.
