@@ -64,9 +64,12 @@ Troubleshooting guide for autonomous agents. Format: problem, diagnosis, fix.
 - Two different failures wear this message:
   - **SHARED** — `turf-monster-qa` and `turf-monster-mainnet` carry the same
     `SOLANA_ADMIN_KEY`, so QA signs as production. This is a real finding, not a
-    flake. Fix it by rotating QA onto its own keypair; the procedure (it needs an
-    on-chain `update_signers` too, and Mr. McRitchie's approval) is in
-    `docs/SOLANA.md`, "Per-environment signing keys".
+    flake. The fix is to rotate QA onto its own keypair, and as of 2026-09-08
+    there is NO runnable procedure for it: `VaultState` holds three FIXED signer
+    slots, so a QA key cannot join the set — it can only EVICT a current signer,
+    and which one is an on-chain decision still awaiting Mr. McRitchie. Read
+    `docs/SOLANA.md`, "Rotating QA onto its own key", before promising a
+    timeline; it names the blast radius and the two open questions.
   - **INDETERMINATE** — the guard could not prove the two differ, because a value
     was absent, empty, or unreadable. Absence is not isolation, so it fails
     closed. Check `heroku auth:whoami` first, then
