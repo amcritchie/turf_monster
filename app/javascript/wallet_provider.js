@@ -466,6 +466,44 @@ var walletProvider = {
   isMobile: function() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
            (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  },
+
+  // WHY THIS EXISTS. `detect()` returns null whenever no wallet is injected,
+  // and on iOS Safari and Android Chrome that is ALWAYS — a mobile browser
+  // cannot host an extension, and only a wallet's own in-app browser injects a
+  // provider. Every call site used to dereference that null immediately, so a
+  // phone got `null is not an object (evaluating 'provider.connect')` printed
+  // into a transaction modal. Reported from production 2026-09-07 by a user
+  // trying to spend a FREE entry token.
+  //
+  // THE ASYMMETRY THAT MAKES THIS NECESSARY: `isWeb3` is a SERVER-SESSION fact.
+  // A user who signed in through the Phantom deeplink has it set, on a phone,
+  // with no injected wallet anywhere — so "logged in with a wallet" and "can
+  // reach a wallet right now" are different questions, and the flows were only
+  // asking the first.
+  //
+  // Throws rather than returning null on purpose: every caller already sits in
+  // a try/catch that renders `err.message`, so throwing routes an honest
+  // sentence to the screen through the path that already exists. Returning null
+  // would need five new branches to say the same thing five times.
+  requireProvider: function() {
+    var provider = this.detect();
+    if (provider) return provider;
+    throw new Error(this.noWalletMessage());
+  },
+
+  // Split out from requireProvider so a caller can PAINT the reason before a
+  // user commits to an action, rather than only after one fails. The copy
+  // differs because the remedies do: installing an extension is not a thing a
+  // phone can do, and telling someone to do it is worse than saying nothing.
+  noWalletMessage: function() {
+    if (this.isMobile()) {
+      return "This browser cannot reach a wallet. Open this page inside your " +
+             "wallet app's own browser — Phantom, Solflare, and Backpack each " +
+             "have one — then try again.";
+    }
+    return "No wallet detected. Install or unlock a Solana wallet extension, " +
+           "then refresh this page.";
   }
 };
 

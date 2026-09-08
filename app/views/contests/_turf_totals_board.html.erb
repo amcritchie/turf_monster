@@ -1632,7 +1632,7 @@ window.selectionBoard = function() {
 
       try {
         if (useOnchainFlow) {
-          var provider = window.walletProvider.detect();
+          var provider = window.walletProvider.requireProvider();
           Alpine.store('solanaModal').show('Preparing Transaction', 'Building onchain transaction...');
 
           var resp = await provider.connect();

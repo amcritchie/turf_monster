@@ -129,8 +129,10 @@
         this.status = 'signing';
         this.errorText = '';
         try {
-          var provider = window.walletProvider && window.walletProvider.detect();
-          if (!provider) throw new Error("Phantom not detected. Make sure Phantom is installed and unlocked, then refresh.");
+          // Was: a Phantom-specific message telling a phone to install an
+          // extension it cannot install. requireProvider answers with the remedy
+          // that fits the device.
+          var provider = window.walletProvider.requireProvider();
 
           var message = <%= raw @sign_message.to_json %>;
           var encoded = new TextEncoder().encode(message);

@@ -91,7 +91,7 @@
         m.show('Preparing Transaction', 'Building the on-chain create_contest instruction…');
 
         try {
-          var provider = window.walletProvider.detect();
+          var provider = window.walletProvider.requireProvider();
           var connectResp = await provider.connect();
           var pubkeyB58 = connectResp.publicKey.toBase58();
           if (cfg.userWallet && pubkeyB58 !== cfg.userWallet) {
