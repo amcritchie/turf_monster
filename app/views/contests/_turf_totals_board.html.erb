@@ -213,7 +213,6 @@ window.selectionBoard = function() {
     // before the 'first-name-saved' listener can ever read it — the post-auth
     // chain fires that event too, and an undefined flag would be re-created on
     // every entry path that touched it.
-    _resumeAfterFirstName: false,
 
     init() {
       // Stripe checkout runs in a NEW TAB (see the buy-tokens panel). When
@@ -363,33 +362,35 @@ window.selectionBoard = function() {
         catch (e) { console.error('[hold-funding-check] beginFundingCheck threw:', e); }
       });
 
-      // First-name gate: the onboarding card fired 'first-name-saved' after a
-      // successful save (it already cleared $store.session.firstNameRequired).
-      // Same resume shape as 'age-verified' below — confirmEntry re-runs
-      // eligibilityBlocker, the name now passes, and the user flows on to the
-      // age / wallet / funding gates without re-holding.
+      // NO RESUME LISTENERS HERE, DELIBERATELY (operator rule, 2026-09-08).
       //
-      // GUARDED on the flag this board sets when IT opened the card: the
-      // post-auth chain opens the same modal and fires the same event, and
-      // resuming an entry nobody held would submit a lineup out of nowhere.
-      window.addEventListener('first-name-saved', function () {
-        if (!board._resumeAfterFirstName) return;
-        board._resumeAfterFirstName = false;
-        Promise.resolve()
-          .then(function () { return board.confirmEntry(); })
-          .catch(function (e) { console.error('[first-name-saved] confirmEntry rejected:', e); });
-      });
-
-      // Age gate (ENABLE_AGE_GATE): the DOB modal fired 'age-verified' after a
-      // successful verify (it already flipped $store.session.ageVerified). Pick
-      // the entry back up so the user flows straight to the next gate / entry
-      // without re-holding. confirmEntry re-runs eligibilityBlocker — age now
-      // passes, so it advances to tokens/balance or submits.
-      window.addEventListener('age-verified', function () {
-        Promise.resolve()
-          .then(function () { return board.confirmEntry(); })
-          .catch(function (e) { console.error('[age-verified] confirmEntry rejected:', e); });
-      });
+      // A hold has exactly TWO outcomes: the entry succeeds, or it hands off to
+      // a blocker and STOPS. Resolving the blocker never resubmits — the player
+      // holds again. Two listeners used to live here, on 'first-name-saved' and
+      // 'age-verified', each calling confirmEntry() so the entry "flowed on
+      // without re-holding". The convenience cost more than it bought: the
+      // resumed submit could fail for a SECOND reason (funds, wallet, geo), and
+      // the player then met an "Entry failed" card seconds after correcting the
+      // very thing that had stopped them — which reads as the correction having
+      // broken something.
+      //
+      // Nothing is needed in their place. Every blocker opener already calls
+      // resetHoldButtons() as its first statement, so the button is ready to
+      // hold the moment the card appears; and the session flags the modals set
+      // ($store.session.firstNameRequired / .ageVerified) mean the next hold
+      // clears the gate that just closed rather than re-opening it.
+      //
+      // ONE ASYMMETRY WENT WITH THEM, and it was a live bug rather than a tidy-
+      // up. The first-name listener was guarded on a flag this board set when IT
+      // opened the card, precisely because "resuming an entry nobody held would
+      // submit a lineup out of nowhere". The age listener carried no such guard,
+      // so a DOB answered in the POST-AUTH CHAIN — no hold in flight, no entry
+      // intended — reached confirmEntry() all the same.
+      //
+      // NOT to be confused with the 'age-verified' listener in
+      // layouts/application.html.erb, which is the onboarding CHAIN driver
+      // advancing to the wallet step. That one is not an entry resume and must
+      // stay.
 
       // Reopen the post-signup step after submitProfile()'s reload —
       // Google → buy entry tokens; email → check your email.
@@ -825,13 +826,12 @@ window.selectionBoard = function() {
     // First-name gate: open the onboarding card in its REQUIRED mode (no skip
     // affordances — the hold cannot proceed without the name).
     //
-    // _resumeAfterFirstName is what separates this caller from the post-auth
-    // chain, which opens the SAME modal and fires the SAME 'first-name-saved'
-    // event. Without the flag, answering the chain's card seconds after signup
-    // would fire a confirmEntry for a hold nobody performed.
+    // No flag is needed to separate this caller from the post-auth chain any
+    // more: the chain opens the SAME modal and fires the SAME 'first-name-saved'
+    // event, but nothing on this board listens for it, so neither caller can
+    // resume an entry. See the note where those listeners used to be.
     showFirstNameModal() {
       this.resetHoldButtons();
-      this._resumeAfterFirstName = true;
       Alpine.store('modals').open('onboarding', { required: true, enterAnim: 'shake' });
     },
 
