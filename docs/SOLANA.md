@@ -358,6 +358,87 @@ initializer against real non-JSON bodies over a real socket, and asserts BOTH
 halves — the indeterminate cases boot, a real mismatch still refuses) and
 `test/tasks/solana_health_unauthorized_rpc_test.rb`.
 
+## Per-environment signing keys (`SOLANA_ADMIN_KEY`)
+
+`SOLANA_ADMIN_KEY` holds the Alex Bot keypair — the server's own signer, one of
+the three `VaultState.signers` and the fee payer and contest creator on every
+on-chain write. **Every deployed app holds its OWN keypair. Never copy one
+app's value into another.**
+
+On 2026-09-08 the variable was measured byte-identical on `turf-monster-mainnet`
+and `turf-monster-qa` (len 88, matching SHA-256, confirmed by three independent
+readings). QA was signing as production: a rehearsal, a seed task, or a stray
+`bin/rails` console on the QA dyno could put a real signature on a real mainnet
+transaction. `QaRehearsal::NetworkGuard` already refuses to drive the wrong
+CLUSTER — nothing refused the shared KEY.
+
+### The guard
+
+```bash
+bin/rails opsec:signing_key_isolation
+```
+
+Exits non-zero unless it can PROVE the two apps differ. `bin/deploy` runs it in
+the pre-flight, so a production deploy aborts while the key is shared.
+`--skip-checks` bypasses it, as with every other pre-flight check.
+
+**Where it runs — and where it does not.** The comparison needs both apps'
+config at once, which leaves exactly one host:
+
+| Context | Sees both apps? | Runs the live comparison? |
+|---|---|---|
+| `bin/deploy` pre-flight (operator machine, Heroku session) | yes | **yes — on every production deploy** |
+| A dyno (`solana:preflight`) | no — a dyno sees only its own ENV | no |
+| CI (GitHub Actions) | no — no Heroku session, neither secret present | **no** |
+
+CI executes the guard's LOGIC against injected readings
+(`test/lib/signing_key_isolation_test.rb`,
+`test/tasks/opsec_signing_key_isolation_test.rb`, and
+`test/lib/deploy_signing_key_guard_test.rb` for the `bin/deploy` wiring) and
+never the live values. It cannot. Do not write this up as CI-covered — on a
+money-adjacent path a false coverage claim is worse than no claim at all.
+
+**It reads with `heroku config --json`, never `heroku config:get`** — see "Check
+it by KEY PRESENCE" above. `config:get` exits 0 and prints a bare newline for an
+ABSENT key, a PRESENT-BUT-EMPTY one, and an unauthenticated read alike, so it
+cannot tell "QA has no key" from "we could not look".
+
+**Absence is not isolation.** A value that is missing, empty, or unreadable on
+either side is INDETERMINATE, and indeterminate FAILS. Two blanks compare EQUAL
+and two unknowns compare UNEQUAL, so either naive comparison would answer
+confidently and wrongly.
+
+The report prints a length and a 12-character SHA-256 prefix per app. It never
+prints key material, and the reader extracts one key rather than returning the
+config payload that carries every other secret the app has.
+
+### Rotating QA onto its own key
+
+**Status 2026-09-08: NOT DONE.** The two apps still share a key and the guard
+fails today. The rotation is deliberately not a `heroku config:set`, because the
+Alex Bot pubkey is a REGISTERED ON-CHAIN SIGNER — `VaultState.signers` holds the
+same three identities on devnet and mainnet. Handing QA a fresh keypair without
+touching the chain leaves the QA server signing as an identity the devnet vault
+does not recognise, and every admin-signed QA vault operation starts failing.
+
+The full rotation is therefore:
+
+1. Generate a QA-only keypair (`solana-keygen new --no-bip39-passphrase -o -`),
+   and file it in 1Password beside `agent.alex.solana` rather than pasting it
+   anywhere.
+2. Register its pubkey in the **devnet** `VaultState` via the `update_signers`
+   instruction. It is 2-of-3 cosigned and enforces signer continuity — both
+   authorizing cosigners must survive the change (`SignerContinuityBroken`), and
+   duplicate or zeroed slots are rejected (`DuplicateSigner` 6014). Mainnet
+   `VaultState` is NOT touched.
+3. `heroku config:set SOLANA_ADMIN_KEY=… --app turf-monster-qa` (QA only —
+   never mainnet).
+4. Confirm with `bin/rails opsec:signing_key_isolation`, which should now report
+   two different digests and exit 0.
+
+Steps 1-3 rotate a live credential and change on-chain state, so they need Mr.
+McRitchie's explicit approval before anyone runs them.
+
 ## Solana Auth Security
 
 - **SIWS / nonce replay prevention**: Solana sign-in nonces include a timestamp with an enforced 5-minute expiry; the nonce is deleted from the session before verification (delete-before-verify) to prevent replay. Signature verification is host-bound (`Solana::AuthVerifier`, OPSEC-018).
