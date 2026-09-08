@@ -36,10 +36,13 @@ test.describe("wallet guard on a device with no wallet", () => {
 
     test("refuses with the wallet-app remedy, not a null dereference @smoke", async ({ page }) => {
       await page.goto("/");
-      // The module arrives via importmap, which is async — wait for it rather
-      // than racing the inlined stub, whose agreement is proven elsewhere.
+      // Poll on get(), NOT requireProvider(): this change MIRRORS
+      // requireProvider into the inlined stub, so polling on it is satisfied
+      // by the stub and every assertion below would pass with the importmap
+      // pin deleted — the one failure this tier claims to be the only one to
+      // catch. get() exists only on the module.
       await expect
-        .poll(() => page.evaluate(() => typeof window.walletProvider?.requireProvider))
+        .poll(() => page.evaluate(() => typeof window.walletProvider?.get))
         .toBe("function");
 
       const result = await refusal(page);
@@ -62,7 +65,7 @@ test.describe("wallet guard on a device with no wallet", () => {
   test("a desktop browser gets extension advice instead", async ({ page }) => {
     await page.goto("/");
     await expect
-      .poll(() => page.evaluate(() => typeof window.walletProvider?.requireProvider))
+      .poll(() => page.evaluate(() => typeof window.walletProvider?.get))
       .toBe("function");
 
     const result = await refusal(page);
