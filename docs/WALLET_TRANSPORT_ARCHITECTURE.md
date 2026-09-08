@@ -253,9 +253,10 @@ change, and this table is a snapshot taken 2026-09-07.
 Tier 3 is the safety net. A wallet with no adapter still gets a working path by
 being handed into its own browser, where the inline transport already works.
 
-**Interim mitigation, available immediately:** guard `detect()` at the five
-unguarded call sites and tell mobile users to open the page in their wallet's
-browser. That is tier 1 by hand, needs no new architecture, and stops the crash
+**Interim mitigation, available immediately:** guard `detect()` at the four
+unguarded call sites — `_turf_totals_board:1631`, `_world_cup_survivor_board:142`,
+`contests/new:424`, `generator:94`, the four that dereference the result without a
+null check — and tell mobile users to open the page in their wallet's browser. That is tier 1 by hand, needs no new architecture, and stops the crash
 while tier 2 is built.
 
 ---
