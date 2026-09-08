@@ -272,6 +272,22 @@
             }
             return "No wallet detected. Install or unlock a Solana wallet extension, " +
                    "then refresh this page.";
+          },
+          // MIRRORED FOR THE SAME REASON, and this pair needs it MORE than the
+          // one above. The admin desktop-only notice PAINTS at parse time, from
+          // an inline script in the page body — so the object answering it is
+          // always THIS one, never the module. A stub without these two throws
+          // "desktopOnlyMessage is not a function" while painting the very
+          // element whose job is to keep a phone from hitting an error.
+          // test/integration/wallet_stub_parity_test.rb runs both objects and
+          // compares what they SAY, so a divergence here goes red.
+          desktopOnlyMessage: function() {
+            return "This operation is desktop only. Open the page on a desktop " +
+                   "browser with your wallet extension — a phone cannot reach a " +
+                   "signer wallet.";
+          },
+          requireDesktop: function() {
+            if (this.isMobile()) throw new Error(this.desktopOnlyMessage());
           }
         };
 

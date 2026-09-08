@@ -492,6 +492,57 @@ var walletProvider = {
     throw new Error(this.noWalletMessage());
   },
 
+  // --- The DESKTOP-ONLY declaration, for flows a phone should not attempt ---
+  //
+  // WHY A THIRD MEMBER AND NOT A SECOND MECHANISM. requireProvider answers "can
+  // this browser reach a wallet right now", and for the contest flows that is
+  // the whole question — a phone inside Phantom's own in-app browser reaches
+  // one, and should be let through. The four admin wallet flows (vault init,
+  // vault pause/unpause, contest lock/conclude, treasury cosign) ask a
+  // STRICTER question, and it is a question about the DEVICE, not the wallet:
+  // an admin co-signing a 2-of-3 treasury operation from a phone is not a use
+  // case this app supports, and a wallet app's in-app browser does not make it
+  // one. Same object, same isMobile() branch noWalletMessage already turns on.
+  //
+  // IT ASKS ABOUT THE DEVICE AND NOTHING ELSE, deliberately. The obvious
+  // version — `if (isMobile()) throw; return this.requireProvider();` — was
+  // written first and is WRONG for these callers, because they do not sign
+  // through the provider this registry hands out. They hold `window.solana`,
+  // and detect() reads `window.phantom.solana`. A legacy Phantom build that
+  // injects only the former is a desktop that CAN sign and that a composed
+  // gate would refuse, with copy telling the operator to install the extension
+  // they already have. e2e/cosign_fresh_transaction.spec.js stubs exactly that
+  // browser, and it went red on the composed version — which is the tell:
+  // making it green would have meant editing a spec to accept a false
+  // refusal. So the wallet question stays where it was answered before, at
+  // each call site's own `isPhantom` check, and this adds only the fact none
+  // of them had.
+  //
+  // THE COPY IS THE POINT, as it is for noWalletMessage. "Phantom wallet is
+  // required" — what all four flows said before this — is true on a phone and
+  // useless there: no iOS or Android browser can host the extension it names,
+  // so the sentence describes a remedy that does not exist on the device
+  // reading it. This names the one move that works, and says why, so nobody
+  // spends ten minutes hunting for a mobile path that was never built.
+  //
+  // It does NOT tell a phone to install anything, and it does NOT offer the
+  // in-app-browser remedy noWalletMessage gives — that one is right for
+  // contest entry and wrong here. test/lib/wallet_desktop_only_js_test.rb
+  // holds both negatives.
+  desktopOnlyMessage: function() {
+    return "This operation is desktop only. Open the page on a desktop " +
+           "browser with your wallet extension — a phone cannot reach a " +
+           "signer wallet.";
+  },
+
+  // Throws, like requireProvider, so the honest sentence reaches the screen
+  // through the try/catch every one of these flows already has. Returns
+  // nothing: there is no provider to hand back, and returning a possibly-null
+  // one is the shape of the original defect.
+  requireDesktop: function() {
+    if (this.isMobile()) throw new Error(this.desktopOnlyMessage());
+  },
+
   // Split out from requireProvider so a caller can PAINT the reason before a
   // user commits to an action, rather than only after one fails. The copy
   // differs because the remedies do: installing an extension is not a thing a
