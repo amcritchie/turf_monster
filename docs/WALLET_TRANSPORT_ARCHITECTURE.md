@@ -1,6 +1,7 @@
 # Wallet Transport Architecture
 
-**Status:** Design — not yet implemented
+**Status:** Design — gem primitives merged (solana-studio PR #35), not yet wired
+into turf-monster
 **Written:** 2026-09-07
 **Task:** https://mcritchie.studio/tasks/wallet-transport-architecture-doc
 **Spans:** turf-monster · solana-studio · studio-engine
@@ -72,16 +73,21 @@ be built around; everything below follows from it.
 1. **`startPhantomDeepLink` never enters the provider registry.** It is wired
    straight into the wallet picker. `detect()` cannot return it, so no flow
    except sign-in can use it.
-2. **It implements `signIn` only.** There is no deeplink `signTransaction` or
-   `signAndSendTransaction` anywhere in any of the three repos.
+2. **It implements `signIn` only.** `startPhantomDeepLink` has no deeplink
+   `signTransaction` or `signAndSendTransaction`. Since this was written,
+   solana-studio `accepted` gained both in
+   `app/assets/javascripts/solana_studio/redirect_provider.js` (PR #35) — but
+   they are **unreleased** (absent from v0.7.0) and no consumer view references
+   them, so nothing reaches turf-monster until a solana-studio release plus a
+   floor and lock bump.
 3. **It is Phantom-hardcoded**, down to the global's name. The picker's
    `canDeepLink` getter tests `typeof startPhantomDeepLink === 'function'`, and
    `showPhantomDeepLink` names Phantom in its identifier.
 
 ### A factual correction
 
-`solana-studio/app/views/solana_studio/modals/_wallet_connect.html.erb:197-198`
-states:
+`solana-studio/app/views/solana_studio/modals/_wallet_connect.html.erb` stated,
+until solana-studio PR #35 corrected the comment hours after this was written:
 
 > *"Solflare and Backpack keep their install rows either way — there is no deep
 > link for them, so the download page is still their only path."*
@@ -89,7 +95,9 @@ states:
 **This is false**, and it is why a Solflare or Backpack user on an iPhone is sent
 to a **desktop extension download page** — a silent dead end, arguably worse than
 Phantom's crash, which at least produces an error. Verified against vendor docs
-2026-09-07; see the adapter table below.
+2026-09-07; see the adapter table below. **The comment is now fixed; the
+behaviour is not** — Solflare and Backpack still get install rows, so the dead
+end below is live and this section still describes work to do.
 
 ---
 
