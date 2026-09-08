@@ -29,6 +29,9 @@ class WalletGuardInvariantTest < ActiveSupport::TestCase
   # risk the only thing phones can do today.
   EXEMPT = ["app/views/layouts/application.html.erb"].freeze
 
+  # Hoisted so the vacuity test below can exercise the PATTERN itself.
+  DEREFERENCE_SHAPE = /=\s*(?:window\.)?walletProvider\s*&&\s*(?:window\.)?walletProvider\.detect\(\)|=\s*(?:window\.)?walletProvider\.detect\(\)/
+
   def offending_lines
     Dir.glob(VIEWS.join("**/*.erb")).flat_map do |path|
       rel = Pathname.new(path).relative_path_from(Rails.root).to_s
@@ -38,7 +41,7 @@ class WalletGuardInvariantTest < ActiveSupport::TestCase
         # `walletProvider.detect()` assigned into a variable is the shape that
         # precedes a dereference. Reading it inside a boolean guard
         # (`if (!walletProvider.detect())`) is not the bug and is not flagged.
-        next unless line =~ /=\s*(?:window\.)?walletProvider\s*&&\s*(?:window\.)?walletProvider\.detect\(\)|=\s*(?:window\.)?walletProvider\.detect\(\)/
+        next unless line =~ DEREFERENCE_SHAPE
         "#{rel}:#{i + 1}"
       end
     end
@@ -58,9 +61,20 @@ class WalletGuardInvariantTest < ActiveSupport::TestCase
   end
 
   test "the guard is actually in use, so the scan above is not vacuous" do
-    # A REGEX THAT MATCHES NOTHING PASSES THE TEST ABOVE FOREVER. Pin the
-    # positive side too: the call sites this change created must still be there,
-    # or the invariant is being enforced over an empty set.
+    # A REGEX THAT MATCHES NOTHING PASSES THE TEST ABOVE FOREVER, and counting
+    # requireProvider() callers does NOT close that — it never runs the pattern.
+    # Mutation-verified 2026-09-08: /ZZZ_NEVER/ left both tests here green.
+    [
+      "          var provider = window.walletProvider.detect();",
+      "      var provider = window.walletProvider && window.walletProvider.detect();"
+    ].each do |bad|
+      assert_match DEREFERENCE_SHAPE, bad,
+                   "the scan's pattern no longer recognises the shape it exists to find, " \
+                   "so the invariant above is being enforced over an empty set: #{bad.strip}"
+    end
+    # Must still IGNORE the boolean-guard read, or the scan flags correct code.
+    refute_match DEREFERENCE_SHAPE, "      if (!window.walletProvider.detect()) return;"
+
     users = Dir.glob(VIEWS.join("**/*.erb")).count { |p| File.read(p).include?("walletProvider.requireProvider()") }
 
     assert_operator users, :>=, 6,
