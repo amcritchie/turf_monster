@@ -154,25 +154,43 @@ journal stays small, non-sensitive, and cheap to validate server-side.
 exists. It was built for blockhash freshness, not for this, but it is exactly the
 right shape.
 
-### 5. On mobile, `signAndSendTransaction` — not `signTransaction`
+### 5. The send strategy branches per wallet
 
-All three wallets expose a deeplink method that signs **and broadcasts**,
-returning a signature. Using it deletes the client-side `sendRawTransaction` and
-`pollConfirmation` steps entirely on mobile — fewer moving parts on the platform
-where we have the least debugging reach.
+**Corrected 2026-09-07 against vendor docs — an earlier draft of this document
+got this wrong.** Phantom has **deprecated** its `signAndSendTransaction`
+deeplink: *"The signAndSendTransaction deeplink is deprecated. Use
+signAllTransactions or signTransaction instead."* The page no longer documents
+any parameters.
+
+So there is no single mobile send path:
+
+| Wallet | Mobile send |
+|---|---|
+| Phantom | `signTransaction` deeplink, then **the app broadcasts** — `sendRawTransaction` + `pollConfirmation` stay |
+| Solflare | `signAndSendTransaction` — live and recommended, wallet broadcasts |
+| Backpack | `signAndSendTransaction` — live and recommended, wallet broadcasts |
+
+The adapter must express both without leaking the choice to call sites. The
+hoped-for simplification — deleting the client-side broadcast on mobile — does
+**not** apply to Phantom, which is the wallet most of our users hold.
 
 ### 6. The journal is a state machine, not a single-shot record
 
-Only Phantom has `signIn` (connect + SIWS in one trip). Solflare and Backpack
-must do `connect` **then** `signMessage` — two round trips, two app switches. And
-every wallet needs an established encrypted session before it will sign anything,
-so a lapsed session inserts a `connect` hop ahead of any transaction.
+**Corrected 2026-09-07:** an earlier draft said only Phantom lacked the two-hop
+problem. In fact **no wallet has a documented `signIn`**, so mobile sign-in is
+`connect` **then** `signMessage` — two round trips, two app switches — on all
+three. Every wallet also needs an established encrypted session before it signs
+anything.
+
+The good news is the other half: **sessions do not expire.** All three state it
+explicitly. A session is invalidated only by an explicit disconnect, a wallet
+keypair change, a network switch, or an `app_url` blocklisting — so the common
+path carries no refresh hop.
 
 ```
-Phantom sign-in:    [signIn] → done
-Solflare sign-in:   [connect] → [signMessage] → done
-Backpack sign-in:   [connect] → [signMessage] → done
-Any transaction:    [connect if no live session] → [signAndSendTransaction] → done
+Sign-in (all three):   [connect] → [signMessage] → done
+Transaction, Phantom:  [connect if none] → [signTransaction] → app broadcasts
+Transaction, others:   [connect if none] → [signAndSendTransaction] → done
 ```
 
 So today's `phantom_dl_*` keys generalize to `wallet_dl_*` carrying: the wallet
@@ -195,9 +213,15 @@ all three protocols. An adapter is mostly a base URL and a method table.
 
 | Wallet | Base URL | connect | signIn | signMessage | signTransaction | signAndSend | browse |
 |---|---|---|---|---|---|---|---|
-| Phantom | `phantom.app/ul/v1/` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Phantom | `phantom.app/ul/v1/` | ✅ | ❌ *(undocumented)* | ✅ | ✅ | ⛔ **deprecated** | ✅ *(no `v1`)* |
 | Solflare | `solflare.com/ul/v1/` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Backpack | `backpack.app/ul/v1/` | ✅ | ❌ | ✅ | ✅ | ✅ | ❓ |
+| Backpack | `backpack.app/ul/v1/` | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ *(path form contradictory)* |
+
+**No wallet ships a documented `signIn` deeplink.** Phantom's 404s in its docs
+and exists only in its official demo app — where the payload is base58
+*plaintext*, not ciphertext, and the response key is `address` or `public_key`
+(the demo defends both). **The app's current mobile sign-in depends on that
+undocumented endpoint.** Retiring that dependency belongs in this epic.
 
 Sources: [Phantom deeplinks](https://phantom.com/learn/blog/the-complete-guide-to-phantom-deeplinks) ·
 [Solflare deeplinks](https://docs.solflare.com/solflare/technical/deeplinks) ·
@@ -308,9 +332,17 @@ come first.
 1. Exact per-wallet parameter names — verify against each vendor's live docs at
    implementation time.
 2. Does Backpack ship a `browse` method? Not listed on its provider-methods index.
-3. Session lifetime per wallet — how long does a `connect` session stay valid
-   before a transaction needs a fresh one? Drives how often mobile users eat the
-   extra hop.
+3. ~~Session lifetime per wallet.~~ **Answered:** sessions never expire on any of
+   the three. No refresh hop is needed.
+4. **Backpack documents no devnet cluster.** Its `cluster` parameter documents
+   only mainnet-beta and an Eclipse chain id; devnet and testnet appear nowhere
+   in its corpus. turf-monster tests on devnet, so this may block QA of the
+   Backpack adapter entirely — resolve before committing to that lane.
+5. **Backpack's connect response key is ambiguous.** Its encryption page says
+   `wallet_encryption_public_key`; its connect page says `wallet_xxx`, which
+   reads as an unresolved placeholder. Needs a device test.
+6. Backpack documents **no custom URI scheme** — universal links only. Unlike
+   Phantom, there is no scheme fallback.
 4. How many real users are affected? Searching LogRocket sessions for
    `provider.connect` gives the distinct-user count, which should size phase 1's
    urgency against the rest of the backlog.
