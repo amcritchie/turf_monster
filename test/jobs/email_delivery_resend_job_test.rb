@@ -22,7 +22,13 @@ class EmailDeliveryResendJobTest < ActiveJob::TestCase
     )
   end
 
-  setup { EmailDelivery.delete_all }
+  setup do
+    EmailDelivery.delete_all
+    # Capture is OFF in this env, but assert rather than assume: the capture
+    # guard is the difference between a sweep and an infinite loop, and a test
+    # that silently ran with capture ON would pass while proving nothing.
+    assert_not Studio.local_email_capture?
+  end
 
   test "re-enqueues a row stranded past the threshold" do
     stranded = row(created_at: 45.minutes.ago)
@@ -99,5 +105,70 @@ class EmailDeliveryResendJobTest < ActiveJob::TestCase
     assert stranded.reload.sent?, "the sweep should have driven the row to sent"
     assert_not_nil stranded.sent_at
     assert_nil stranded.error
+  end
+
+  # --- the bounds, each a blocking review finding on PR #611 ---
+
+  # MEASURED, not theoretical. Under LOCAL_EMAIL_CAPTURE=1 (every agent worktree
+  # stack) EmailDelivery.deliver writes the row and never enqueues, and
+  # deliver_now! returns early setting only `error` — so the row can NEVER reach
+  # sent. That is exactly the signature this job hunts, which made it a
+  # non-terminating loop: a reviewer measured the same row re-queued on three
+  # consecutive ticks, and the cron loads wherever Sidekiq boots.
+  test "no-ops entirely where local email capture is on" do
+    row(created_at: 45.minutes.ago)
+
+    Studio.stub(:local_email_capture?, true) do
+      assert_no_enqueued_jobs only: EmailDeliveryJob do
+        assert_equal 0, EmailDeliveryResendJob.perform_now
+      end
+    end
+  end
+
+  # A floor-only scope sweeps the whole table on its first tick. email_deliveries
+  # is never pruned and dates to 2026-06-10, so without a ceiling the first
+  # production run could mail months-old "you won $100" notices — worse than the
+  # incident it fixes, and impossible to unsend.
+  test "leaves rows older than the sweep window for a human" do
+    ancient = row(created_at: 120.days.ago)
+
+    assert_no_enqueued_jobs only: EmailDeliveryJob do
+      assert_equal 0, EmailDeliveryResendJob.perform_now
+    end
+    assert_not ancient.reload.sent?
+  end
+
+  test "a backlog drains across ticks instead of firing in one pass" do
+    (EmailDeliveryResendJob::BATCH_LIMIT + 5).times { |i| row(created_at: (2 + i).hours.ago) }
+
+    assert_equal EmailDeliveryResendJob::BATCH_LIMIT, EmailDeliveryResendJob.perform_now
+  end
+
+  # ORDER ONLY MATTERS WHERE THE CAP BITES, which is what the first version of
+  # this test missed: with two rows and a limit of 100 both are enqueued whichever
+  # way they are sorted, so it passed against newest-first too. Overfill the
+  # batch, then the sweep has to CHOOSE — and the choice is the behaviour.
+  test "the oldest stranded rows are the ones recovered first" do
+    limit  = EmailDeliveryResendJob::BATCH_LIMIT
+    rows   = (1..(limit + 5)).map { |i| row(created_at: (i + 1).hours.ago, to: "w#{i}@example.com") }
+    oldest = rows.sort_by(&:created_at).first(limit).map(&:id)
+
+    EmailDeliveryResendJob.perform_now
+
+    enqueued = enqueued_jobs.select { |j| j["job_class"] == "EmailDeliveryJob" }
+                            .map { |j| j["arguments"].first }
+    assert_equal oldest.sort, enqueued.sort,
+      "the batch should be the oldest #{limit} rows, not the newest"
+  end
+
+  # 0 is truthy in Ruby, so a bare `|| STRANDED_AFTER` accepts it and the
+  # in-flight guard disappears — the by-hand path is the documented one, so it
+  # must not be able to double-send.
+  test "an override cannot collapse the in-flight guard" do
+    row(created_at: 10.seconds.ago)
+
+    assert_no_enqueued_jobs only: EmailDeliveryJob do
+      assert_equal 0, EmailDeliveryResendJob.perform_now(stranded_after_minutes: 0)
+    end
   end
 end

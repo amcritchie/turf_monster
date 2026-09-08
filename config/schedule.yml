@@ -88,10 +88,12 @@ email_delivery_resend:
   class: EmailDeliveryResendJob
   active_job: true
   description: >-
-    Re-enqueue EmailDelivery rows still unsent 30 minutes after they were
-    recorded. Covers the gap Sidekiq cannot: a row left sent=false with NO
-    error and NO job anywhere, which is how a winner was paid $100 on
-    2026-09-07 and never told. Only rows past the threshold are touched, so
-    deliveries still legitimately in flight are left alone.
+    Re-enqueue EmailDelivery rows left unsent between 30 minutes and 7 days ago,
+    at most 100 per tick, oldest first. Covers the gap Sidekiq cannot: a row
+    left sent=false with no job anywhere, which is how a winner was paid $100 on
+    2026-09-07 and never told. Bounded in three dimensions on purpose — younger
+    rows are still in flight, older ones need a human, and a backlog drains
+    across ticks. No-ops entirely where LOCAL_EMAIL_CAPTURE is on, since nothing
+    there can ever reach sent and the sweep would loop forever.
   queue: default
 
