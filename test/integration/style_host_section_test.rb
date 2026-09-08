@@ -19,9 +19,25 @@ class StyleHostSectionTest < ActionDispatch::IntegrationTest
     "wallet-setup"     => %w[returnUrl],
     "wallet-changed"   => %w[oldAddress newAddress providerLabel],
     "buy-entry-token"  => [],
-    "cdp-ramp"         => %w[step],
+    # BOTH keys, and flow is the one a partial-only review cannot find: it is
+    # read by an isBuy getter in shared/_alpine_factories, strictly, with no
+    # default — so a step passed alone renders the cash-out arm under a card
+    # labelled "buy". props.flow appears ZERO times in _cdp_ramp itself.
+    "cdp-ramp"         => %w[flow step],
     "cosign-rejected"  => []
   }.freeze
+
+  # Where a prop may legitimately be READ. The partial is the obvious place; the
+  # Alpine factory is the one that made the first version of this test blind.
+  PROP_SOURCES = [
+    "app/views/modals/_%s.html.erb",
+    "app/views/shared/_alpine_factories.html.erb"
+  ].freeze
+
+  # Ids whose registration is capability-gated, with the predicate that gates
+  # them. Their card is rendered DISABLED rather than triggered, so requiring a
+  # live registration would fail on any stack with the capability off.
+  CAPABILITY_GATED = { "cdp-ramp" => :cdp_ramp_modal_available? }.freeze
 
   setup do
     log_in_as(users(:alex))
@@ -38,27 +54,47 @@ class StyleHostSectionTest < ActionDispatch::IntegrationTest
                     "the gem's intro line names the file that contributed the section"
   end
 
-  test "every trigger names an id the app actually registers" do
-    # TWO registration surfaces, and checking only the first is a trap this very
-    # test fell into on its first run. Per-callsite cards live in the layout's
-    # own list; a card that belongs to the APP rather than to a page lives in
-    # modals/_host_extras, which the engine host renders on EVERY path through
-    # it. cosign-rejected is the occupant, so a layout-only assertion reports it
-    # as unregistered while it is in fact reachable everywhere.
-    registrations = [
-      Rails.root.join("app/views/layouts/application.html.erb"),
-      Rails.root.join("app/views/modals/_host_extras.html.erb")
-    ].map { |f| File.read(f) }.join("\n")
-
+  test "every trigger opens an id that is REGISTERED ON THE RENDERED PAGE" do
+    # THIS ASSERTION USED TO READ SOURCE FILES AND IT PROVED NOTHING. It grepped
+    # layouts/application.html.erb for `current().id === '<id>'` — a string that
+    # is in the file whether or not its enclosing `<% if %>` ever renders. It
+    # passed on cdp-ramp while that card opened an EMPTY panel, because the id is
+    # registered behind cdp_ramp_modal_available? and the flag is off by default.
+    #
+    # modal_registration_sources scans the RENDERED body and counts <template>
+    # nesting for exactly this failure. Asserting against @body is what makes the
+    # guard bite.
     TRIGGERS.each_key do |id|
-      assert_includes @body, "$store.modals.open('#{id}'",
-                      "#{id} should be triggered from the host section"
-      # The id must be REGISTERED somewhere, or the real host opens an empty
-      # panel — the failure the seam's contract warns about, and one that is
-      # invisible in a rendered page: the card opens, and it is blank.
-      assert_includes registrations, "current().id === '#{id}'",
-                      "#{id} is triggered but neither the application layout nor modals/_host_extras " \
-                      "registers it — the host would open an EMPTY panel"
+      gate = CAPABILITY_GATED[id]
+
+      if gate && !ApplicationController.helpers.respond_to?(gate)
+        next
+      end
+
+      blocks = modal_registration_sources(@body, id)
+
+      if gate
+        # Capability off: the card must be rendered DISABLED, not triggered.
+        next if blocks.empty?
+      end
+
+      refute_empty blocks,
+                   "#{id} is triggered from the host section but has NO registration on the " \
+                   "rendered page — the host would open an EMPTY panel"
+    end
+  end
+
+  test "a capability-gated card is disabled rather than silently dead" do
+    # The honest state for a capability that is off. Without this, "no
+    # registration" and "correctly greyed out" look identical to the test above.
+    section = @body[@body.index('id="host-modals"')..] || ""
+
+    CAPABILITY_GATED.each_key do |id|
+      next unless modal_registration_sources(@body, id).empty?
+
+      assert_includes section, "requires ENABLE_",
+                      "#{id} has no registration on this stack, so its card must carry a " \
+                      "disabled label saying why rather than offering a dead trigger"
     end
   end
 
@@ -71,17 +107,37 @@ class StyleHostSectionTest < ActionDispatch::IntegrationTest
                     "a host specimen must drive the app's real $store.modals, never dsModals"
   end
 
-  test "every prop passed is one the production partial actually reads" do
+  test "the props in the RENDERED trigger match the declared set, and the code reads them" do
+    # TWO HALVES, because the first version had neither. It iterated TRIGGERS and
+    # grepped the partial, never touching @body — so nothing asserted that the
+    # markup passes those keys at all, and a mutation "proving" this guard only
+    # ever reddened by editing the constant.
     TRIGGERS.each do |id, keys|
-      next if keys.empty?
+      rendered = @body[/\$store\.modals\.open\('#{Regexp.escape(id)}'(?:,\s*\{(.*?)\})?\s*\)/m, 1].to_s
+      passed   = rendered.scan(/([a-zA-Z]+):/).flatten
 
-      partial = Rails.root.join("app/views/modals/_#{id.tr('-', '_')}.html.erb")
-      source  = File.read(partial)
+      # A DISABLED card renders no trigger at all — which is the point of
+      # disabling it, and is asserted by the capability test above. There is
+      # then no markup to compare against, so half (a) does not apply; half (b)
+      # still does, because the declared keys are what the card WILL pass on a
+      # stack where the capability is on.
+      gated_off = CAPABILITY_GATED.key?(id) && modal_registration_sources(@body, id).empty?
 
+      unless gated_off
+        # (a) the MARKUP and the constant must agree, in both directions.
+        assert_equal keys.sort, passed.sort,
+                     "the rendered trigger for #{id} passes #{passed.sort.inspect} but this test " \
+                     "declares #{keys.sort.inspect} — one of them is wrong"
+      end
+
+      # (b) every key must be read SOMEWHERE the code actually looks.
       keys.each do |key|
-        assert_includes source, "props.#{key}",
-                        "the host section passes #{key} to #{id}, but #{partial.basename} never reads " \
-                        "props.#{key} — that is specimen drift, the exact defect this section retires"
+        sources = PROP_SOURCES.map { |f| Rails.root.join(f.include?("%s") ? format(f, id.tr("-", "_")) : f) }
+        found   = sources.any? { |f| File.exist?(f) && File.read(f).include?("props.#{key}") }
+
+        assert found,
+               "#{id} is opened with #{key}, but props.#{key} is read in none of " \
+               "#{sources.map(&:basename).join(', ')} — that is specimen drift"
       end
     end
   end

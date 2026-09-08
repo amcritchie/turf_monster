@@ -35,7 +35,7 @@
   instead of in review.
 %>
 
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
   <%= render layout: "style/modal_specimen", locals: {
         label:     "Set up your wallet",
@@ -72,11 +72,23 @@
     </div>
   <% end %>
 
+  <%# CAPABILITY-GATED, and the card says so rather than lying. cdp-ramp is
+      registered in layouts/application behind cdp_ramp_modal_available?
+      (logged_in? && AppFlags.cdp_ramp?), and ENABLE_CDP_RAMP is off by default
+      everywhere — so on a stack without it this id has NO registration and a
+      trigger would open an empty panel. Greying it is the honest state: the flag
+      is ON wherever the flow actually exists (QA and production both set it), so
+      the card opens the real thing exactly where the real thing is real.
+      Deliberately NOT registering it ungated for the guide's benefit: that would
+      ship the modal's markup into every authenticated page of an app that has no
+      Coinbase ramp, to make one admin card clickable. %>
   <%= render layout: "style/modal_specimen", locals: {
-        label:     "Coinbase ramp — buy preflight",
-        reference: %(turf-monster's modals/_cdp_ramp, opened at its FIRST step. DELIBERATELY PARTIAL, and saying so is the point: that modal is a two-flow step machine — buy and cash-out — across THIRTEEN states (preflight, opening, waiting, awaiting-cdp, send, settling, done, failed, error and the rest), and this cards exactly one of them. The buy preflight is the state both funding cards hand off to, and therefore the only one a player reaches without already being mid-flow. The other twelve are uncarded BY DECISION (operator, 2026-08-26), which is a different thing from an oversight — a cabinet that shows one state of a thirteen-state machine without admitting it teaches a reader that the machine is simpler than it is. Drive the others by passing a different step: the card branches on props.step.),
-        open_expr: "$store.modals.open('cdp-ramp', { step: 'preflight' })",
-        openable:  true } do %>
+        label:          "Coinbase ramp — buy preflight",
+        reference:      %(turf-monster's modals/_cdp_ramp, opened at its FIRST step of the BUY flow. DELIBERATELY PARTIAL, and saying so is the point: that modal is a two-flow step machine — buy and cash-out — across NINE distinct steps rendered by TWELVE template arms (preflight, opening, waiting, awaiting-cdp, send, settling, done, failed, error), and this cards exactly one of them. The buy preflight is the state both funding cards hand off to, and therefore the only one a player reaches without already being mid-flow. The rest are uncarded BY DECISION (operator, 2026-08-26), which is a different thing from an oversight — a cabinet that shows one state of a multi-state machine without admitting it teaches a reader that the machine is simpler than it is. BOTH KEYS ARE REQUIRED: the flow arm is chosen by an isBuy getter in shared/_alpine_factories that reads props.flow === 'buy' strictly, with no default, so a step passed without a flow silently renders the CASH-OUT arm. Drive the others by varying step.),
+        open_expr:      "$store.modals.open('cdp-ramp', { flow: 'buy', step: 'preflight' })",
+        disabled:       !cdp_ramp_modal_available?,
+        disabled_label: "requires ENABLE_CDP_RAMP",
+        openable:       cdp_ramp_modal_available? } do %>
     <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 text-center space-y-2">
       <div class="text-2xl leading-none">&#127974;</div>
       <span class="block h-1.5 w-24 mx-auto rounded" style="background: var(--color-text); opacity: .3"></span>
