@@ -746,7 +746,7 @@
 # have said: 249 + 3 = 252 and 250 + 2 = 252 AGREE here, and agreement still is
 # not derivation — the lister is what wrote the number below.
 #
-# 257 -> 260 (gate-admin-flows-desktop-only): three specs in
+# 257 -> 261 (gate-admin-flows-desktop-only): four specs in
 # e2e/admin_desktop_only.spec.js for the four admin wallet flows now declaring
 # themselves DESKTOP-ONLY. Two of the three are only observable in a browser and
 # a UA away from the default: the notice ships HIDDEN in the response body and
@@ -754,9 +754,13 @@
 # tell "painted on a phone" from "never painted at all", and the disabled state
 # of the Co-sign buttons is set the same way. The third runs the flow on a
 # DESKTOP and proves it still reaches the server, which is what keeps a gate
-# that refuses everybody from satisfying the other two. Derived with
-# bin/e2e-lane-derive --write, not incremented by hand.
-total_specs: 260
+# that refuses everybody from satisfying the other two. The fourth covers the
+# contest lock/conclude flow, which is the one of the four admin flows with no
+# view of its own to paint into — its buttons live in app/views/contests/** —
+# so the click-time refusal is its ENTIRE declaration and this is the only tier
+# that can witness it. Derived with bin/e2e-lane-derive --write, not
+# incremented by hand.
+total_specs: 261
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
 #
@@ -1023,7 +1027,7 @@ allowed_skips: 4
 # TREE, not by arithmetic on any of the three conflicts this line has hit.
 # allowed_skips stays 4: both listers agree, which is what proves none of the new
 # specs brought a runtime skip with it.
-executed: 239
+executed: 240
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
 # this EXACT value — so widening the filter to `@devnet|something` is a test failure, not a

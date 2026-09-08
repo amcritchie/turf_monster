@@ -45,11 +45,15 @@
       // DISABLED, NOT HIDDEN. The operator still needs to see that they
       // reached the right page — hiding the controls turns "wrong device"
       // into "wrong page", and they go looking for the one that works.
+      //
+      // `disabled` ALONE, no classes. studio-engine's button primitive already
+      // ships `.btn:disabled { cursor: not-allowed; opacity: .5 }`, so the
+      // opacity-50 / cursor-not-allowed this first added were duplicating a
+      // rule that was already firing — verified in the browser, not assumed:
+      // a bare disabled .btn computes opacity 0.5 on its own. Adding classes
+      // also leaves them behind if anything ever re-enables the button.
       var buttons = document.querySelectorAll('[data-desktop-only-action]');
-      for (var i = 0; i < buttons.length; i++) {
-        buttons[i].disabled = true;
-        buttons[i].classList.add('opacity-50', 'cursor-not-allowed');
-      }
+      for (var i = 0; i < buttons.length; i++) buttons[i].disabled = true;
     }
 
     // The buttons are rendered BELOW this partial, so the query above finds

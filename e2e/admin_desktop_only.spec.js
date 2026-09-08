@@ -34,10 +34,17 @@ const COSIGN_BUTTON = "button[data-desktop-only-action]";
 // that can stop the flow below is the device gate.
 async function stubLegacyPhantom(page) {
   await page.addInitScript(() => {
+    const key = { toBase58: () => "CoSigner1111111111111111111111111111111111" };
     window.solana = {
       isPhantom: true,
-      publicKey: { toBase58: () => "CoSigner1111111111111111111111111111111111" },
-      connect: async () => ({}),
+      publicKey: key,
+      // RESOLVES A REAL publicKey, and that detail is load-bearing. With
+      // `connect` resolving {}, an UNGATED lock flow died on
+      // `resp.publicKey.toBase58()` before it ever fetched — so "the server was
+      // never called" stayed true with the gate deleted, and the mutation that
+      // removed it survived. A stub that lets the flow run is what makes the
+      // absence of a request evidence of the gate rather than of the stub.
+      connect: async () => ({ publicKey: key }),
       signTransaction: async (tx) => tx
     };
   });
@@ -49,6 +56,18 @@ async function stubLegacyPhantom(page) {
 async function seedPendingSignatures(request, live) {
   const response = await request.post("/test/set_pending_signatures", { form: { live, stale: 0 } });
   expect(response.ok()).toBe(true);
+}
+
+// The sentence the MODAL is showing, read from the store rather than from page
+// text. This page also PAINTS that sentence into the desktop-only notice, so a
+// getByText() assertion is satisfied by the notice whether or not the flow
+// refused anything — which is exactly how the first cut of this spec let a
+// mutation that deleted lock_contest.js's gate pass.
+async function modalError(page) {
+  return page.evaluate(() => {
+    const m = window.Alpine && window.Alpine.store("solanaModal");
+    return m ? { state: m.state, title: m.title, errorMessage: m.errorMessage } : null;
+  });
 }
 
 // Count the rebuild POST — the first thing the cosign flow does once it is past
@@ -104,8 +123,39 @@ test.describe("admin treasury on a phone", () => {
     //    the gate is removed from cosign.js while the notice stays.
     await page.evaluate(() => window.cosignTransaction("ptx-probe", "Settle Contest"));
 
-    await expect(page.getByText(/a phone cannot reach a signer wallet/i).last()).toBeVisible();
+    await expect.poll(() => modalError(page).then((m) => m && m.state)).toBe("error");
+    const refusal = await modalError(page);
+    expect(refusal.title).toBe("Desktop Required");
+    expect(refusal.errorMessage).toMatch(/a phone cannot reach a signer wallet/i);
     expect(rebuilds).toHaveLength(0);
+  });
+
+  // The contest lock/conclude flow, which is the ONE of the four with no notice
+  // to paint: its buttons live in app/views/contests/** (the contest header, the
+  // show page, the turf-totals leaderboard), so no single view owns it. Its
+  // whole declaration is the click-time refusal, which makes this the only tier
+  // that can see the flow is gated at all.
+  test("the contest lock flow refuses without asking the server", async ({ page }) => {
+    await stubLegacyPhantom(page);
+
+    const prepares = [];
+    await page.route("**/contests/*/prepare_lock_time", async (route) => {
+      prepares.push(route.request().url());
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+
+    await loginAdmin(page);
+    await page.goto("/admin/pending_transactions");
+
+    // Invoked directly, the way its onclick does. `window.solana` is a working
+    // Phantom here, so the pre-existing isPhantom check cannot be what stops it.
+    await page.evaluate(() => window.lockContestViaPhantom("probe-contest", 0));
+
+    await expect.poll(() => modalError(page).then((m) => m && m.state)).toBe("error");
+    const refusal = await modalError(page);
+    expect(refusal.title).toBe("Desktop Required");
+    expect(refusal.errorMessage).toMatch(/a phone cannot reach a signer wallet/i);
+    expect(prepares).toHaveLength(0);
   });
 
   test("the refusal never surfaces a null dereference", async ({ page }) => {
