@@ -23,9 +23,15 @@ require "test_helper"
 # SCOPE, since the filename undersells it: this file measures Contest and Entry,
 # which never branch on sport, then holds EVERY published lock surface to that
 # one measurement — the World Cup rulebook, the NFL rulebook, the Terms editing
-# clause, and the funnel helper's citation trail. Add a lock surface, add it
-# here; do not stand up a second fixture, or the surfaces gain a way to disagree
-# with each other about the same code.
+# clause, and the pre-payment funnel (its rendered lock step AND its citation
+# trail). Add a lock surface, add it here; do not stand up a second fixture, or
+# the surfaces gain a way to disagree with each other about the same code.
+#
+# TWO DOORS, and the file measures both. The rulebook and Terms tests ask when a
+# picked entry stops being EDITABLE. The funnel test asks when a visitor stops
+# being able to ENTER — the only surface here that is read BEFORE money changes
+# hands, and the one direction where a wrong sentence costs a buyer a contest
+# rather than an edit.
 class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
   # A slate with two kickoff waves is the exact shape the old copy described:
   # an early game that sets the contest lock, and a later game whose own
@@ -426,6 +432,129 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
 
   test "the NFL rulebook's pre-lock swap window matches what Entry enforces" do
     assert_rulebook_swap_window_matches_measurement(turf_monster_v1_path)
+  end
+
+  # ── the ENTRY door, measured on a contest that locks BEFORE any kickoff ───
+  # The two measurements above both open AFTER the first kickoff, so neither can
+  # see the case the pre-payment funnel turns on: a contest whose stated start
+  # time PRECEDES the first game on its slate. Contest#locks_at is `starts_at ||
+  # slate.first_game_starts_at || slate.starts_at` (contest.rb:686-693) — an
+  # explicit starts_at WINS, is admin-permitted on create AND edit
+  # (contests_controller.rb:2702, 2737), and nothing validates it against the
+  # slate. Measured against production on 2026-09-08, 3 of 7 contests had locked
+  # earlier than their first kickoff, the widest by 8.6 days; none locked later.
+  #
+  # Closing entries early is a legitimate product choice, so this is NOT a test
+  # that the model should stop allowing it. It is a test that the funnel — the
+  # page a visitor reads BEFORE paying an entry fee — names the moment the door
+  # actually shuts.
+  def early_locking_contest
+    @early_locking_contest ||= Contest.create!(
+      name: "Early Lock Contest", slug: "early-lock-contest",
+      entry_fee_cents: 1900, status: "open", max_entries: 29,
+      contest_type: "standard", slate: @slate,
+      starts_at: @early_kickoff - 2.hours
+    )
+  end
+
+  # Answers only "would this entry be accepted", through the exact pre-flight a
+  # paying entrant runs. `comped:` is left at its default false on purpose: the
+  # admin-seed escape hatch (entry.rb:134) exempts the lock gate, and a comped
+  # call would measure the one path this sentence does not describe.
+  def entry_accepted?(entry)
+    entry.assert_enterable!
+    true
+  rescue StandardError
+    false
+  end
+
+  # Returns [refused_before_any_kickoff, accepted_earlier], both read at
+  # instants DERIVED from the contest, never hard-coded.
+  #
+  # MEASURED, NOT ASSERTED, and this is what keeps the else branch below alive:
+  # if Contest ever derives or validates starts_at against the slate's first
+  # kickoff, this contest's lock MOVES to @early_kickoff, the first clause reads
+  # false, and the test flips to demanding the kickoff wording back.
+  def early_lock_entry_window
+    contest = early_locking_contest
+    entry = Entry.create!(user: users(:alex), contest: contest, status: "cart")
+    @picked.each { |m| entry.selections.create!(slate_matchup: m) }
+
+    lock = contest.locks_at
+    first_kickoff = @slate.first_game_starts_at
+
+    refused_before_any_kickoff = nil
+    travel_to lock do
+      refused_before_any_kickoff = Time.current < first_kickoff && !entry_accepted?(entry)
+    end
+
+    accepted_earlier = nil
+    travel_to lock - 1.hour do
+      accepted_earlier = entry_accepted?(entry)
+    end
+
+    [refused_before_any_kickoff, accepted_earlier]
+  end
+
+  # css_select is UNSCOPED by default and reads the whole rendered document,
+  # layout included. Scoping to the funnel's own subtree is what makes a
+  # refute_match below mean "the funnel does not say this" rather than "the
+  # navbar and footer do not say this".
+  def funnel_subtree_text(hook)
+    node = css_select(%([data-test="#{hook}"])).first
+    assert node, "the funnel must render a #{hook} subtree"
+    node.text
+  end
+
+  test "the funnel's lock step names the moment entries actually close" do
+    refused_before_any_kickoff, accepted_earlier = early_lock_entry_window
+
+    # CONTROL. Without it the refusal above could come from a closed contest, a
+    # short pick set, a full slate, or a raise from anywhere inside the
+    # pre-flight, and this test would certify any copy at all. The SAME entry
+    # must be accepted an hour before the lock, or the refusal at the lock is
+    # not the contest lock talking.
+    assert accepted_earlier,
+           "control: the same entry must be accepted an hour before the contest lock"
+
+    contest = early_locking_contest
+    page = LandingPage.create!(name: "Lock Rule Funnel", slug: "lock-rule-funnel",
+                               headline: "Enter the Contest", contest: contest, active: true)
+
+    get landing_page_path(page.slug)
+    assert_response :success
+    step_text = funnel_subtree_text("funnel-how-it-works")
+
+    if refused_before_any_kickoff
+      # Measured reality: entries were REFUSED at a moment when no game on the
+      # slate had kicked off. Naming the kickoff would promise this visitor a
+      # window that had already closed — on the page they read before paying.
+      refute_match(/kick(s|ed)? off/i, step_text,
+                   "Entry REFUSED a complete entry at the contest lock while NO game on the " \
+                   "slate had kicked off, so the funnel may not name a kickoff as the moment " \
+                   "the contest locks — a visitor who waits for it finds entries closed")
+      assert_match(/start time/i, step_text,
+                   "the funnel must name the contest's start time, which is the attribute " \
+                   "Contest#locks_at actually reads")
+      assert_match(/locks/i, step_text, "the step must still say the contest locks")
+
+      # The sentence points at a time; the page must PRINT that time, and it
+      # must be the measured lock moment. Without this the copy could name a
+      # "start time" the visitor is never shown, or one taken from the slate.
+      shown = funnel_subtree_text("funnel-lock-time")
+      assert_match(/#{Regexp.escape(contest.locks_at.strftime('%B %-d'))}/, shown,
+                   "the funnel must print the date of the lock the copy points at")
+      assert_match(/#{Regexp.escape(contest.locks_at.strftime('%-I:%M %p'))}/, shown,
+                   "the funnel must print the clock time of the lock the copy points at")
+    else
+      # starts_at is now derived from, or validated against, the slate's first
+      # kickoff, so the contest can no longer lock before a game starts. The
+      # kickoff is then the concrete, checkable moment a visitor can look up,
+      # and naming the abstract "start time" instead is the weaker sentence.
+      assert_match(/kicks off/i, step_text,
+                   "the contest can no longer lock before its first kickoff, so the funnel " \
+                   "should name that kickoff — the moment a visitor can actually look up")
+    end
   end
 
   # Locks the citation trail the funnel helper hands the next reader: it cites
