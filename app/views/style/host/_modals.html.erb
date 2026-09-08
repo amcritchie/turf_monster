@@ -1,0 +1,110 @@
+<%#
+  Turf Monster's own section of the living style guide.
+
+  THE POINT OF THIS FILE, in one sentence: every card below opens the REAL
+  production modal, so there is no second copy to drift from the one players
+  meet. Until studio-engine 0.71.0 the only way to get an app's card onto the
+  guide was to write a mirror of it under the gem's style/modals/, and five of
+  turf's cards had one. Those mirrors drifted — wallet_setup's dropped the whole
+  isMobile axis its real card forks on three times, and wallet_changed's opened
+  with a `currentAddress` prop the real card has never read. This section
+  replaces them; /tasks/retire-five-modal-mirrors deletes them once the prose
+  below has landed here.
+
+  WHAT THE GEM OWNS AND WHAT THIS FILE OWNS. The section element, its anchor,
+  the heading and the sticky-nav pill are all rendered by studio-engine's
+  style/_host.html.erb. This file supplies cards and nothing else — no <section>,
+  no <h2>, no nav entry. Defining the file IS the registration; the guide finds
+  it by convention with lookup_context.exists?("modals", ["style/host"], true).
+
+  EVERY TRIGGER DRIVES $store.modals, NOT dsModals — and that is the whole
+  mechanism, not a style preference. dsModals is the page-scoped host the gem's
+  own Modals section stands up, because ITS specimens carry engine ids that no
+  app layout registers. Turf's ids ARE registered in turf's layout host (this app
+  mounts studio/modals/host), so pushing one onto the real store makes the real
+  host render the real card. Copy dsModals in here and you have rebuilt the
+  mirror this section exists to delete.
+
+  PROPS COME FROM THE CARD, NEVER FROM A SPECIMEN. Each open_expr below passes
+  only keys the production partial actually reads, verified against the partial
+  on 2026-09-08. The retired mirrors are the cautionary tale twice over: one
+  opened wallet-changed with `currentAddress` (the card reads oldAddress), and
+  one offered wallet-setup a `detected` toggle that exists only on the mirror —
+  the real card decides that itself from a runtime phantomPresent getter that no
+  prop can set. That is rule 3 of the modal lifecycle SOP, failing on click
+  instead of in review.
+%>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+  <%= render layout: "style/modal_specimen", locals: {
+        label:     "Set up your wallet",
+        reference: %(turf-monster's modals/_wallet_setup — how an account with NO wallet gets one, and the third step of the post-auth onboarding chain (it renders a 3-of-3 pill, which is the chain's position, not this section's). AN APP-SPECIFIC FLOW: the engine lends only chrome — blocks/_shell, blocks/_progress_pill, blocks/_wallet_brand_sprite — while extension detection, the 90-second walkthrough video, the Detailed Guide route and the managed-wallet fallback all stay here, which is why the card is ~627 lines. IT IS THE OPPOSITE POPULATION to the Sign Wallet cards in the engine's Web3 section: WalletSetupPolicy exits at its own step 1 for an account that already holds a wallet, so no user ever meets both. THE INSTALL-VERSUS-INSTALLED ROW IS NOT A PROP — the card reads a live phantomPresent getter, so what you see here is what THIS browser can detect. The retired mirror offered a "Wallet detected" toggle instead, which is precisely the kind of convenience a mirror can afford and a real card cannot.),
+        open_expr: "$store.modals.open('wallet-setup', { returnUrl: window.location.pathname })",
+        openable:  true } do %>
+    <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 text-center space-y-2">
+      <div class="text-2xl leading-none">&#128091;</div>
+      <span class="block h-2 w-24 mx-auto rounded" style="background: var(--color-text); opacity: .18"></span>
+      <span class="block h-8 w-full rounded" style="background: var(--color-text); opacity: .10"></span>
+    </div>
+  <% end %>
+
+  <%= render layout: "style/modal_specimen", locals: {
+        label:     "Wallet changed",
+        reference: %(turf-monster's modals/_wallet_changed — fired when the person switches accounts INSIDE their wallet extension while signed in. Nothing is broken, and that is what makes it delicate: the session and the extension now disagree about who this is, and every on-chain action from here would use an identity the page is not showing. So it prints BOTH addresses, truncated the Solana way, because recognising your own is the one check the app cannot make for you. Continuing re-derives a session against the new wallet, which is a round trip, so the button carries a busy state rather than looking dead. THE PROP NAMES MATTER: the card reads oldAddress, newAddress and providerLabel. The retired mirror opened it with `currentAddress`, which the card has never read — a prop name that drifted and that no test caught, because a mirror answers to nobody.),
+        open_expr: "$store.modals.open('wallet-changed', { oldAddress: '7xKpDemoSignedInWallet9JZ2Q', newAddress: '9mQtDemoSwitchedWalletLd4V', providerLabel: 'Phantom' })",
+        openable:  true } do %>
+    <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 text-center space-y-2">
+      <div class="text-2xl leading-none">&#128260;</div>
+      <span class="block h-1.5 w-28 mx-auto rounded" style="background: var(--color-text); opacity: .3"></span>
+      <span class="block h-1.5 w-28 mx-auto rounded" style="background: var(--color-text); opacity: .3"></span>
+    </div>
+  <% end %>
+
+  <%= render layout: "style/modal_specimen", locals: {
+        label:     "Buy an Entry Token",
+        reference: %(turf-monster's modals/_buy_entry_token — reached when a player has picked a lineup and has no way to pay for it, which is why the copy says the lineup is SAVED: losing their picks is the one thing they are afraid of at that moment. Built from the engine's blocks/_close_x and blocks/_rail_row. THE RANKING IS A PRODUCT DECISION, not a visual one: Coinflow leads and carries the "New" badge because it mints a spendable entry token directly, the shortest path from here to being in the contest, while the Stripe rail swaps into the auth wizard's tokens picker — the older and longer path — and so defers. EACH RAIL SELF-GATES on onramp_rail_visible?, so on a stack with both flags off this card can render with no rails at all; that empty state is real and is tracked separately.),
+        open_expr: "$store.modals.open('buy-entry-token', {})",
+        openable:  true } do %>
+    <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 space-y-2">
+      <span class="block h-6 w-full rounded" style="background: var(--color-primary); opacity: .35"></span>
+      <span class="block h-6 w-full rounded" style="background: var(--color-text); opacity: .12"></span>
+    </div>
+  <% end %>
+
+  <%# CAPABILITY-GATED, and the card says so rather than lying. cdp-ramp is
+      registered in layouts/application behind cdp_ramp_modal_available?
+      (logged_in? && AppFlags.cdp_ramp?), and ENABLE_CDP_RAMP is off by default
+      everywhere — so on a stack without it this id has NO registration and a
+      trigger would open an empty panel. Greying it is the honest state: the flag
+      is ON wherever the flow actually exists (QA and production both set it), so
+      the card opens the real thing exactly where the real thing is real.
+      Deliberately NOT registering it ungated for the guide's benefit: that would
+      ship the modal's markup into every authenticated page of an app that has no
+      Coinbase ramp, to make one admin card clickable. %>
+  <%= render layout: "style/modal_specimen", locals: {
+        label:          "Coinbase ramp — buy preflight",
+        reference:      %(turf-monster's modals/_cdp_ramp, opened at its FIRST step of the BUY flow. DELIBERATELY PARTIAL, and saying so is the point: that modal is a two-flow step machine — buy and cash-out — across NINE distinct steps rendered by TWELVE template arms (preflight, opening, waiting, awaiting-cdp, send, settling, done, failed, error), and this cards exactly one of them. The buy preflight is the state both funding cards hand off to, and therefore the only one a player reaches without already being mid-flow. The rest are uncarded BY DECISION (operator, 2026-08-26), which is a different thing from an oversight — a cabinet that shows one state of a multi-state machine without admitting it teaches a reader that the machine is simpler than it is. BOTH KEYS ARE REQUIRED: the flow arm is chosen by an isBuy getter in shared/_alpine_factories that reads props.flow === 'buy' strictly, with no default, so a step passed without a flow silently renders the CASH-OUT arm. Drive the others by varying step.),
+        open_expr:      "$store.modals.open('cdp-ramp', { flow: 'buy', step: 'preflight' })",
+        disabled:       !cdp_ramp_modal_available?,
+        disabled_label: "requires ENABLE_CDP_RAMP",
+        openable:       cdp_ramp_modal_available? } do %>
+    <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 text-center space-y-2">
+      <div class="text-2xl leading-none">&#127974;</div>
+      <span class="block h-1.5 w-24 mx-auto rounded" style="background: var(--color-text); opacity: .3"></span>
+      <span class="block h-6 w-full rounded" style="background: var(--color-primary); opacity: .3"></span>
+    </div>
+  <% end %>
+
+  <%= render layout: "style/modal_specimen", locals: {
+        label:     "Co-sign refused",
+        reference: %(turf-monster's modals/_cosign_rejected, opened when POST confirm_onchain_entry answers 422 with code tx_rejected: the SERVER refused to co-sign because the transaction it was handed did not match the entry it had prepared. A DIFFERENT KIND OF FAILURE from an on-chain error — that is the chain saying no, this is the server saying no. APP-SPECIFIC: the engine owns no entry preparation, no co-signing and no verdict; it lends blocks/_card_header and nothing else. THE COPY IS DELIBERATELY VAGUE AND SHOULD STAY THAT WAY: good actors never see this card, since it fires on a tampered or mismatched transaction, so naming WHICH server-side check failed would help an attacker probe the validation. What it does commit to is the part the one honest user needs — nothing was submitted, the funds are safe. Registered app-wide through modals/_host_extras rather than a layout list, so it is reachable on every path through the host.),
+        open_expr: "$store.modals.open('cosign-rejected', {})",
+        openable:  true } do %>
+    <div class="pointer-events-none w-40 rounded-lg bg-surface border border-subtle shadow p-4 text-center space-y-2">
+      <div class="text-2xl leading-none">&#128737;&#65039;</div>
+      <span class="block h-1.5 w-28 mx-auto rounded" style="background: var(--color-text); opacity: .3"></span>
+    </div>
+  <% end %>
+
+</div>
