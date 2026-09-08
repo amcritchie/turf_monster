@@ -60,6 +60,17 @@ class WalletGuardInvariantTest < ActiveSupport::TestCase
                  offenders.join("\n  ")
   end
 
+  test "every layout inlining a walletProvider stub mirrors requireProvider" do
+    Dir.glob(Rails.root.join("app/views/layouts/*.erb")).each do |path|
+      src = File.read(path)
+      next unless src.include?("window.walletProvider = {")
+      assert_includes src, "requireProvider: function()",
+                      "#{File.basename(path)} stubs walletProvider without requireProvider, " \
+                      "and shared/alpine_factories calls it — the pre-hydration window there " \
+                      "throws \"requireProvider is not a function\"."
+    end
+  end
+
   test "the guard is actually in use, so the scan above is not vacuous" do
     # A REGEX THAT MATCHES NOTHING PASSES THE TEST ABOVE FOREVER, and counting
     # requireProvider() callers does NOT close that — it never runs the pattern.

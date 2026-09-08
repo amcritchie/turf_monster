@@ -125,7 +125,17 @@
           isMobile: function() {
             return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
           },
-          detect: function() { return null; }
+          detect: function() { return null; },
+          // This layout renders shared/alpine_factories (below), whose rename
+          // flow calls requireProvider(). Without it the pre-hydration window
+          // throws "requireProvider is not a function" — the unreadable failure
+          // that method exists to remove. The preview never reaches a real
+          // wallet, so it answers for itself rather than copying user copy.
+          requireProvider: function() {
+            var provider = this.detect();
+            if (provider) return provider;
+            throw new Error("No wallet is reachable in the modal preview.");
+          }
         };
 
         // solanaWalletConnect — auth modal's Phantom button references this
