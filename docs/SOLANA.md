@@ -491,8 +491,10 @@ solana-keygen pubkey "$f"                                     # the ONLY value s
 
 `--silent` is what suppresses the seed phrase; `--no-bip39-passphrase` skips
 only the passphrase PROMPT and leaves the phrase printing to the terminal.
-`-o/--outfile` takes a FILEPATH and has no stdout form, so `-o -` writes the
-private key to a file literally named `-`. `SOLANA_ADMIN_KEY` wants the
+`-o/--outfile` takes a FILEPATH, but `-` is the Solana CLI's STDOUT token:
+`-o -` PRINTS the secret keypair JSON straight to the terminal and creates
+NO file (verified against solana-keygen 3.1.15/Agave). Never use it for this
+key — always pass a real path. `SOLANA_ADMIN_KEY` wants the
 **base58** secret (`Solana::Keypair.from_base58`,
 `app/services/solana/keypair.rb:55`), not the JSON byte array `solana-keygen`
 writes, so convert it on the way into 1Password rather than through a terminal
