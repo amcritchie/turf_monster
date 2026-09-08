@@ -101,7 +101,13 @@ class FirstNameEntryGateTest < ActionDispatch::IntegrationTest
     assert first_name < funding, "the name must be asked before money"
   end
 
-  test "the board dispatches the blocker and resumes the entry once, guarded" do
+  # RENAMED 2026-09-08 — it used to be "...and resumes the entry once, guarded".
+  # The resume is gone: a hold now has exactly two outcomes, success or a
+  # hand-off to the blocker, and the player holds again (operator rule; see the
+  # note where the listeners were in _turf_totals_board). The DISPATCH half of
+  # this test is untouched and still the thing worth pinning — the blocker must
+  # still route to the card that fixes it.
+  test "the board dispatches the first-name blocker to the required card" do
     # NOT logged in, on purpose (same as wallet_topup_test's board assertions):
     # this markup is static component source, identical for every viewer, and a
     # user who already HAS an entry on this contest renders the entries view
@@ -113,12 +119,15 @@ class FirstNameEntryGateTest < ActionDispatch::IntegrationTest
 
     assert_includes body, "case 'first_name_required':  this.showFirstNameModal(); break;"
     assert_includes body, "Alpine.store('modals').open('onboarding', { required: true, enterAnim: 'shake' });"
-    # The resume, and the guard that keeps the post-auth chain from firing it.
-    # Both matter: the chain opens the same modal and dispatches the same event,
-    # so an unguarded listener would submit a lineup nobody held.
-    assert_includes body, "window.addEventListener('first-name-saved', function () {"
-    assert_includes body, "if (!board._resumeAfterFirstName) return;"
-    assert_includes body, "board._resumeAfterFirstName = false;"
+    # THE RESUME ASSERTIONS WERE RETIRED HERE, not weakened. They pinned
+    # window.addEventListener('first-name-saved') and the _resumeAfterFirstName
+    # guard around it — real behaviour, correctly tested, until the rule changed.
+    # Their replacement asserts the ABSENCE of that listener and lives in
+    # test/integration/hold_never_resumes_test.rb, which also pins the layout's
+    # onboarding-chain driver as the thing that must SURVIVE, since it listens
+    # for the same event name and is not a resume.
+    refute_includes body, "window.addEventListener('first-name-saved'",
+                    "the board must not resume an entry after the name is saved"
   end
 
   # --- 3. the card in required mode -------------------------------------------
