@@ -315,12 +315,21 @@
 
   <hr class="border-subtle my-10">
 
+  <%# data-test hook. The pre-lock swap sentence below is pinned by
+      test/integration/turf_totals_lock_rule_test.rb, which does not grep for a
+      wording: it MEASURES what Entry accepts on a contest whose stated start
+      trails a kickoff on its slate, then requires this copy to agree. The
+      measurement lives in the World Cup file because Contest and Entry are
+      sport-agnostic, so one measurement certifies both rulebooks.
+
+      The hook scopes that assertion to THIS section. Without it the assertion
+      reads the site-wide layout too and can pass on chrome. %>
   <!-- ========== 07 — WHEN PICKS LOCK ========== -->
-  <section class="mb-12 md:mb-16">
+  <section class="mb-12 md:mb-16" data-test="lock-rules">
     <p class="text-primary font-mono text-sm mb-2">07</p>
     <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">When Picks Lock</h2>
     <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
-      A contest locks at its stated start time &mdash; the first kickoff of its first week. Until then you can swap any of your six teams as often as you like. After it, the lineup is set for all three weeks; there are no waiver moves and no mid-contest substitutions.
+      A contest locks at its stated start time. Until then you can swap any team whose game has not kicked off. After it, the lineup is set for all three weeks; there are no waiver moves and no mid-contest substitutions.
     </p>
 
     <div class="bg-surface-alt rounded-xl border border-violet/30 p-6">
