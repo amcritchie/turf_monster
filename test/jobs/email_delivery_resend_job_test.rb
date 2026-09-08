@@ -9,9 +9,11 @@ require "test_helper"
 # enqueued 0, retry 0, dead 0. No retry was coming, and a player who had been
 # paid would never have been told.
 #
-# So the case under test is specifically the SILENT one. A row with an error is
-# already Sidekiq's problem; a row with no error and no job is nobody's, and
-# that is the hole.
+# The case that MOTIVATED it is the silent one: a row with no error and no job is
+# nobody's problem. The sweep shipped WIDER than that on purpose — an errored row
+# is swept too ("sweeps a stranded row that recorded an error" below), because
+# Sidekiq's ladder does exhaust and a provider outage would otherwise never
+# recover. Scope lives in the job's own comment; keep the two in step.
 class EmailDeliveryResendJobTest < ActiveJob::TestCase
   def row(created_at:, sent: false, error: nil, to: "x@example.com")
     EmailDelivery.create!(

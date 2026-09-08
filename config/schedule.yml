@@ -96,4 +96,3 @@ email_delivery_resend:
     across ticks. No-ops entirely where LOCAL_EMAIL_CAPTURE is on, since nothing
     there can ever reach sent and the sweep would loop forever.
   queue: default
-
