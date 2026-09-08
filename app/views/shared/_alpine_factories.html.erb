@@ -784,8 +784,10 @@
     opts = opts || {};
     var onProgress = (opts && opts.onProgress) || function () {};
     try {
-      var provider = window.walletProvider && window.walletProvider.detect();
-      if (!provider) throw new Error("Connect your Phantom wallet to rename.");
+      // Guarded correctly before this change, but with copy that named Phantom
+      // and assumed an extension — on a phone that is advice nobody can take.
+      // requireProvider answers with the remedy that fits the device.
+      var provider = window.walletProvider.requireProvider();
       onProgress("Approve in Phantom…");
       await provider.connect();
       var txBytes = Uint8Array.from(atob(challenge), function (c) { return c.charCodeAt(0); });
