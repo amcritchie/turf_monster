@@ -142,9 +142,13 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     else
       # Measured reality: ONE contest-level lock, no per-game exemption.
       assert_match(/locks/i, lock_text, "the lock section must state when a contest locks")
-      assert_match(/first kickoff/i, lock_text,
-                   "the lock moment the code derives is the slate's first kickoff")
       assert_match(/final/i, lock_text, "the section must say picks are final after the lock")
+
+      # WHEN it locks. This used to be `assert_match(/first kickoff/i, ...)`,
+      # which required the very equivalence the code does not hold to — and
+      # passed only because the worked example nested in this subtree supplied
+      # the phrase. It now consumes a measurement; see the section below.
+      assert_lock_moment_matches_measurement("lock-rules", "World Cup lock section")
 
       # No wording anywhere in the rulebook may promise the swap window the
       # measurement just proved impossible — prose, worked example, or the
@@ -178,6 +182,11 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
                  "the example must land on picks being final at the contest lock")
     refute_match(/still swap|haven'?t started yet|until 9pm/i, example,
                  "the example must not resolve the later kickoff as extra editing time")
+
+    # The example resolved its own lock with "because that is the first kickoff
+    # on the slate" until 2026-09-08 — stating as the REASON a thing the code
+    # only sometimes does. Held to the same measurement as the prose above it.
+    assert_lock_moment_matches_measurement("lock-example", "World Cup worked example")
   end
 
   # The quick-reference table is where a reader skims for THE RULES. It read
@@ -186,9 +195,121 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     get turf_totals_v1_path
     assert_response :success
     row = scoped_text("lock-quick-ref")
-
-    assert_match(/first kickoff/i, row, "the quick-reference lock row must name the contest lock")
     refute_match(/per-game/i, row, "the quick-reference row must not promise per-game locking")
+
+    # This row asserted /first kickoff/i until 2026-09-08. Three words of copy
+    # cannot carry the reasoning, so it now consumes the measurement instead.
+    assert_lock_moment_matches_measurement("lock-quick-ref", "World Cup quick-reference lock row")
+  end
+
+  # ── the LOCK MOMENT, measured against the slate's first kickoff ───────────
+  # Every lock surface this file guards once named the lock as "the first
+  # kickoff on the slate", and three assertions above REQUIRED that phrase. It
+  # is not a synonym for the lock moment. Contest#locks_at is `starts_at ||
+  # slate.first_game_starts_at || slate.starts_at` (contest.rb:686-693): an
+  # explicit starts_at WINS, it is admin-permitted on create AND edit
+  # (contests_controller.rb:2702, 2737), and NOTHING validates it against the
+  # slate. The two moments coincide only when an admin leaves starts_at blank —
+  # and measured against production on 2026-09-07, all 7 contests set it by hand.
+  #
+  # WHY THIS REPLACED A GREP, because the old assertion looked harmless. It read
+  # `assert_match(/first kickoff/i, lock_text)` against the lock-rules subtree,
+  # and the PROSE in that subtree has said "at its stated start time" since
+  # 2026-09-07 — so it passed only because the WORKED EXAMPLE nested in the same
+  # subtree still supplied the phrase. A guard everyone read as pinning the
+  # prose was load-bearing on an example nobody thought was load-bearing:
+  # rewording the example alone turned it red, with a message about the prose.
+  #
+  # MEASURED, NOT ASSERTED, which is what keeps both directions live. If Contest
+  # ever derives or validates starts_at against the slate's first kickoff,
+  # admin_scheduled_contest's lock MOVES to @early_kickoff, this reads false,
+  # and every surface below flips to demanding the kickoff wording BACK — the
+  # equivalence would be true again, and a page that hid it would understate
+  # what the code guarantees.
+  def lock_moment_can_leave_first_kickoff?
+    contest = admin_scheduled_contest
+
+    # CONTROL. The fixture must STATE a start time that differs from its slate's
+    # first kickoff, or `false` below would mean "the fixture never posed the
+    # question" and every surface would be certified against a measurement that
+    # measured nothing. It reads the stored attribute, not the derivation, so it
+    # keeps answering the same way however Contest#locks_at is written.
+    refute_equal @slate.first_game_starts_at, contest.starts_at,
+                 "control: the fixture must state a start time that differs from its slate's " \
+                 "first kickoff, or the measurement below asks nothing"
+
+    contest.locks_at != @slate.first_game_starts_at
+  end
+
+  # The equivalence the surfaces used to state, in both shapes they carried it:
+  # "the first kickoff on the slate" and "First kickoff, Week 1".
+  FIRST_KICKOFF_EQUIVALENCE = /first kickoff/i
+
+  # The attribute Contest#locks_at actually reads, as the corrected pages name it.
+  STATED_START_MOMENT = /stated start/i
+
+  # Holds ONE published lock surface to the measurement above. Every surface
+  # CONSUMES this rather than restating it, so no two of them can disagree about
+  # the same attribute — the rule this file's header sets for adding a surface.
+  def assert_lock_moment_matches_measurement(hook, surface)
+    # scoped_text asserts the node exists first, so a renamed or deleted hook
+    # fails HERE instead of handing the assertions below an empty string. The
+    # emptiness check is the other half of that guard, and it earns its keep on
+    # the quick-reference rows: they are three words, so the refutation alone
+    # would pass just as happily against a row that rendered nothing at all.
+    text = scoped_text(hook)
+    refute_empty text.strip, "the #{surface} must render text to be held to the measurement"
+
+    gap = admin_scheduled_contest.locks_at - @slate.first_game_starts_at
+    gap_hours = (gap / 1.hour.to_f).round(1)
+
+    if lock_moment_can_leave_first_kickoff?
+      assert_match(STATED_START_MOMENT, text,
+                   "the lock moment is the contest's STATED START TIME: this run measured a " \
+                   "contest locking #{gap_hours}h from its slate's first kickoff, so the " \
+                   "#{surface} must name the moment the code reads")
+      refute_match(FIRST_KICKOFF_EQUIVALENCE, text,
+                   "the #{surface} tells a reader the lock IS the slate's first kickoff, but an " \
+                   "explicit starts_at wins over the slate unvalidated (contest.rb:686-693) and " \
+                   "this run measured the two #{gap_hours}h apart")
+    else
+      assert_match(FIRST_KICKOFF_EQUIVALENCE, text,
+                   "Contest now locks at the slate's first kickoff however starts_at is set, so " \
+                   "the equivalence holds again and the #{surface} should name it")
+    end
+  end
+
+  # ── section 02 of the NFL rulebook, held to section 07's own measurements ──
+  # "Swap freely until the contest locks at the first kickoff" carried BOTH
+  # defects this family of guards has been removing, and contradicted section 07
+  # three hundred lines further down its own page. A reader who skims the
+  # numbered steps and never reaches the rulebook section got the wrong rule
+  # twice: an unqualified swap window, and a lock moment the code does not use.
+  #
+  # The two tests run the SAME measurements section 07 answers to, against
+  # section 02's own subtree. That is what "agrees with section 07" has to mean
+  # here — not that two strings match, but that neither can drift from the code
+  # without a named failure.
+  test "the NFL pick step names the lock moment its own rulebook measures" do
+    get turf_monster_v1_path
+    assert_response :success
+
+    assert_lock_moment_matches_measurement("lock-rules", "NFL lock section")
+    assert_lock_moment_matches_measurement("nfl-pick-step", "NFL pick step")
+  end
+
+  test "the NFL pick step's swap window matches what Entry enforces" do
+    assert_rulebook_swap_window_matches_measurement(turf_monster_v1_path, hook: "nfl-pick-step")
+  end
+
+  # The NFL quick-reference "Lock" row read "First kickoff, Week 1" and sits in
+  # the band headed EVERY NFL CONTEST — the same false equivalence, claimed as a
+  # rule that holds for every contest rather than one contest's configuration.
+  test "the NFL quick-reference lock row names the measured lock moment" do
+    get turf_monster_v1_path
+    assert_response :success
+
+    assert_lock_moment_matches_measurement("nfl-lock-quick-ref", "NFL quick-reference lock row")
   end
 
   # ── the lock WINDOW, measured off the production slate definition ─────────
@@ -375,7 +496,10 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     /swap any of your six teams/i => "promises every team is swappable pre-lock"
   }.freeze
 
-  def assert_rulebook_swap_window_matches_measurement(page_path)
+  # `hook` names the subtree to scope against. It defaults to the rulebook's own
+  # lock section; the NFL pick step passes its own so the two surfaces on that
+  # page are held to one measurement instead of drifting apart.
+  def assert_rulebook_swap_window_matches_measurement(page_path, hook: "lock-rules")
     frozen, editable = pre_lock_pick_freeze
 
     # CONTROL. Without it the refusal below could come from a dead entry, a
@@ -392,7 +516,7 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     # scoped_text asserts the node before reading it. A renamed or deleted
     # section then fails HERE, loudly, instead of handing the assertions below
     # an empty string they would all pass against having read nothing.
-    lock_text = scoped_text("lock-rules")
+    lock_text = scoped_text(hook)
     assert_match(/swap/i, lock_text,
                  "the lock section must still tell a player when picks can be swapped")
 
