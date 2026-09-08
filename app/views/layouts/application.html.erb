@@ -231,6 +231,27 @@
           // register via Wallet Standard. The hub reads this at click time.
           available: function() {
             return [];
+          },
+          // MIRRORED FROM THE MODULE, and it has to be. Alpine evaluates x-data
+          // before importmap modules execute, so a click landing in that window
+          // reaches THIS object — and a stub missing the method would throw
+          // "requireProvider is not a function", which is the same class of
+          // unreadable failure this pair of methods exists to remove. The stub's
+          // detect() always returns null, so the honest message is the only
+          // answer it can give, and it is the right one.
+          requireProvider: function() {
+            var provider = this.detect();
+            if (provider) return provider;
+            throw new Error(this.noWalletMessage());
+          },
+          noWalletMessage: function() {
+            if (this.isMobile()) {
+              return "This browser cannot reach a wallet. Open this page inside your " +
+                     "wallet app's own browser — Phantom, Solflare, and Backpack each " +
+                     "have one — then try again.";
+            }
+            return "No wallet detected. Install or unlock a Solana wallet extension, " +
+                   "then refresh this page.";
           }
         };
 

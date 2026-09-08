@@ -745,7 +745,7 @@
 # is the only thing this file has ever accepted. Note what the arithmetic would
 # have said: 249 + 3 = 252 and 250 + 2 = 252 AGREE here, and agreement still is
 # not derivation — the lister is what wrote the number below.
-total_specs: 252
+total_specs: 254
 # The @devnet specs, all of them in e2e/devnet-smoke.spec.js, excluded from the PR lane by
 # `--grep-invert "@devnet"` because they need a funded devnet wallet.
 #
@@ -1012,7 +1012,7 @@ allowed_skips: 4
 # TREE, not by arithmetic on any of the three conflicts this line has hit.
 # allowed_skips stays 4: both listers agree, which is what proves none of the new
 # specs brought a runtime skip with it.
-executed: 231
+executed: 233
 # The ONE sanctioned exclusion. bin/e2e-executed-set-check refuses any executed spec whose
 # title carries this tag, and test/lib/ci_workflow_triggers_test.rb pins the CI command to
 # this EXACT value — so widening the filter to `@devnet|something` is a test failure, not a
