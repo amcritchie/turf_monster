@@ -221,62 +221,124 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # ── the same measurement, pointed at the BINDING page ─────────────────────
+  # ── the PRE-LOCK window, measured off the PRODUCTION contest shape ───────
   # The Terms of Service is the one lock-scope surface a player can hold the
-  # operator to, and it carried the per-game framing too: "picks whose
-  # real-world games have already kicked off cannot be changed". That clause is
-  # not a contradiction of the sentence beside it — it is VESTIGIAL. Under a
-  # contest-wide lock derived from the slate's FIRST kickoff, any game having
-  # kicked off means the contest is already locked and NO pick is editable, so
-  # the carve-out can never be the operative reason a pick is frozen. It
-  # described a window the code closed on 2026-05-24.
+  # operator to, and it carries a per-game carve-out: "picks whose real-world
+  # games have already kicked off cannot be changed". Whether that clause is
+  # live is NOT a question about the contest lock. It is a question about the
+  # window BEFORE it.
   #
-  # This reuses the measurement above rather than grepping a second page: the
-  # copy is a function of the code, so the code is what gets asked. If per-game
-  # locking ever comes back, the measurement flips and this test demands the
-  # carve-out be restored to the binding page.
-  test "the Terms editing clause matches the lock Entry enforces" do
-    # CONTROL — same as the rulebook test. Without it the measurement could read
-    # "nothing editable" off a broken setup and certify any Terms text at all.
-    travel_to @contest.locks_at - 1.hour do
-      assert accepted?(@spare_late.first),
-             "control: a spare pick must be editable BEFORE the contest locks"
+  # Contest#locks_at is `starts_at || slate.first_game_starts_at ||
+  # slate.starts_at` (contest.rb:686-693): an explicit starts_at WINS, it is
+  # admin-permitted on contest create AND edit (contests_controller.rb:2702,
+  # 2737), and NOTHING validates it against the slate's first kickoff. That is
+  # not a corner case — measured against production on 2026-09-07, all 7
+  # contests set starts_at by hand, so the derived case the tests above pin is
+  # the case production never takes.
+  #
+  # Set the stated start time later than a game on the slate and the contest is
+  # OPEN and UNLOCKED while that game is underway. The contest-wide gate has
+  # not fired; the per-game gate has (entry.rb:44 in toggle_selection!, :95 in
+  # update_picks!, :142 in assert_enterable!). One pick is frozen and its
+  # neighbour is not, which is exactly what the carve-out exists to say.
+  #
+  # MEASURED, NOT ASSERTED. If Contest ever derives or validates starts_at
+  # against the first kickoff, the asymmetry vanishes, this measurement flips,
+  # and the test demands the carve-out be DELETED from the binding page.
+  def admin_scheduled_contest
+    @admin_scheduled_contest ||= Contest.create!(
+      name: "Admin Scheduled Contest", slug: "admin-scheduled-contest",
+      entry_fee_cents: 1900, status: "open", max_entries: 29,
+      contest_type: "standard", slate: @slate,
+      starts_at: @late_kickoff + 1.hour
+    )
+  end
+
+  # Swap `out_matchup` for `in_matchup` on a SUBMITTED entry through the exact
+  # path the clause describes — the contest page's edit action, which reaches
+  # Entry#update_picks! — then roll it back. Answers only "was it allowed".
+  # The id list is rebuilt from @picked rather than the association so a
+  # rolled-back attempt cannot leave a stale set behind for the next one.
+  def swap_accepted?(entry, out_matchup, in_matchup)
+    entry.reload
+    ids = (@picked - [out_matchup]).map(&:id) + [in_matchup.id]
+    Entry.transaction do
+      entry.update_picks!(ids)
+      raise ActiveRecord::Rollback
+    end
+    true
+  rescue StandardError
+    false
+  end
+
+  # Returns the pair the carve-out turns on, read at ONE instant: is a pick
+  # whose own game has kicked off frozen while a pick whose game has not is
+  # still editable, with the contest open and its lock still in the future?
+  def pre_lock_pick_freeze
+    contest = admin_scheduled_contest
+    entry = Entry.create!(user: users(:alex), contest: contest, status: "active")
+    @picked.each { |m| entry.selections.create!(slate_matchup: m) }
+
+    # The instant to read at is DERIVED from the contest, never hard-coded, so
+    # both answers stay reachable. Just after the first kickoff is where the
+    # asymmetry lives — but only while the contest is still unlocked, so on a
+    # contest whose stated start does NOT trail its slate we fall back to just
+    # before its lock. Pin it to `@early_kickoff + 1.minute` instead and the
+    # "no asymmetry" branch below becomes unreachable dead code.
+    instant = [@early_kickoff + 1.minute, contest.locks_at - 1.minute].min
+
+    frozen = editable = nil
+    travel_to instant do
+      assert contest.open?, "measurement: the contest must still be open"
+      assert_operator contest.locks_at, :>, Time.current,
+                      "measurement: the contest lock must still be in the future — this is the " \
+                      "pre-lock window, not the post-lock one the tests above measure"
+      refute @spare_late.first.locked?,
+             "measurement: the late wave must NOT have kicked off yet"
+
+      frozen = !swap_accepted?(entry, @early_matchups.first, @spare_late.first)
+      editable = swap_accepted?(entry, @picked.last, @spare_late.last)
     end
 
-    editable = nil
-    travel_to @contest.locks_at + 1.minute do
-      editable = matchups_still_editable_after_contest_lock
-    end
+    [frozen, editable]
+  end
+
+  test "the Terms editing clause matches the pre-lock window Entry enforces" do
+    frozen, editable = pre_lock_pick_freeze
+
+    # CONTROL. Without it a refusal below could come from a dead entry, a full
+    # slate, or a contest that is simply closed, and this test would certify any
+    # Terms text at all. A pick whose game has not started must be swappable at
+    # the very same instant, or the refusal is not the per-game gate talking.
+    assert editable,
+           "control: with the contest open and its lock still ahead, swapping a pick whose " \
+           "game has NOT kicked off must be accepted"
 
     get terms_path
     assert_response :success
     clause = scoped_text("terms-entry-editing")
 
-    if editable.any?
-      # Per-game locking would be real again: the BINDING page must say so.
-      assert_match(/kicked off/i, clause,
-                   "Entry left #{editable.size} pick(s) editable after the contest lock — " \
-                   "the Terms editing clause must document the per-game carve-out")
-    else
-      # Measured reality: ONE contest-wide lock, no per-game exemption. The
-      # clause may still promise editing WHILE OPEN and still except Survivor;
-      # what it may not do is carve out individual kicked-off picks.
+    if frozen
+      # Measured reality: while the contest is OPEN, a kicked-off pick is
+      # refused and its neighbour is accepted. The binding page must carry the
+      # carve-out, or it promises a paying entrant an edit the code refuses.
+      assert_match(/already kicked off/i, clause,
+                   "Entry REFUSED a swap of a kicked-off pick while the contest was open and " \
+                   "unlocked, and ACCEPTED a swap of one whose game had not started — the " \
+                   "Terms editing clause must carry that carve-out")
       assert_match(/change/i, clause,
                    "the clause must still state that picks are editable while the contest is open")
       assert_match(/locks/i, clause, "the clause must name the contest lock")
       assert_match(/final/i, clause, "the clause must say entries are final after the lock")
-
-      {
-        /already kicked off/i => "carves out picks whose own game has started",
-        /whose (own|real-world|specific) (game|match)/i => "scopes the freeze to individual picks",
-        /per-game/i => "names a per-game lock moment"
-      }.each do |pattern, why|
-        refute_match(pattern, clause,
-                     "Terms copy matching #{pattern.inspect} #{why}, but Entry raises " \
-                     "\"Contest has locked — entries closed\" for EVERY pick once " \
-                     "Contest#locks_at (the slate's first kickoff) passes, so no pick is " \
-                     "ever frozen on the strength of its own kickoff alone")
-      end
+    else
+      # The asymmetry is gone: starts_at is now derived from, or validated
+      # against, the slate's first kickoff, so no pick is ever frozen on the
+      # strength of its own kickoff alone. The carve-out is then vestigial and
+      # must come OFF the binding page — a clause that can never operate is a
+      # clause that misleads.
+      refute_match(/already kicked off/i, clause,
+                   "no pick is frozen on its own kickoff any more, so the carve-out can never " \
+                   "be the operative reason an edit is refused — remove it from Terms")
     end
   end
 
