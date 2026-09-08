@@ -277,19 +277,54 @@ Enumerated from every `connect` / `signTransaction` call site.
 | Wallet export | `app/views/wallet_exports/show.html.erb:132` |
 | Sign-in | `app/views/layouts/application.html.erb:244` — *mobile path exists, Phantom only* |
 
-### Desktop-only is a legitimate answer
-
-| Flow | Location |
-|---|---|
-| Vault init | `app/views/admin/vault_init/show.html.erb:160` |
-| Vault state | `app/views/admin/vault_state/show.html.erb:207` |
-| Lock / conclude contest | `app/javascript/lock_contest.js:37` |
-| 2-of-3 cosign | `app/javascript/cosign.js:72` |
+### Desktop-only is a legitimate answer — SHIPPED (`gate-admin-flows-desktop-only`)
 
 An admin signing a 2-of-3 vault operation from a phone is not a use case. These
-declare `inline` only and render an honest "desktop required" message under the
-same capability gate as everything else — which is the point: the rule handles
-both the supported and the unsupported case with one mechanism.
+four declare `inline` only and answer with an honest desktop-required message
+under the same capability gate as everything else — which is the point: one
+mechanism handles both the supported and the unsupported case.
+
+The gate is `window.walletProvider.requireDesktop()`, in
+`app/javascript/wallet_provider.js` — a third member beside `requireProvider`
+and `noWalletMessage`, mirrored into the layout's inlined stub. Its sentence
+comes from `desktopOnlyMessage()`, so the painted reason and the thrown reason
+cannot drift.
+
+| Flow | Gate | Painted ahead of the click? |
+|---|---|---|
+| Vault init | `app/views/admin/vault_init/show.html.erb` | yes — owns its view |
+| Vault state | `app/views/admin/vault_state/show.html.erb` | yes — owns its view |
+| 2-of-3 cosign | `app/javascript/cosign.js` | yes — via `admin/pending_transactions` |
+| Lock / conclude contest | `app/javascript/lock_contest.js` | **no** — see below |
+
+**It PAINTS, not just throws.** Each of these pages makes the operator do real
+work before the signature: vault_state wants a pause reason logged on-chain and
+then a `confirm()` naming the network; vault_init wants four pubkeys and a
+threshold. Learning "your device cannot do this" after all of that is the moment
+somebody starts hunting for a workaround. `shared/_wallet_desktop_only_notice`
+renders hidden, reveals itself on a phone, and disables every
+`[data-desktop-only-action]` button; the click-time throw stays as the backstop.
+
+**Lock / conclude is the exception, and it is structural.** Its buttons live in
+`app/views/contests/**` — the contest header, the show page, the turf-totals
+leaderboard — so no single view owns the flow and there is nowhere to paint. Its
+whole declaration is the click-time refusal. If those buttons ever consolidate
+into one partial, it should adopt the notice too.
+
+**The gate asks about the DEVICE only — do not "tidy" it into
+`requireProvider()`.** These callers sign through `window.solana`, while
+`detect()` reads `window.phantom.solana`. A legacy Phantom injecting only the
+former is a desktop that CAN sign and that a composed gate would refuse, telling
+the operator to install an extension they already have.
+`e2e/cosign_fresh_transaction.spec.js` stubs exactly that browser and goes red on
+the composed version — verified, not asserted. The wallet question stays where it
+already was, at each call site's own `isPhantom` check.
+
+Evidence: `test/lib/wallet_desktop_only_js_test.rb` (copy + device rules),
+`test/integration/wallet_stub_parity_test.rb` (stub mirrors the module),
+`test/views/admin_desktop_only_notice_test.rb` (markup), and
+`e2e/admin_desktop_only.spec.js` (the only tier that can see the notice paint,
+the buttons disable, and a desktop stay untouched).
 
 `app/javascript/solana_stores.js:232` already guards correctly
 (`!provider || !provider.connect`) and degrades cleanly. It needs no change.
@@ -322,7 +357,7 @@ cheapest insurance in the design.
 |---|---|---|
 | **0** *(optional, ~1 day)* | Guard `detect()`; capability-gated messaging; tier-3 handoff copy | Stops the crash today |
 | **1** | Encryption core + `walletOps` + all three adapters, wired to **contest entry only** | The transport abstraction, end to end, on the flow that is bleeding |
-| **2** | Migrate the remaining five user-facing flows; admin flows get desktop-only messaging | Mobile parity |
+| **2** | Migrate the remaining five user-facing flows; ~~admin flows get desktop-only messaging~~ (**done** — `gate-admin-flows-desktop-only`) | Mobile parity |
 | **3** *(optional)* | Android Mobile Wallet Adapter | Better Android UX — no page destruction |
 
 Phase 1 covering all three wallets was chosen deliberately: they share the
