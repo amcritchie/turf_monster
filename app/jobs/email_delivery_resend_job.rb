@@ -5,10 +5,11 @@
 # enqueues EmailDeliveryJob; deliver_now! marks the row sent, or records the
 # error and re-raises so Sidekiq retries. That covers a send that FAILS. It does
 # not cover a send that reports nothing — and on 2026-09-07 that is exactly what
-# happened on mainnet: settling turf-totals-alpha-contest-v1 paid
-# dunkpark4@gmail.com $100 and left their winner email at sent=false,
+# happened on mainnet: settling turf-totals-alpha-contest-v1 paid a real
+# winner $100 and left their winner email at sent=false,
 # sent_at=nil, error=nil, while a row created in the SAME SECOND for the other
-# winner sent fine. Sidekiq held nothing — enqueued 0, retry 0, dead 0. A real
+# winner sent fine. (The player is deliberately not named — this repo is
+# PUBLIC. The row id is on the task record.) Sidekiq held nothing — enqueued 0, retry 0, dead 0. A real
 # player had been paid and would never have been told.
 #
 # EVERY BOUND BELOW IS LOAD-BEARING. This job re-sends real mail to real people

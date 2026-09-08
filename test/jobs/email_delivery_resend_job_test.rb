@@ -3,7 +3,7 @@ require "test_helper"
 # The sweeper that re-drives stranded outbox rows.
 #
 # THE FAILURE IT EXISTS FOR, measured on mainnet 2026-09-07: settling
-# turf-totals-alpha-contest-v1 paid dunkpark4@gmail.com $100 and left their
+# turf-totals-alpha-contest-v1 paid a real winner $100 and left their
 # winner email at sent=false, sent_at=nil and error=nil, while the other
 # winner's row — created in the same second — sent fine. Sidekiq held nothing:
 # enqueued 0, retry 0, dead 0. No retry was coming, and a player who had been
