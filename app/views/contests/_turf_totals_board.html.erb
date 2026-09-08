@@ -1400,8 +1400,12 @@ window.selectionBoard = function() {
     // The hold CTA is BOUND to $store.session.tokensAvailable (see the header
     // comment). Every other write to that key in this app is an ACQUISITION:
     // the mint poll in pollTokenStatus above, tokens/_paypal_sdk.html.erb, and
-    // solana_utils.js's session hydrate. refreshBalanceDelayed() ->
-    // refreshBalance() writes usdcCents/usdtCents and NOTHING else. So before
+    // solana_utils.js's session hydrate. This USED to read "refreshBalanceDelayed()
+    // -> refreshBalance() writes usdcCents/usdtCents and NOTHING else", and that
+    // is no longer true: onchainSettled() -> refreshSession() also writes
+    // tokensAvailable, so the delayed reload can now move the count DOWN — which
+    // is the honest direction after a consume, and a second cure for the stale
+    // count described below rather than a replacement for this method. So before
     // this method the count only ever went UP, and a wallet that had just
     // entered free kept reading "Hold for Free Entry" — then eligibilityBlocker
     // (solana_utils.js) waved the stale count through at hold-time while the
@@ -1749,12 +1753,17 @@ window.selectionBoard = function() {
           // StateFanout handler writes below — already populated from the
           // server response.
           window.StateFanout.apply('seeds', confirmData, { source: 'phantom-direct', seedsPerLevel: seedsPerLevel });
-          // 999s auto-close while reviewing seeds animation. Restore to a normal countdown when shipping (e.g. 8s).
+          // THE THIRD ARG IS IGNORED (application.html.erb): the engine's success
+          // card drives its own countdown, defaulting to FIVE seconds
+          // (studio/modals/blocks/_success_card:70, armed by _entry_confirmed:92)
+          // and ending in window.location.href. This comment used to claim a
+          // 999s auto-close, and that is exactly how the redirect got missed —
+          // a 10s non-navigating timer here is destroyed at t=5s.
           var modal = Alpine.store('solanaModal');
           modal.success(txSig, 'Entry Confirmed', 999);
           modal.title = 'Good Luck';
           modal.lobbyUrl = confirmData.redirect || ('/contests/' + this.contestId);
-          refreshBalanceDelayed();
+          onchainSettled({ navigating: true });
 
         } else {
           // Suppress the solanaModal "Submitting Entry" overlay when
@@ -1828,14 +1837,14 @@ window.selectionBoard = function() {
                   seedsTotal:  data.seeds_total  || 0,
                   seedsLevel:  data.seeds_level  || 0
                 });
-                refreshBalanceDelayed();
+                onchainSettled({ navigating: true });
               } else {
                 var sm = Alpine.store('solanaModal');
                 sm.seedsEarned = data.seeds_earned || 0;
                 sm.seedsTotal  = data.seeds_total  || 0;
                 sm.lobbyUrl    = data.redirect || '/';
                 sm.success(data.tx_signature, 'Entry Confirmed');
-                refreshBalanceDelayed();
+                onchainSettled({ navigating: true });
               }
             } else {
               if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
@@ -1854,7 +1863,7 @@ window.selectionBoard = function() {
                   seedsTotal:  data.seeds_total  || 0,
                   seedsLevel:  data.seeds_level  || 0
                 });
-                refreshBalanceDelayed();
+                onchainSettled({ navigating: true });
               } else {
                 window.location.href = data.redirect || '/';
               }

@@ -231,6 +231,184 @@ export function refreshBalance() {
     .catch(function() {});
 }
 
+// ── THE ON-CHAIN SETTLE SEAM ────────────────────────────────────────────────
+//
+// onchainSettled() is what EVERY web3-transaction-success path calls. It exists
+// because a balance read taken right after a broadcast is a coin flip: the
+// transaction is confirmed, but the RPC has not necessarily caught up, so the
+// read comes back with the PRE-SPEND number. Measured on QA 2026-09-07 — a $75
+// contest creation, a session_refresh fired 828ms after finalize returned, and
+// a navbar that confidently showed the old balance for the next 60 seconds.
+//
+// THE RULE THAT SHAPES THIS: never paint a number we have reason to distrust.
+// Between the spend and the settle the pill holds its LOADING state (operator
+// call 2026-09-07). Ten seconds of "loading" is a worse look and a better
+// answer than ten seconds of a wrong dollar figure.
+//
+// WHY A MARKER AND NOT JUST A TIMER. Some callers navigate — contest creation
+// assigns window.location.href the moment the server answers — and a setTimeout
+// does not survive unload. Scheduling in the caller would be a SILENT no-op on
+// exactly the flows this was built for. So a navigating caller leaves a marker
+// in sessionStorage and the DESTINATION page picks it up (see the layout's
+// hydrateNavbar). A caller that stays put (every entry flow) schedules directly.
+var ONCHAIN_SETTLE_KEY = "tm:onchain-settle-until";
+export var ONCHAIN_SETTLE_MS = 10000;
+
+// Put the balance pill back into the server's cache-cold "loading" shape:
+// hidden, with no dollar figure. Mirrors _navbar.html.erb's `hide_balance`
+// branch, so the client's loading state and the server's are the same state.
+// ONE WRITER OWNS THE PILL WHILE A SETTLE IS PENDING (operator call, 2026-09-07).
+//
+// refreshLevelUpToken() polls refreshSession() at +1000/2500/5000/9000ms after a
+// level-up entry, and refreshSession() paints the balance. Inside a settle window
+// those reads are the SAME too-early reads this whole seam exists to refuse —
+// measured at ~7.6s of the pre-spend figure, with .hidden cleared so it reads as
+// authoritative. The poller keeps doing its real job (chasing the entry token);
+// it just does not touch the balance.
+var _settlePending = false;
+export function settlePending() { return _settlePending; }
+
+// What the pill said before we blanked it, so a FAILED settle can put it back
+// rather than leaving the navbar with no balance at all (blocker 3).
+var _pillBeforeLoading = null;
+
+function paintBalanceRestore() {
+  if (_pillBeforeLoading == null) return;
+  try {
+    document.querySelectorAll("[data-balance-display]").forEach(function (el) {
+      el.textContent = _pillBeforeLoading.text;
+      if (_pillBeforeLoading.hidden) el.classList.add("hidden");
+      else el.classList.remove("hidden");
+    });
+  } catch (_) {}
+}
+
+function paintBalanceLoading() {
+  try {
+    var first = document.querySelector("[data-balance-display]");
+    _pillBeforeLoading = first
+      ? { text: first.textContent, hidden: first.classList.contains("hidden") }
+      : null;
+    document.querySelectorAll("[data-balance-display]").forEach(function (el) {
+      el.textContent = "";
+      el.classList.add("hidden");
+    });
+  } catch (_) {}
+}
+
+// RETRY ONCE, THEN RESTORE (operator call, 2026-09-07). A settle read can fail
+// outright, or be REFUSED: lockedFetch hands a contender Promise.resolve(null)
+// rather than sharing the in-flight promise, and 'session' is contended by the
+// level-up poller and both refresh buttons. So the settle takes its OWN key.
+// Without this the pill — already blanked — stays blank for good, which is
+// worse than the stale-but-visible number it replaced.
+var SETTLE_LOCK_KEY = "onchain-settle";
+var SETTLE_RETRY_MS = 3000;
+
+// A 200 whose wallet read FLAKED carries usdc AND usdt null (AccountsController
+// #session_refresh) and refreshSession paints nothing on that shape, so unless
+// it counts as a failure the blanked pill stays blank, unretried, for good.
+function settleRead() {
+  return refreshSession({ lockKey: SETTLE_LOCK_KEY }).then(function (data) {
+    return (data && (data.usdc != null || data.usdt != null)) ? data : null;
+  });
+}
+
+function scheduleOnchainSettle(delay) {
+  paintBalanceLoading();
+  _settlePending = true;
+  if (window.showNavSpinner) window.showNavSpinner();
+
+  function done(resolve) {
+    _settlePending = false;
+    if (window.hideNavSpinner) window.hideNavSpinner();
+    resolve();
+  }
+
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      // The settle's own read must be allowed to paint, so drop the flag first.
+      _settlePending = false;
+      settleRead().then(function (data) {
+        if (data) return done(resolve);
+        // Refused or failed. One more try, then put back what was there.
+        setTimeout(function () {
+          settleRead().then(function (retryData) {
+            if (!retryData) paintBalanceRestore();
+            done(resolve);
+          });
+        }, SETTLE_RETRY_MS);
+      });
+    }, delay);
+  });
+}
+
+// opts.navigating — true when the caller is about to assign window.location.
+// opts.delayMs    — override the settle window (default ONCHAIN_SETTLE_MS).
+export function onchainSettled(opts) {
+  opts = opts || {};
+  var delay = (opts.delayMs == null) ? ONCHAIN_SETTLE_MS : opts.delayMs;
+  if (opts.navigating) {
+    try {
+      window.sessionStorage.setItem(ONCHAIN_SETTLE_KEY, String(Date.now() + delay));
+    } catch (_) {}
+    return null;
+  }
+  return scheduleOnchainSettle(delay);
+}
+
+// Consume a marker left by a navigating caller. Returns the REMAINING ms when
+// one was pending (never negative), else null. Clears it either way, so a
+// reload cannot re-arm the wait forever.
+export function pendingOnchainSettleMs() {
+  var raw = null;
+  try {
+    raw = window.sessionStorage.getItem(ONCHAIN_SETTLE_KEY);
+    window.sessionStorage.removeItem(ONCHAIN_SETTLE_KEY);
+  } catch (_) { return null; }
+  if (!raw) return null;
+  var until = parseInt(raw, 10);
+  if (!until) return null;
+  return Math.max(0, until - Date.now());
+}
+
+// The load-time decision, as a FUNCTION rather than as glue in the layout.
+//
+// It lives here because the layout's inline script is not reachable by any
+// unit test — three lines of ERB deciding whether to read the chain is exactly
+// where a silent regression hides. Returns true when the caller must NOT do its
+// own load-time read: a spend happened on the page that sent us here, so
+// onchainSettled now owns the pill until it settles.
+// onSettled fires when the window closes, so the caller can release whatever
+// re-entry guard it holds. It MATTERS: hydrateNavbar runs on BOTH
+// DOMContentLoaded and turbo:load, and a defer that does not claim that guard
+// lets the SECOND call sail past and do the early read this exists to prevent —
+// repainting the stale number about a millisecond after we cleared it. Measured
+// in a browser 2026-09-07; both the node unit tests and a hand probe missed it,
+// the probe only because its unstubbed fetch happened to fail.
+export function settleOnLoadIfPending(onSettled) {
+  var pendingMs = pendingOnchainSettleMs();
+  if (pendingMs == null) return false;
+  var pending = onchainSettled({ delayMs: pendingMs });
+  if (pending && typeof onSettled === "function") pending.then(onSettled, onSettled);
+  return true;
+}
+
+// ── THE SEEDS GUARD ─────────────────────────────────────────────────────────
+// refreshSession() repaints the seeds bar, and the entry flow runs a ~3s
+// level-up animation. Converging every success path onto a delayed FULL reload
+// means that reload can land mid-animation and snap the bar back or re-fire the
+// milestone. The animation owns the bar while it plays; the reload skips it.
+var _seedsAnimatingUntil = 0;
+
+export function markSeedsAnimating(ms) {
+  _seedsAnimatingUntil = Date.now() + (ms || 3000);
+}
+
+export function seedsAnimating() {
+  return Date.now() < _seedsAnimatingUntil;
+}
+
 export function refreshBalanceDelayed(ms) {
   var delay = ms || 10000;
   if (window.showNavSpinner) window.showNavSpinner();
@@ -252,8 +430,9 @@ export function refreshBalanceDelayed(ms) {
 // token consume, withdrawal, payout) instead of stitching together
 // refreshBalance + updateNavTokens + seedsNavbar/localStorage by hand.
 // Returns a Promise so callers can chain a spinner around it.
-export function refreshSession() {
-  return lockedFetch('session', '/account/session_refresh', {
+export function refreshSession(opts) {
+  var lockKey = (opts && opts.lockKey) || 'session';
+  return lockedFetch(lockKey, '/account/session_refresh', {
     headers: { 'Accept': 'application/json' }, cache: 'no-store'
   })
     .then(function(r) { return r && r.json(); })
@@ -283,6 +462,11 @@ export function refreshSession() {
       // when both are null preserves the prior pill value instead of
       // showing a false $0. A single-sided null counts as 0 in the sum.
       try {
+        // ONE WRITER: a settle owns the pill until it lands. Everything else
+        // that reaches here inside the window — the level-up poller above all —
+        // is reading too early by construction, and painting it would clear the
+        // loading state and present the pre-spend number as the answer.
+        if (settlePending()) throw new Error("settle pending — balance paint deferred");
         if (data.usdc != null || data.usdt != null) {
           var combined  = (data.usdc != null ? parseFloat(data.usdc) : 0) +
                           (data.usdt != null ? parseFloat(data.usdt) : 0);
@@ -306,7 +490,11 @@ export function refreshSession() {
       // dispatch the same 'navbar-seeds-update' event the entry-confirm
       // flow uses so the bar transitions smoothly to the new value
       // instead of snapping on next reload.
+      // THE GUARD: a level-up animation owns the bar while it plays. A delayed
+      // full reload landing mid-animation would snap the bar back to a value
+      // the animation is still travelling toward, or re-fire the milestone.
       try {
+        if (seedsAnimating()) throw new Error("seeds animating — skip repaint");
         localStorage.setItem('seedsNavbar', JSON.stringify({
           seeds_total: data.seeds,
           level:       data.level,
@@ -554,6 +742,12 @@ window.solanaNetworkInfo = solanaNetworkInfo;
 window.confirmSolanaNetworkIntent = confirmSolanaNetworkIntent;
 window.refreshBalance = refreshBalance;
 window.refreshBalanceDelayed = refreshBalanceDelayed;
+window.onchainSettled = onchainSettled;
+window.pendingOnchainSettleMs = pendingOnchainSettleMs;
+window.settleOnLoadIfPending = settleOnLoadIfPending;
+window.markSeedsAnimating = markSeedsAnimating;
+window.seedsAnimating = seedsAnimating;
+window.settlePending = settlePending;
 window.refreshSession = refreshSession;
 window.refreshLevelUpToken = refreshLevelUpToken;
 // fireConfettiFromModal was removed (it had no call sites). Its exact radial

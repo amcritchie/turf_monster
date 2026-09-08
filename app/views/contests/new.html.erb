@@ -505,6 +505,11 @@
             if (!finalData.success) throw new Error(finalData.error || 'Failed to save contest');
 
             modal.show('Done', 'Redirecting to your new contest…');
+            // The prize pool just left this wallet, and we are ABOUT TO NAVIGATE — so
+            // hand the settle window to the destination page rather than scheduling it
+            // here. A setTimeout does not survive the unload two lines down, which
+            // would make this a silent no-op on the exact flow it exists for.
+            if (window.onchainSettled) window.onchainSettled({ navigating: true });
             window.location.href = finalData.redirect;
           } catch (err) {
             console.error('[contest-create] FAILED:', err);
