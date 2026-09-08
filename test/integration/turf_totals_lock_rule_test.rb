@@ -19,6 +19,13 @@ require "test_helper"
 # reintroduces per-game locking in the model, the measurement flips and this
 # test demands the page be changed back. If someone rewrites the page toward
 # the old promise, the copy assertions fail against the unchanged code.
+#
+# SCOPE, since the filename undersells it: this file measures Contest and Entry,
+# which never branch on sport, then holds EVERY published lock surface to that
+# one measurement — the World Cup rulebook, the NFL rulebook, the Terms editing
+# clause, and the funnel helper's citation trail. Add a lock surface, add it
+# here; do not stand up a second fixture, or the surfaces gain a way to disagree
+# with each other about the same code.
 class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
   # A slate with two kickoff waves is the exact shape the old copy described:
   # an early game that sets the contest lock, and a later game whose own
@@ -340,6 +347,85 @@ class TurfTotalsLockRuleTest < ActionDispatch::IntegrationTest
                    "no pick is frozen on its own kickoff any more, so the carve-out can never " \
                    "be the operative reason an edit is refused — remove it from Terms")
     end
+  end
+
+  # ── the PRE-LOCK SWAP WINDOW, as the two RULEBOOKS publish it ─────────────
+  # Terms is the surface a player can hold the operator to; these two are the
+  # ones a player actually reads, and both made the SAME promise in plainer
+  # words: "you can swap any of your six teams as often as you like" until the
+  # contest locks. Unqualified, that covers a team whose own match is already
+  # underway — precisely the swap pre_lock_pick_freeze proves Entry refuses.
+  #
+  # They CONSUME the measurement above rather than restating it. Contest#locks_at
+  # and SlateMatchup#locked? never branch on sport, so the one fifa-slate
+  # measurement certifies the NFL rulebook too; a second fixture would only give
+  # the two pages a way to disagree about the same code.
+  #
+  # BOTH BRANCHES ARE LIVE, and that is the point of measuring instead of
+  # grepping. If Contest ever derives or validates starts_at against the slate's
+  # first kickoff, the asymmetry vanishes, `frozen` goes false, and the qualifier
+  # becomes a caveat that can never operate — a restriction the page claims and
+  # the code no longer applies. The else branch then demands it come back OUT.
+  # Without it, a fixed model would leave these pages quietly stale instead.
+  SWAP_WINDOW_QUALIFIER = /swap[^.]*\bhas not (?:yet )?kicked off/i
+
+  # The promise the qualifier replaced, in both the shapes the pages carried it.
+  UNQUALIFIED_SWAP_PROMISES = {
+    /as often as you like/i => "promises an unlimited pre-lock swap window",
+    /swap any of your six teams/i => "promises every team is swappable pre-lock"
+  }.freeze
+
+  def assert_rulebook_swap_window_matches_measurement(page_path)
+    frozen, editable = pre_lock_pick_freeze
+
+    # CONTROL. Without it the refusal below could come from a dead entry, a
+    # closed contest, or a full slate, and this test would certify any copy at
+    # all. A pick whose match has NOT started must be swappable at the very same
+    # instant, or the refusal is not the per-game gate talking.
+    assert editable,
+           "control: with the contest open and its lock still ahead, swapping a pick whose " \
+           "match has NOT kicked off must be accepted"
+
+    get page_path
+    assert_response :success
+
+    # scoped_text asserts the node before reading it. A renamed or deleted
+    # section then fails HERE, loudly, instead of handing the assertions below
+    # an empty string they would all pass against having read nothing.
+    lock_text = scoped_text("lock-rules")
+    assert_match(/swap/i, lock_text,
+                 "the lock section must still tell a player when picks can be swapped")
+
+    if frozen
+      assert_match(SWAP_WINDOW_QUALIFIER, lock_text,
+                   "Entry REFUSED a swap of a pick whose own match had kicked off while the " \
+                   "contest was open and its lock still ahead, and ACCEPTED a swap of one whose " \
+                   "match had not — so the rulebook's pre-lock swap sentence must scope itself " \
+                   "to teams that have not kicked off")
+
+      UNQUALIFIED_SWAP_PROMISES.each do |pattern, why|
+        refute_match(pattern, lock_text,
+                     "rulebook copy matching #{pattern.inspect} #{why}, but Entry#update_picks! " \
+                     "raises for a pick whose own match has already kicked off, with the " \
+                     "contest still open and Contest#locks_at still in the future")
+      end
+    else
+      # starts_at is now derived from, or validated against, the slate's first
+      # kickoff: no pick is ever frozen on the strength of its own kickoff
+      # alone, so every team really is swappable until the contest locks.
+      refute_match(SWAP_WINDOW_QUALIFIER, lock_text,
+                   "no pick is frozen on its own kickoff any more, so scoping the swap window " \
+                   "to teams whose match has not started describes a restriction the code no " \
+                   "longer applies — take the qualifier back out of the rulebook")
+    end
+  end
+
+  test "the World Cup rulebook's pre-lock swap window matches what Entry enforces" do
+    assert_rulebook_swap_window_matches_measurement(turf_totals_v1_path)
+  end
+
+  test "the NFL rulebook's pre-lock swap window matches what Entry enforces" do
+    assert_rulebook_swap_window_matches_measurement(turf_monster_v1_path)
   end
 
   # Locks the citation trail the funnel helper hands the next reader: it cites

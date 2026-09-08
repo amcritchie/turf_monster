@@ -282,13 +282,28 @@
       passes. The corrected rule stays at section 06, where a player who read
       the old promise will look for it. Pinned by
       test/integration/turf_totals_lock_rule_test.rb, which measures the guard
-      against a staggered slate rather than grepping for these sentences. %>
+      against a staggered slate rather than grepping for these sentences.
+
+      CORRECTED AGAIN 2026-09-08, and the two edits are easy to confuse. The
+      first fixed the rule AFTER the lock. This one fixes the sentence before
+      it, which promised a swap "as often as you like" right up to the lock.
+      That is false whenever a contest carries an explicit starts_at trailing a
+      kickoff on its own slate: the contest is still open and unlocked, yet
+      SlateMatchup#locked? has already frozen that team's pick. Nothing
+      validates starts_at against the first kickoff, and every production
+      contest sets it by hand.
+
+      DO NOT RESTORE the em-dash aside that read "the first kickoff on its
+      slate". It was dropped in the same edit, for the same reason: in that
+      configuration the stated start time is NOT the first kickoff, so the
+      aside states an equivalence the code does not hold to. Both halves are
+      operator-approved copy on a real-money page. %>
   <!-- ========== 06 — WHEN PICKS LOCK ========== -->
   <section class="mb-12 md:mb-16" data-test="lock-rules">
     <p class="text-primary font-mono text-sm mb-2">06</p>
     <h2 class="text-2xl md:text-3xl font-bold text-heading mb-4">When Picks Lock</h2>
     <p class="text-secondary text-base md:text-lg leading-relaxed mb-8">
-      A contest locks all at once, at its stated start time — the first kickoff on its slate. Until then you can swap any of your six teams as often as you like. After it, every pick is final, including picks whose own match kicks off later in the contest; there are no substitutions.
+      A contest locks all at once, at its stated start time. Until then you can swap any team whose match has not kicked off. After it, every pick is final, including picks whose own match kicks off later in the contest; there are no substitutions.
     </p>
 
     <div class="bg-surface-alt rounded-xl border border-violet/30 p-6" data-test="lock-example">
