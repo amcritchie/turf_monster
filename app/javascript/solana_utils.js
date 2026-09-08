@@ -257,8 +257,38 @@ export var ONCHAIN_SETTLE_MS = 10000;
 // Put the balance pill back into the server's cache-cold "loading" shape:
 // hidden, with no dollar figure. Mirrors _navbar.html.erb's `hide_balance`
 // branch, so the client's loading state and the server's are the same state.
+// ONE WRITER OWNS THE PILL WHILE A SETTLE IS PENDING (operator call, 2026-09-07).
+//
+// refreshLevelUpToken() polls refreshSession() at +1000/2500/5000/9000ms after a
+// level-up entry, and refreshSession() paints the balance. Inside a settle window
+// those reads are the SAME too-early reads this whole seam exists to refuse —
+// measured at ~7.6s of the pre-spend figure, with .hidden cleared so it reads as
+// authoritative. The poller keeps doing its real job (chasing the entry token);
+// it just does not touch the balance.
+var _settlePending = false;
+export function settlePending() { return _settlePending; }
+
+// What the pill said before we blanked it, so a FAILED settle can put it back
+// rather than leaving the navbar with no balance at all (blocker 3).
+var _pillBeforeLoading = null;
+
+function paintBalanceRestore() {
+  if (_pillBeforeLoading == null) return;
+  try {
+    document.querySelectorAll("[data-balance-display]").forEach(function (el) {
+      el.textContent = _pillBeforeLoading.text;
+      if (_pillBeforeLoading.hidden) el.classList.add("hidden");
+      else el.classList.remove("hidden");
+    });
+  } catch (_) {}
+}
+
 function paintBalanceLoading() {
   try {
+    var first = document.querySelector("[data-balance-display]");
+    _pillBeforeLoading = first
+      ? { text: first.textContent, hidden: first.classList.contains("hidden") }
+      : null;
     document.querySelectorAll("[data-balance-display]").forEach(function (el) {
       el.textContent = "";
       el.classList.add("hidden");
@@ -266,14 +296,43 @@ function paintBalanceLoading() {
   } catch (_) {}
 }
 
+// RETRY ONCE, THEN RESTORE (operator call, 2026-09-07). A settle read can fail
+// outright, or be REFUSED: lockedFetch hands a contender Promise.resolve(null)
+// rather than sharing the in-flight promise, and 'session' is contended by the
+// level-up poller and both refresh buttons. So the settle takes its OWN key.
+// Without this the pill — already blanked — stays blank for good, which is
+// worse than the stale-but-visible number it replaced.
+var SETTLE_LOCK_KEY = "onchain-settle";
+var SETTLE_RETRY_MS = 3000;
+
+function settleRead() {
+  return refreshSession({ lockKey: SETTLE_LOCK_KEY });
+}
+
 function scheduleOnchainSettle(delay) {
   paintBalanceLoading();
+  _settlePending = true;
   if (window.showNavSpinner) window.showNavSpinner();
+
+  function done(resolve) {
+    _settlePending = false;
+    if (window.hideNavSpinner) window.hideNavSpinner();
+    resolve();
+  }
+
   return new Promise(function (resolve) {
     setTimeout(function () {
-      refreshSession().finally(function () {
-        if (window.hideNavSpinner) window.hideNavSpinner();
-        resolve();
+      // The settle's own read must be allowed to paint, so drop the flag first.
+      _settlePending = false;
+      settleRead().then(function (data) {
+        if (data) return done(resolve);
+        // Refused or failed. One more try, then put back what was there.
+        setTimeout(function () {
+          settleRead().then(function (retryData) {
+            if (!retryData) paintBalanceRestore();
+            done(resolve);
+          });
+        }, SETTLE_RETRY_MS);
       });
     }, delay);
   });
@@ -366,8 +425,9 @@ export function refreshBalanceDelayed(ms) {
 // token consume, withdrawal, payout) instead of stitching together
 // refreshBalance + updateNavTokens + seedsNavbar/localStorage by hand.
 // Returns a Promise so callers can chain a spinner around it.
-export function refreshSession() {
-  return lockedFetch('session', '/account/session_refresh', {
+export function refreshSession(opts) {
+  var lockKey = (opts && opts.lockKey) || 'session';
+  return lockedFetch(lockKey, '/account/session_refresh', {
     headers: { 'Accept': 'application/json' }, cache: 'no-store'
   })
     .then(function(r) { return r && r.json(); })
@@ -397,6 +457,11 @@ export function refreshSession() {
       // when both are null preserves the prior pill value instead of
       // showing a false $0. A single-sided null counts as 0 in the sum.
       try {
+        // ONE WRITER: a settle owns the pill until it lands. Everything else
+        // that reaches here inside the window — the level-up poller above all —
+        // is reading too early by construction, and painting it would clear the
+        // loading state and present the pre-spend number as the answer.
+        if (settlePending()) throw new Error("settle pending — balance paint deferred");
         if (data.usdc != null || data.usdt != null) {
           var combined  = (data.usdc != null ? parseFloat(data.usdc) : 0) +
                           (data.usdt != null ? parseFloat(data.usdt) : 0);
@@ -677,6 +742,7 @@ window.pendingOnchainSettleMs = pendingOnchainSettleMs;
 window.settleOnLoadIfPending = settleOnLoadIfPending;
 window.markSeedsAnimating = markSeedsAnimating;
 window.seedsAnimating = seedsAnimating;
+window.settlePending = settlePending;
 window.refreshSession = refreshSession;
 window.refreshLevelUpToken = refreshLevelUpToken;
 // fireConfettiFromModal was removed (it had no call sites). Its exact radial

@@ -1753,12 +1753,17 @@ window.selectionBoard = function() {
           // StateFanout handler writes below — already populated from the
           // server response.
           window.StateFanout.apply('seeds', confirmData, { source: 'phantom-direct', seedsPerLevel: seedsPerLevel });
-          // 999s auto-close while reviewing seeds animation. Restore to a normal countdown when shipping (e.g. 8s).
+          // THE THIRD ARG IS IGNORED (application.html.erb): the engine's success
+          // card drives its own countdown, defaulting to FIVE seconds
+          // (studio/modals/blocks/_success_card:70, armed by _entry_confirmed:92)
+          // and ending in window.location.href. This comment used to claim a
+          // 999s auto-close, and that is exactly how the redirect got missed —
+          // a 10s non-navigating timer here is destroyed at t=5s.
           var modal = Alpine.store('solanaModal');
           modal.success(txSig, 'Entry Confirmed', 999);
           modal.title = 'Good Luck';
           modal.lobbyUrl = confirmData.redirect || ('/contests/' + this.contestId);
-          onchainSettled();
+          onchainSettled({ navigating: true });
 
         } else {
           // Suppress the solanaModal "Submitting Entry" overlay when
@@ -1832,14 +1837,14 @@ window.selectionBoard = function() {
                   seedsTotal:  data.seeds_total  || 0,
                   seedsLevel:  data.seeds_level  || 0
                 });
-                onchainSettled();
+                onchainSettled({ navigating: true });
               } else {
                 var sm = Alpine.store('solanaModal');
                 sm.seedsEarned = data.seeds_earned || 0;
                 sm.seedsTotal  = data.seeds_total  || 0;
                 sm.lobbyUrl    = data.redirect || '/';
                 sm.success(data.tx_signature, 'Entry Confirmed');
-                onchainSettled();
+                onchainSettled({ navigating: true });
               }
             } else {
               if (Alpine.store('solanaModal').visible) Alpine.store('solanaModal').close();
@@ -1858,7 +1863,7 @@ window.selectionBoard = function() {
                   seedsTotal:  data.seeds_total  || 0,
                   seedsLevel:  data.seeds_level  || 0
                 });
-                onchainSettled();
+                onchainSettled({ navigating: true });
               } else {
                 window.location.href = data.redirect || '/';
               }

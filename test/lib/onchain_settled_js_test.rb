@@ -34,9 +34,10 @@ class OnchainSettledJsTest < ActiveSupport::TestCase
       const RealDate = Date;
       globalThis.Date = class extends RealDate { static now() { return now; } };
 
-      const pill = { textContent: '$1239', classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, has(c) { return this._s.has(c); } } };
+      const pill = { textContent: '$1239', classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, has(c) { return this._s.has(c); }, contains(c) { return this._s.has(c); } } };
       globalThis.document = {
         querySelectorAll(sel) { return sel === '[data-balance-display]' ? [pill] : []; },
+        querySelector(sel) { return sel === '[data-balance-display]' ? pill : null; },
         getElementById() { return null; },
         addEventListener() {}, dispatchEvent() {}
       };
@@ -204,6 +205,77 @@ class OnchainSettledJsTest < ActiveSupport::TestCase
       "the guard must stay held for the WHOLE window, not released on the next tick"
     assert_equal true, r["releasedAfter"],
       "and it must be released once settled, or the navbar never hydrates again"
+  end
+
+  # PROPERTY 6 — ONE WRITER OWNS THE PILL. The level-up token poller calls
+  # refreshSession() at +1000/2500/5000/9000ms after a level-up entry. Inside a
+  # settle window those are the same too-early reads the seam refuses; painting
+  # one clears loading and presents the PRE-SPEND number as the answer.
+  # Measured by review at ~7.6s of the wrong figure.
+  test "a competing refresh may not paint the balance while a settle is pending" do
+    r = run_module(<<~JS)
+      // The chain still reports the PRE-SPEND number — this is the whole point.
+      // A fixture that answers 1164 to everyone cannot express this bug, which
+      // is exactly why the e2e missed it.
+      let chain = '1239.0';
+      globalThis.fetch = (url) => {
+        fetched.push({ url, at: now });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          usdc: chain, usdt: '0', tokens: 0, seeds: 0, level: 1, toward_next: 0, progress: 0
+        }) });
+      };
+
+      mod.onchainSettled({ delayMs: 10000 });
+      const afterBlank = pill.textContent;
+
+      // The poller's reads land INSIDE the window.
+      advance(1000);  await mod.refreshSession(); await settle(10);
+      advance(1500);  await mod.refreshSession(); await settle(10);
+      const duringWindow = { text: pill.textContent, hidden: pill.classList.has('hidden') };
+
+      // The chain catches up, then the settle fires and IS allowed to paint.
+      chain = '1164.0';
+      advance(10000); await settle(40);
+      const afterSettle = { text: pill.textContent, hidden: pill.classList.has('hidden') };
+      console.log(JSON.stringify({ afterBlank, duringWindow, afterSettle }));
+    JS
+
+    assert_equal "", r["afterBlank"]
+    assert_equal "", r.dig("duringWindow", "text"),
+      "a competing read inside the window must NOT paint — it would show $1239, the pre-spend number"
+    assert r.dig("duringWindow", "hidden"), "and must not clear the loading state either"
+    assert_equal "$1164", r.dig("afterSettle", "text"),
+      "the settle's own read still paints — the guard is about WHO writes, not a freeze"
+    assert_not r.dig("afterSettle", "hidden")
+  end
+
+  # PROPERTY 7 — a failed or REFUSED settle must not leave the navbar blank.
+  # paintBalanceLoading clears the pill before the wait, and refreshSession
+  # swallows failure, so without this the pill stays empty for good — worse than
+  # the stale-but-visible number it replaced.
+  test "a failed settle retries, then restores what the pill had" do
+    r = run_module(<<~JS)
+      pill.textContent = '$1239';
+      let failures = 99;                       // fail everything
+      globalThis.fetch = () => { fetched.push({ at: now }); return Promise.reject(new Error('offline')); };
+
+      mod.onchainSettled({ delayMs: 10000 });
+      advance(10001); await settle(20);
+      const afterFirstFail = { text: pill.textContent, reads: fetched.length };
+
+      advance(3001); await settle(40);         // the retry
+      const afterRetry = { text: pill.textContent, hidden: pill.classList.has('hidden'), reads: fetched.length };
+      console.log(JSON.stringify({ afterFirstFail, afterRetry }));
+    JS
+
+    assert_equal 1, r.dig("afterFirstFail", "reads"), "one read at the window"
+    assert_equal "", r.dig("afterFirstFail", "text"),
+      "still blank between the failure and the retry — we have not given up yet"
+    assert_equal 2, r.dig("afterRetry", "reads"), "exactly one retry, not a loop"
+    assert_equal "$1239", r.dig("afterRetry", "text"),
+      "after the retry also fails, put back what was on the pill — a blank navbar reads as broken " \
+      "and invites a refresh that can itself refuse the settle"
+    assert_not r.dig("afterRetry", "hidden"), "and make it visible again"
   end
 
   # PROPERTY 3 — the seeds guard. Converging every path onto a delayed FULL

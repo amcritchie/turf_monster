@@ -228,7 +228,7 @@ window.survivorBoard = function() {
 
           modal.success(txSig, "You're in! Good luck.");
           modal.onClose = function() { window.location.href = confirmData.redirect || window.location.pathname; };
-          if (typeof onchainSettled === 'function') onchainSettled();
+          if (typeof onchainSettled === 'function') onchainSettled({ navigating: true });
         } else {
           modal.show('Submitting Entry', 'Processing your entry…');
           var enterResp = await window.authedFetch('/contests/' + this.contestId + '/enter', {
@@ -249,7 +249,7 @@ window.survivorBoard = function() {
             if (data.tx_signature) {
               modal.success(data.tx_signature, "You're in! Good luck.");
               modal.onClose = function() { window.location.href = data.redirect || window.location.pathname; };
-              if (typeof onchainSettled === 'function') onchainSettled();
+              if (typeof onchainSettled === 'function') onchainSettled({ navigating: true });
             } else {
               modal.close();
               window.location.href = data.redirect || window.location.pathname;

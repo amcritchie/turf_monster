@@ -76,6 +76,36 @@ test.describe("on-chain settle window", () => {
     expect(reads.count).toBe(readsBeforeReload + 1);
   });
 
+  // ONE WRITER, IN A BROWSER. The level-up token poller calls the same
+  // refreshSession() inside the settle window; review measured ~7.6s of the
+  // PRE-SPEND figure presented as the answer. The stub here deliberately serves
+  // the PRE-SPEND number so a too-early paint is visible — a fixture that
+  // answered 1164 to everyone could not express this bug, which is how the
+  // first version of this file missed it.
+  test("a competing refresh cannot paint the balance mid-window", async ({ page }) => {
+    await page.route("**/account/session_refresh", (route) =>
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ usdc: "1239.0", usdt: "0.0", tokens: "0", seeds: 0, level: 1, toward_next: 0, progress: 0 })
+      })
+    );
+
+    await page.evaluate(
+      ([key, until]) => window.sessionStorage.setItem(key, String(until)),
+      [SETTLE_KEY, Date.now() + 6000]
+    );
+    await page.reload();
+    await page.waitForTimeout(1000);
+
+    // Drive the competing read the poller would make, through the real module.
+    await page.evaluate(() => window.refreshSession && window.refreshSession());
+    await page.waitForTimeout(600);
+
+    const pill = page.locator(PILL).first();
+    await expect(pill).toHaveClass(/hidden/);
+    expect((await pill.textContent()).trim()).toBe("");
+  });
+
   test("a normal load with no pending settle hydrates immediately", async ({ page }) => {
     const reads = { count: 0 };
     await stubSessionRefresh(page, reads);
