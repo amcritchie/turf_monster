@@ -138,6 +138,26 @@
             var _navHydrating = false;
             function hydrateNavbar() {
               if (_navHydrating) return;             // de-dupe initial + turbo:load
+              // A SPEND JUST HAPPENED ON THE PAGE THAT SENT US HERE.
+              //
+              // This load-time hydrate is the read that painted the stale
+              // number: contest creation navigates, so the marker its caller
+              // left is consumed HERE (a setTimeout could not have survived the
+              // unload). Reading now would very likely return the pre-spend
+              // balance, so do not read and do not paint — hold the loading
+              // state and let onchainSettled paint once, when it has settled.
+              // ONE line of glue on purpose: the decision itself is
+              // settleOnLoadIfPending() in solana_utils.js, where a unit test
+              // can execute it. Inline layout script is unreachable by tests.
+              // Claim the re-entry guard for the WHOLE settle window. This
+              // handler fires on DOMContentLoaded AND turbo:load; without the
+              // claim the second call skips the (now consumed) marker and does
+              // the early read, undoing the defer a millisecond later.
+              if (window.settleOnLoadIfPending &&
+                  window.settleOnLoadIfPending(function () { _navHydrating = false; })) {
+                _navHydrating = true;
+                return;
+              }
               _navHydrating = true;
               if (window.showNavSpinner) window.showNavSpinner();
               refreshSession().finally(function() {
@@ -808,6 +828,11 @@
           // the newsletter-success celebration), else open fresh.
           window.addEventListener('navbar-seeds-update', function(e) {
             if (!e || !e.detail || !e.detail.levelUp) return;
+            // Claim the seeds bar for the length of the level-up animation.
+            // A delayed onchainSettled() reload landing mid-flight would snap
+            // the bar back to a value the animation is still travelling toward,
+            // or re-fire this milestone. seeds_bar.js clears levelingUp at 3000ms.
+            if (window.markSeedsAnimating) window.markSeedsAnimating(3000);
             var props = { level: e.detail.newLevel };
             // The server enqueued the mint from the same fresh seed snapshot.
             // Rehydrate with bounded backoff so the badge surfaces the token
