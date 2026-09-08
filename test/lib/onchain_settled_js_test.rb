@@ -278,6 +278,24 @@ class OnchainSettledJsTest < ActiveSupport::TestCase
     assert_not r.dig("afterRetry", "hidden"), "and make it visible again"
   end
 
+  # PROPERTY 7b — the RPC flake that answers 200. session_refresh emits
+  # usdc AND usdt null when the wallet read flaked, and refreshSession paints
+  # nothing on that shape — a failure the reject test above cannot reach.
+  test "a settle that lands with no balances restores the pill too" do
+    r = run_module(<<~JS)
+      pill.textContent = '$1239';
+      globalThis.fetch = () => { fetched.push({ at: now }); return Promise.resolve({ ok: true, json: () => Promise.resolve({ usdc: null, usdt: null, tokens: 0, seeds: 0, level: 1, toward_next: 0, progress: 0 }) }); };
+      mod.onchainSettled({ delayMs: 10000 });
+      advance(10001); await settle(20);
+      advance(3001);  await settle(40);
+      console.log(JSON.stringify({ text: pill.textContent, hidden: pill.classList.has('hidden'), reads: fetched.length }));
+    JS
+
+    assert_equal 2, r["reads"], "a null-balance payload is a failed settle — it must retry"
+    assert_equal "$1239", r["text"], "then put the number back, not leave the navbar with no balance at all"
+    assert_not r["hidden"]
+  end
+
   # PROPERTY 3 — the seeds guard. Converging every path onto a delayed FULL
   # reload means that reload can land mid level-up animation.
   test "the delayed reload leaves the seeds bar alone while it is animating" do

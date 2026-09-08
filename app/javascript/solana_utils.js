@@ -305,8 +305,13 @@ function paintBalanceLoading() {
 var SETTLE_LOCK_KEY = "onchain-settle";
 var SETTLE_RETRY_MS = 3000;
 
+// A 200 whose wallet read FLAKED carries usdc AND usdt null (AccountsController
+// #session_refresh) and refreshSession paints nothing on that shape, so unless
+// it counts as a failure the blanked pill stays blank, unretried, for good.
 function settleRead() {
-  return refreshSession({ lockKey: SETTLE_LOCK_KEY });
+  return refreshSession({ lockKey: SETTLE_LOCK_KEY }).then(function (data) {
+    return (data && (data.usdc != null || data.usdt != null)) ? data : null;
+  });
 }
 
 function scheduleOnchainSettle(delay) {
