@@ -90,6 +90,16 @@ test.beforeEach(async ({ request }) => {
   await seedPendingSignatures(request, 2);
 });
 
+// PUT THE TREASURY BACK EMPTY. `reseed` does NOT delete PendingTransactions —
+// it clears caches, non-core users, entries and geo — and the lane runs one
+// server with one worker, so rows seeded here survive every later spec in the
+// shard. e2e/audit.spec.js:126 asserts the treasury's EMPTY state, and this
+// file sorts before it, so without this cleanup that spec fails on CI (three
+// attempts, no flake) while every spec in this file passes. Measured, not
+// predicted: reproduced locally with
+// `npx playwright test e2e/admin_desktop_only.spec.js e2e/audit.spec.js`.
+test.afterEach(async ({ request }) => await seedPendingSignatures(request, 0));
+
 test.describe("admin treasury on a phone", () => {
   test.use({ userAgent: IPHONE });
 
