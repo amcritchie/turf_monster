@@ -55,7 +55,16 @@ class WalletStubParityTest < ActionDispatch::IntegrationTest
   def ask(source_js, ua)
     script = <<~JS
       global.window = global;
-      global.navigator = { userAgent: #{ua.to_json}, maxTouchPoints: 0 };
+      // See wallet_require_provider_js_test.rb: Node 21+ makes `navigator` a
+      // read-only built-in, so assignment silently no-ops and the UA branch goes
+      // untested. Define it, then prove it took.
+      Object.defineProperty(globalThis, "navigator", {
+        value: { userAgent: #{ua.to_json}, maxTouchPoints: 0 },
+        writable: true, configurable: true
+      });
+      if (navigator.userAgent !== #{ua.to_json}) {
+        throw new Error("navigator shim did not apply — got " + navigator.userAgent);
+      }
       #{source_js}
       var wp = window.walletProvider;
       var out;

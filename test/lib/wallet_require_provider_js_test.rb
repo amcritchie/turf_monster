@@ -23,7 +23,22 @@ class WalletRequireProviderJsTest < ActiveSupport::TestCase
   def run_provider(ua:, injected: false, touch_points: 0)
     script = <<~JS
       global.window = global;
-      global.navigator = { userAgent: #{ua.to_json}, maxTouchPoints: #{touch_points} };
+      // DEFINED, NOT ASSIGNED, and this is not a style choice. Node 21+ ships
+      // `navigator` as a BUILT-IN read-only global, so `global.navigator = {...}`
+      // silently does nothing there and wallet_provider.js reads Node's own user
+      // agent instead of ours. Locally (Node 20, no built-in) the assignment
+      // worked and every test passed; CI runs a newer Node and four of them went
+      // red on isMobile. defineProperty overrides the built-in in both.
+      Object.defineProperty(globalThis, "navigator", {
+        value: { userAgent: #{ua.to_json}, maxTouchPoints: #{touch_points} },
+        writable: true, configurable: true
+      });
+      // FAIL LOUDLY IF THE SHIM DID NOT TAKE. Without this the next Node change
+      // that breaks it reports as a wrong-copy failure somewhere downstream,
+      // which is exactly how the first version of this wasted a CI round trip.
+      if (navigator.userAgent !== #{ua.to_json}) {
+        throw new Error("navigator shim did not apply — got " + navigator.userAgent);
+      }
       #{injected ? "global.phantom = { solana: { isPhantom: true, connect() {} } };" : ""}
       #{File.read(SOURCE)}
       var out;
