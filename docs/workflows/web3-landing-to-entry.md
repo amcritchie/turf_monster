@@ -278,7 +278,7 @@ Phantom must be installed in the browser or available via mobile deep link.
 
 - `landing_pages` (read in step 1)
 - `cookies[:reference]` (write in step 1 — funnel-attribution stamp)
-- `contests` (read in steps 2, 5–9; the row is locked via `@contest.with_lock`
+- `contests` (read in steps 2, 3 and 9; the row is locked via `@contest.with_lock`
   in `ContestsController#enter`
   (`app/controllers/contests_controller.rb:821`), not in `#prepare_entry` or
   `#confirm_onchain_entry`)
